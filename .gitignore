@@ -20,6 +20,8 @@ backend/target/
 
 frontend/node_modules/
 frontend/dist/
+frontend/.env
+
 frontend/dist-ssr/
 
 npm-debug.log*
