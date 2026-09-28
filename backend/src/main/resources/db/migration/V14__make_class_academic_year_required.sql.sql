@@ -1,0 +1,2 @@
+ALTER TABLE classes
+ALTER COLUMN academic_year SET NOT NULL;

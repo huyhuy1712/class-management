@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Run Backend",
+            "request": "launch",
+            "mainClass": "com.classmanagement.backend.BackendApplication",
+            "projectName": "backend",
+            "cwd": "${workspaceFolder}/backend",
+            "envFile": "${workspaceFolder}/backend/.env"
+        }
+    ]
+}
