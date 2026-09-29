@@ -45,6 +45,20 @@ const classroomService = {
   return response.data
 },
 
+getStudents: async (classroomId) => {
+  const response = await api.get(
+    `/classes/${classroomId}/students`,
+  )
+
+  const students = response.data
+
+  if (!Array.isArray(students)) {
+    throw new Error('Invalid students response format')
+  }
+
+  return students
+},
+
 }
 
 export default classroomService

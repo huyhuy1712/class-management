@@ -23,7 +23,9 @@ public interface ClassroomService {
 
     ClassroomStudentResponse addStudent(
         Long classroomId,
-        AddStudentToClassroomRequest request
-);
+        AddStudentToClassroomRequest request);
+
+    List<ClassroomStudentResponse> getStudentsByClassroomId(
+        Long classroomId);
 
 }

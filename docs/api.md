@@ -350,6 +350,53 @@ Trong đó:
 - Học sinh không hợp lệ: Người dùng được chọn không có role `STUDENT` hoặc tài khoản không ở status `ACTIVE`.
 - `403 Forbidden`: Học sinh đã có trong lớp học này.
 
+### GET - Lấy danh sách học sinh theo lớp
+
+**Endpoint:** `GET /api/classes/{classroomId}/students`
+
+Trong đó, `{classroomId}` là ID của lớp học cần xem danh sách học sinh.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X GET http://localhost:8080/api/classes/1/students \
+	-H "Authorization: Bearer <accessToken>"
+```
+
+**Response thành công `200 OK`:**
+
+```json
+[
+	{
+		"id": 5,
+		"studentCode": "SV2026005",
+		"username": "sinhvien01",
+		"fullName": "Trần Văn Bình",
+		"email": "sinhvien01@example.com",
+		"phone": "0912345678",
+		"avatar": "avatar",
+		"joinedAt": "2026-09-30T10:30:00"
+	}
+]
+```
+
+Nếu lớp chưa có học sinh, API trả về:
+
+```json
+[]
+```
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Không tìm thấy lớp học với `classroomId` đã cung cấp.
+- `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+
 ### GET - Lấy danh sách lớp học
 
 **Endpoint:** `GET /api/classes`

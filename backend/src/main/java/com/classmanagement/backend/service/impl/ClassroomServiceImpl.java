@@ -314,4 +314,34 @@ public class ClassroomServiceImpl implements ClassroomService {
                 .build();
          }
          
+         @Transactional(readOnly = true)
+         @Override
+         public List<ClassroomStudentResponse> getStudentsByClassroomId(
+                         Long classroomId) {
+                 if (!classroomRepository.existsById(classroomId)) {
+                         throw new IllegalArgumentException(
+                                         "Không tìm thấy lớp học");
+                 }
+
+                 return classStudentRepository
+                        .findAllByClassroomId(classroomId)
+                        .stream()
+                        .map(classStudent -> {
+
+                                User student = classStudent.getStudent();
+
+                return ClassroomStudentResponse.builder()
+                        .id(student.getId())
+                        .studentCode(student.getStudentCode())
+                        .username(student.getUsername())
+                        .fullName(student.getFullName())
+                        .email(student.getEmail())
+                        .phone(student.getPhone())
+                        .avatar(student.getAvatar())
+                        .joinedAt(classStudent.getJoinedAt())
+                        .build();
+        })
+                        .toList();
+         }
+         
 }

@@ -68,7 +68,7 @@ public class ClassroomController {
         }
 
         @PostMapping("/{classroomId}/students")
-public ResponseEntity<ClassroomStudentResponse> addStudent(
+        public ResponseEntity<ClassroomStudentResponse> addStudent(
         @PathVariable Long classroomId,
         @Valid @RequestBody AddStudentToClassroomRequest request
 ) {
@@ -82,6 +82,14 @@ public ResponseEntity<ClassroomStudentResponse> addStudent(
     return ResponseEntity
             .status(HttpStatus.CREATED)
             .body(response);
+}
+
+@GetMapping("/{classroomId}/students")
+        public ResponseEntity<List<ClassroomStudentResponse>> getStudentsByClassroomId(
+                @PathVariable Long classroomId) {
+
+        return ResponseEntity.ok(
+                        classroomService.getStudentsByClassroomId(classroomId));
 }
 
 }

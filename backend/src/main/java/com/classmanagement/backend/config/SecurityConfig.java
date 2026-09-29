@@ -31,128 +31,111 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final UserDetailsService userDetailsService;
-    private final PasswordEncoder passwordEncoder;
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+        private final UserDetailsService userDetailsService;
+        private final PasswordEncoder passwordEncoder;
+        private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
+        // =========================
+        // AUTHENTICATION PROVIDER
+        // =========================
 
-    // =========================
-    // AUTHENTICATION PROVIDER
-    // =========================
+        @Bean
+        public DaoAuthenticationProvider authenticationProvider() {
 
-    @Bean
-    public DaoAuthenticationProvider authenticationProvider() {
+                DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
 
-        DaoAuthenticationProvider provider =
-                new DaoAuthenticationProvider(userDetailsService);
+                provider.setPasswordEncoder(passwordEncoder);
 
-        provider.setPasswordEncoder(passwordEncoder);
+                return provider;
+        }
 
-        return provider;
-    }
+        // =========================
+        // SECURITY FILTER CHAIN
+        // =========================
 
+        @Bean
+        public SecurityFilterChain securityFilterChain(
+                        HttpSecurity http) throws Exception {
 
-    // =========================
-    // SECURITY FILTER CHAIN
-    // =========================
+                http
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(
-            HttpSecurity http
-    ) throws Exception {
+                                // CORS
+                                .cors(Customizer.withDefaults())
 
-        http
+                                // REST API + JWT nên không dùng CSRF
+                                .csrf(csrf -> csrf.disable())
 
-                // CORS
-                .cors(Customizer.withDefaults())
+                                // JWT không dùng HTTP Session
+                                .sessionManagement(session -> session.sessionCreationPolicy(
+                                                SessionCreationPolicy.STATELESS))
 
-                // REST API + JWT nên không dùng CSRF
-                .csrf(csrf -> csrf.disable())
+                                // Authorization rules
+                                .authorizeHttpRequests(auth -> auth
 
-                // JWT không dùng HTTP Session
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(
-                                SessionCreationPolicy.STATELESS
-                        )
-                )
+                                                // Swagger public
+                                                .requestMatchers(
+                                                                "/swagger-ui/**",
+                                                                "/swagger-ui.html",
+                                                                "/v3/api-docs/**")
+                                                .permitAll()
 
-                // Authorization rules
-                .authorizeHttpRequests(auth -> auth
+                                                // Auth public
+                                                .requestMatchers(
+                                                                "/api/auth/signup",
+                                                                "/api/auth/login")
+                                                .permitAll()
 
-                        // Swagger public
-                        .requestMatchers(
-                                "/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/v3/api-docs/**"
-                        ).permitAll()
+                                                // TẤT CẢ API CÒN LẠI PHẢI LOGIN
+                                                .anyRequest().authenticated())
 
-                        // Auth public
-                        .requestMatchers(
-                                "/api/auth/signup",
-                                "/api/auth/login"
-                        ).permitAll()
+                                // JWT Filter chạy trước UsernamePasswordAuthenticationFilter
+                                .addFilterBefore(
+                                                jwtAuthenticationFilter,
+                                                UsernamePasswordAuthenticationFilter.class);
 
-                        // TẤT CẢ API CÒN LẠI PHẢI LOGIN
-                        .anyRequest().authenticated()
-                )
+                return http.build();
+        }
 
-                // JWT Filter chạy trước UsernamePasswordAuthenticationFilter
-                .addFilterBefore(
-                        jwtAuthenticationFilter,
-                        UsernamePasswordAuthenticationFilter.class
-                );
+        // =========================
+        // AUTHENTICATION MANAGER
+        // =========================
 
-        return http.build();
-    }
+        @Bean
+        public AuthenticationManager authenticationManager(
+                        AuthenticationConfiguration configuration) throws Exception {
 
+                return configuration.getAuthenticationManager();
+        }
 
-    // =========================
-    // AUTHENTICATION MANAGER
-    // =========================
+        // =========================
+        // CORS
+        // =========================
 
-    @Bean
-    public AuthenticationManager authenticationManager(
-            AuthenticationConfiguration configuration
-    ) throws Exception {
+        @Bean
+        public CorsConfigurationSource corsConfigurationSource() {
 
-        return configuration.getAuthenticationManager();
-    }
+                CorsConfiguration configuration = new CorsConfiguration();
 
+                configuration.setAllowedOrigins(List.of(
+                                "http://localhost:5173",
+                                "https://class-management-frogh.netlify.app"));
 
-    // =========================
-    // CORS
-    // =========================
+                configuration.setAllowedMethods(List.of(
+                                "GET",
+                                "POST",
+                                "PUT",
+                                "PATCH",
+                                "DELETE",
+                                "OPTIONS"));
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+                configuration.setAllowedHeaders(List.of("*"));
 
-        CorsConfiguration configuration =
-                new CorsConfiguration();
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 
-        configuration.setAllowedOrigins(List.of(
-                "http://localhost:5173",
-                "https://class-management-frogh.netlify.app"
-        ));
+                source.registerCorsConfiguration(
+                                "/**",
+                                configuration);
 
-        configuration.setAllowedMethods(List.of(
-                "GET",
-                "POST",
-                "PUT",
-                "PATCH",
-                "DELETE",
-                "OPTIONS"
-        ));
-
-        configuration.setAllowedHeaders(List.of("*"));
-
-        UrlBasedCorsConfigurationSource source =
-                new UrlBasedCorsConfigurationSource();
-
-        source.registerCorsConfiguration(
-                "/**",
-                configuration
-        );
-
-        return source;
-    }
+                return source;
+        }
 }
