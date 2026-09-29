@@ -13,6 +13,7 @@ import {
 
 import DashboardLayout from '../../layouts/DashboardLayout'
 import FeatureCard from '../../components/dashboard/FeatureCard'
+import useAuthStore from '../../stores/authStore'
 
 const features = [
   {
@@ -77,23 +78,38 @@ const statistics = [
 ]
 
 function TeacherDashboard() {
+    const user = useAuthStore((state) => state.user)
+    
+    const today = new Intl.DateTimeFormat('vi-VN', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).format(new Date())
+
+    const getGreeting = () => {
+    const hour = new Date().getHours()
+    if (hour < 12) return 'Chào buổi sáng'
+    if (hour < 18) return 'Chào buổi chiều'
+    return 'Chào buổi tối'
+    }
+
   return (
     <DashboardLayout>
       {/* Welcome banner */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#14532D] via-[#15803D] to-[#16A34A] px-8 py-8 text-white shadow-lg shadow-green-900/10">
+      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#14532D] via-[#15803D] to-[#16A34A] px-5 py-6 text-white shadow-lg shadow-green-900/10 sm:rounded-3xl sm:px-8 sm:py-8">
         
         {/* decoration */}
         <div className="absolute -right-16 -top-24 h-64 w-64 rounded-full bg-white/5" />
         <div className="absolute right-32 top-12 h-32 w-32 rounded-full bg-lime-300/10" />
 
         <div className="relative z-10">
-          <p className="text-sm font-medium text-green-100">
-            Chủ nhật, 28 tháng 9
-          </p>
+         <p className="text-sm font-medium text-green-100 capitalize">
+              {today}
+        </p>
 
-          <h1 className="mt-2 text-3xl font-bold tracking-tight">
-            Chào buổi chiều, Nguyễn Văn A 👋
-          </h1>
+        <h1 className="mt-2 break-words text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
+          {getGreeting()}, {user?.fullName || user?.username}
+        </h1>
 
           <p className="mt-2 max-w-xl text-sm leading-6 text-green-100/80">
             Chúc bạn một ngày giảng dạy hiệu quả.
@@ -103,17 +119,17 @@ function TeacherDashboard() {
       </section>
 
       {/* Statistics */}
-      <section className="mt-8">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="mt-6 sm:mt-8">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
           {statistics.map((item) => {
             const Icon = item.icon
 
             return (
               <div
                 key={item.title}
-                className="flex items-center gap-4 rounded-2xl border border-green-100 bg-white p-5 shadow-sm"
+                className="flex items-center gap-3 rounded-2xl border border-green-100 bg-white p-4 shadow-sm sm:gap-4 sm:p-5"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-50 text-green-700">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-50 text-green-700 sm:h-12 sm:w-12">
                   <Icon size={22} strokeWidth={1.8} />
                 </div>
 
@@ -133,7 +149,7 @@ function TeacherDashboard() {
       </section>
 
       {/* Main functions */}
-      <section className="mt-10">
+      <section className="mt-8 sm:mt-10">
         <div>
           <h2 className="text-xl font-bold text-[#18301D]">
             Quản lý giảng dạy
@@ -155,10 +171,10 @@ function TeacherDashboard() {
       </section>
 
       {/* Bottom section */}
-      <section className="mt-10 grid grid-cols-1 gap-6 xl:grid-cols-3">
+      <section className="mt-8 grid grid-cols-1 gap-4 sm:mt-10 sm:gap-6 xl:grid-cols-3">
         
         {/* Recent activity */}
-        <div className="xl:col-span-2 rounded-2xl border border-green-100 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-green-100 bg-white p-4 shadow-sm sm:p-6 xl:col-span-2">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="font-bold text-[#18301D]">
@@ -171,7 +187,7 @@ function TeacherDashboard() {
             </div>
 
             <button className="flex items-center gap-1 text-sm font-medium text-green-700 hover:text-green-800">
-              Xem tất cả
+              <span className="hidden sm:inline">Xem tất cả</span>
               <ArrowRight size={16} />
             </button>
           </div>
@@ -201,7 +217,7 @@ function TeacherDashboard() {
         </div>
 
         {/* Upcoming */}
-        <div className="rounded-2xl border border-green-100 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-green-100 bg-white p-4 shadow-sm sm:p-6">
           <h2 className="font-bold text-[#18301D]">
             Sắp tới
           </h2>

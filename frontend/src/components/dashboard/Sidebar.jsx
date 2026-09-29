@@ -60,7 +60,7 @@ function Sidebar({ isOpen, onClose }) {
 
         <div>
           <h1 className="text-lg font-bold leading-tight tracking-tight">
-            Class Management
+            FrogH
           </h1>
           <p className="mt-1 text-xs text-green-200/70">
             Education System

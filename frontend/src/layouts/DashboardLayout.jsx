@@ -16,7 +16,7 @@ function DashboardLayout({ children }) {
       <div className="min-h-screen lg:ml-64">
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
-        <main className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <main className="mx-auto max-w-[1600px] px-3 py-5 sm:px-6 sm:py-8 lg:px-8">
           {children}
         </main>
       </div>

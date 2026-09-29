@@ -148,7 +148,7 @@ function LoginPage() {
           </h2>
 
           <p className="mt-5 leading-7 text-green-100/70">
-            Chúng tôi cam kết không có nạp lần đầu và không có quảng cáo. Tất cả các tính năng đều miễn phí.
+            Hãy nạp lần đầu đi
           </p>
         </div>
 
@@ -165,7 +165,7 @@ function LoginPage() {
                 <img src={logo} alt="Class Management" className="h-12 w-12 object-contain" />
               </div>
               <span className="font-bold text-[#18301D]">
-                Class Management
+                FrogH
               </span>
             </div>
           </div>
