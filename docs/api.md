@@ -304,6 +304,52 @@ Response không có body.
 
 - `400 Bad Request`: Không tìm thấy lớp học với `id` đã cung cấp.
 
+### POST - Thêm học sinh vào lớp
+
+**Endpoint:** `POST /api/classes/{classroomId}/students`
+
+Trong đó, `{classroomId}` là ID của lớp học cần thêm học sinh.
+
+**Headers:**
+
+```http
+Content-Type: application/json
+Authorization: Bearer <accessToken>
+```
+
+**Request body mẫu:**
+
+```json
+{
+	"studentId": 5
+}
+```
+
+Trong đó:
+
+- `studentId`: ID người dùng cần thêm vào lớp, bắt buộc. Người dùng phải có role `STUDENT` và status `ACTIVE`.
+
+**Response thành công `201 Created`:**
+
+```json
+{
+	"id": 5,
+	"studentCode": "SV2026005",
+	"username": "nguyenvana",
+	"fullName": "Nguyễn Văn A",
+	"email": "nguyenvana@example.com",
+	"phone": "0901234567",
+	"avatar": "avatar",
+	"joinedAt": "2026-09-30T10:30:00"
+}
+```
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Thiếu `studentId` hoặc không tìm thấy lớp học/học sinh.
+- Học sinh không hợp lệ: Người dùng được chọn không có role `STUDENT` hoặc tài khoản không ở status `ACTIVE`.
+- `403 Forbidden`: Học sinh đã có trong lớp học này.
+
 ### GET - Lấy danh sách lớp học
 
 **Endpoint:** `GET /api/classes`
@@ -371,3 +417,78 @@ Response example:
     "name": "Vật lý"
   }
 ]
+```
+
+### GET - Lấy danh sách người dùng
+
+**Endpoint:** `GET http://localhost:8080/api/users`
+
+Có thể truyền query parameter `role` để lọc người dùng theo vai trò:
+
+- `GET http://localhost:8080/api/users?role=STUDENT`: Chỉ lấy học sinh.
+- `GET http://localhost:8080/api/users?role=TEACHER`: Chỉ lấy giáo viên.
+- Không truyền `role`: Lấy tất cả user, ngoại trừ tài khoản `ADMIN`.
+- `role` chỉ nhận `STUDENT` hoặc `TEACHER`; không thể dùng `ADMIN`.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X GET http://localhost:8080/api/users \
+	-H "Authorization: Bearer <accessToken>"
+```
+
+Ví dụ lấy danh sách học sinh:
+
+```bash
+curl -X GET "http://localhost:8080/api/users?role=STUDENT" \
+	-H "Authorization: Bearer <accessToken>"
+```
+
+API trả về danh sách người dùng theo `role` nếu có lọc. Khi không truyền `role`, tài khoản có role `ADMIN` sẽ không được trả về. Mật khẩu không được trả về trong response.
+
+**Response thành công `200 OK`:**
+
+```json
+[
+	{
+		"id": 2,
+		"username": "giaovien01",
+		"email": "giaovien01@example.com",
+		"fullName": "Nguyễn Văn An",
+		"phone": "0901234567",
+		"avatar": "avatar",
+		"studentCode": null,
+		"role": "TEACHER",
+		"status": "ACTIVE"
+	},
+	{
+		"id": 5,
+		"username": "sinhvien01",
+		"email": "sinhvien01@example.com",
+		"fullName": "Trần Văn Bình",
+		"phone": "0912345678",
+		"avatar": "avatar",
+		"studentCode": "SV2026005",
+		"role": "STUDENT",
+		"status": "ACTIVE"
+	}
+]
+```
+
+Nếu chưa có người dùng (ngoài tài khoản `ADMIN`), API trả về:
+
+```json
+[]
+```
+
+**Một số trường hợp lỗi:**
+
+- `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+- `403 Forbidden`: Token không có quyền truy cập tài nguyên.
+- `400 Bad Request`: Giá trị `role` không hợp lệ. Chỉ sử dụng `STUDENT` hoặc `TEACHER`; không được sử dụng `ADMIN`.

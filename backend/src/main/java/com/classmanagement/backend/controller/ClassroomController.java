@@ -1,6 +1,8 @@
 package com.classmanagement.backend.controller;
 
+import com.classmanagement.backend.dto.classroom.AddStudentToClassroomRequest;
 import com.classmanagement.backend.dto.classroom.ClassroomResponse;
+import com.classmanagement.backend.dto.classroom.ClassroomStudentResponse;
 import com.classmanagement.backend.dto.classroom.CreateClassroomRequest;
 import com.classmanagement.backend.dto.classroom.UpdateClassroomRequest;
 import com.classmanagement.backend.service.ClassroomService;
@@ -64,5 +66,22 @@ public class ClassroomController {
 
                 return ResponseEntity.noContent().build();
         }
+
+        @PostMapping("/{classroomId}/students")
+public ResponseEntity<ClassroomStudentResponse> addStudent(
+        @PathVariable Long classroomId,
+        @Valid @RequestBody AddStudentToClassroomRequest request
+) {
+
+    ClassroomStudentResponse response =
+            classroomService.addStudent(
+                    classroomId,
+                    request
+            );
+
+    return ResponseEntity
+            .status(HttpStatus.CREATED)
+            .body(response);
+}
 
 }

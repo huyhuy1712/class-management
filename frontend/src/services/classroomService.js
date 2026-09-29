@@ -34,6 +34,17 @@ const classroomService = {
   delete: async (id) => {
     await api.delete(`/classes/${id}`)
   },
+
+  addStudent: async (classroomId, studentId) => {
+  const response = await api.post(
+    `/classes/${classroomId}/students`,
+    {
+      studentId: Number(studentId),
+    },
+  )
+  return response.data
+},
+
 }
 
 export default classroomService

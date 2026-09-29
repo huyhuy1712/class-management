@@ -1,14 +1,18 @@
 package com.classmanagement.backend.service.impl;
 
+import com.classmanagement.backend.dto.classroom.AddStudentToClassroomRequest;
 import com.classmanagement.backend.dto.classroom.ClassroomResponse;
+import com.classmanagement.backend.dto.classroom.ClassroomStudentResponse;
 import com.classmanagement.backend.dto.classroom.CreateClassroomRequest;
 import com.classmanagement.backend.dto.classroom.UpdateClassroomRequest;
+import com.classmanagement.backend.entity.ClassStudent;
 import com.classmanagement.backend.entity.Classroom;
 import com.classmanagement.backend.entity.Subject;
 import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.entity.enums.ClassroomStatus;
 import com.classmanagement.backend.entity.enums.UserRole;
 import com.classmanagement.backend.entity.enums.UserStatus;
+import com.classmanagement.backend.repository.ClassStudentRepository;
 import com.classmanagement.backend.repository.ClassroomRepository;
 import com.classmanagement.backend.repository.SubjectRepository;
 import com.classmanagement.backend.repository.UserRepository;
@@ -17,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -26,6 +31,7 @@ public class ClassroomServiceImpl implements ClassroomService {
     private final ClassroomRepository classroomRepository;
     private final SubjectRepository subjectRepository;
     private final UserRepository userRepository;
+    private final ClassStudentRepository classStudentRepository;
 
     @Override
     @Transactional
@@ -239,4 +245,73 @@ public class ClassroomServiceImpl implements ClassroomService {
         // 2. Xóa thật
         classroomRepository.delete(classroom);
         }
+
+        @Override
+        @Transactional
+        public ClassroomStudentResponse addStudent(
+                Long classroomId,
+                AddStudentToClassroomRequest request
+        ) {
+
+        Classroom classroom = classroomRepository
+                .findById(classroomId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Classroom not found"
+                        )
+                );
+
+        User student = userRepository
+                .findById(request.getStudentId())
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Student not found"
+                        )
+                );
+
+        if (student.getRole() != UserRole.STUDENT) {
+                throw new IllegalArgumentException(
+                        "Selected user is not a student"
+                );
+        }
+
+        if (student.getStatus() != UserStatus.ACTIVE) {
+                throw new IllegalArgumentException(
+                        "Student account is not active"
+                );
+        }
+
+        if (classStudentRepository
+                .existsByClassroomIdAndStudentId(
+                        classroomId,
+                        student.getId()
+                )) {
+
+                throw new IllegalStateException(
+                        "Student is already in this classroom"
+                );
+        }
+
+        LocalDateTime joinedAt = LocalDateTime.now();
+
+        ClassStudent classStudent = ClassStudent.builder()
+                .classroom(classroom)
+                .student(student)
+                .joinedAt(joinedAt)
+                .build();
+
+        classStudentRepository.save(classStudent);
+
+        return ClassroomStudentResponse.builder()
+                .id(student.getId())
+                .studentCode(student.getStudentCode())
+                .username(student.getUsername())
+                .fullName(student.getFullName())
+                .email(student.getEmail())
+                .phone(student.getPhone())
+                .avatar(student.getAvatar())
+                .joinedAt(joinedAt)
+                .build();
+         }
+         
 }
