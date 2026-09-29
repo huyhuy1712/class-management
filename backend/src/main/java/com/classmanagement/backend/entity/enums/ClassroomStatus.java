@@ -1,6 +1,6 @@
 package com.classmanagement.backend.entity.enums;
 
-public enum ClassStatus {
+public enum ClassroomStatus {
     ACTIVE,
     ARCHIVED
 }

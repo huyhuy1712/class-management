@@ -1,6 +1,6 @@
 package com.classmanagement.backend.entity;
 
-import com.classmanagement.backend.entity.enums.ClassStatus;
+import com.classmanagement.backend.entity.enums.ClassroomStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -60,7 +60,7 @@ public class Classroom {
         nullable = false,
         length = 20
     )
-    private ClassStatus status;
+    private ClassroomStatus status;
 
     @Column(
         name = "created_at",

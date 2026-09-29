@@ -108,7 +108,7 @@ function TeacherDashboard() {
         </p>
 
         <h1 className="mt-2 break-words text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
-          {getGreeting()}, {user?.fullName || user?.username}
+          {getGreeting()}, {user?.fullName || user?.username} sama
         </h1>
 
           <p className="mt-2 max-w-xl text-sm leading-6 text-green-100/80">

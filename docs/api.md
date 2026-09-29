@@ -186,6 +186,124 @@ Trong đó:
 - Không tìm thấy môn học hoặc giáo viên: Kiểm tra lại `subjectId` và `teacherId`.
 - `teacherId` không thuộc người dùng có role `TEACHER`: Chọn đúng tài khoản giáo viên.
 
+### PUT - Sửa thông tin lớp học
+
+**Endpoint:** `PUT /api/classes/{id}`
+
+Trong đó, `{id}` là ID của lớp học cần sửa.
+
+**Headers:**
+
+```http
+Content-Type: application/json
+Authorization: Bearer <accessToken>
+```
+
+**Request body mẫu:**
+
+```json
+{
+	"name": "Lập trình Java K21 - Cập nhật",
+	"code": "JAVA-K21-UPDATED",
+	"subjectId": 1,
+	"teacherId": 2,
+	"academicYear": "2026-2027",
+	"description": "Mô tả lớp học sau khi cập nhật"
+}
+```
+
+Trong đó:
+
+- `name`: Tên lớp, bắt buộc, tối đa 100 ký tự.
+- `code`: Mã lớp, bắt buộc, tối đa 50 ký tự và không được trùng với lớp khác.
+- `subjectId`: ID môn học đã tồn tại trong database, bắt buộc.
+- `teacherId`: ID người dùng có role `TEACHER` và status `ACTIVE`, bắt buộc.
+- `academicYear`: Năm học, không bắt buộc, tối đa 9 ký tự.
+- `description`: Mô tả lớp học, không bắt buộc.
+
+**Response thành công `200 OK`:**
+
+```json
+{
+	"id": 1,
+	"name": "Lập trình Java K21 - Cập nhật",
+	"code": "JAVA-K21-UPDATED",
+	"subjectId": 1,
+	"subjectName": "Lập trình Java",
+	"teacherId": 2,
+	"teacherName": "Nguyễn Văn An",
+	"academicYear": "2026-2027",
+	"description": "Mô tả lớp học sau khi cập nhật",
+	"status": "ACTIVE",
+	"createdAt": "2026-09-28T10:30:00",
+	"updatedAt": "2026-09-29T10:30:00"
+}
+```
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Thiếu trường bắt buộc hoặc dữ liệu không hợp lệ.
+- Không tìm thấy lớp học: Kiểm tra lại `id` trên URL.
+- Mã lớp đã tồn tại: Đổi `code` sang mã khác.
+- Không tìm thấy môn học hoặc giáo viên: Kiểm tra lại `subjectId` và `teacherId`.
+- Giáo viên không hợp lệ: Người dùng phải có role `TEACHER` và status `ACTIVE`.
+
+### PATCH - Lưu trữ lớp học
+
+**Endpoint:** `PATCH /api/classes/{id}/archive`
+
+Trong đó, `{id}` là ID của lớp học cần lưu trữ.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+API này không yêu cầu request body. Khi gọi thành công, lớp học được chuyển sang status `ARCHIVED`.
+
+**Response thành công `200 OK`:**
+
+```json
+{
+	"id": 1,
+	"name": "Lập trình Java K21",
+	"code": "JAVA-K21",
+	"subjectId": 1,
+	"teacherId": 2,
+	"academicYear": "2026-2027",
+	"description": "Lớp học Java cơ bản cho sinh viên khóa K21",
+	"status": "ARCHIVED"
+}
+```
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Không tìm thấy lớp học với `id` đã cung cấp.
+- `403 Forbidden`: Lớp học đã được lưu trữ trước đó.
+
+### DELETE - Xóa lớp học
+
+**Endpoint:** `DELETE /api/classes/{id}`
+
+Trong đó, `{id}` là ID của lớp học cần xóa.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+API này không yêu cầu request body và xóa vĩnh viễn lớp học khỏi database.
+
+**Response thành công `204 No Content`:**
+
+Response không có body.
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Không tìm thấy lớp học với `id` đã cung cấp.
+
 ### GET - Lấy danh sách lớp học
 
 **Endpoint:** `GET /api/classes`

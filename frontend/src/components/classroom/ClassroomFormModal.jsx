@@ -10,6 +10,8 @@ function ClassFormModal({
   onSubmit,
   submitting = false,
   error = null,
+  initialData = null,
+  mode = 'create',
 }) {
   const [formData, setFormData] = useState({
     name: '',
@@ -65,10 +67,27 @@ function ClassFormModal({
         subjectId: '',
         description: '',
       })
-
       setSubjectError(null)
+      return
     }
-  }, [isOpen])
+
+    if (mode === 'edit' && initialData) {
+      setFormData({
+        name: initialData.name ?? '',
+        code: initialData.code ?? '',
+        subjectId: initialData.subjectId ?? '',
+        description: initialData.description ?? '',
+      })
+      return
+    }
+
+    setFormData({
+      name: '',
+      code: '',
+      subjectId: '',
+      description: '',
+    })
+  }, [initialData, isOpen, mode])
 
   const handleChange = (event) => {
     const { name, value } = event.target
@@ -113,11 +132,13 @@ function ClassFormModal({
         <div className="flex items-start justify-between border-b border-gray-100 px-8 py-7">
           <div>
             <h2 className="text-2xl font-bold text-[#18301D]">
-              Tạo lớp học
+              {mode === 'edit' ? 'Chỉnh sửa lớp học' : 'Tạo lớp học'}
             </h2>
 
             <p className="mt-1 text-sm text-gray-400">
-              Nhập thông tin để tạo lớp mới
+              {mode === 'edit'
+                ? 'Cập nhật thông tin lớp học'
+                : 'Nhập thông tin để tạo lớp mới'}
             </p>
           </div>
 
@@ -284,7 +305,13 @@ function ClassFormModal({
               }
               className="rounded-xl bg-green-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-300"
             >
-              {submitting ? 'Đang tạo...' : 'Tạo lớp'}
+              {submitting
+                ? mode === 'edit'
+                  ? 'Đang cập nhật...'
+                  : 'Đang tạo...'
+                : mode === 'edit'
+                  ? 'Lưu thay đổi'
+                  : 'Tạo lớp'}
             </button>
           </div>
         </form>

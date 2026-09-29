@@ -4,6 +4,7 @@ const classroomService = {
   getAll: async () => {
     const response = await api.get('/classes')
     const payload = response.data
+
     const classes = Array.isArray(payload)
       ? payload
       : payload.data ?? payload.classes
@@ -15,12 +16,24 @@ const classroomService = {
     return classes
   },
 
-    create: async (classroomData) => {
+  create: async (classroomData) => {
     const response = await api.post('/classes', classroomData)
     return response.data
   },
 
-  
+  update: async (id, classroomData) => {
+    const response = await api.put(`/classes/${id}`, classroomData)
+    return response.data
+  },
+
+  archive: async (id) => {
+    const response = await api.patch(`/classes/${id}/archive`)
+    return response.data
+  },
+
+  delete: async (id) => {
+    await api.delete(`/classes/${id}`)
+  },
 }
 
 export default classroomService

@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowUpDown,
+  CheckCircle2,
   Plus,
   Search,
   School,
+  X,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 import DashboardLayout from '../../../layouts/DashboardLayout'
-import ClassCard from '../../../components/classroom/ClassCard'
-import ClassFormModal from '../../../components/classroom/ClassFormModal'
+import ClassCard from '../../../components/classroom/ClassroomCard'
+import ClassFormModal from '../../../components/classroom/ClassroomFormModal'
 import classroomService from '../../../services/classroomService'
 import useAuthStore from '../../../stores/authStore'
+import ConfirmModal from '../../../components/classroom/ConfirmModal'
 
 function getCurrentAcademicYear() {
   const currentYear = new Date().getFullYear()
@@ -48,14 +51,27 @@ function ClassListPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const [modalOpen, setModalOpen] = useState(false)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState(null)
+
   const [editingClass, setEditingClass] = useState(null)
+  const [editError, setEditError] = useState(null)
+  const [updating, setUpdating] = useState(false)
 
-  const [isCreateModalOpen, setIsCreateModalOpen] =
-  useState(false)
+  const [confirmAction, setConfirmAction] = useState(null)
+  const [actionLoading, setActionLoading] = useState(false)
+  const [toast, setToast] = useState(null)
 
-    const [creating, setCreating] = useState(false)
-    const [createError, setCreateError] = useState(null)
+  useEffect(() => {
+    if (!toast) return undefined
+
+    const timeoutId = window.setTimeout(() => {
+      setToast(null)
+    }, 3500)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [toast])
 
   useEffect(() => {
     const fetchClasses = async () => {
@@ -167,52 +183,164 @@ function ClassListPage() {
     }
   }
 
-  const handleEdit = (classroom) => {
-    setEditingClass(classroom)
-    setModalOpen(true)
-  }
 
-  const handleSubmit = (form) => {
-    if (editingClass) {
+  const handleEdit = (classroom) => {
+  setEditError(null)
+  setEditingClass(classroom)
+}
+const handleEditSubmit = async (formData) => {
+  if (!editingClass || !currentUserId) return
+
+  try {
+    setUpdating(true)
+    setEditError(null)
+
+    const payload = {
+      name: formData.name,
+      code: formData.code,
+      subjectId: Number(formData.subjectId),
+      teacherId: Number(currentUserId),
+
+      // giữ năm học hiện tại của lớp
+      academicYear:
+        editingClass.academicYear || getCurrentAcademicYear(),
+
+      description: formData.description || '',
+    }
+
+    const updatedClass = await classroomService.update(
+      editingClass.id,
+      payload,
+    )
+
+    setClasses((prev) =>
+      prev.map((item) =>
+        item.id === editingClass.id
+          ? { ...item, ...updatedClass }
+          : item,
+      ),
+    )
+
+    setEditingClass(null)
+    setToast({
+      type: 'success',
+      message: 'Cập nhật lớp học thành công.',
+    })
+  } catch (error) {
+    console.error('Update class error:', error)
+
+    const backendMessage = getErrorMessage(error.response?.data)
+
+    setEditError(
+      backendMessage ||
+        `Không thể cập nhật lớp học (HTTP ${
+          error.response?.status || 'unknown'
+        }).`,
+    )
+  } finally {
+    setUpdating(false)
+  }
+}
+
+const handleArchive = (classroom) => {
+  setConfirmAction({
+    type: 'archive',
+    classroom,
+  })
+}
+
+const handleDelete = (classroom) => {
+  setConfirmAction({
+    type: 'delete',
+    classroom,
+  })
+}
+
+const handleView = (classroom) => {
+  navigate(`/teacher/classes/${classroom.id}`)
+}
+
+const handleConfirmAction = async () => {
+  if (!confirmAction) return
+
+  const { type, classroom } = confirmAction
+
+  try {
+    setActionLoading(true)
+
+    if (type === 'archive') {
+      const archivedClass = await classroomService.archive(
+        classroom.id,
+      )
+
       setClasses((prev) =>
         prev.map((item) =>
-          item.id === editingClass.id
-            ? { ...item, ...form }
+          item.id === classroom.id
+            ? { ...item, ...archivedClass }
             : item,
         ),
       )
-    } else {
-      const newClass = {
-        id: Date.now(),
-        ...form,
-        studentCount: 0,
-      }
 
-      setClasses((prev) => [newClass, ...prev])
+      setToast({
+        type: 'success',
+        message: 'Vô hiệu hóa lớp học thành công.',
+      })
     }
 
-    setModalOpen(false)
-    setEditingClass(null)
+    if (type === 'delete') {
+      await classroomService.delete(classroom.id)
+
+      setClasses((prev) =>
+        prev.filter((item) => item.id !== classroom.id),
+      )
+
+      setToast({
+        type: 'success',
+        message: 'Xóa lớp học thành công.',
+      })
+    }
+
+    setConfirmAction(null)
+  } catch (error) {
+    console.error('Classroom action error:', error)
+
+    const backendMessage = getErrorMessage(error.response?.data)
+
+    setToast({
+      type: 'error',
+      message:
+        backendMessage ||
+        'Không thể thực hiện thao tác. Vui lòng thử lại.',
+    })
+  } finally {
+    setActionLoading(false)
   }
-
-  const handleDelete = (classroom) => {
-    const accepted = window.confirm(
-      `Bạn có chắc muốn xóa lớp "${classroom.name}"?`,
-    )
-
-    if (!accepted) return
-
-    setClasses((prev) =>
-      prev.filter((item) => item.id !== classroom.id),
-    )
-  }
-
-  const handleView = (classroom) => {
-    navigate(`/teacher/classes/${classroom.id}`)
-  }
+}
 
   return (
     <DashboardLayout>
+      {toast && (
+        <div
+          role="status"
+          className={`fixed right-4 top-4 z-[60] flex max-w-[calc(100vw-2rem)] items-start gap-3 rounded-xl border px-4 py-3 shadow-lg sm:right-6 sm:top-6 ${
+            toast.type === 'success'
+              ? 'border-green-200 bg-green-50 text-green-800'
+              : 'border-red-200 bg-red-50 text-red-700'
+          }`}
+        >
+          <CheckCircle2 size={20} className="mt-0.5 shrink-0" />
+          <p className="text-sm font-medium">{toast.message}</p>
+          <button
+            type="button"
+            aria-label="Đóng thông báo"
+            onClick={() => setToast(null)}
+            className="-mr-1 -mt-1 rounded-md p-1 opacity-70 transition hover:bg-black/5 hover:opacity-100"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {/* Page heading */}
       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
         <div>
@@ -302,6 +430,7 @@ function ClassListPage() {
               classroom={classroom}
               onView={handleView}
               onEdit={handleEdit}
+              onArchive={handleArchive}
               onDelete={handleDelete}
             />
           ))}
@@ -319,20 +448,65 @@ function ClassListPage() {
           </p>
         </div>
       )}
-
-    <ClassFormModal
-    isOpen={isCreateModalOpen}
-    error={createError}
-    onClose={() => {
-        if (!creating) {
-        setIsCreateModalOpen(false)
-        setCreateError(null)
-        }
-    }}
-    onSubmit={handleCreateSubmit}
-    submitting={creating}
-    />
       
+{/* CREATE */}
+<ClassFormModal
+  isOpen={isCreateModalOpen}
+  error={createError}
+  onClose={() => {
+    if (!creating) {
+      setIsCreateModalOpen(false)
+      setCreateError(null)
+    }
+  }}
+  onSubmit={handleCreateSubmit}
+  submitting={creating}
+/>
+
+{/* EDIT */}
+<ClassFormModal
+  isOpen={!!editingClass}
+  initialData={editingClass}
+  mode="edit"
+  error={editError}
+  submitting={updating}
+  onClose={() => {
+    if (!updating) {
+      setEditingClass(null)
+      setEditError(null)
+    }
+  }}
+  onSubmit={handleEditSubmit}
+/>
+
+{/* ARCHIVE / DELETE CONFIRM */}
+<ConfirmModal
+  open={!!confirmAction}
+  loading={actionLoading}
+  danger={confirmAction?.type === 'delete'}
+  title={
+    confirmAction?.type === 'archive'
+      ? 'Vô hiệu lớp học'
+      : 'Xóa lớp học'
+  }
+  description={
+    confirmAction?.type === 'archive'
+      ? `Bạn có chắc chắn muốn vô hiệu lớp "${confirmAction?.classroom?.name}" không?`
+      : `Bạn có chắc chắn muốn xóa vĩnh viễn lớp "${confirmAction?.classroom?.name}" không? Hành động này không thể hoàn tác.`
+  }
+  confirmText={
+    confirmAction?.type === 'archive'
+      ? 'Vô hiệu'
+      : 'Xóa lớp'
+  }
+  onClose={() => {
+    if (!actionLoading) {
+      setConfirmAction(null)
+    }
+  }}
+  onConfirm={handleConfirmAction}
+/>
+
     </DashboardLayout>
   )
 }

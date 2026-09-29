@@ -1,7 +1,7 @@
  import { Navigate, Route, Routes } from 'react-router-dom'
 
 import TeacherDashboard from '../pages/teacher/TeacherDashboard'
-import ClassListPage from '../pages/teacher/classroom/ClassListPage'
+import ClassListPage from '../pages/teacher/classroom/ClassroomListPage'
 import LoginPage from '../pages/auth/LoginPage'
 import SignupPage from '../pages/auth/SignupPage'
 

@@ -2,11 +2,13 @@ package com.classmanagement.backend.service.impl;
 
 import com.classmanagement.backend.dto.classroom.ClassroomResponse;
 import com.classmanagement.backend.dto.classroom.CreateClassroomRequest;
+import com.classmanagement.backend.dto.classroom.UpdateClassroomRequest;
 import com.classmanagement.backend.entity.Classroom;
 import com.classmanagement.backend.entity.Subject;
 import com.classmanagement.backend.entity.User;
-import com.classmanagement.backend.entity.enums.ClassStatus;
+import com.classmanagement.backend.entity.enums.ClassroomStatus;
 import com.classmanagement.backend.entity.enums.UserRole;
+import com.classmanagement.backend.entity.enums.UserStatus;
 import com.classmanagement.backend.repository.ClassroomRepository;
 import com.classmanagement.backend.repository.SubjectRepository;
 import com.classmanagement.backend.repository.UserRepository;
@@ -56,7 +58,7 @@ public class ClassroomServiceImpl implements ClassroomService {
                 .teacher(teacher)
                 .academicYear(request.getAcademicYear())
                 .description(request.getDescription())
-                .status(ClassStatus.ACTIVE)
+                .status(ClassroomStatus.ACTIVE)
                 .build();
 
         Classroom saved =
@@ -92,4 +94,149 @@ public class ClassroomServiceImpl implements ClassroomService {
                 .updatedAt(classroom.getUpdatedAt())
                 .build();
     }
+
+        @Override
+        public ClassroomResponse updateClass(
+        Long id,
+        UpdateClassroomRequest request
+        ) {
+
+    // 1. Tìm class
+    Classroom classroom = classroomRepository
+            .findById(id)
+            .orElseThrow(() ->
+                    new IllegalArgumentException(
+                            "Không tìm thấy lớp học"
+                    )
+            );
+
+
+    // 2. Check class code
+    // Chỉ check nếu code thực sự thay đổi
+    if (!classroom.getCode().equals(request.getCode())
+            && classroomRepository.existsByCode(request.getCode())) {
+
+        throw new IllegalArgumentException(
+                "Mã lớp đã tồn tại"
+        );
+    }
+
+
+    // 3. Tìm subject
+    Subject subject = subjectRepository
+            .findById(request.getSubjectId())
+            .orElseThrow(() ->
+                    new IllegalArgumentException(
+                            "Không tìm thấy môn học"
+                    )
+            );
+
+
+    // 4. Tìm teacher
+    User teacher = userRepository
+            .findById(request.getTeacherId())
+            .orElseThrow(() ->
+                    new IllegalArgumentException(
+                            "Không tìm thấy giáo viên"
+                    )
+            );
+
+
+    // 5. User được chọn phải thực sự là TEACHER
+    if (teacher.getRole() != UserRole.TEACHER) {
+        throw new IllegalArgumentException(
+                "Người dùng được chọn không phải là giáo viên"
+        );
+    }
+
+
+    // 6. Teacher phải ACTIVE
+    if (teacher.getStatus() != UserStatus.ACTIVE) {
+        throw new IllegalArgumentException(
+                "Tài khoản giáo viên chưa được kích hoạt"
+        );
+    }
+
+
+    // 7. Update
+    classroom.setName(request.getName());
+    classroom.setCode(request.getCode());
+    classroom.setSubject(subject);
+    classroom.setTeacher(teacher);
+    classroom.setAcademicYear(request.getAcademicYear());
+    classroom.setDescription(request.getDescription());
+
+
+    // 8. Save
+    Classroom savedClass =
+            classroomRepository.save(classroom);
+
+
+    // 9. Entity -> Response
+    return ClassroomResponse.builder()
+            .id(savedClass.getId())
+            .name(savedClass.getName())
+            .code(savedClass.getCode())
+            .subjectId(savedClass.getSubject().getId())
+            .teacherId(savedClass.getTeacher().getId())
+            .academicYear(savedClass.getAcademicYear())
+            .description(savedClass.getDescription())
+            .status(savedClass.getStatus())
+            .build();
+}
+
+        @Override
+        public ClassroomResponse archiveClassroom(Long id) {
+
+    // 1. Tìm classroom
+    Classroom classroom = classroomRepository
+            .findById(id)
+            .orElseThrow(() ->
+                    new IllegalArgumentException(
+                            "Không tìm thấy lớp học"
+                    )
+            );
+
+    // 2. Nếu đã archive rồi thì không cần archive lại
+    if (classroom.getStatus() == ClassroomStatus.ARCHIVED) {
+        throw new IllegalStateException(
+                "Lớp học đã bị vô hiệu hóa trước đó"
+        );
+    }
+
+    // 3. Soft delete = chỉ đổi status
+    classroom.setStatus(ClassroomStatus.ARCHIVED);
+
+    // 4. Save
+    Classroom savedClassroom =
+            classroomRepository.save(classroom);
+
+    // 5. Response
+    return ClassroomResponse.builder()
+            .id(savedClassroom.getId())
+            .name(savedClassroom.getName())
+            .code(savedClassroom.getCode())
+            .subjectId(savedClassroom.getSubject().getId())
+            .teacherId(savedClassroom.getTeacher().getId())
+            .academicYear(savedClassroom.getAcademicYear())
+            .description(savedClassroom.getDescription())
+            .status(savedClassroom.getStatus())
+            .build();
+}
+
+        @Override
+        public void deleteClassroom(Long id) {
+
+        // 1. Tìm classroom
+        Classroom classroom = classroomRepository
+                .findById(id)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Không tìm thấy lớp học"
+                        )
+                );
+
+        // 2. Xóa thật
+        classroomRepository.delete(classroom);
+        }
 }

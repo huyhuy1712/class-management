@@ -1,6 +1,6 @@
 package com.classmanagement.backend.dto.classroom;
 
-import com.classmanagement.backend.entity.enums.ClassStatus;
+import com.classmanagement.backend.entity.enums.ClassroomStatus;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -24,7 +24,7 @@ public class ClassroomResponse {
     private String academicYear;
     private String description;
 
-    private ClassStatus status;
+    private ClassroomStatus status;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
