@@ -30,22 +30,22 @@ public class ClassroomServiceImpl implements ClassroomService {
     public ClassroomResponse createClassroom(CreateClassroomRequest request) {
 
         if (classroomRepository.existsByCode(request.getCode())) {
-            throw new IllegalArgumentException("Class code already exists");
+            throw new IllegalArgumentException("Mã lớp đã tồn tại");
         }
 
         Subject subject = subjectRepository
                 .findById(request.getSubjectId())
                 .orElseThrow(() ->
-                        new IllegalArgumentException("Subject not found"));
+                        new IllegalArgumentException("Không tìm thấy môn học"));
 
         User teacher = userRepository
                 .findById(request.getTeacherId())
                 .orElseThrow(() ->
-                        new IllegalArgumentException("Teacher not found"));
+                        new IllegalArgumentException("Không tìm thấy giáo viên"));
 
         if (teacher.getRole() != UserRole.TEACHER) {
             throw new IllegalArgumentException(
-                    "Selected user is not a teacher"
+                    "Người dùng được chọn không phải là giáo viên"
             );
         }
 

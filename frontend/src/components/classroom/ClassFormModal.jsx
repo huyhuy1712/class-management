@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 
 import subjectService from '../../services/subjectService'
+import useAuthStore from '../../stores/authStore'
 
 function ClassFormModal({
   isOpen,
@@ -20,6 +21,7 @@ function ClassFormModal({
   const [subjects, setSubjects] = useState([])
   const [loadingSubjects, setLoadingSubjects] = useState(false)
   const [subjectError, setSubjectError] = useState(null)
+  const user = useAuthStore((state) => state.user)
   const codeInputRef = useRef(null)
 
   useEffect(() => {

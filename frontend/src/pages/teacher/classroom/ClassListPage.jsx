@@ -11,7 +11,7 @@ import DashboardLayout from '../../../layouts/DashboardLayout'
 import ClassCard from '../../../components/classroom/ClassCard'
 import ClassFormModal from '../../../components/classroom/ClassFormModal'
 import classroomService from '../../../services/classroomService'
-import { CURRENT_USER } from '../../../utils/constants'
+import useAuthStore from '../../../stores/authStore'
 
 function getCurrentAcademicYear() {
   const currentYear = new Date().getFullYear()
@@ -40,6 +40,8 @@ function getErrorMessage(responseData) {
 
 function ClassListPage() {
   const navigate = useNavigate()
+  const currentUser = useAuthStore((state) => state.user)
+  const currentUserId = currentUser?.id
 
   const [classes, setClasses] = useState([])
   const [search, setSearch] = useState('')
@@ -57,13 +59,19 @@ function ClassListPage() {
 
   useEffect(() => {
     const fetchClasses = async () => {
+      if (!currentUserId) {
+        setClasses([])
+        setLoading(false)
+        return
+      }
+
       try {
         setLoading(true)
         setError(null)
 
         const data = await classroomService.getAll()
         const teacherClasses = data.filter(
-          (classroom) => classroom.teacherId === CURRENT_USER.id,
+          (classroom) => Number(classroom.teacherId) === Number(currentUserId),
         )
 
         setClasses(teacherClasses)
@@ -76,7 +84,7 @@ function ClassListPage() {
     }
 
     fetchClasses()
-  }, [])
+  }, [currentUserId])
 
   const filteredClasses = useMemo(() => {
     const keyword = search.trim().toLowerCase()
@@ -93,6 +101,11 @@ function ClassListPage() {
 
   
   const handleCreateSubmit = async (formData) => {
+    if (!currentUserId) {
+      setCreateError('Không tìm thấy thông tin người dùng đang đăng nhập.')
+      return
+    }
+
     const normalizedCode = formData.code.trim().toLowerCase()
     const codeAlreadyExists = classes.some(
       (classroom) =>
@@ -112,7 +125,7 @@ function ClassListPage() {
         name: formData.name,
         code: formData.code,
         subjectId: formData.subjectId,
-        teacherId: CURRENT_USER.id,
+        teacherId: currentUserId,
         academicYear: getCurrentAcademicYear(),
         description: formData.description,
         }
@@ -226,7 +239,7 @@ function ClassListPage() {
             setCreateError(null)
             setIsCreateModalOpen(true)
           }}
-          className="flex items-center justify-center gap-2 rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 sm:w-auto"
         >
           <Plus size={18} />
           Tạo lớp
@@ -252,7 +265,7 @@ function ClassListPage() {
         {/* Sort */}
         <button
             type="button"
-            className="flex items-center justify-center gap-2 rounded-xl border border-green-100 bg-white px-5 py-3 text-sm font-semibold text-gray-600 shadow-sm transition hover:border-green-300 hover:text-green-700"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-green-100 bg-white px-5 py-3 text-sm font-semibold text-gray-600 shadow-sm transition hover:border-green-300 hover:text-green-700 lg:w-auto"
         >
             <ArrowUpDown size={17} />
             Sắp xếp theo tên

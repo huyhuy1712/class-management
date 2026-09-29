@@ -1,13 +1,23 @@
 import {
   ChevronDown,
+  Menu,
   Search,
 } from 'lucide-react'
 
-function Header() {
+function Header({ onMenuClick }) {
   return (
-    <header className="flex h-20 items-center justify-between border-b border-green-100 bg-white px-8">
+    <header className="flex min-h-20 items-center justify-between gap-3 border-b border-green-100 bg-white px-4 py-3 sm:px-8">
+      <button
+        type="button"
+        aria-label="Mở menu"
+        onClick={onMenuClick}
+        className="shrink-0 rounded-xl p-2 text-gray-600 transition hover:bg-green-50 hover:text-green-700 lg:hidden"
+      >
+        <Menu size={22} />
+      </button>
+
       {/* Search */}
-      <div className="relative w-80">
+      <div className="relative min-w-0 flex-1 sm:max-w-sm">
         <Search
           size={18}
           className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
@@ -21,13 +31,13 @@ function Header() {
       </div>
 
       {/* User */}
-      <div className="flex items-center gap-5">
-        <button className="flex items-center gap-3 rounded-xl px-2 py-1.5 transition hover:bg-gray-50">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-5">
+        <button className="flex items-center gap-2 rounded-xl px-1 py-1.5 transition hover:bg-gray-50 sm:gap-3 sm:px-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-100 font-bold text-green-700">
             GV
           </div>
 
-          <div className="text-left">
+          <div className="hidden text-left sm:block">
             <p className="text-sm font-semibold text-gray-800">
               Nguyễn Văn A
             </p>
@@ -37,7 +47,7 @@ function Header() {
             </p>
           </div>
 
-          <ChevronDown size={16} className="text-gray-400" />
+          <ChevronDown size={16} className="hidden text-gray-400 sm:block" />
         </button>
       </div>
     </header>

@@ -11,24 +11,24 @@ import lombok.Setter;
 @Setter
 public class CreateClassroomRequest {
 
-    @NotBlank(message = "Class name is required")
+    @NotBlank(message = "Vui lòng nhập tên lớp")
     @Size(max = 100)
     private String name;
 
-    @NotBlank(message = "Class code is required")
+    @NotBlank(message = "Vui lòng nhập mã lớp")
     @Size(max = 50)
     private String code;
 
-    @NotNull(message = "Subject is required")
+    @NotNull(message = "Vui lòng chọn môn học")
     private Long subjectId;
 
-    @NotNull(message = "Teacher is required")
+    @NotNull(message = "Vui lòng chọn giáo viên")
     private Long teacherId;
 
-    @NotBlank(message = "Academic year is required")
+    @NotBlank(message = "Vui lòng nhập năm học")
     @Pattern(
             regexp = "^\\d{4}-\\d{4}$",
-            message = "Academic year must have format YYYY-YYYY"
+            message = "Năm học phải có định dạng YYYY-YYYY"
     )
     private String academicYear;
 

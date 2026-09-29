@@ -12,19 +12,19 @@ import lombok.Setter;
 @Setter
 public class SignupRequest {
 
-    @NotBlank(message = "Username is required")
-    @Size(min = 4, max = 50, message = "Username must be between 4 and 50 characters")
+    @NotBlank(message = "Vui lòng nhập tên đăng nhập")
+    @Size(min = 4, max = 50, message = "Tên đăng nhập phải có từ 4 đến 50 ký tự")
     private String username;
 
-    @NotBlank(message = "Password is required")
-    @Size(min = 8, max = 100, message = "Password must be at least 8 characters")
+    @NotBlank(message = "Vui lòng nhập mật khẩu")
+    @Size(min = 8, max = 100, message = "Mật khẩu phải có ít nhất 8 ký tự")
     private String password;
 
-    @NotBlank(message = "Email is required")
-    @Email(message = "Email is invalid")
+    @NotBlank(message = "Vui lòng nhập email")
+    @Email(message = "Email không hợp lệ")
     private String email;
 
-    @NotBlank(message = "Full name is required")
+    @NotBlank(message = "Vui lòng nhập họ và tên")
     @Size(max = 100)
     private String fullName;
 
@@ -34,6 +34,6 @@ public class SignupRequest {
     @Size(max = 500)
     private String avatar;
 
-    @NotNull(message = "Role is required")
+    @NotNull(message = "Vui lòng chọn vai trò")
     private UserRole role;
 }

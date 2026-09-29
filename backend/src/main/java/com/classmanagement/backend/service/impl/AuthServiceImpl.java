@@ -19,7 +19,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.security.core.AuthenticationException;
 
 @Service
 @RequiredArgsConstructor
@@ -42,21 +41,21 @@ public class AuthServiceImpl implements AuthService {
         // 1. Không cho phép signup ADMIN
         if (request.getRole() == UserRole.ADMIN) {
             throw new IllegalArgumentException(
-                    "Admin account cannot be registered"
+                    "Không thể đăng ký tài khoản quản trị viên"
             );
         }
 
         // 2. Check username
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new IllegalArgumentException(
-                    "Username already exists"
+                    "Tên đăng nhập đã tồn tại"
             );
         }
 
         // 3. Check email
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new IllegalArgumentException(
-                    "Email already exists"
+                    "Email đã tồn tại"
             );
         }
 
@@ -66,7 +65,7 @@ public class AuthServiceImpl implements AuthService {
                 && userRepository.existsByPhone(request.getPhone())) {
 
             throw new IllegalArgumentException(
-                    "Phone already exists"
+                    "Số điện thoại đã tồn tại"
             );
         }
 
@@ -86,7 +85,7 @@ public class AuthServiceImpl implements AuthService {
         } else {
 
             throw new IllegalArgumentException(
-                    "Invalid registration role"
+                    "Vai trò đăng ký không hợp lệ"
             );
         }
 
@@ -139,7 +138,7 @@ public LoginResponse login(LoginRequest request) {
             .findByUsername(request.getUsername())
             .orElseThrow(() ->
                     new IllegalArgumentException(
-                            "Invalid username or password"
+                            "Tên đăng nhập không tồn tại"
                     )
             );
 
@@ -154,6 +153,12 @@ public LoginResponse login(LoginRequest request) {
     );
 
     System.out.println("PASSWORD MATCH: " + passwordMatches);
+
+        if (!passwordMatches) {
+                throw new IllegalArgumentException(
+                                "Mật khẩu không chính xác"
+                );
+        }
 
     // 3. Cho Spring Security authenticate
     try {
@@ -183,13 +188,13 @@ public LoginResponse login(LoginRequest request) {
     // 4. Check status
     if (user.getStatus() == UserStatus.PENDING) {
         throw new IllegalStateException(
-                "Your account is waiting for admin approval"
+                "Tài khoản của bạn đang chờ quản trị viên phê duyệt"
         );
     }
 
     if (user.getStatus() == UserStatus.BANNED) {
         throw new IllegalStateException(
-                "Your account has been banned"
+                "Tài khoản của bạn đã bị khóa"
         );
     }
 

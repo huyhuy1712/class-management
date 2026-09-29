@@ -38,13 +38,13 @@ public class AdminInitializer implements CommandLineRunner {
 
         if (userRepository.existsByUsername(adminUsername)) {
             throw new IllegalStateException(
-                    "Cannot create admin: username already exists"
+                    "Không thể tạo tài khoản quản trị viên: tên đăng nhập đã tồn tại"
             );
         }
 
         if (userRepository.existsByEmail(adminEmail)) {
             throw new IllegalStateException(
-                    "Cannot create admin: email already exists"
+                    "Không thể tạo tài khoản quản trị viên: email đã tồn tại"
             );
         }
 

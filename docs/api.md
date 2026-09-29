@@ -1,4 +1,14 @@
 
+## Xác thực bằng JWT
+
+Hai API `/api/auth/signup` và `/api/auth/login` không cần JWT. Tất cả API còn lại phải gửi JWT trong header `Authorization`:
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+Lấy giá trị `accessToken` từ response của API login rồi sử dụng giá trị đó cho các request tiếp theo.
+
 ### POST - Đăng ký tài khoản
 
 **Endpoint:** `POST /api/auth/signup`
@@ -95,6 +105,8 @@ Trong đó:
 
 ```json
 {
+	"accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+	"tokenType": "Bearer",
 	"id": 3,
 	"username": "nguyenvana",
 	"email": "nguyenvana@example.com",
@@ -104,6 +116,12 @@ Trong đó:
 	"role": "STUDENT",
 	"status": "ACTIVE"
 }
+```
+
+Sau khi đăng nhập thành công, copy giá trị `accessToken` và gửi kèm header sau khi gọi các API cần xác thực:
+
+```http
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
 ```
 
 **Một số trường hợp lỗi:**
@@ -120,6 +138,7 @@ Trong đó:
 
 ```http
 Content-Type: application/json
+Authorization: Bearer <accessToken>
 ```
 
 **Request body mẫu:**
@@ -171,6 +190,12 @@ Trong đó:
 
 **Endpoint:** `GET /api/classes`
 
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
 **Response thành công `200 OK`:**
 
 ```json
@@ -196,7 +221,14 @@ Nếu database chưa có lớp học, API sẽ trả về danh sách rỗng:
 ```json
 []
 ```
-### GET http://localhost:8080/api/subjects
+### GET - Lấy danh sách môn học
+
+**Endpoint:** `GET http://localhost:8080/api/subjects`
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
 ```
 
 Response example:

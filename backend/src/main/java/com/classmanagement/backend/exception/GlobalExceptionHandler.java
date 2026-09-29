@@ -25,7 +25,7 @@ public class GlobalExceptionHandler {
         ErrorResponse response = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.BAD_REQUEST.value())
-                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                .error("Yêu cầu không hợp lệ")
                 .message(ex.getMessage())
                 .path(request.getRequestURI())
                 .build();
@@ -55,8 +55,8 @@ public class GlobalExceptionHandler {
         ErrorResponse response = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.BAD_REQUEST.value())
-                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
-                .message("Validation failed")
+                .error("Yêu cầu không hợp lệ")
+                .message("Dữ liệu không hợp lệ")
                 .path(request.getRequestURI())
                 .validationErrors(errors)
                 .build();
@@ -74,8 +74,8 @@ public class GlobalExceptionHandler {
         ErrorResponse response = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.UNAUTHORIZED.value())
-                .error(HttpStatus.UNAUTHORIZED.getReasonPhrase())
-                .message("Invalid username or password")
+                .error("Chưa xác thực")
+                .message("Tên đăng nhập hoặc mật khẩu không chính xác")
                 .path(request.getRequestURI())
                 .build();
 
@@ -92,7 +92,7 @@ public class GlobalExceptionHandler {
         ErrorResponse response = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.FORBIDDEN.value())
-                .error(HttpStatus.FORBIDDEN.getReasonPhrase())
+                .error("Không có quyền truy cập")
                 .message(ex.getMessage())
                 .path(request.getRequestURI())
                 .build();
