@@ -10,6 +10,7 @@ function ClassDetailPage() {
   const { classId } = useParams()
 
   const [classroom, setClassroom] = useState(null)
+  const [studentCount, setStudentCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -30,7 +31,10 @@ function ClassDetailPage() {
           return
         }
 
+        const students = await classroomService.getStudents(foundClass.id)
+
         setClassroom(foundClass)
+        setStudentCount(students.length)
       } catch (error) {
         console.error('Get classroom detail error:', error)
         setError('Không thể tải thông tin lớp học.')
@@ -58,13 +62,22 @@ function ClassDetailPage() {
         </div>
       ) : (
         <>
-          <ClassDetailHeader classroom={classroom} onActivate={handleActivate} />
+          <ClassDetailHeader
+            classroom={classroom}
+            onActivate={handleActivate}
+            studentCount={studentCount}
+          />
 
           <div className="mt-6 flex flex-col gap-6 lg:flex-row">
-            <ClassDetailSidebar />
+            <ClassDetailSidebar studentCount={studentCount} />
 
             <main className="min-w-0 flex-1">
-              <Outlet context={{ classroom }} />
+              <Outlet
+                context={{
+                  classroom,
+                  onStudentCountChange: setStudentCount,
+                }}
+              />
             </main>
           </div>
         </>

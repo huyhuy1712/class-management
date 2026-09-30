@@ -84,12 +84,24 @@ public class ClassroomController {
             .body(response);
 }
 
-@GetMapping("/{classroomId}/students")
-        public ResponseEntity<List<ClassroomStudentResponse>> getStudentsByClassroomId(
-                @PathVariable Long classroomId) {
+        @GetMapping("/{classroomId}/students")
+                public ResponseEntity<List<ClassroomStudentResponse>> getStudentsByClassroomId(
+                        @PathVariable Long classroomId) {
 
-        return ResponseEntity.ok(
-                        classroomService.getStudentsByClassroomId(classroomId));
+                return ResponseEntity.ok(
+                                classroomService.getStudentsByClassroomId(classroomId));
+        }
+
+        @DeleteMapping("/{classroomId}/students/{studentId}")
+        public ResponseEntity<Void> removeStudentFromClassroom(
+                @PathVariable Long classroomId,
+                @PathVariable Long studentId) {
+
+        classroomService.removeStudentFromClassroom(
+                        classroomId,
+                        studentId);
+
+        return ResponseEntity.noContent().build();
 }
 
 }

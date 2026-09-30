@@ -10,13 +10,45 @@ import {
   Users,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useNavigate, useOutletContext } from 'react-router-dom'
 
 import AddStudentModal from '../../../../components/classroom/detail/AddStudentModal'
+import ConfirmModal from '../../../../components/classroom/ConfirmModal'
 import classroomService from '../../../../services/classroomService'
+import AttendanceModal from '../../../../components/classroom/detail/AttendanceModal'
+
+function getErrorMessage(data) {
+  if (!data) return ''
+  if (typeof data === 'string') return data
+
+  return data.message || data.error || ''
+}
+
+function formatJoinedDate(value) {
+  if (!value) return '---'
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '---'
+
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date)
+}
+
+function getInitials(name) {
+  if (!name?.trim()) return 'HS'
+
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+
+  return `${parts[0][0]}${parts.at(-1)[0]}`.toUpperCase()
+}
 
 function StudentsTab() {
-  const { classroom } = useOutletContext()
+  const { classroom, onStudentCountChange } = useOutletContext()
+  const classroomId = classroom?.id
 
   const [students, setStudents] = useState([])
   const [search, setSearch] = useState('')
@@ -27,215 +59,310 @@ function StudentsTab() {
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState(null)
 
-  const getErrorMessage = (data) => {
-    if (!data) return ''
+  const [studentToDelete, setStudentToDelete] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [toast, setToast] = useState(null)
 
-    if (typeof data === 'string') {
-      return data
-    }
+  const navigate = useNavigate()
 
-    return data.message || data.error || ''
-  }
+  const [attendanceStudent, setAttendanceStudent] = useState(null)
+  const [attendanceLoading, setAttendanceLoading] = useState(false)
+  const [attendanceError, setAttendanceError] = useState(null)
 
-  // =========================
-  // GET STUDENTS
-  // =========================
   useEffect(() => {
+    let ignore = false
+
     const fetchStudents = async () => {
-      if (!classroom?.id) return
+      if (!classroomId) {
+        setStudents([])
+        setLoading(false)
+        return
+      }
 
       try {
         setLoading(true)
         setError(null)
 
-        const data = await classroomService.getStudents(
-          classroom.id,
-        )
-
-        console.log('Students from BE:', data)
-
-        setStudents(data)
-      } catch (error) {
-        console.error(
-          'Get classroom students error:',
-          error,
-        )
-
-        const backendMessage = getErrorMessage(
-          error.response?.data,
-        )
+        const data = await classroomService.getStudents(classroomId)
+        if (!ignore) setStudents(data)
+      } catch (fetchError) {
+        if (ignore) return
 
         setError(
-          backendMessage ||
+          getErrorMessage(fetchError.response?.data) ||
             'Không thể tải danh sách học sinh.',
         )
       } finally {
-        setLoading(false)
+        if (!ignore) setLoading(false)
       }
     }
 
     fetchStudents()
-  }, [classroom?.id])
 
-  // =========================
-  // SEARCH
-  // =========================
+    return () => {
+      ignore = true
+    }
+  }, [classroomId])
+
+  useEffect(() => {
+    if (!toast) return undefined
+
+    const timeoutId = window.setTimeout(() => setToast(null), 3500)
+    return () => window.clearTimeout(timeoutId)
+  }, [toast])
+
   const filteredStudents = useMemo(() => {
     const keyword = search.trim().toLowerCase()
+    if (!keyword) return students
 
-    if (!keyword) {
-      return students
-    }
+    return students.filter((student) =>
+      [
+        student.fullName,
+        student.studentCode,
+        student.username,
+        student.email,
+      ].some((value) => String(value ?? '').toLowerCase().includes(keyword)),
+    )
+  }, [search, students])
 
-    return students.filter((student) => {
-      return (
-        student.fullName
-          ?.toLowerCase()
-          .includes(keyword) ||
-        student.studentCode
-          ?.toLowerCase()
-          .includes(keyword) ||
-        student.username
-          ?.toLowerCase()
-          .includes(keyword) ||
-        student.email
-          ?.toLowerCase()
-          .includes(keyword)
-      )
-    })
-  }, [students, search])
-
-  // =========================
-  // ADD STUDENT
-  // =========================
   const handleAddStudent = async (studentId) => {
     try {
       setAdding(true)
       setAddError(null)
 
-      const student =
-        await classroomService.addStudent(
-          classroom.id,
-          studentId,
-        )
-
-      // Thêm ngay lên UI, không cần GET lại
-      setStudents((prev) => [
-        student,
-        ...prev,
-      ])
-
+      const student = await classroomService.addStudent(classroomId, studentId)
+      setStudents((previous) => {
+        const nextStudents = [student, ...previous]
+        onStudentCountChange?.(nextStudents.length)
+        return nextStudents
+      })
       setAddModalOpen(false)
-    } catch (error) {
-      console.error('Add student error:', error)
-
-      const status = error.response?.status
-      const backendMessage = getErrorMessage(
-        error.response?.data,
-      )
-
-      if (status === 403) {
-        setAddError(
-          backendMessage ||
-            'Học sinh này đã có trong lớp học.',
-        )
-        return
-      }
-
-      if (status === 400) {
-        setAddError(
-          backendMessage ||
-            'Không tìm thấy học sinh hoặc tài khoản học sinh không hợp lệ.',
-        )
-        return
-      }
+      setToast({ type: 'success', message: 'Thêm học sinh thành công.' })
+    } catch (addStudentError) {
+      const status = addStudentError.response?.status
+      const message = getErrorMessage(addStudentError.response?.data)
 
       setAddError(
-        backendMessage ||
-          'Không thể thêm học sinh. Vui lòng thử lại.',
+        message ||
+          (status === 403
+            ? 'Học sinh này đã có trong lớp học.'
+            : status === 400
+              ? 'Không tìm thấy học sinh hoặc tài khoản không hợp lệ.'
+              : 'Không thể thêm học sinh. Vui lòng thử lại.'),
       )
     } finally {
       setAdding(false)
     }
   }
 
-  // =========================
-  // CHƯA CÓ API
-  // =========================
+  const handleDeleteStudent = async () => {
+    if (!studentToDelete) return
+
+    try {
+      setDeleting(true)
+      await classroomService.removeStudent(classroomId, studentToDelete.id)
+
+      setStudents((previous) =>
+        previous.filter((student) => student.id !== studentToDelete.id),
+      )
+      onStudentCountChange?.(students.length - 1)
+      setStudentToDelete(null)
+      setToast({
+        type: 'success',
+        message: 'Xóa học sinh khỏi lớp thành công.',
+      })
+    } catch (deleteError) {
+      setToast({
+        type: 'error',
+        message:
+          getErrorMessage(deleteError.response?.data) ||
+          'Không thể xóa học sinh khỏi lớp.',
+      })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const handleRequestDelete = (student) => {
+    setStudentToDelete(student)
+  }
+
+  const showUnavailableMessage = (message) => {
+    setToast({ type: 'info', message })
+  }
+
   const handleAttendance = (student) => {
-    console.log(
-      'Attendance student:',
-      student,
-    )
+    setAttendanceError(null)
+    setAttendanceStudent(student)
   }
 
-  const handleDeleteStudent = (student) => {
-    console.log(
-      'Delete student:',
-      student,
-    )
+  const handleStudentKeyDown = (event, student) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      handleViewStudent(student)
+    }
   }
 
-  // =========================
-  // HELPERS
-  // =========================
-  const formatJoinedDate = (value) => {
-    if (!value) return '---'
+  const renderStudentIdentity = (student) => (
+    <div className="flex items-center gap-3">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-green-100 text-sm font-bold text-green-700">
+        {getInitials(student.fullName)}
+      </div>
 
-    return new Intl.DateTimeFormat(
-      'vi-VN',
-      {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
+      <div className="min-w-0">
+        <p className="font-semibold text-[#18301D]">
+          {student.fullName || 'Chưa cập nhật'}
+        </p>
+        <div className="mt-1 flex items-center gap-1.5 text-xs text-gray-400">
+          <UserRound size={13} />@{student.username || '---'}
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderActions = (student, mobile = false) => (
+    <div className={`flex gap-2 ${mobile ? '' : 'justify-center'}`}>
+      <button
+        type="button"
+        title="Điểm danh"
+        onClick={(event) => {
+          event.stopPropagation()
+          handleAttendance(student)
+        }}
+        className={
+          mobile
+            ? 'flex flex-1 items-center justify-center gap-2 rounded-xl border border-green-200 py-2.5 text-sm font-semibold text-green-700'
+            : 'flex h-10 w-10 items-center justify-center rounded-xl border border-green-200 text-green-600 transition hover:bg-green-50'
+        }
+      >
+        <CalendarCheck size={mobile ? 17 : 18} />
+        {mobile && 'Điểm danh'}
+      </button>
+
+        <button
+        type="button"
+        title="Xóa khỏi lớp"
+        onClick={(event) => {
+          event.stopPropagation()
+          handleRequestDelete(student)
+        }}
+        className="flex h-10 w-10 items-center justify-center rounded-xl border border-red-100 text-red-500 transition hover:bg-red-50"
+        >
+        <Trash2 size={18} />
+        </button>
+    </div>
+  )
+
+  const handleViewStudent = (student) => {
+  navigate(
+    `/teacher/classes/${classroom.id}/students/${student.id}`,
+    {
+      state: {
+        student,
       },
-    ).format(new Date(value))
+    },
+  )
+}
+
+const handleSubmitAttendance = async ({
+  date,
+  status,
+  note,
+}) => {
+  if (!attendanceStudent || !classroom?.id) {
+    return
   }
 
-  const getInitials = (name) => {
-    if (!name) return 'HS'
+  try {
+    setAttendanceLoading(true)
+    setAttendanceError(null)
 
-    const parts = name
-      .trim()
-      .split(/\s+/)
-
-    if (parts.length === 1) {
-      return parts[0]
-        .slice(0, 2)
-        .toUpperCase()
+    const payload = {
+      date,
+      students: [
+        {
+          studentId: attendanceStudent.id,
+          status,
+          note: note || '',
+        },
+      ],
     }
 
-    return `${
-      parts[0][0]
-    }${
-      parts[parts.length - 1][0]
-    }`.toUpperCase()
+    const result =
+      await classroomService.createAttendance(
+        classroom.id,
+        payload,
+      )
+
+    console.log('Attendance created:', result)
+
+    setAttendanceStudent(null)
+    setToast({
+      type: 'success',
+      message: 'Điểm danh thành công.',
+    })
+  } catch (error) {
+    console.error('Create attendance error:', error)
+
+    const statusCode = error.response?.status
+
+    const backendMessage = getErrorMessage(
+      error.response?.data,
+    )
+
+    if (statusCode === 400) {
+      setAttendanceError(
+        backendMessage ||
+          'Không thể điểm danh. Học sinh có thể đã được điểm danh trong ngày này.',
+      )
+      return
+    }
+
+    if (statusCode === 401) {
+      setAttendanceError(
+        'Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.',
+      )
+      return
+    }
+
+    setAttendanceError(
+      backendMessage ||
+        'Không thể lưu điểm danh. Vui lòng thử lại.',
+    )
+  } finally {
+    setAttendanceLoading(false)
   }
+}
 
   return (
     <>
+      {toast && (
+        <div
+          role="status"
+          className={`fixed right-4 top-4 z-[70] max-w-[calc(100vw-2rem)] rounded-xl border px-4 py-3 text-sm font-medium shadow-lg sm:right-6 sm:top-6 ${
+            toast.type === 'success'
+              ? 'border-green-200 bg-green-50 text-green-800'
+              : toast.type === 'error'
+                ? 'border-red-200 bg-red-50 text-red-700'
+                : 'border-blue-200 bg-blue-50 text-blue-700'
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
+
       <section className="overflow-hidden rounded-2xl border border-green-100 bg-white shadow-sm">
-
-        {/* ================= HEADER ================= */}
-        <div className="border-b border-gray-100 p-6">
+        <div className="border-b border-gray-100 p-4 sm:p-6">
           <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-100 text-green-700">
+                <Users size={21} />
+              </div>
 
-            <div>
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-100 text-green-700">
-                  <Users size={21} />
-                </div>
-
-                <div>
-                  <h2 className="text-xl font-bold text-[#18301D]">
-                    Danh sách học sinh
-                  </h2>
-
-                  <p className="mt-1 text-sm text-gray-400">
-                    {students.length} học sinh trong{' '}
-                    {classroom.name}
-                  </p>
-                </div>
+              <div className="min-w-0">
+                <h2 className="text-xl font-bold text-[#18301D]">
+                  Danh sách học sinh
+                </h2>
               </div>
             </div>
 
@@ -243,15 +370,13 @@ function StudentsTab() {
               <button
                 type="button"
                 onClick={() =>
-                  console.log(
-                    'Import students',
+                  showUnavailableMessage(
+                    'Tính năng nhập file đang được phát triển.',
                   )
                 }
                 className="flex items-center justify-center gap-2 rounded-xl border border-green-200 bg-white px-4 py-2.5 text-sm font-semibold text-green-700 transition hover:bg-green-50"
               >
-                <FileSpreadsheet
-                  size={18}
-                />
+                <FileSpreadsheet size={18} />
                 Nhập từ file
               </button>
 
@@ -269,55 +394,37 @@ function StudentsTab() {
             </div>
           </div>
 
-          {/* SEARCH */}
           <div className="relative mt-5">
             <Search
               size={18}
               className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
             />
-
             <input
-              type="text"
+              type="search"
               value={search}
-              onChange={(event) =>
-                setSearch(
-                  event.target.value,
-                )
-              }
+              onChange={(event) => setSearch(event.target.value)}
               placeholder="Tìm theo tên, mã học sinh, username hoặc email..."
               className="w-full rounded-xl border border-gray-200 bg-gray-50/50 py-3 pl-11 pr-4 text-sm outline-none transition focus:border-green-400 focus:bg-white focus:ring-4 focus:ring-green-100"
             />
           </div>
         </div>
 
-        {/* ================= LOADING ================= */}
         {loading ? (
           <div className="flex min-h-72 items-center justify-center">
-            <p className="text-sm text-gray-400">
-              Đang tải danh sách học sinh...
-            </p>
+            <p className="text-sm text-gray-400">Đang tải danh sách học sinh...</p>
           </div>
         ) : error ? (
-          /* ================= ERROR ================= */
           <div className="flex min-h-72 items-center justify-center px-6">
-            <p className="text-center text-sm text-red-500">
-              {error}
-            </p>
+            <p className="text-center text-sm text-red-500">{error}</p>
           </div>
-        ) : filteredStudents.length ===
-          0 ? (
-          /* ================= EMPTY ================= */
+        ) : filteredStudents.length === 0 ? (
           <div className="flex min-h-72 flex-col items-center justify-center px-6">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-green-600">
               <Users size={24} />
             </div>
-
             <h3 className="mt-4 font-semibold text-[#18301D]">
-              {search
-                ? 'Không tìm thấy học sinh'
-                : 'Lớp chưa có học sinh'}
+              {search ? 'Không tìm thấy học sinh' : 'Lớp chưa có học sinh'}
             </h3>
-
             <p className="mt-1 text-center text-sm text-gray-400">
               {search
                 ? 'Thử tìm kiếm bằng từ khóa khác.'
@@ -326,270 +433,99 @@ function StudentsTab() {
           </div>
         ) : (
           <>
-            {/* ================= DESKTOP ================= */}
             <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[900px]">
                 <thead>
                   <tr className="bg-[#F7FAF7]">
-                    <th className="w-20 px-5 py-4 text-center text-xs font-bold uppercase text-gray-500">
-                      STT
-                    </th>
-
-                    <th className="px-5 py-4 text-left text-xs font-bold uppercase text-gray-500">
-                      Học sinh
-                    </th>
-
-                    <th className="px-5 py-4 text-left text-xs font-bold uppercase text-gray-500">
-                      Mã học sinh
-                    </th>
-
-                    <th className="px-5 py-4 text-left text-xs font-bold uppercase text-gray-500">
-                      Liên hệ
-                    </th>
-
-                    <th className="px-5 py-4 text-left text-xs font-bold uppercase text-gray-500">
-                      Ngày tham gia
-                    </th>
-
-                    <th className="w-36 px-5 py-4 text-center text-xs font-bold uppercase text-gray-500">
-                      Hành động
-                    </th>
+                    <th className="w-20 px-5 py-4 text-center text-xs font-bold uppercase text-gray-500">STT</th>
+                    <th className="px-5 py-4 text-left text-xs font-bold uppercase text-gray-500">Học sinh</th>
+                    <th className="px-5 py-4 text-left text-xs font-bold uppercase text-gray-500">Mã học sinh</th>
+                    <th className="px-5 py-4 text-left text-xs font-bold uppercase text-gray-500">Liên hệ</th>
+                    <th className="px-5 py-4 text-left text-xs font-bold uppercase text-gray-500">Ngày tham gia</th>
+                    <th className="w-36 px-5 py-4 text-center text-xs font-bold uppercase text-gray-500">Hành động</th>
                   </tr>
                 </thead>
-
                 <tbody>
-                  {filteredStudents.map(
-                    (student, index) => (
-                      <tr
-                        key={student.id}
-                        className="border-t border-gray-100 transition hover:bg-green-50/40"
-                      >
-                        {/* STT */}
-                        <td className="px-5 py-5 text-center">
-                          <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-sm font-semibold text-gray-600">
-                            {index + 1}
-                          </span>
-                        </td>
-
-                        {/* STUDENT */}
-                        <td className="px-5 py-5">
-                          <div className="flex items-center gap-3">
-
-                            {student.avatar &&
-                            student.avatar !==
-                              'avatar' ? (
-                              <img
-                                src={
-                                  student.avatar
-                                }
-                                alt={
-                                  student.fullName
-                                }
-                                className="h-11 w-11 rounded-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-green-100 text-sm font-bold text-green-700">
-                                {getInitials(
-                                  student.fullName,
-                                )}
-                              </div>
-                            )}
-
-                            <div className="min-w-0">
-                              <p className="font-semibold text-[#18301D]">
-                                {student.fullName ||
-                                  'Chưa cập nhật'}
-                              </p>
-
-                              <div className="mt-1 flex items-center gap-1.5 text-xs text-gray-400">
-                                <UserRound
-                                  size={13}
-                                />
-                                @
-                                {
-                                  student.username
-                                }
-                              </div>
-                            </div>
+                  {filteredStudents.map((student, index) => (
+                    <tr
+                      key={student.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleViewStudent(student)}
+                      onKeyDown={(event) =>
+                        handleStudentKeyDown(event, student)
+                      }
+                      className="cursor-pointer border-t border-gray-100 transition-colors hover:bg-[#ECFDF3] active:bg-green-100"
+                    >
+                      <td className="px-5 py-5 text-center">
+                        <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-sm font-semibold text-gray-600">
+                          {index + 1}
+                        </span>
+                      </td>
+                      <td className="px-5 py-5">{renderStudentIdentity(student)}</td>
+                      <td className="px-5 py-5">
+                        <span className="rounded-lg bg-green-50 px-3 py-1.5 text-sm font-semibold text-green-700">
+                          {student.studentCode || '---'}
+                        </span>
+                      </td>
+                      <td className="px-5 py-5">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <Mail size={14} className="text-green-600" />
+                            <span className="max-w-52 truncate">{student.email || '---'}</span>
                           </div>
-                        </td>
-
-                        {/* STUDENT CODE */}
-                        <td className="px-5 py-5">
-                          <span className="rounded-lg bg-green-50 px-3 py-1.5 text-sm font-semibold text-green-700">
-                            {student.studentCode ||
-                              '---'}
-                          </span>
-                        </td>
-
-                        {/* CONTACT */}
-                        <td className="px-5 py-5">
-                          <div className="space-y-1.5">
-                            <div className="flex items-center gap-2 text-sm text-gray-500">
-                              <Mail
-                                size={14}
-                                className="text-green-600"
-                              />
-
-                              <span className="max-w-52 truncate">
-                                {student.email ||
-                                  '---'}
-                              </span>
-                            </div>
-
-                            <div className="flex items-center gap-2 text-sm text-gray-400">
-                              <Phone
-                                size={14}
-                                className="text-green-600"
-                              />
-
-                              {student.phone ||
-                                'Chưa cập nhật'}
-                            </div>
+                          <div className="flex items-center gap-2 text-sm text-gray-400">
+                            <Phone size={14} className="text-green-600" />
+                            {student.phone || 'Chưa cập nhật'}
                           </div>
-                        </td>
-
-                        {/* JOINED */}
-                        <td className="px-5 py-5 text-sm text-gray-500">
-                          {formatJoinedDate(
-                            student.joinedAt,
-                          )}
-                        </td>
-
-                        {/* ACTIONS */}
-                        <td className="px-5 py-5">
-                          <div className="flex justify-center gap-2">
-                            <button
-                              type="button"
-                              title="Điểm danh"
-                              onClick={() =>
-                                handleAttendance(
-                                  student,
-                                )
-                              }
-                              className="flex h-10 w-10 items-center justify-center rounded-xl border border-green-200 text-green-600 transition hover:bg-green-50"
-                            >
-                              <CalendarCheck
-                                size={18}
-                              />
-                            </button>
-
-                            <button
-                              type="button"
-                              title="Xóa khỏi lớp"
-                              onClick={() =>
-                                handleDeleteStudent(
-                                  student,
-                                )
-                              }
-                              className="flex h-10 w-10 items-center justify-center rounded-xl border border-red-100 text-red-500 transition hover:bg-red-50"
-                            >
-                              <Trash2
-                                size={18}
-                              />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ),
-                  )}
+                        </div>
+                      </td>
+                      <td className="px-5 py-5 text-sm text-gray-500">{formatJoinedDate(student.joinedAt)}</td>
+                      <td className="px-5 py-5">{renderActions(student)}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
 
-            {/* ================= MOBILE ================= */}
             <div className="divide-y divide-gray-100 md:hidden">
-              {filteredStudents.map(
-                (student, index) => (
-                  <div
-                    key={student.id}
-                    className="p-5"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-green-100 text-sm font-bold text-green-700">
-                        {getInitials(
-                          student.fullName,
-                        )}
+              {filteredStudents.map((student, index) => (
+                <div
+                  key={student.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleViewStudent(student)}
+                  onKeyDown={(event) =>
+                    handleStudentKeyDown(event, student)
+                  }
+                  className="cursor-pointer p-5 transition-colors hover:bg-[#ECFDF3] active:bg-green-100"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-green-100 text-sm font-bold text-green-700">
+                      {getInitials(student.fullName)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-[#18301D]">{student.fullName || 'Chưa cập nhật'}</p>
+                          <p className="mt-1 text-xs text-gray-400">#{index + 1} · @{student.username || '---'}</p>
+                        </div>
+                        <span className="shrink-0 rounded-lg bg-green-50 px-2 py-1 text-xs font-semibold text-green-700">{student.studentCode || '---'}</span>
                       </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="truncate font-semibold text-[#18301D]">
-                              {
-                                student.fullName
-                              }
-                            </p>
-
-                            <p className="mt-1 text-xs text-gray-400">
-                              #{index + 1} • @
-                              {
-                                student.username
-                              }
-                            </p>
-                          </div>
-
-                          <span className="shrink-0 rounded-lg bg-green-50 px-2 py-1 text-xs font-semibold text-green-700">
-                            {
-                              student.studentCode
-                            }
-                          </span>
-                        </div>
-
-                        <div className="mt-3 space-y-1">
-                          <p className="truncate text-sm text-gray-500">
-                            {student.email}
-                          </p>
-
-                          <p className="text-sm text-gray-400">
-                            Tham gia:{' '}
-                            {formatJoinedDate(
-                              student.joinedAt,
-                            )}
-                          </p>
-                        </div>
-
-                        <div className="mt-4 flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleAttendance(
-                                student,
-                              )
-                            }
-                            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-green-200 py-2.5 text-sm font-semibold text-green-700"
-                          >
-                            <CalendarCheck
-                              size={17}
-                            />
-                            Điểm danh
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleDeleteStudent(
-                                student,
-                              )
-                            }
-                            className="flex h-10 w-10 items-center justify-center rounded-xl border border-red-100 text-red-500"
-                          >
-                            <Trash2
-                              size={17}
-                            />
-                          </button>
-                        </div>
+                      <div className="mt-3 space-y-1">
+                        <p className="truncate text-sm text-gray-500">{student.email || '---'}</p>
+                        <p className="text-sm text-gray-400">Tham gia: {formatJoinedDate(student.joinedAt)}</p>
                       </div>
+                      <div className="mt-4">{renderActions(student, true)}</div>
                     </div>
                   </div>
-                ),
-              )}
+                </div>
+              ))}
             </div>
           </>
         )}
       </section>
 
-      {/* ================= ADD STUDENT MODAL ================= */}
       <AddStudentModal
         open={addModalOpen}
         loading={adding}
@@ -602,7 +538,35 @@ function StudentsTab() {
         }}
         onSubmit={handleAddStudent}
       />
+
+      <ConfirmModal
+        open={Boolean(studentToDelete)}
+        title="Xóa học sinh khỏi lớp"
+        description={`Bạn có chắc chắn muốn xóa "${studentToDelete?.fullName || 'học sinh này'}" khỏi lớp không?`}
+        confirmText="Xóa khỏi lớp"
+        danger
+        loading={deleting}
+        onClose={() => {
+          if (!deleting) setStudentToDelete(null)
+        }}
+        onConfirm={handleDeleteStudent}
+      />
+      
+      <AttendanceModal
+      open={!!attendanceStudent}
+      student={attendanceStudent}
+      loading={attendanceLoading}
+      error={attendanceError}
+      onClose={() => {
+        if (!attendanceLoading) {
+          setAttendanceStudent(null)
+          setAttendanceError(null)
+        }
+      }}
+      onSubmit={handleSubmitAttendance}
+    />
     </>
+
   )
 }
 

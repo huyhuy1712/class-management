@@ -1,11 +1,13 @@
 import {
-  ChevronDown,
   Menu,
   Search,
 } from 'lucide-react'
 import useAuthStore from '../../stores/authStore'
+import { useNavigate } from 'react-router-dom'
+
 
 function Header({ onMenuClick }) {
+  const navigate = useNavigate()
   const user = useAuthStore((state) => state.user)
 
   return (
@@ -35,23 +37,31 @@ function Header({ onMenuClick }) {
 
       {/* User */}
       <div className="flex shrink-0 items-center gap-2 sm:gap-5">
-        <button className="flex items-center gap-2 rounded-xl px-0 py-1.5 transition hover:bg-gray-50 sm:gap-3 sm:px-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-100 text-sm font-bold text-green-700 sm:h-10 sm:w-10">
-            GV
+        <button
+          type="button"
+          onClick={() => navigate('/teacher/profile')}
+          className="group flex items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-green-50"
+        >
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-100 font-bold text-green-700 transition group-hover:bg-green-200">
+            {user?.fullName
+              ?.trim()
+              .split(/\s+/)
+              .slice(-2)
+              .map((item) => item[0])
+              .join('')
+              .toUpperCase() || 'GV'}
           </div>
 
-          <div className="hidden text-left sm:block">
-            <p className="text-sm font-semibold text-gray-800">
-              {user?.fullName || user?.username || 'Người dùng'}
+          <div className="hidden sm:block">
+            <p className="text-sm font-semibold text-[#18301D]">
+              {user?.fullName || user?.username}
             </p>
 
-            <p className="text-xs text-gray-400">
-              {user?.role === 'TEACHER' ? 'Giáo viên' : user?.role || ''}
+            <p className="mt-0.5 text-xs text-gray-400">
+              Giáo viên
             </p>
           </div>
-
-          <ChevronDown size={16} className="hidden text-gray-400 sm:block" />
-        </button>
+      </button>
       </div>
     </header>
   )

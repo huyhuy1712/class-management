@@ -29,123 +29,49 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 String authHeader = request.getHeader("Authorization");
 
-                System.out.println("========== JWT FILTER ==========");
-                System.out.println("URI: " + request.getRequestURI());
-                System.out.println(
-                                "Có Authorization header: " + (authHeader != null));
-
-                // Không có Bearer token
-                if (authHeader == null
-                                || !authHeader.startsWith("Bearer ")) {
-
-                        System.out.println("Không có Bearer token");
-                        System.out.println("==============================");
-
+                // Nếu không có Bearer token thì bỏ qua filter này
+                if (authHeader == null || !authHeader.startsWith("Bearer ")) {
                         filterChain.doFilter(request, response);
                         return;
                 }
 
-                // Lấy JWT, không log token ra terminal
+                // Lấy chuỗi JWT (bỏ qua "Bearer ")
                 String token = authHeader.substring(7);
-
                 String username;
 
                 try {
-
                         // Đọc username từ JWT
                         username = jwtService.extractUsername(token);
-
-                        System.out.println(
-                                        "Username trong JWT: " + username);
-
                 } catch (Exception ex) {
-
-                        System.out.println(
-                                        "JWT ERROR: "
-                                                        + ex.getClass().getSimpleName()
-                                                        + " - "
-                                                        + ex.getMessage());
-
-                        System.out.println("==============================");
-
+                        // Bỏ qua nếu token lỗi/hết hạn
                         filterChain.doFilter(request, response);
                         return;
                 }
 
-                // Chỉ authenticate nếu SecurityContext chưa có authentication
-                if (username != null
-                                && SecurityContextHolder
-                                                .getContext()
-                                                .getAuthentication() == null) {
-
+                // Chỉ authenticate nếu JWT hợp lệ và SecurityContext chưa được xác thực
+                if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                         UserDetails userDetails;
 
                         try {
-
-                                userDetails = userDetailsService
-                                                .loadUserByUsername(username);
-
-                                System.out.println(
-                                                "Đã tìm thấy user: "
-                                                                + userDetails.getUsername());
-
-                                System.out.println(
-                                                "Authorities: "
-                                                                + userDetails.getAuthorities());
-
+                                userDetails = userDetailsService.loadUserByUsername(username);
                         } catch (Exception ex) {
-
-                                System.out.println(
-                                                "Không thể load user: "
-                                                                + ex.getClass().getSimpleName()
-                                                                + " - "
-                                                                + ex.getMessage());
-
-                                System.out.println("==============================");
-
                                 filterChain.doFilter(request, response);
                                 return;
                         }
 
                         try {
-
-                                boolean valid = jwtService.isTokenValid(
-                                                token,
-                                                userDetails);
-
-                                System.out.println(
-                                                "JWT VALID: " + valid);
-
-                                if (valid) {
-
+                                if (jwtService.isTokenValid(token, userDetails)) {
                                         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                                                         userDetails,
                                                         null,
                                                         userDetails.getAuthorities());
 
-                                        SecurityContextHolder
-                                                        .getContext()
-                                                        .setAuthentication(authentication);
-
-                                        System.out.println(
-                                                        "AUTHENTICATED: "
-                                                                        + SecurityContextHolder
-                                                                                        .getContext()
-                                                                                        .getAuthentication()
-                                                                                        .isAuthenticated());
+                                        SecurityContextHolder.getContext().setAuthentication(authentication);
                                 }
-
                         } catch (Exception ex) {
-
-                                System.out.println(
-                                                "JWT VALIDATION ERROR: "
-                                                                + ex.getClass().getSimpleName()
-                                                                + " - "
-                                                                + ex.getMessage());
+                                // Bỏ qua ngoại lệ xác thực JWT
                         }
                 }
-
-                System.out.println("==============================");
 
                 filterChain.doFilter(request, response);
         }

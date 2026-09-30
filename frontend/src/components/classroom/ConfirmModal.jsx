@@ -7,6 +7,7 @@ function ConfirmModal({
   confirmText,
   loading = false,
   danger = false,
+  error = null,
   onClose,
   onConfirm,
 }) {
@@ -41,6 +42,14 @@ function ConfirmModal({
           <p className="mt-2 text-sm leading-6 text-gray-500">
             {description}
           </p>
+          
+          {error && (
+            <div className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-left">
+              <p className="text-sm text-red-600">
+                {error}
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="mt-6 flex gap-3">

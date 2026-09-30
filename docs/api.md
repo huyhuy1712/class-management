@@ -397,6 +397,123 @@ Nếu lớp chưa có học sinh, API trả về:
 - `400 Bad Request`: Không tìm thấy lớp học với `classroomId` đã cung cấp.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
+### DELETE - Xóa học sinh khỏi lớp
+
+**Endpoint:** `DELETE /api/classes/{classroomId}/students/{studentId}`
+
+Trong đó:
+
+- `{classroomId}`: ID của lớp học.
+- `{studentId}`: ID của học sinh cần xóa khỏi lớp.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+API này không yêu cầu request body.
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X DELETE http://localhost:8080/api/classes/1/students/5 \
+	-H "Authorization: Bearer <accessToken>"
+```
+
+**Response thành công `204 No Content`:**
+
+Response không có body. Học sinh được xóa khỏi lớp nhưng tài khoản học sinh vẫn tồn tại trong hệ thống.
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Không tìm thấy lớp học hoặc học sinh.
+- `400 Bad Request`: Học sinh không thuộc lớp học này.
+- `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+
+### POST - Thêm điểm danh cho lớp
+
+**Endpoint:** `POST /api/classes/{classroomId}/attendances`
+
+Trong đó, `{classroomId}` là ID của lớp học cần điểm danh.
+
+**Headers:**
+
+```http
+Content-Type: application/json
+Authorization: Bearer <accessToken>
+```
+
+**Request body mẫu:**
+
+```json
+{
+	"date": "2026-09-30",
+	"students": [
+		{
+			"studentId": 5,
+			"status": "PRESENT",
+			"note": "Có mặt đúng giờ"
+		},
+		{
+			"studentId": 6,
+			"status": "LATE",
+			"note": "Đến muộn 10 phút"
+		}
+	]
+}
+```
+
+Trong đó:
+
+- `date`: Ngày điểm danh, bắt buộc, định dạng `YYYY-MM-DD`.
+- `students`: Danh sách điểm danh, bắt buộc và không được rỗng.
+- `studentId`: ID học sinh, bắt buộc. Học sinh phải thuộc lớp đang điểm danh.
+- `status`: Trạng thái điểm danh, bắt buộc. Chỉ nhận `PRESENT`, `ABSENT` hoặc `LATE`.
+- `note`: Ghi chú, không bắt buộc.
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X POST http://localhost:8080/api/classes/1/attendances \
+	-H "Content-Type: application/json" \
+	-H "Authorization: Bearer <accessToken>" \
+	-d '{
+		"date": "2026-09-30",
+		"students": [
+			{
+				"studentId": 5,
+				"status": "PRESENT",
+				"note": "Có mặt đúng giờ"
+			}
+		]
+	}'
+```
+
+**Response thành công `201 Created`:**
+
+```json
+[
+	{
+		"id": 1,
+		"studentId": 5,
+		"studentCode": "SV2026005",
+		"fullName": "Trần Văn Bình",
+		"date": "2026-09-30",
+		"status": "PRESENT",
+		"note": "Có mặt đúng giờ"
+	}
+]
+```
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Thiếu ngày, danh sách học sinh hoặc trạng thái điểm danh không hợp lệ.
+- `400 Bad Request`: Không tìm thấy lớp học hoặc học sinh.
+- `400 Bad Request`: Học sinh không thuộc lớp học này.
+- `400 Bad Request`: Học sinh đã được điểm danh trong ngày đã chọn.
+- `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+
 ### GET - Lấy danh sách lớp học
 
 **Endpoint:** `GET /api/classes`
@@ -539,3 +656,182 @@ Nếu chưa có người dùng (ngoài tài khoản `ADMIN`), API trả về:
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 - `403 Forbidden`: Token không có quyền truy cập tài nguyên.
 - `400 Bad Request`: Giá trị `role` không hợp lệ. Chỉ sử dụng `STUDENT` hoặc `TEACHER`; không được sử dụng `ADMIN`.
+
+### GET - Lấy thông tin người dùng theo ID
+
+**Endpoint:** `GET http://localhost:8080/api/users/{userId}`
+
+Trong đó, `{userId}` là ID của người dùng cần xem.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X GET http://localhost:8080/api/users/5 \
+	-H "Authorization: Bearer <accessToken>"
+```
+
+**Response thành công `200 OK`:**
+
+```json
+{
+	"id": 5,
+	"username": "sinhvien01",
+	"email": "sinhvien01@example.com",
+	"fullName": "Trần Văn Bình",
+	"phone": "0912345678",
+	"avatar": "avatar",
+	"studentCode": "SV2026005",
+	"role": "STUDENT",
+	"status": "ACTIVE"
+}
+```
+
+Mật khẩu không được trả về trong response.
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Không tìm thấy người dùng với `userId` đã cung cấp.
+- `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+
+### PUT - Cập nhật thông tin cá nhân
+
+**Endpoint:** `PUT /api/users/me`
+
+API tự xác định người dùng cần cập nhật từ JWT trong header, không cần truyền `userId`.
+
+**Headers:**
+
+```http
+Content-Type: application/json
+Authorization: Bearer <accessToken>
+```
+
+**Request body mẫu:**
+
+```json
+{
+	"fullName": "Nguyễn Văn An cập nhật",
+	"email": "nguyenvanan.moi@example.com",
+	"phone": "0901234567"
+}
+```
+
+Tất cả các trường đều không bắt buộc, có thể chỉ gửi trường muốn thay đổi:
+
+- `fullName`: Họ tên, từ 2 đến 100 ký tự.
+- `email`: Email đúng định dạng, tối đa 255 ký tự và không được trùng tài khoản khác.
+- `phone`: Số điện thoại Việt Nam hợp lệ và không được trùng tài khoản khác.
+
+API này chỉ cập nhật `fullName`, `email` và `phone`. Không thể thay đổi `username`, `role`, `status`, `studentCode` hoặc `avatar` bằng API này.
+
+Để thay đổi avatar, sử dụng riêng `POST /api/users/me/avatar`. Để xóa avatar, sử dụng `DELETE /api/users/me/avatar`.
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X PUT http://localhost:8080/api/users/me \
+	-H "Content-Type: application/json" \
+	-H "Authorization: Bearer <accessToken>" \
+	-d '{
+		"fullName": "Nguyễn Văn An cập nhật",
+		"phone": "0901234567"
+	}'
+```
+
+**Response thành công `200 OK`:**
+
+```json
+{
+	"id": 2,
+	"username": "giaovien01",
+	"email": "nguyenvanan.moi@example.com",
+	"fullName": "Nguyễn Văn An cập nhật",
+	"phone": "0901234567",
+	"avatar": "https://example.com/avatar-cu.png",
+	"studentCode": null,
+	"role": "TEACHER",
+	"status": "ACTIVE"
+}
+```
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Dữ liệu không hợp lệ, email hoặc số điện thoại đã được tài khoản khác sử dụng.
+- `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+- `404 Not Found`: Không tìm thấy người dùng hiện tại.
+
+### POST - Tải ảnh đại diện
+
+**Endpoint:** `POST /api/users/me/avatar`
+
+API tự xác định người dùng hiện tại từ JWT, không cần truyền `userId`.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+Content-Type: multipart/form-data
+```
+
+**Form-data:**
+
+- Key: `file`
+- Type: `File`
+- Giá trị: Chọn một ảnh JPG, PNG hoặc WebP, dung lượng tối đa 2 MB.
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X POST http://localhost:8080/api/users/me/avatar \
+	-H "Authorization: Bearer <accessToken>" \
+	-F "file=@C:/path/to/avatar.png"
+```
+
+**Response thành công `200 OK`:**
+
+```json
+{
+	"avatar": "http://localhost:8080/uploads/avatars/avatar_user_5.png?v=1727685000000"
+}
+```
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Không chọn file, file rỗng, file vượt quá 2 MB hoặc không phải JPG/PNG/WebP hợp lệ.
+- `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+
+### DELETE - Xóa ảnh đại diện
+
+**Endpoint:** `DELETE /api/users/me/avatar`
+
+API tự xác định người dùng hiện tại từ JWT và xóa ảnh đại diện đang lưu.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+API này không yêu cầu request body.
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X DELETE http://localhost:8080/api/users/me/avatar \
+	-H "Authorization: Bearer <accessToken>"
+```
+
+**Response thành công `204 No Content`:**
+
+Response không có body. Trường `avatar` của user được cập nhật thành `null`.
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Không tìm thấy người dùng hiện tại.
+- `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.

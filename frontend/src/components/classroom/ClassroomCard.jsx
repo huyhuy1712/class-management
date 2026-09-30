@@ -140,7 +140,7 @@ function ClassCard({
         onClick={() => onView(classroom)}
         className="mt-5 w-full rounded-xl bg-[#14532D] py-2.5 text-sm font-semibold text-white transition hover:bg-[#166534]"
       >
-        Xem lớp học
+        Vào lớp học
       </button>
     </article>
   )

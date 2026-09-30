@@ -6,6 +6,7 @@ import com.classmanagement.backend.dto.classroom.ClassroomStudentResponse;
 import com.classmanagement.backend.dto.classroom.CreateClassroomRequest;
 import com.classmanagement.backend.dto.classroom.UpdateClassroomRequest;
 import com.classmanagement.backend.entity.ClassStudent;
+import com.classmanagement.backend.entity.ClassStudentId;
 import com.classmanagement.backend.entity.Classroom;
 import com.classmanagement.backend.entity.Subject;
 import com.classmanagement.backend.entity.User;
@@ -257,7 +258,7 @@ public class ClassroomServiceImpl implements ClassroomService {
                 .findById(classroomId)
                 .orElseThrow(() ->
                         new IllegalArgumentException(
-                                "Classroom not found"
+                                "Không tìm thấy lớp học"
                         )
                 );
 
@@ -265,19 +266,19 @@ public class ClassroomServiceImpl implements ClassroomService {
                 .findById(request.getStudentId())
                 .orElseThrow(() ->
                         new IllegalArgumentException(
-                                "Student not found"
+                                "Không tìm thấy học sinh"
                         )
                 );
 
         if (student.getRole() != UserRole.STUDENT) {
                 throw new IllegalArgumentException(
-                        "Selected user is not a student"
+                        "Người dùng được chọn không phải là học sinh"
                 );
         }
 
         if (student.getStatus() != UserStatus.ACTIVE) {
                 throw new IllegalArgumentException(
-                        "Student account is not active"
+                        "Tài khoản học sinh chưa được kích hoạt"
                 );
         }
 
@@ -288,7 +289,7 @@ public class ClassroomServiceImpl implements ClassroomService {
                 )) {
 
                 throw new IllegalStateException(
-                        "Student is already in this classroom"
+                        "Học sinh đã có trong lớp học này"
                 );
         }
 
@@ -343,5 +344,39 @@ public class ClassroomServiceImpl implements ClassroomService {
         })
                         .toList();
          }
-         
+        
+        @Transactional
+        @Override
+        public void removeStudentFromClassroom(
+                Long classroomId,
+                Long studentId
+        ) {
+
+        if (!classroomRepository.existsById(classroomId)) {
+                throw new IllegalArgumentException(
+                        "Không tìm thấy lớp học"
+                );
+        }
+
+        if (!userRepository.existsById(studentId)) {
+                throw new IllegalArgumentException(
+                        "Không tìm thấy học sinh"
+                );
+        }
+
+        ClassStudentId classStudentId =
+                new ClassStudentId(
+                        classroomId,
+                        studentId
+                );
+
+        if (!classStudentRepository.existsById(classStudentId)) {
+                throw new IllegalArgumentException(
+                        "Học sinh không thuộc lớp học này"
+                );
+        }
+
+        classStudentRepository.deleteById(classStudentId);
+}
+
 }

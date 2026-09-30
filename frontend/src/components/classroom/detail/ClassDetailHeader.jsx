@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
-function ClassDetailHeader({ classroom, onActivate }) {
+function ClassDetailHeader({ classroom, onActivate, studentCount = 0 }) {
   const navigate = useNavigate()
 
   return (
@@ -76,7 +76,7 @@ function ClassDetailHeader({ classroom, onActivate }) {
 
               <div className="flex items-center gap-2 rounded-xl bg-[#F5FAF4] px-4 py-2.5 text-sm text-gray-500">
                 <Users size={17} className="text-green-600" />
-                {classroom?.studentCount ?? 0} học sinh
+                {studentCount} học sinh
               </div>
             </div>
           </div>

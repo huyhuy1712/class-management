@@ -59,6 +59,21 @@ getStudents: async (classroomId) => {
   return students
 },
 
+removeStudent: async (classroomId, studentId) => {
+  await api.delete(
+    `/classes/${classroomId}/students/${studentId}`,
+  )
+},
+
+createAttendance: async (classroomId, attendanceData) => {
+  const response = await api.post(
+    `/classes/${classroomId}/attendances`,
+    attendanceData,
+  )
+
+  return response.data
+},
+
 }
 
 export default classroomService

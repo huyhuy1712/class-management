@@ -10,7 +10,8 @@ import AssignmentsTab from '../pages/teacher/classroom/tabs/AssignmentsTab'
 import AnnouncementsTab from '../pages/teacher/classroom/tabs/AnnouncementsTab'
 import GradesTab from '../pages/teacher/classroom/tabs/GradesTab'
 import AttendanceTab from '../pages/teacher/classroom/tabs/AttendanceTab'
-
+import StudentDetailPage from '../pages/teacher/classroom/StudentDetailPage'
+import TeacherProfilePage from '../pages/teacher/TeacherProfilePage'
 
 function AppRoutes() {
   return (
@@ -37,6 +38,10 @@ function AppRoutes() {
         path="/teacher/classes"
         element={<ClassListPage />}
       />
+      <Route
+      path="/teacher/profile"
+      element={<TeacherProfilePage />}
+      />
 
       {/* Nested Route classDetail */}
       <Route
@@ -48,6 +53,9 @@ function AppRoutes() {
       <Route path="announcements" element={<AnnouncementsTab />} />
       <Route path="grades" element={<GradesTab />} />
       <Route path="attendance" element={<AttendanceTab />} />
+
+      {/* Nested Route classDetail studentDetail */}
+      <Route path="students/:studentId" element={<StudentDetailPage />} />
     </Route>
 
     </Routes>

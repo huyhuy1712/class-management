@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { NavLink, useParams } from 'react-router-dom'
 
-function ClassDetailSidebar() {
+function ClassDetailSidebar({ studentCount = 0 }) {
   const { classId } = useParams()
 
   const menuItems = [
@@ -16,6 +16,7 @@ function ClassDetailSidebar() {
       icon: Users,
       to: `/teacher/classes/${classId}`,
       end: true,
+      showCount: true,
     },
     {
       label: 'Bài tập & Đề thi',
@@ -71,7 +72,15 @@ function ClassDetailSidebar() {
                       <Icon size={18} />
                     </div>
 
-                    {item.label}
+                    <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                      <span>{item.label}</span>
+
+                      {item.showCount && (
+                        <span className="rounded-full bg-white px-2 py-0.5 text-xs font-bold text-green-700 shadow-sm">
+                          {studentCount}
+                        </span>
+                      )}
+                    </span>
                   </>
                 )}
               </NavLink>

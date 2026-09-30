@@ -28,4 +28,7 @@ public interface ClassroomService {
     List<ClassroomStudentResponse> getStudentsByClassroomId(
         Long classroomId);
 
+    void removeStudentFromClassroom(
+            Long classroomId,
+            Long studentId);
 }
