@@ -6,7 +6,7 @@ const getStoredUser = () => {
   return user ? JSON.parse(user) : null
 }
 
-const useAuthStore = create((set) => ({
+const useAuthStore = create((set, get) => ({
   user: getStoredUser(),
   token: localStorage.getItem('accessToken'),
 
@@ -17,6 +17,27 @@ const useAuthStore = create((set) => ({
     set({
       user,
       token,
+    })
+  },
+
+  // Cập nhật thông tin user
+  updateUser: (updatedUser) => {
+    const currentUser = get().user
+
+    if (!currentUser) return
+
+    const newUser = {
+      ...currentUser,
+      ...updatedUser,
+    }
+
+    localStorage.setItem(
+      'user',
+      JSON.stringify(newUser)
+    )
+
+    set({
+      user: newUser,
     })
   },
 

@@ -34,9 +34,9 @@ public class ClassroomServiceImpl implements ClassroomService {
     private final UserRepository userRepository;
     private final ClassStudentRepository classStudentRepository;
 
-    @Override
-    @Transactional
-    public ClassroomResponse createClassroom(CreateClassroomRequest request) {
+@Override
+@Transactional
+public ClassroomResponse createClassroom(CreateClassroomRequest request) {
 
         if (classroomRepository.existsByCode(request.getCode())) {
             throw new IllegalArgumentException("Mã lớp đã tồn tại");
@@ -74,9 +74,9 @@ public class ClassroomServiceImpl implements ClassroomService {
         return toResponse(saved);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<ClassroomResponse> getAllClassrooms() {
+@Override
+@Transactional(readOnly = true)
+public List<ClassroomResponse> getAllClassrooms() {
 
         return classroomRepository.findAll()
                 .stream()
@@ -84,7 +84,7 @@ public class ClassroomServiceImpl implements ClassroomService {
                 .toList();
     }
 
-    private ClassroomResponse toResponse(Classroom classroom) {
+private ClassroomResponse toResponse(Classroom classroom) {
 
         return ClassroomResponse.builder()
                 .id(classroom.getId())
@@ -102,11 +102,8 @@ public class ClassroomServiceImpl implements ClassroomService {
                 .build();
     }
 
-        @Override
-        public ClassroomResponse updateClass(
-        Long id,
-        UpdateClassroomRequest request
-        ) {
+@Override
+public ClassroomResponse updateClass( Long id, UpdateClassroomRequest request) {
 
     // 1. Tìm class
     Classroom classroom = classroomRepository
@@ -192,8 +189,8 @@ public class ClassroomServiceImpl implements ClassroomService {
             .build();
 }
 
-        @Override
-        public ClassroomResponse archiveClassroom(Long id) {
+@Override
+public ClassroomResponse archiveClassroom(Long id) {
 
     // 1. Tìm classroom
     Classroom classroom = classroomRepository
@@ -231,8 +228,8 @@ public class ClassroomServiceImpl implements ClassroomService {
             .build();
 }
 
-        @Override
-        public void deleteClassroom(Long id) {
+@Override
+public void deleteClassroom(Long id) {
 
         // 1. Tìm classroom
         Classroom classroom = classroomRepository
@@ -247,9 +244,9 @@ public class ClassroomServiceImpl implements ClassroomService {
         classroomRepository.delete(classroom);
         }
 
-        @Override
-        @Transactional
-        public ClassroomStudentResponse addStudent(
+@Override
+@Transactional
+public ClassroomStudentResponse addStudent(
                 Long classroomId,
                 AddStudentToClassroomRequest request
         ) {
@@ -315,9 +312,9 @@ public class ClassroomServiceImpl implements ClassroomService {
                 .build();
          }
          
-         @Transactional(readOnly = true)
-         @Override
-         public List<ClassroomStudentResponse> getStudentsByClassroomId(
+@Transactional(readOnly = true)
+@Override
+public List<ClassroomStudentResponse> getStudentsByClassroomId(
                          Long classroomId) {
                  if (!classroomRepository.existsById(classroomId)) {
                          throw new IllegalArgumentException(
@@ -345,9 +342,9 @@ public class ClassroomServiceImpl implements ClassroomService {
                         .toList();
          }
         
-        @Transactional
-        @Override
-        public void removeStudentFromClassroom(
+@Transactional
+@Override
+public void removeStudentFromClassroom(
                 Long classroomId,
                 Long studentId
         ) {
@@ -377,6 +374,27 @@ public class ClassroomServiceImpl implements ClassroomService {
         }
 
         classStudentRepository.deleteById(classStudentId);
+}
+
+@Override
+@Transactional(readOnly = true)
+public List<ClassroomResponse> getMyClassrooms(String username) {
+
+        User teacher = userRepository.findByUsername(username)
+                        .orElseThrow(() -> new IllegalArgumentException(
+                                        "Không tìm thấy người dùng"));
+
+        if (teacher.getRole() != UserRole.TEACHER) {
+                throw new IllegalStateException(
+                                "Chỉ giáo viên mới được xem danh sách lớp của mình");
+        }
+
+        List<Classroom> classrooms = classroomRepository.findAllByTeacher_Id(
+                        teacher.getId());
+
+        return classrooms.stream()
+                        .map(this::toResponse)
+                        .toList();
 }
 
 }

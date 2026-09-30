@@ -34,14 +34,11 @@ public ResponseEntity<List<UserResponse>> getAllUsers(
 @PutMapping("/me")
 public ResponseEntity<UserResponse> updateMyProfile(
         Authentication authentication,
-        @Valid @RequestBody UpdateProfileRequest request
-) {
-    return ResponseEntity.ok(
-            userService.updateMyProfile(
-                    authentication.getName(),
-                    request
-            )
-    );
+        @Valid @RequestBody UpdateProfileRequest request) {
+return ResponseEntity.ok(
+        userService.updateMyProfile(
+                authentication.getName(),
+                request));
 }
 
 @GetMapping("/{userId}")
@@ -50,5 +47,6 @@ public ResponseEntity<UserResponse> getUserById(
     return ResponseEntity.ok(
             userService.getUserById(userId));
 }
+
 
 }

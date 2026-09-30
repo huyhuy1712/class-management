@@ -549,6 +549,55 @@ Nếu database chưa có lớp học, API sẽ trả về danh sách rỗng:
 ```json
 []
 ```
+
+### GET - Lấy danh sách lớp của giáo viên hiện tại
+
+**Endpoint:** `GET /api/classes/my`
+
+API lấy giáo viên từ JWT, không cần truyền `teacherId`. Chỉ tài khoản có role `TEACHER` mới được gọi. Danh sách gồm các lớp được gán cho giáo viên, không lọc theo trạng thái lớp.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X GET http://localhost:8080/api/classes/my \
+	-H "Authorization: Bearer <accessToken>"
+```
+
+**Response thành công `200 OK`:**
+
+```json
+[
+	{
+		"id": 1,
+		"name": "Lập trình Java K21",
+		"code": "JAVA-K21",
+		"subjectId": 1,
+		"subjectName": "Lập trình Java",
+		"teacherId": 2,
+		"teacherName": "Nguyễn Văn An",
+		"academicYear": "2026-2027",
+		"description": "Lớp học Java cơ bản cho sinh viên khóa K21",
+		"status": "ACTIVE",
+		"createdAt": "2026-09-28T10:30:00",
+		"updatedAt": "2026-09-28T10:30:00"
+	}
+]
+```
+
+Nếu giáo viên chưa được gán lớp nào, API trả về `200 OK` với danh sách rỗng `[]`.
+
+**Một số trường hợp lỗi:**
+
+- `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+- `403 Forbidden`: Người dùng hiện tại không có role `TEACHER`.
+- `400 Bad Request`: Không tìm thấy người dùng ứng với tài khoản hiện tại.
+
 ### GET - Lấy danh sách môn học
 
 **Endpoint:** `GET http://localhost:8080/api/subjects`
@@ -722,11 +771,11 @@ Authorization: Bearer <accessToken>
 }
 ```
 
-Tất cả các trường đều không bắt buộc, có thể chỉ gửi trường muốn thay đổi:
+Tất cả các trường đều không bắt buộc. Chỉ các trường có giá trị khác `null` mới được cập nhật; bỏ qua field hoặc gửi `null` sẽ giữ nguyên giá trị hiện tại. Gửi `{}` sẽ không thay đổi thông tin:
 
-- `fullName`: Họ tên, từ 2 đến 100 ký tự.
-- `email`: Email đúng định dạng, tối đa 255 ký tự và không được trùng tài khoản khác.
-- `phone`: Số điện thoại Việt Nam hợp lệ và không được trùng tài khoản khác.
+- `fullName`: Họ tên, từ 2 đến 100 ký tự, không được chỉ chứa khoảng trắng. Giá trị được cắt khoảng trắng ở đầu và cuối trước khi lưu.
+- `email`: Email đúng định dạng, tối đa 255 ký tự và không được trùng tài khoản khác. Giá trị được cắt khoảng trắng ở đầu và cuối, sau đó chuyển thành chữ thường trước khi lưu.
+- `phone`: Để trống field hoặc gửi `null` sẽ giữ nguyên số hiện tại. Gửi chuỗi rỗng `""` để xóa số điện thoại. Số điện thoại Việt Nam hợp lệ gồm 10 chữ số, bắt đầu bằng `03`, `05`, `07`, `08` hoặc `09`, và không được trùng tài khoản khác.
 
 API này chỉ cập nhật `fullName`, `email` và `phone`. Không thể thay đổi `username`, `role`, `status`, `studentCode` hoặc `avatar` bằng API này.
 
@@ -764,13 +813,13 @@ curl -X PUT http://localhost:8080/api/users/me \
 
 - `400 Bad Request`: Dữ liệu không hợp lệ, email hoặc số điện thoại đã được tài khoản khác sử dụng.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
-- `404 Not Found`: Không tìm thấy người dùng hiện tại.
+- `400 Bad Request`: Không tìm thấy người dùng hiện tại.
 
 ### POST - Tải ảnh đại diện
 
 **Endpoint:** `POST /api/users/me/avatar`
 
-API tự xác định người dùng hiện tại từ JWT, không cần truyền `userId`.
+API tự xác định người dùng hiện tại từ JWT, không cần truyền `userId`. Ảnh tải lên sẽ thay avatar hiện tại.
 
 **Headers:**
 
@@ -783,7 +832,7 @@ Content-Type: multipart/form-data
 
 - Key: `file`
 - Type: `File`
-- Giá trị: Chọn một ảnh JPG, PNG hoặc WebP, dung lượng tối đa 2 MB.
+- Giá trị: Chọn một ảnh JPG, PNG hoặc WebP hợp lệ, dung lượng tối đa 2 MB. Server xác thực nội dung file, không chỉ dựa vào tên hoặc phần mở rộng.
 
 **Cách test bằng cURL:**
 
@@ -801,16 +850,19 @@ curl -X POST http://localhost:8080/api/users/me/avatar \
 }
 ```
 
+Trường `avatar` trong response là URL của ảnh vừa tải lên và được lưu vào hồ sơ người dùng.
+
 **Một số trường hợp lỗi:**
 
-- `400 Bad Request`: Không chọn file, file rỗng, file vượt quá 2 MB hoặc không phải JPG/PNG/WebP hợp lệ.
+- `400 Bad Request`: Không chọn file, file rỗng hoặc nội dung không phải ảnh JPG/PNG/WebP hợp lệ.
+- File vượt quá giới hạn 2 MB sẽ bị server từ chối.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
 ### DELETE - Xóa ảnh đại diện
 
 **Endpoint:** `DELETE /api/users/me/avatar`
 
-API tự xác định người dùng hiện tại từ JWT và xóa ảnh đại diện đang lưu.
+API tự xác định người dùng hiện tại từ JWT, xóa file ảnh đại diện đang lưu và đặt trường `avatar` của hồ sơ thành `null`.
 
 **Headers:**
 
@@ -829,7 +881,7 @@ curl -X DELETE http://localhost:8080/api/users/me/avatar \
 
 **Response thành công `204 No Content`:**
 
-Response không có body. Trường `avatar` của user được cập nhật thành `null`.
+Response không có body. Gọi API khi người dùng chưa có avatar vẫn trả về `204 No Content`.
 
 **Một số trường hợp lỗi:**
 

@@ -8,6 +8,8 @@ import com.classmanagement.backend.dto.classroom.UpdateClassroomRequest;
 import com.classmanagement.backend.service.ClassroomService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.security.core.Authentication;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,10 +21,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ClassroomController {
 
-        private final ClassroomService classroomService;
+private final ClassroomService classroomService;
 
-        @PostMapping
-        public ResponseEntity<ClassroomResponse> createClassroom(
+@PostMapping
+public ResponseEntity<ClassroomResponse> createClassroom(
                         @Valid @RequestBody CreateClassroomRequest request) {
 
                 ClassroomResponse response = classroomService.createClassroom(request);
@@ -32,15 +34,15 @@ public class ClassroomController {
                                 .body(response);
         }
 
-        @GetMapping
-        public ResponseEntity<List<ClassroomResponse>> getAllClassrooms() {
+@GetMapping
+public ResponseEntity<List<ClassroomResponse>> getAllClassrooms() {
 
                 return ResponseEntity.ok(
                                 classroomService.getAllClassrooms());
         }
 
-        @PutMapping("/{id}")
-        public ResponseEntity<ClassroomResponse> updateClass(
+@PutMapping("/{id}")
+public ResponseEntity<ClassroomResponse> updateClass(
                         @PathVariable Long id,
                         @Valid @RequestBody UpdateClassroomRequest request) {
 
@@ -49,8 +51,8 @@ public class ClassroomController {
                 return ResponseEntity.ok(response);
         }
 
-        @PatchMapping("/{id}/archive")
-        public ResponseEntity<ClassroomResponse> archiveClassroom(
+@PatchMapping("/{id}/archive")
+public ResponseEntity<ClassroomResponse> archiveClassroom(
                         @PathVariable Long id) {
 
                 ClassroomResponse response = classroomService.archiveClassroom(id);
@@ -58,8 +60,8 @@ public class ClassroomController {
                 return ResponseEntity.ok(response);
         }
 
-        @DeleteMapping("/{id}")
-        public ResponseEntity<Void> deleteClassroom(
+@DeleteMapping("/{id}")
+public ResponseEntity<Void> deleteClassroom(
                         @PathVariable Long id) {
 
                 classroomService.deleteClassroom(id);
@@ -67,8 +69,8 @@ public class ClassroomController {
                 return ResponseEntity.noContent().build();
         }
 
-        @PostMapping("/{classroomId}/students")
-        public ResponseEntity<ClassroomStudentResponse> addStudent(
+@PostMapping("/{classroomId}/students")
+public ResponseEntity<ClassroomStudentResponse> addStudent(
         @PathVariable Long classroomId,
         @Valid @RequestBody AddStudentToClassroomRequest request
 ) {
@@ -84,16 +86,16 @@ public class ClassroomController {
             .body(response);
 }
 
-        @GetMapping("/{classroomId}/students")
-                public ResponseEntity<List<ClassroomStudentResponse>> getStudentsByClassroomId(
+@GetMapping("/{classroomId}/students")
+public ResponseEntity<List<ClassroomStudentResponse>> getStudentsByClassroomId(
                         @PathVariable Long classroomId) {
 
                 return ResponseEntity.ok(
                                 classroomService.getStudentsByClassroomId(classroomId));
         }
 
-        @DeleteMapping("/{classroomId}/students/{studentId}")
-        public ResponseEntity<Void> removeStudentFromClassroom(
+@DeleteMapping("/{classroomId}/students/{studentId}")
+public ResponseEntity<Void> removeStudentFromClassroom(
                 @PathVariable Long classroomId,
                 @PathVariable Long studentId) {
 
@@ -104,4 +106,11 @@ public class ClassroomController {
         return ResponseEntity.noContent().build();
 }
 
+@GetMapping("/my")
+public ResponseEntity<List<ClassroomResponse>> getMyClassrooms(
+                Authentication authentication) {
+        return ResponseEntity.ok(
+                        classroomService.getMyClassrooms(
+                                        authentication.getName()));
+}
 }

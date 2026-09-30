@@ -74,6 +74,11 @@ createAttendance: async (classroomId, attendanceData) => {
   return response.data
 },
 
+getMyClasses: async () => {
+  const response = await api.get('/classes/my')
+  return response.data
+},
+
 }
 
 export default classroomService

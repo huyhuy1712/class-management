@@ -5,10 +5,7 @@ const baseURL = import.meta.env.DEV
   : import.meta.env.VITE_API_PRODUCTION_URL
 
 const api = axios.create({
-  baseURL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: import.meta.env.VITE_API_LOCAL_URL,
 })
 
 api.interceptors.request.use(

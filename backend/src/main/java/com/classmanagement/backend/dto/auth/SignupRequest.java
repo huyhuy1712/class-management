@@ -22,7 +22,9 @@ public class SignupRequest {
     private String password;
 
     @NotBlank(message = "Vui lòng nhập email")
-    @Email(message = "Email không hợp lệ")
+    @Email(message = "Email phải có đuôi @gmail.com")
+    @Pattern(regexp = "^[a-zA-Z0-9._%+-]+@gmail\\.com$", 
+    message = "Email phải có định dạng xxxxx@gmail.com")
     private String email;
 
     @NotBlank(message = "Vui lòng nhập họ và tên")

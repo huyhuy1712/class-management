@@ -8,6 +8,7 @@ function ClassFormModal({
   isOpen,
   onClose,
   onSubmit,
+  onClearError,
   submitting = false,
   error = null,
   initialData = null,
@@ -92,6 +93,7 @@ function ClassFormModal({
   const handleChange = (event) => {
     const { name, value } = event.target
 
+    onClearError?.()
     setFormData((prev) => ({
       ...prev,
       [name]: value,

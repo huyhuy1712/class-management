@@ -1,7 +1,6 @@
 import {
   BookOpen,
   CalendarDays,
-  Users,
   MoreVertical,
   Pencil,
   Trash2,
@@ -36,7 +35,11 @@ function ClassCard({
   }, [menuOpen])
 
   return (
-    <article className="group rounded-2xl border border-green-100 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-green-900/5">
+    <article className={`group flex h-full flex-col rounded-2xl border p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-green-900/5 ${
+      classroom.status === 'ARCHIVED'
+        ? 'border-rose-100 bg-rose-50/30'
+        : 'border-emerald-100 bg-white'
+    }`}>
       
       {/* Top */}
       <div className="flex items-start justify-between">
@@ -47,6 +50,7 @@ function ClassCard({
         <div ref={menuRef} className="group/menu relative">
           <button
             type="button"
+            aria-label={`Thao tác lớp ${classroom.name}`}
             onClick={() => setMenuOpen((isOpen) => !isOpen)}
             className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
           >
@@ -100,7 +104,7 @@ function ClassCard({
 
       {/* Class */}
       <div className="mt-5">
-        <h3 className="text-lg font-bold text-[#18301D]">
+        <h3 className="min-h-7 text-lg font-bold text-[#18301D]">
           {classroom.name}
         </h3>
 
@@ -121,7 +125,7 @@ function ClassCard({
       <div className="mt-5 space-y-3 border-t border-gray-100 pt-4">
         <div className="flex items-center gap-2 text-sm text-gray-500">
           <BookOpen size={17} className="text-green-600" />
-          {classroom.subject}
+          {classroom.subjectName || classroom.subject || 'Chưa cập nhật môn học'}
         </div>
 
         <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -129,16 +133,12 @@ function ClassCard({
           {classroom.academicYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`}
         </div>
 
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <Users size={17} className="text-green-600" />
-          {classroom.studentCount} học sinh
-        </div>
       </div>
 
       <button
         type="button"
         onClick={() => onView(classroom)}
-        className="mt-5 w-full rounded-xl bg-[#14532D] py-2.5 text-sm font-semibold text-white transition hover:bg-[#166534]"
+        className="mt-auto w-full rounded-xl bg-[#14532D] py-2.5 text-sm font-semibold text-white transition hover:bg-[#166534]"
       >
         Vào lớp học
       </button>

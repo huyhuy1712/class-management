@@ -55,71 +55,63 @@ public class UserServiceImpl implements UserService {
                 .build();
     }
 
+
     @Transactional
     @Override
     public UserResponse updateMyProfile(
-            String username,
-            UpdateProfileRequest request
-    ) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Không tìm thấy người dùng"
-                        )
-                );
+                    String username,
+                    UpdateProfileRequest request) {
+            User user = userRepository.findByUsername(username)
+                            .orElseThrow(() -> new IllegalArgumentException(
+                                            "Không tìm thấy người dùng"));
 
-        String normalizedFullName = request.getFullName() == null
-                ? null
-                : request.getFullName().trim();
-        String normalizedEmail = request.getEmail() == null
-                ? null
-                : request.getEmail().trim().toLowerCase();
-        String normalizedPhone = request.getPhone() == null
-                ? null
-                : request.getPhone().trim();
+            if (request.getFullName() != null) {
+                    String fullName = request.getFullName().trim();
 
-        if (normalizedPhone != null && normalizedPhone.isBlank()) {
-            normalizedPhone = null;
-        }
+                    if (fullName.length() < 2) {
+                            throw new IllegalArgumentException(
+                                            "Họ tên phải có ít nhất 2 ký tự");
+                    }
 
-        if (normalizedEmail != null
-                && userRepository.existsByEmailAndIdNot(
-                        normalizedEmail,
-                        user.getId()
-                )) {
+                    user.setFullName(fullName);
+            }
 
-            throw new IllegalArgumentException(
-                    "Email đã được sử dụng bởi tài khoản khác"
-            );
-        }
+            if (request.getEmail() != null) {
+                    String email = request.getEmail()
+                                    .trim()
+                                    .toLowerCase();
 
-        if (normalizedPhone != null
-                && userRepository.existsByPhoneAndIdNot(
-                        normalizedPhone,
-                        user.getId()
-                )) {
+                    if (userRepository.existsByEmailAndIdNot(
+                                    email,
+                                    user.getId())) {
+                            throw new IllegalArgumentException(
+                                            "Email đã được sử dụng bởi tài khoản khác");
+                    }
 
-            throw new IllegalArgumentException(
-                    "Số điện thoại đã được sử dụng bởi tài khoản khác"
-            );
-        }
+                    user.setEmail(email);
+            }
 
-                if (normalizedFullName != null) {
-                        user.setFullName(normalizedFullName);
-        }
+            if (request.getPhone() != null) {
+                    String phone = request.getPhone().trim();
 
-                if (normalizedEmail != null) {
-                        user.setEmail(normalizedEmail);
-        }
+                    if (phone.isEmpty()) {
+                            user.setPhone(null);
+                    } else {
+                            if (userRepository.existsByPhoneAndIdNot(
+                                            phone,
+                                            user.getId())) {
+                                    throw new IllegalArgumentException(
+                                                    "Số điện thoại đã được sử dụng bởi tài khoản khác");
+                            }
 
-                if (request.getPhone() != null) {
-                        user.setPhone(normalizedPhone);
-        }
+                            user.setPhone(phone);
+                    }
+            }
 
-        User updatedUser = userRepository.save(user);
+            User updatedUser = userRepository.save(user);
 
-        return toResponse(updatedUser);
-}
+            return toResponse(updatedUser);
+    }
 
 @Override
 @Transactional(readOnly = true)
