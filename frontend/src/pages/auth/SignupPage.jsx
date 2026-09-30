@@ -172,11 +172,13 @@ function SignupPage() {
 
       setFieldErrors(nextFieldErrors)
       const firstErrorField = focusFirstFieldError(nextFieldErrors)
-      const fallbackMessage = error.response
-        ? error.response.status >= 500
-          ? `Máy chủ gặp lỗi khi xử lý đăng ký (HTTP ${error.response.status}). Vui lòng thử lại sau.`
-          : `Đăng ký không thành công (HTTP ${error.response.status}). Vui lòng kiểm tra thông tin và thử lại.`
-        : 'Không thể kết nối tới máy chủ đăng ký. Vui lòng kiểm tra kết nối rồi thử lại.'
+      const fallbackMessage = !error.response
+        ? 'Không thể kết nối tới máy chủ đăng ký. Vui lòng kiểm tra kết nối rồi thử lại.'
+        : error.response.status === 404
+          ? 'Không tìm thấy API đăng ký (HTTP 404). Vui lòng kiểm tra cấu hình URL backend hoặc thử lại sau.'
+          : error.response.status >= 500
+            ? `Máy chủ gặp lỗi khi xử lý đăng ký (HTTP ${error.response.status}). Vui lòng thử lại sau.`
+            : `Đăng ký không thành công (HTTP ${error.response.status}). Vui lòng kiểm tra thông tin và thử lại.`
 
       setError(
         firstErrorField ? '' : backendMessage || fallbackMessage,
