@@ -65,6 +65,10 @@ function SignupPage() {
       nextFieldErrors.email = 'Vui lòng nhập email.'
     }
 
+    if (form.phone.trim() && !/^\d{10}$/.test(form.phone.trim())) {
+      nextFieldErrors.phone = 'Số điện thoại phải gồm đúng 10 chữ số.'
+    }
+
     if (!form.password) {
       nextFieldErrors.password = 'Vui lòng nhập mật khẩu.'
     }
@@ -79,6 +83,8 @@ function SignupPage() {
         usernameInputRef.current?.focus()
       } else if (nextFieldErrors.email) {
         emailInputRef.current?.focus()
+      } else if (nextFieldErrors.phone) {
+        phoneInputRef.current?.focus()
       } else {
         passwordInputRef.current?.focus()
       }
@@ -286,6 +292,9 @@ function SignupPage() {
             <input
               ref={phoneInputRef}
               name="phone"
+              type="tel"
+              inputMode="numeric"
+              maxLength={10}
               value={form.phone}
               onChange={handleChange}
               placeholder="Số điện thoại"

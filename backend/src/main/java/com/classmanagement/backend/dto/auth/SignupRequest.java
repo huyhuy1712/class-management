@@ -4,6 +4,7 @@ import com.classmanagement.backend.entity.enums.UserRole;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
@@ -28,7 +29,10 @@ public class SignupRequest {
     @Size(max = 100)
     private String fullName;
 
-    @Size(max = 20)
+        @Pattern(
+            regexp = "^$|^[0-9]{10}$",
+            message = "Số điện thoại phải gồm đúng 10 chữ số"
+        )
     private String phone;
 
     @Size(max = 500)
