@@ -33,6 +33,25 @@ function SignupPage() {
   const emailInputRef = useRef(null)
   const phoneInputRef = useRef(null)
   const passwordInputRef = useRef(null)
+  const fieldInputRefs = {
+    fullName: fullNameInputRef,
+    username: usernameInputRef,
+    email: emailInputRef,
+    phone: phoneInputRef,
+    password: passwordInputRef,
+  }
+
+  const focusFirstFieldError = (errors) => {
+    const firstErrorField = Object.keys(fieldInputRefs).find(
+      (field) => errors[field],
+    )
+
+    if (firstErrorField) {
+      fieldInputRefs[firstErrorField].current?.focus()
+    }
+
+    return firstErrorField
+  }
 
   const handleChange = (event) => {
     const { name, value } = event.target
@@ -53,42 +72,45 @@ function SignupPage() {
     event.preventDefault()
     const nextFieldErrors = {}
 
-    if (!form.fullName.trim()) {
+    const fullName = form.fullName.trim()
+    const username = form.username.trim()
+    const email = form.email.trim()
+    const phone = form.phone.trim()
+
+    if (!fullName) {
       nextFieldErrors.fullName = 'Vui lòng nhập họ và tên.'
+    } else if (fullName.length > 100) {
+      nextFieldErrors.fullName = 'Họ và tên không được vượt quá 100 ký tự.'
     }
 
-    if (!form.username.trim()) {
+    if (!username) {
       nextFieldErrors.username = 'Vui lòng nhập tên đăng nhập.'
+    } else if (username.length < 4 || username.length > 50) {
+      nextFieldErrors.username =
+        'Tên đăng nhập phải có từ 4 đến 50 ký tự.'
     }
 
-    if (!form.email.trim()) {
+    if (!email) {
       nextFieldErrors.email = 'Vui lòng nhập email.'
+    } else if (!/^[a-zA-Z0-9._%+-]+@gmail\.com$/.test(email)) {
+      nextFieldErrors.email = 'Email phải có định dạng hợp lệ và kết thúc bằng @gmail.com.'
     }
 
-    if (form.phone.trim() && !/^\d{10}$/.test(form.phone.trim())) {
+    if (phone && !/^\d{10}$/.test(phone)) {
       nextFieldErrors.phone = 'Số điện thoại phải gồm đúng 10 chữ số.'
     }
 
     if (!form.password) {
       nextFieldErrors.password = 'Vui lòng nhập mật khẩu.'
+    } else if (form.password.length < 8 || form.password.length > 100) {
+      nextFieldErrors.password = 'Mật khẩu phải có từ 8 đến 100 ký tự.'
     }
 
     setFieldErrors(nextFieldErrors)
     setError('')
 
     if (Object.keys(nextFieldErrors).length > 0) {
-      if (nextFieldErrors.fullName) {
-        fullNameInputRef.current?.focus()
-      } else if (nextFieldErrors.username) {
-        usernameInputRef.current?.focus()
-      } else if (nextFieldErrors.email) {
-        emailInputRef.current?.focus()
-      } else if (nextFieldErrors.phone) {
-        phoneInputRef.current?.focus()
-      } else {
-        passwordInputRef.current?.focus()
-      }
-
+      focusFirstFieldError(nextFieldErrors)
       return
     }
 
@@ -112,58 +134,53 @@ function SignupPage() {
       })
     } catch (error) {
       const responseData = error.response?.data
-      const validationErrors = responseData?.validationErrors || {}
-      const backendMessage = responseData?.message || ''
-      const nextFieldErrors = { ...validationErrors }
+      const validationErrors =
+        responseData?.validationErrors || responseData?.errors || {}
+      const nextFieldErrors = Object.fromEntries(
+        Object.entries(validationErrors).filter(([field]) =>
+          Object.hasOwn(fieldInputRefs, field),
+        ),
+      )
+      const backendMessage =
+        responseData?.message || responseData?.detail || ''
       const normalizedMessage = backendMessage.toLowerCase()
 
-      if (
+      if (!nextFieldErrors.username && (
         normalizedMessage.includes('username') ||
         normalizedMessage.includes('tên đăng nhập')
-      ) {
+      )) {
         nextFieldErrors.username = backendMessage
-      } else if (normalizedMessage.includes('email')) {
+      } else if (!nextFieldErrors.email && normalizedMessage.includes('email')) {
         nextFieldErrors.email = backendMessage
-      } else if (
+      } else if (!nextFieldErrors.phone && (
         normalizedMessage.includes('phone') ||
         normalizedMessage.includes('số điện thoại')
-      ) {
+      )) {
         nextFieldErrors.phone = backendMessage
-      } else if (
+      } else if (!nextFieldErrors.password && (
         normalizedMessage.includes('password') ||
         normalizedMessage.includes('mật khẩu')
-      ) {
+      )) {
         nextFieldErrors.password = backendMessage
-      } else if (
+      } else if (!nextFieldErrors.fullName && (
         normalizedMessage.includes('full name') ||
-        normalizedMessage.includes('họ và tên')
-      ) {
+        normalizedMessage.includes('họ và tên') ||
+        normalizedMessage.includes('họ tên')
+      )) {
         nextFieldErrors.fullName = backendMessage
       }
 
       setFieldErrors(nextFieldErrors)
+      const firstErrorField = focusFirstFieldError(nextFieldErrors)
+      const fallbackMessage = error.response
+        ? error.response.status >= 500
+          ? `Máy chủ gặp lỗi khi xử lý đăng ký (HTTP ${error.response.status}). Vui lòng thử lại sau.`
+          : `Đăng ký không thành công (HTTP ${error.response.status}). Vui lòng kiểm tra thông tin và thử lại.`
+        : 'Không thể kết nối tới máy chủ đăng ký. Vui lòng kiểm tra kết nối rồi thử lại.'
 
-      const firstErrorField = [
-        'fullName',
-        'username',
-        'email',
-        'phone',
-        'password',
-      ].find((field) => nextFieldErrors[field])
-
-      if (firstErrorField === 'fullName') {
-        fullNameInputRef.current?.focus()
-      } else if (firstErrorField === 'username') {
-        usernameInputRef.current?.focus()
-      } else if (firstErrorField === 'email') {
-        emailInputRef.current?.focus()
-      } else if (firstErrorField === 'phone') {
-        phoneInputRef.current?.focus()
-      } else if (firstErrorField === 'password') {
-        passwordInputRef.current?.focus()
-      }
-
-      setError(firstErrorField ? '' : backendMessage || 'Đăng ký thất bại.')
+      setError(
+        firstErrorField ? '' : backendMessage || fallbackMessage,
+      )
     } finally {
       setLoading(false)
     }
