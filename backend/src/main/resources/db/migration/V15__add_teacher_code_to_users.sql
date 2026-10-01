@@ -1,0 +1,2 @@
+ALTER TABLE users 
+ADD COLUMN teacher_code VARCHAR(255) UNIQUE;

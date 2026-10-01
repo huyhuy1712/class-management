@@ -87,6 +87,13 @@ public class User {
     private String studentCode;
 
     @Column(
+        name = "teacher_code",
+        unique = true,
+        length = 255
+    )
+    private String teacherCode;
+
+    @Column(
         name = "created_at",
         nullable = false,
         updatable = false
