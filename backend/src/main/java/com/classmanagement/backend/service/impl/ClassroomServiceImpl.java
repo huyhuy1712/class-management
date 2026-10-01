@@ -18,6 +18,7 @@ import com.classmanagement.backend.repository.ClassroomRepository;
 import com.classmanagement.backend.repository.SubjectRepository;
 import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.service.ClassroomService;
+import com.classmanagement.backend.service.StorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +34,7 @@ public class ClassroomServiceImpl implements ClassroomService {
     private final SubjectRepository subjectRepository;
     private final UserRepository userRepository;
     private final ClassStudentRepository classStudentRepository;
+        private final StorageService storageService;
 
 @Override
 @Transactional
@@ -307,7 +309,7 @@ public ClassroomStudentResponse addStudent(
                 .fullName(student.getFullName())
                 .email(student.getEmail())
                 .phone(student.getPhone())
-                .avatar(student.getAvatar())
+                .avatar(storageService.getUrl(student.getAvatar()))
                 .joinedAt(joinedAt)
                 .build();
          }
@@ -335,7 +337,7 @@ public List<ClassroomStudentResponse> getStudentsByClassroomId(
                         .fullName(student.getFullName())
                         .email(student.getEmail())
                         .phone(student.getPhone())
-                        .avatar(student.getAvatar())
+                        .avatar(storageService.getUrl(student.getAvatar()))
                         .joinedAt(classStudent.getJoinedAt())
                         .build();
         })
