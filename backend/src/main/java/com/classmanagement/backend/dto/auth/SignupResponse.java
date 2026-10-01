@@ -16,5 +16,7 @@ public class SignupResponse {
     private UserRole role;
     private String phone;
     private String avatar;
+    private String studentCode;
+    private String teacherCode;
     private UserStatus status;
 }

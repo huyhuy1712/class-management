@@ -70,6 +70,7 @@ public class UserServiceImpl implements UserService {
                 .phone(user.getPhone())
                 .avatar(avatarUrl)
                 .studentCode(user.getStudentCode())
+                .teacherCode(user.getTeacherCode())
                 .role(user.getRole())
                 .status(user.getStatus())
                 .build();
