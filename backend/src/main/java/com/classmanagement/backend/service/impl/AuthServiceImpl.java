@@ -11,6 +11,7 @@ import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.security.CustomUserDetailsService;
 import com.classmanagement.backend.security.JwtService;
 import com.classmanagement.backend.service.AuthService;
+import com.classmanagement.backend.service.StorageService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -29,6 +30,7 @@ public class AuthServiceImpl implements AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
+    private final StorageService storageService;
 
 
     // =========================
@@ -117,7 +119,7 @@ public class AuthServiceImpl implements AuthService {
                 .email(savedUser.getEmail())
                 .fullName(savedUser.getFullName())
                 .phone(savedUser.getPhone())
-                .avatar(savedUser.getAvatar())
+                .avatar(toAvatarUrl(savedUser.getAvatar()))
                 .role(savedUser.getRole())
                 .status(savedUser.getStatus())
                 .build();
@@ -220,12 +222,20 @@ public LoginResponse login(LoginRequest request) {
             .email(user.getEmail())
             .fullName(user.getFullName())
             .phone(user.getPhone())
-            .avatar(user.getAvatar())
+            .avatar(toAvatarUrl(user.getAvatar()))
             .role(user.getRole())
             .status(user.getStatus())
             .accessToken(accessToken)
             .tokenType("Bearer")
             .build();
 }
+
+    private String toAvatarUrl(String avatarPath) {
+        if (avatarPath == null || avatarPath.isBlank()) {
+            return null;
+        }
+
+        return storageService.getUrl(avatarPath);
+    }
 
 }

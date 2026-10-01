@@ -71,7 +71,7 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**",
-                                "/uploads/avatars/**")
+                                "/uploads/**")
                         .permitAll()
 
                         // Auth public

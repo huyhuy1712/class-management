@@ -5,6 +5,7 @@ import com.classmanagement.backend.dto.user.UserResponse;
 import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.entity.enums.UserRole;
 import com.classmanagement.backend.repository.UserRepository;
+import com.classmanagement.backend.service.StorageService;
 import com.classmanagement.backend.service.UserService;
 
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ import java.util.List;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final StorageService storageService;
 
     @Override
     public List<UserResponse> getAllUsers(UserRole role) {
@@ -41,6 +43,11 @@ public class UserServiceImpl implements UserService {
     }
 
     private UserResponse toResponse(User user) {
+        String avatarUrl = null;
+
+        if (user.getAvatar() != null && !user.getAvatar().isBlank()) {
+            avatarUrl = storageService.getUrl(user.getAvatar());
+        }
 
         return UserResponse.builder()
                 .id(user.getId())
@@ -48,7 +55,7 @@ public class UserServiceImpl implements UserService {
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .phone(user.getPhone())
-                .avatar(user.getAvatar())
+                .avatar(avatarUrl)
                 .studentCode(user.getStudentCode())
                 .role(user.getRole())
                 .status(user.getStatus())
