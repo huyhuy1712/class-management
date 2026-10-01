@@ -1,5 +1,6 @@
 package com.classmanagement.backend.controller;
 
+import com.classmanagement.backend.dto.user.TeacherStudentResponse;
 import com.classmanagement.backend.dto.user.UpdateProfileRequest;
 import com.classmanagement.backend.dto.user.UserResponse;
 import com.classmanagement.backend.entity.enums.UserRole;
@@ -48,5 +49,16 @@ public ResponseEntity<UserResponse> getUserById(
             userService.getUserById(userId));
 }
 
+@GetMapping("/my-students")
+public ResponseEntity<List<TeacherStudentResponse>> getMyStudents(
+        Authentication authentication
+) {
+
+    return ResponseEntity.ok(
+            userService.getMyStudents(
+                    authentication.getName()
+            )
+    );
+}
 
 }

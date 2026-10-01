@@ -1,17 +1,41 @@
 
-## Xác thực bằng JWT
+# Tài liệu API
 
-Hai API `/api/auth/signup` và `/api/auth/login` không cần JWT. Tất cả API còn lại phải gửi JWT trong header `Authorization`:
+**Base URL local:** `http://localhost:8080`
+
+**Xác thực:** Chỉ `POST /api/auth/signup` và `POST /api/auth/login` không cần JWT. Các API còn lại dùng header `Authorization: Bearer <accessToken>`.
+
+## Danh sách API
+
+| Method | Endpoint | Chức năng |
+|---|---|---|
+| POST | `/api/auth/signup` | Đăng ký |
+| POST | `/api/auth/login` | Đăng nhập |
+| GET | `/api/classes` | Lấy tất cả lớp |
+| GET | `/api/classes/my` | Lấy lớp của giáo viên hiện tại |
+| POST | `/api/classes` | Tạo lớp |
+| PUT | `/api/classes/{id}` | Cập nhật lớp |
+| PATCH | `/api/classes/{id}/archive` | Lưu trữ lớp |
+| DELETE | `/api/classes/{id}` | Xóa lớp |
+| POST | `/api/classes/{classroomId}/students` | Thêm học sinh vào lớp |
+| GET | `/api/classes/{classroomId}/students` | Lấy học sinh trong lớp |
+| DELETE | `/api/classes/{classroomId}/students/{studentId}` | Xóa học sinh khỏi lớp |
+| POST | `/api/classes/{classroomId}/attendances` | Tạo điểm danh |
+| GET | `/api/subjects` | Lấy danh sách môn học |
+| GET | `/api/users` | Lấy người dùng, có thể lọc theo role |
+| GET | `/api/users/{userId}` | Lấy người dùng theo ID |
+| GET | `/api/users/my-students` | Lấy học sinh của giáo viên hiện tại |
+| PUT | `/api/users/me` | Cập nhật hồ sơ hiện tại |
+| POST | `/api/users/me/avatar` | Tải avatar |
+| DELETE | `/api/users/me/avatar` | Xóa avatar |
+
+## Xác thực
+
+### POST `/api/auth/signup` | Đăng ký tài khoản
 
 ```http
 Authorization: Bearer <accessToken>
 ```
-
-Lấy giá trị `accessToken` từ response của API login rồi sử dụng giá trị đó cho các request tiếp theo.
-
-### POST - Đăng ký tài khoản
-
-**Endpoint:** `POST /api/auth/signup`
 
 **Headers:**
 
@@ -25,10 +49,10 @@ Content-Type: application/json
 {
 	"username": "nguyenvana",
 	"password": "matkhau123",
-	"email": "nguyenvana@example.com",
+	"email": "nguyenvana@gmail.com",
 	"fullName": "Nguyễn Văn A",
 	"phone": "0901234567",
-    "avatar": "avatar",
+	"avatar": "avatar",
 	"role": "STUDENT"
 }
 ```
@@ -37,9 +61,10 @@ Trong đó:
 
 - `username`: Tên đăng nhập, bắt buộc, từ 4 đến 50 ký tự và không được trùng.
 - `password`: Mật khẩu, bắt buộc, từ 8 đến 100 ký tự.
-- `email`: Email, bắt buộc, phải đúng định dạng và không được trùng.
+- `email`: Bắt buộc, phải có định dạng `ten@gmail.com` và không được trùng.
 - `fullName`: Họ và tên, bắt buộc, tối đa 100 ký tự.
-- `phone`: Số điện thoại, không bắt buộc, tối đa 20 ký tự và không được trùng nếu có nhập.
+- `phone`: Không bắt buộc; nếu có nhập phải gồm đúng 10 chữ số và không được trùng.
+- `avatar`: Không bắt buộc, tối đa 500 ký tự.
 - `role`: Vai trò, bắt buộc, chỉ nhận `TEACHER` hoặc `STUDENT`. Không thể đăng ký tài khoản `ADMIN`.
 
 **Response thành công `201 Created`:**
@@ -48,7 +73,7 @@ Trong đó:
 {
 	"id": 3,
 	"username": "nguyenvana",
-	"email": "nguyenvana@example.com",
+	"email": "nguyenvana@gmail.com",
 	"fullName": "Nguyễn Văn A",
 	"role": "STUDENT",
     "avatar": "avatar",
@@ -66,9 +91,7 @@ Tài khoản có role `STUDENT` được tạo với status `ACTIVE`. Tài kho�
 - Phone đã tồn tại: Sử dụng số điện thoại khác hoặc bỏ qua trường `phone`.
 - Role không hợp lệ hoặc là `ADMIN`: Chỉ sử dụng `TEACHER` hoặc `STUDENT`.
 
-### POST - Đăng nhập
-
-**Endpoint:** `POST /api/auth/login`
+### POST `/api/auth/login` | Đăng nhập
 
 **Headers:**
 
@@ -130,9 +153,9 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
 - `401 Unauthorized`: Username hoặc password không chính xác.
 - `403 Forbidden`: Tài khoản giáo viên đang chờ admin duyệt hoặc tài khoản đã bị khóa.
 
-### POST - Tạo lớp học
+## Lớp học
 
-**Endpoint:** `POST /api/classes`
+### POST `/api/classes` | Tạo lớp
 
 **Headers:**
 
@@ -186,11 +209,7 @@ Trong đó:
 - Không tìm thấy môn học hoặc giáo viên: Kiểm tra lại `subjectId` và `teacherId`.
 - `teacherId` không thuộc người dùng có role `TEACHER`: Chọn đúng tài khoản giáo viên.
 
-### PUT - Sửa thông tin lớp học
-
-**Endpoint:** `PUT /api/classes/{id}`
-
-Trong đó, `{id}` là ID của lớp học cần sửa.
+### PUT `/api/classes/{id}` | Cập nhật lớp
 
 **Headers:**
 
@@ -248,11 +267,7 @@ Trong đó:
 - Không tìm thấy môn học hoặc giáo viên: Kiểm tra lại `subjectId` và `teacherId`.
 - Giáo viên không hợp lệ: Người dùng phải có role `TEACHER` và status `ACTIVE`.
 
-### PATCH - Lưu trữ lớp học
-
-**Endpoint:** `PATCH /api/classes/{id}/archive`
-
-Trong đó, `{id}` là ID của lớp học cần lưu trữ.
+### PATCH `/api/classes/{id}/archive` | Lưu trữ lớp
 
 **Headers:**
 
@@ -260,7 +275,7 @@ Trong đó, `{id}` là ID của lớp học cần lưu trữ.
 Authorization: Bearer <accessToken>
 ```
 
-API này không yêu cầu request body. Khi gọi thành công, lớp học được chuyển sang status `ARCHIVED`.
+Lớp được chuyển sang status `ARCHIVED`.
 
 **Response thành công `200 OK`:**
 
@@ -282,11 +297,7 @@ API này không yêu cầu request body. Khi gọi thành công, lớp học đ�
 - `400 Bad Request`: Không tìm thấy lớp học với `id` đã cung cấp.
 - `403 Forbidden`: Lớp học đã được lưu trữ trước đó.
 
-### DELETE - Xóa lớp học
-
-**Endpoint:** `DELETE /api/classes/{id}`
-
-Trong đó, `{id}` là ID của lớp học cần xóa.
+### DELETE `/api/classes/{id}` | Xóa lớp
 
 **Headers:**
 
@@ -294,21 +305,15 @@ Trong đó, `{id}` là ID của lớp học cần xóa.
 Authorization: Bearer <accessToken>
 ```
 
-API này không yêu cầu request body và xóa vĩnh viễn lớp học khỏi database.
+Xóa vĩnh viễn lớp học khỏi database.
 
 **Response thành công `204 No Content`:**
-
-Response không có body.
 
 **Một số trường hợp lỗi:**
 
 - `400 Bad Request`: Không tìm thấy lớp học với `id` đã cung cấp.
 
-### POST - Thêm học sinh vào lớp
-
-**Endpoint:** `POST /api/classes/{classroomId}/students`
-
-Trong đó, `{classroomId}` là ID của lớp học cần thêm học sinh.
+### POST `/api/classes/{classroomId}/students` | Thêm học sinh vào lớp
 
 **Headers:**
 
@@ -350,11 +355,7 @@ Trong đó:
 - Học sinh không hợp lệ: Người dùng được chọn không có role `STUDENT` hoặc tài khoản không ở status `ACTIVE`.
 - `403 Forbidden`: Học sinh đã có trong lớp học này.
 
-### GET - Lấy danh sách học sinh theo lớp
-
-**Endpoint:** `GET /api/classes/{classroomId}/students`
-
-Trong đó, `{classroomId}` là ID của lớp học cần xem danh sách học sinh.
+### GET `/api/classes/{classroomId}/students` | Học sinh trong lớp
 
 **Headers:**
 
@@ -397,22 +398,13 @@ Nếu lớp chưa có học sinh, API trả về:
 - `400 Bad Request`: Không tìm thấy lớp học với `classroomId` đã cung cấp.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
-### DELETE - Xóa học sinh khỏi lớp
-
-**Endpoint:** `DELETE /api/classes/{classroomId}/students/{studentId}`
-
-Trong đó:
-
-- `{classroomId}`: ID của lớp học.
-- `{studentId}`: ID của học sinh cần xóa khỏi lớp.
+### DELETE `/api/classes/{classroomId}/students/{studentId}` | Xóa học sinh khỏi lớp
 
 **Headers:**
 
 ```http
 Authorization: Bearer <accessToken>
 ```
-
-API này không yêu cầu request body.
 
 **Cách test bằng cURL:**
 
@@ -423,7 +415,7 @@ curl -X DELETE http://localhost:8080/api/classes/1/students/5 \
 
 **Response thành công `204 No Content`:**
 
-Response không có body. Học sinh được xóa khỏi lớp nhưng tài khoản học sinh vẫn tồn tại trong hệ thống.
+Học sinh bị gỡ khỏi lớp; tài khoản vẫn tồn tại.
 
 **Một số trường hợp lỗi:**
 
@@ -431,11 +423,9 @@ Response không có body. Học sinh được xóa khỏi lớp nhưng tài kho�
 - `400 Bad Request`: Học sinh không thuộc lớp học này.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
-### POST - Thêm điểm danh cho lớp
+## Điểm danh
 
-**Endpoint:** `POST /api/classes/{classroomId}/attendances`
-
-Trong đó, `{classroomId}` là ID của lớp học cần điểm danh.
+### POST `/api/classes/{classroomId}/attendances` | Tạo điểm danh
 
 **Headers:**
 
@@ -514,9 +504,9 @@ curl -X POST http://localhost:8080/api/classes/1/attendances \
 - `400 Bad Request`: Học sinh đã được điểm danh trong ngày đã chọn.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
-### GET - Lấy danh sách lớp học
+## Tra cứu lớp học
 
-**Endpoint:** `GET /api/classes`
+### GET `/api/classes` | Tất cả lớp
 
 **Headers:**
 
@@ -550,9 +540,7 @@ Nếu database chưa có lớp học, API sẽ trả về danh sách rỗng:
 []
 ```
 
-### GET - Lấy danh sách lớp của giáo viên hiện tại
-
-**Endpoint:** `GET /api/classes/my`
+### GET `/api/classes/my` | Lớp của giáo viên hiện tại
 
 API lấy giáo viên từ JWT, không cần truyền `teacherId`. Chỉ tài khoản có role `TEACHER` mới được gọi. Danh sách gồm các lớp được gán cho giáo viên, không lọc theo trạng thái lớp.
 
@@ -598,9 +586,9 @@ Nếu giáo viên chưa được gán lớp nào, API trả về `200 OK` với 
 - `403 Forbidden`: Người dùng hiện tại không có role `TEACHER`.
 - `400 Bad Request`: Không tìm thấy người dùng ứng với tài khoản hiện tại.
 
-### GET - Lấy danh sách môn học
+## Môn học
 
-**Endpoint:** `GET http://localhost:8080/api/subjects`
+### GET `/api/subjects` | Danh sách môn học
 
 **Headers:**
 
@@ -608,7 +596,7 @@ Nếu giáo viên chưa được gán lớp nào, API trả về `200 OK` với 
 Authorization: Bearer <accessToken>
 ```
 
-Response example:
+**Response mẫu `200 OK`:**
 ```json
 [
   {
@@ -632,16 +620,11 @@ Response example:
 ]
 ```
 
-### GET - Lấy danh sách người dùng
+## Người dùng
 
-**Endpoint:** `GET http://localhost:8080/api/users`
+### GET `/api/users` | Danh sách người dùng
 
-Có thể truyền query parameter `role` để lọc người dùng theo vai trò:
-
-- `GET http://localhost:8080/api/users?role=STUDENT`: Chỉ lấy học sinh.
-- `GET http://localhost:8080/api/users?role=TEACHER`: Chỉ lấy giáo viên.
-- Không truyền `role`: Lấy tất cả user, ngoại trừ tài khoản `ADMIN`.
-- `role` chỉ nhận `STUDENT` hoặc `TEACHER`; không thể dùng `ADMIN`.
+Query parameter `role` nhận `STUDENT` hoặc `TEACHER`. Không truyền `role` để lấy tất cả người dùng trừ `ADMIN`.
 
 **Headers:**
 
@@ -662,8 +645,6 @@ Ví dụ lấy danh sách học sinh:
 curl -X GET "http://localhost:8080/api/users?role=STUDENT" \
 	-H "Authorization: Bearer <accessToken>"
 ```
-
-API trả về danh sách người dùng theo `role` nếu có lọc. Khi không truyền `role`, tài khoản có role `ADMIN` sẽ không được trả về. Mật khẩu không được trả về trong response.
 
 **Response thành công `200 OK`:**
 
@@ -706,9 +687,58 @@ Nếu chưa có người dùng (ngoài tài khoản `ADMIN`), API trả về:
 - `403 Forbidden`: Token không có quyền truy cập tài nguyên.
 - `400 Bad Request`: Giá trị `role` không hợp lệ. Chỉ sử dụng `STUDENT` hoặc `TEACHER`; không được sử dụng `ADMIN`.
 
-### GET - Lấy thông tin người dùng theo ID
+### GET `/api/users/my-students` | Học sinh của giáo viên hiện tại
 
-**Endpoint:** `GET http://localhost:8080/api/users/{userId}`
+API xác định giáo viên từ JWT, không cần truyền `teacherId`. Chỉ tài khoản có role `TEACHER` mới được gọi. Response gồm các học sinh thuộc lớp của giáo viên; mỗi học sinh chỉ xuất hiện một lần và có mảng `classes` liệt kê các lớp liên quan. Các lớp được trả về không lọc theo trạng thái.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X GET http://localhost:8080/api/users/my-students \
+	-H "Authorization: Bearer <accessToken>"
+```
+
+**Response thành công `200 OK`:**
+
+```json
+[
+	{
+		"id": 5,
+		"username": "sinhvien01",
+		"email": "sinhvien01@gmail.com",
+		"fullName": "Trần Văn Bình",
+		"phone": "0912345678",
+		"avatar": "https://example.com/uploads/avatars/student-5.png",
+		"studentCode": "SV2026005",
+		"status": "ACTIVE",
+		"classes": [
+			{
+				"id": 1,
+				"name": "Lập trình Java K21",
+				"code": "JAVA-K21",
+				"academicYear": "2026-2027",
+				"status": "ACTIVE"
+			}
+		]
+	}
+]
+```
+
+Nếu giáo viên chưa có học sinh thuộc lớp nào, API trả về danh sách rỗng `[]`.
+
+**Một số trường hợp lỗi:**
+
+- `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+- `403 Forbidden`: Người dùng hiện tại không có role `TEACHER`.
+- `400 Bad Request`: Không tìm thấy người dùng ứng với tài khoản hiện tại.
+
+### GET `/api/users/{userId}` | Người dùng theo ID
 
 Trong đó, `{userId}` là ID của người dùng cần xem.
 
@@ -741,16 +771,12 @@ curl -X GET http://localhost:8080/api/users/5 \
 }
 ```
 
-Mật khẩu không được trả về trong response.
-
 **Một số trường hợp lỗi:**
 
 - `400 Bad Request`: Không tìm thấy người dùng với `userId` đã cung cấp.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
-### PUT - Cập nhật thông tin cá nhân
-
-**Endpoint:** `PUT /api/users/me`
+### PUT `/api/users/me` | Cập nhật hồ sơ hiện tại
 
 API tự xác định người dùng cần cập nhật từ JWT trong header, không cần truyền `userId`.
 
@@ -815,9 +841,9 @@ curl -X PUT http://localhost:8080/api/users/me \
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 - `400 Bad Request`: Không tìm thấy người dùng hiện tại.
 
-### POST - Tải ảnh đại diện
+## Avatar
 
-**Endpoint:** `POST /api/users/me/avatar`
+### POST `/api/users/me/avatar` | Tải avatar
 
 API tự xác định người dùng hiện tại từ JWT, không cần truyền `userId`. Ảnh tải lên sẽ thay avatar hiện tại.
 
@@ -858,9 +884,7 @@ Trường `avatar` trong response là URL của ảnh vừa tải lên và đư�
 - File vượt quá giới hạn 2 MB sẽ bị server từ chối.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
-### DELETE - Xóa ảnh đại diện
-
-**Endpoint:** `DELETE /api/users/me/avatar`
+### DELETE `/api/users/me/avatar` | Xóa avatar
 
 API tự xác định người dùng hiện tại từ JWT, xóa file ảnh đại diện đang lưu và đặt trường `avatar` của hồ sơ thành `null`.
 
@@ -869,8 +893,6 @@ API tự xác định người dùng hiện tại từ JWT, xóa file ảnh đ�
 ```http
 Authorization: Bearer <accessToken>
 ```
-
-API này không yêu cầu request body.
 
 **Cách test bằng cURL:**
 
@@ -881,7 +903,7 @@ curl -X DELETE http://localhost:8080/api/users/me/avatar \
 
 **Response thành công `204 No Content`:**
 
-Response không có body. Gọi API khi người dùng chưa có avatar vẫn trả về `204 No Content`.
+Gọi API khi chưa có avatar vẫn trả về `204 No Content`.
 
 **Một số trường hợp lỗi:**
 

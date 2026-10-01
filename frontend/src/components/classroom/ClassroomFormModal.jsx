@@ -1,8 +1,42 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 
 import subjectService from '../../services/subjectService'
 import useAuthStore from '../../stores/authStore'
+
+function generateClassCode(userId, subjectCode, renderedClasses, currentClassId) {
+  const existingCodes = new Set(
+    renderedClasses
+      .filter((classroom) => classroom.id !== currentClassId)
+      .map((classroom) => classroom.code?.trim().toLowerCase()),
+  )
+  let code
+
+  do {
+    const core = Array.from({ length: 5 }, () =>
+      String.fromCharCode(97 + Math.floor(Math.random() * 26)),
+    ).join('')
+    code = `${userId}-${subjectCode}-${core}`
+  } while (existingCodes.has(code.toLowerCase()))
+
+  return code
+}
+
+function updateClassCodeSubject(
+  classCode,
+  userId,
+  subjectCode,
+  renderedClasses,
+  currentClassId,
+) {
+  const parts = classCode.split('-')
+
+  if (parts.length === 3 && /^[a-z]{5}$/.test(parts[2])) {
+    return `${parts[0]}-${subjectCode}-${parts[2]}`
+  }
+
+  return generateClassCode(userId, subjectCode, renderedClasses, currentClassId)
+}
 
 function ClassFormModal({
   isOpen,
@@ -13,6 +47,7 @@ function ClassFormModal({
   error = null,
   initialData = null,
   mode = 'create',
+  renderedClasses = [],
 }) {
   const [formData, setFormData] = useState({
     name: '',
@@ -25,17 +60,6 @@ function ClassFormModal({
   const [loadingSubjects, setLoadingSubjects] = useState(false)
   const [subjectError, setSubjectError] = useState(null)
   const user = useAuthStore((state) => state.user)
-  const codeInputRef = useRef(null)
-
-  useEffect(() => {
-    const isDuplicateCodeError =
-      error && /mã lớp|code|already exists|duplicate/i.test(error)
-
-    if (!isDuplicateCodeError) return
-
-    codeInputRef.current?.focus()
-    codeInputRef.current?.select()
-  }, [error])
 
   useEffect(() => {
     if (!isOpen) return
@@ -92,11 +116,34 @@ function ClassFormModal({
 
   const handleChange = (event) => {
     const { name, value } = event.target
+    const subjectChanged = name === 'subjectId' && value !== formData.subjectId
+    const selectedSubject = subjects.find(
+      (subject) => String(subject.id) === value,
+    )
+    const nextCode = subjectChanged
+      ? value
+        ? formData.code
+          ? updateClassCodeSubject(
+              formData.code,
+              user?.id,
+              selectedSubject?.code,
+              renderedClasses,
+              initialData?.id,
+            )
+          : generateClassCode(
+              user?.id,
+              selectedSubject?.code,
+              renderedClasses,
+              initialData?.id,
+            )
+        : ''
+      : undefined
 
     onClearError?.()
     setFormData((prev) => ({
       ...prev,
       [name]: value,
+      ...(nextCode !== undefined ? { code: nextCode } : {}),
     }))
   }
 
@@ -203,19 +250,14 @@ function ClassFormModal({
 
               <input
                 id="class-code"
-                ref={codeInputRef}
                 type="text"
                 name="code"
                 value={formData.code}
-                onChange={handleChange}
                 maxLength={50}
-                placeholder="VD: JAVA-K21"
+                placeholder={mode === 'create' ? 'Tự động tạo khi chọn môn học' : ''}
+                readOnly
                 disabled={submitting}
-                className={`w-full rounded-xl border px-4 py-3.5 text-sm text-gray-700 outline-none transition placeholder:text-gray-400 focus:ring-4 disabled:bg-gray-50 ${
-                  error && /mã lớp|code|already exists|duplicate/i.test(error)
-                    ? 'border-red-300 focus:border-red-500 focus:ring-red-100'
-                    : 'border-gray-200 focus:border-green-500 focus:ring-green-100'
-                }`}
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-700 outline-none placeholder:text-gray-400 disabled:bg-gray-50"
               />
             </div>
 

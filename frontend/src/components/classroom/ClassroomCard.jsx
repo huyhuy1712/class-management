@@ -128,7 +128,7 @@ function ClassCard({
           {classroom.subjectName || classroom.subject || 'Chưa cập nhật môn học'}
         </div>
 
-        <div className="flex items-center gap-2 text-sm text-gray-500">
+        <div className="flex items-center gap-2 text-sm text-gray-500 pb-2">
           <CalendarDays size={17} className="text-green-600" />
           {classroom.academicYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`}
         </div>

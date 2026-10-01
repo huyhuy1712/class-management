@@ -13,4 +13,8 @@ public interface ClassStudentRepository
     boolean existsByClassroomIdAndStudentId( Long classroomId, Long studentId);
     
     List<ClassStudent> findAllByClassroomId(Long classroomId);
+
+    List<ClassStudent> findAllByClassroom_Teacher_Id(Long teacherId);
+
+    
 }

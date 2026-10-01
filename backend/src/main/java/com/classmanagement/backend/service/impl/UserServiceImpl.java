@@ -1,9 +1,14 @@
 package com.classmanagement.backend.service.impl;
 
+import com.classmanagement.backend.dto.user.StudentClassResponse;
+import com.classmanagement.backend.dto.user.TeacherStudentResponse;
 import com.classmanagement.backend.dto.user.UpdateProfileRequest;
 import com.classmanagement.backend.dto.user.UserResponse;
+import com.classmanagement.backend.entity.ClassStudent;
+import com.classmanagement.backend.entity.Classroom;
 import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.entity.enums.UserRole;
+import com.classmanagement.backend.repository.ClassStudentRepository;
 import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.service.StorageService;
 import com.classmanagement.backend.service.UserService;
@@ -12,13 +17,17 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final ClassStudentRepository classStudentRepository;
     private final StorageService storageService;
 
     @Override
@@ -129,6 +138,73 @@ public UserResponse getUserById(Long userId) {
                     "Không tìm thấy người dùng có ID: " + userId));
 
     return toResponse(user);
+}
+
+@Override
+@Transactional(readOnly = true)
+public List<TeacherStudentResponse> getMyStudents(String username) {
+
+    User teacher = userRepository.findByUsername(username)
+            .orElseThrow(() ->
+                    new IllegalArgumentException(
+                            "Không tìm thấy người dùng"
+                    )
+            );
+
+    if (teacher.getRole() != UserRole.TEACHER) {
+        throw new IllegalStateException(
+                "Chỉ giáo viên mới được xem danh sách học sinh của mình"
+        );
+    }
+
+    List<ClassStudent> classStudents = 
+    classStudentRepository
+                    .findAllByClassroom_Teacher_Id(
+                            teacher.getId()
+                    );
+
+    Map<Long, TeacherStudentResponse> students =
+            new LinkedHashMap<>();
+
+    for (ClassStudent classStudent : classStudents) {
+
+        User student = classStudent.getStudent();
+        Classroom classroom = classStudent.getClassroom();
+
+        TeacherStudentResponse response =
+                students.computeIfAbsent(
+                        student.getId(),
+                        id -> TeacherStudentResponse.builder()
+                                .id(student.getId())
+                                .username(student.getUsername())
+                                .email(student.getEmail())
+                                .fullName(student.getFullName())
+                                .phone(student.getPhone())
+                                .studentCode(student.getStudentCode())
+                                .status(student.getStatus())
+                                .avatar(
+                                        storageService.getUrl(
+                                                student.getAvatar()
+                                        )
+                                )
+                                .classes(new ArrayList<>())
+                                .build()
+                );
+
+        response.getClasses().add(
+                StudentClassResponse.builder()
+                        .id(classroom.getId())
+                        .name(classroom.getName())
+                        .code(classroom.getCode())
+                        .academicYear(
+                                classroom.getAcademicYear()
+                        )
+                        .status(classroom.getStatus())
+                        .build()
+        );
+    }
+
+    return new ArrayList<>(students.values());
 }
 
 }

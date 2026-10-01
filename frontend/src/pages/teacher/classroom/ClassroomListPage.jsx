@@ -144,17 +144,6 @@ function ClassListPage() {
       return
     }
 
-    const normalizedCode = formData.code.trim().toLowerCase()
-    const codeAlreadyExists = classes.some(
-      (classroom) =>
-        classroom.code?.trim().toLowerCase() === normalizedCode,
-    )
-
-    if (codeAlreadyExists) {
-      setCreateError('Mã lớp đã tồn tại. Vui lòng chọn mã khác.')
-      return
-    }
-
     try {
       setCreating(true)
       setCreateError(null)
@@ -542,6 +531,7 @@ function ClassListPage() {
         }}
         onSubmit={handleCreateSubmit}
         submitting={creating}
+        renderedClasses={filteredClasses}
       />
 
       <ClassFormModal
@@ -558,6 +548,7 @@ function ClassListPage() {
           }
         }}
         onSubmit={handleEditSubmit}
+        renderedClasses={filteredClasses}
       />
 
       <ConfirmModal

@@ -41,6 +41,11 @@ deleteAvatar: async () => {
     await api.delete('/users/me/avatar')
   },
 
+getMyStudents: async () => {
+  const response = await api.get('/users/my-students')
+  return response.data
+},
+
 }
 
 export default userService

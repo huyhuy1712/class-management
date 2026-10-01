@@ -5,15 +5,16 @@ import {
   FileText,
   School,
   Users,
-  CalendarDays,
   GraduationCap,
   Clock3,
   ArrowRight,
 } from 'lucide-react'
-
+import { useEffect, useState } from 'react'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import FeatureCard from '../../components/dashboard/FeatureCard'
 import useAuthStore from '../../stores/authStore'
+import classroomService from '../../services/classroomService'
+import userService from '../../services/userService'
 
 const features = [
   {
@@ -53,32 +54,44 @@ const features = [
     path: '/teacher/materials',
   },
 ]
-
-const statistics = [
-  {
-    title: 'Lớp đang dạy',
-    value: '6',
-    icon: School,
-  },
-  {
-    title: 'Tổng học sinh',
-    value: '182',
-    icon: GraduationCap,
-  },
-  {
-    title: 'Đề thi',
-    value: '12',
-    icon: FileText,
-  },
-  {
-    title: 'Buổi học tuần này',
-    value: '8',
-    icon: CalendarDays,
-  },
-]
-
 function TeacherDashboard() {
-    const user = useAuthStore((state) => state.user)
+  const user = useAuthStore((state) => state.user)
+  const [classCount, setClassCount] = useState(0)
+  const [studentCount, setStudentCount] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+
+    const fetchDashboardData = async () => {
+      try {
+        const [classes, students] = await Promise.all([
+          classroomService.getMyClasses(),
+          userService.getMyStudents(),
+        ])
+
+        if (cancelled) return
+
+        setClassCount(
+          classes.filter((item) => item.status === 'ACTIVE').length,
+        )
+        setStudentCount(students.length)
+      } catch (error) {
+        console.error('Get dashboard data error:', error)
+      }
+    }
+
+    fetchDashboardData()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const statistics = [
+    { title: 'Lớp đang dạy', value: classCount, icon: School },
+    { title: 'Tổng học sinh', value: studentCount, icon: GraduationCap },
+    { title: 'Đề thi', value: '12', icon: FileText },
+  ]
     
     const today = new Intl.DateTimeFormat('vi-VN', {
     weekday: 'long',
@@ -120,7 +133,7 @@ function TeacherDashboard() {
 
       {/* Statistics */}
       <section className="mt-6 sm:mt-8">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
           {statistics.map((item) => {
             const Icon = item.icon
 
