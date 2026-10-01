@@ -17,6 +17,8 @@ public class AttendanceResponse {
 
     private String studentCode;
 
+    private String studentAvatar;
+
     private String fullName;
 
     private LocalDate date;

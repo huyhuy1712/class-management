@@ -46,6 +46,13 @@ getMyStudents: async () => {
   return response.data
 },
 
+changePassword: async (currentPassword, newPassword) => {
+  await api.put('/users/me/password', {
+    currentPassword,
+    newPassword,
+  })
+},
+
 }
 
 export default userService

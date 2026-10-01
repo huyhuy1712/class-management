@@ -10,6 +10,7 @@ import {
   Save,
   ShieldCheck,
   UserRound,
+  ChevronRight,
 } from 'lucide-react'
 
 import { useNavigate } from 'react-router-dom'
@@ -37,6 +38,18 @@ const [fieldErrors, setFieldErrors] = useState({})
 
 const [classCount, setClassCount] = useState(null)
 const [classCountError, setClassCountError] = useState(false)
+
+const [showPasswordModal, setShowPasswordModal] = useState(false)
+
+const [passwordForm, setPasswordForm] = useState({
+  currentPassword: '',
+  newPassword: '',
+  confirmPassword: '',
+})
+
+const [passwordError, setPasswordError] = useState('')
+const [passwordSuccess, setPasswordSuccess] = useState('')
+const [changingPassword, setChangingPassword] = useState(false)
   
 useEffect(() => {
   let cancelled = false
@@ -248,6 +261,106 @@ const handleDeleteAvatar = async () => {
     }
   }
 
+  const handlePasswordChange = (event) => {
+  const { name, value } = event.target
+
+  setPasswordForm((prev) => ({
+    ...prev,
+    [name]: value,
+  }))
+
+  setPasswordError('')
+}
+
+const closePasswordModal = () => {
+  if (changingPassword) return
+
+  setShowPasswordModal(false)
+  setPasswordError('')
+
+  setPasswordForm({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  })
+}
+
+const handleChangePassword = async (event) => {
+  event.preventDefault()
+
+  setPasswordError('')
+  setPasswordSuccess('')
+
+  const {
+    currentPassword,
+    newPassword,
+    confirmPassword,
+  } = passwordForm
+
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    setPasswordError('Vui lòng nhập đầy đủ thông tin.')
+    return
+  }
+
+  if (newPassword.length < 8 || newPassword.length > 100) {
+    setPasswordError('Mật khẩu mới phải từ 8 đến 100 ký tự.')
+    return
+  }
+
+  if (newPassword === currentPassword) {
+    setPasswordError(
+      'Mật khẩu mới không được trùng với mật khẩu hiện tại.',
+    )
+    return
+  }
+
+  if (newPassword !== confirmPassword) {
+    setPasswordError('Xác nhận mật khẩu mới không khớp.')
+    return
+  }
+
+  try {
+    setChangingPassword(true)
+
+    await userService.changePassword(
+      currentPassword,
+      newPassword,
+    )
+
+    setShowPasswordModal(false)
+
+    setPasswordForm({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    })
+
+    setPasswordSuccess('Đổi mật khẩu thành công.')
+  } catch (error) {
+    console.error('Change password error:', error)
+
+    const message =
+      error.response?.data?.message ||
+      error.response?.data?.error
+
+    if (error.response?.status === 400) {
+      setPasswordError(
+        message || 'Mật khẩu hiện tại không đúng hoặc mật khẩu mới không hợp lệ.',
+      )
+    } else if (error.response?.status === 401) {
+      setPasswordError(
+        'Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.',
+      )
+    } else {
+      setPasswordError(
+        message || 'Không thể đổi mật khẩu. Vui lòng thử lại.',
+      )
+    }
+  } finally {
+    setChangingPassword(false)
+  }
+}
+
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-5">
       {/* PAGE TITLE */}
@@ -385,13 +498,14 @@ const handleDeleteAvatar = async () => {
                 Email
               </label>
 
-              <div className="relative">
+              <div className="relative opacity-60">
                 <Mail
                   size={18}
                   className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
                 />
 
                 <input
+                  disabled
                   ref={emailInputRef}
                   type="email"
                   name="email"
@@ -561,26 +675,151 @@ const handleDeleteAvatar = async () => {
         </div>
       </section>
 
-        <button
+      <button
           type="button"
-          className="flex w-full items-center gap-3 rounded-2xl border border-green-100 bg-white p-5 text-left shadow-sm transition hover:border-green-200 hover:bg-green-50/40"
+          onClick={() => {
+            setPasswordError('')
+            setPasswordSuccess('')
+            setShowPasswordModal(true)
+          }}
+          className="group flex w-full items-center justify-between rounded-2xl border border-green-100 bg-white px-5 py-4 text-left shadow-sm transition-all duration-200 hover:border-green-300 hover:shadow-md"
         >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-500">
-            <LockKeyhole size={18} />
+          {/* Left */}
+          <div className="flex min-w-0 items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-green-50 text-green-700 transition-colors duration-200 group-hover:bg-green-100">
+              <LockKeyhole size={21} strokeWidth={2} />
+            </div>
+
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-[#18301D]">
+                Đổi mật khẩu
+              </p>
+
+              <p className="mt-1 text-xs leading-5 text-gray-500">
+                Cập nhật mật khẩu để tăng cường bảo mật tài khoản
+              </p>
+            </div>
           </div>
 
-          <div>
-            <p className="text-sm font-semibold text-[#18301D]">
-              Đổi mật khẩu
-            </p>
-
-            <p className="mt-1 text-xs text-gray-400">
-              Chức năng sẽ phát triển sau
-            </p>
+          {/* Right */}
+          <div className="ml-4 flex shrink-0 items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-green-50 text-green-700 transition-all duration-200 group-hover:translate-x-1 group-hover:bg-green-100">
+              <ChevronRight size={18} />
+            </div>
           </div>
-        </button>
+      </button>
+
+      {passwordSuccess && (
+        <p role="status" className="text-sm text-green-700">
+          {passwordSuccess}
+        </p>
+      )}
+
+      {showPasswordModal && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4 py-6 backdrop-blur-[2px]"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closePasswordModal()
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="change-password-title"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+          >
+            <div className="mb-5 flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-50 text-green-700">
+                <LockKeyhole size={20} />
+              </div>
+              <div>
+                <h2 id="change-password-title" className="text-lg font-bold text-[#18301D]">
+                  Đổi mật khẩu
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Nhập mật khẩu hiện tại và chọn mật khẩu mới.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-gray-700">
+                  Mật khẩu hiện tại
+                </span>
+                <input
+                  type="password"
+                  name="currentPassword"
+                  autoComplete="current-password"
+                  value={passwordForm.currentPassword}
+                  onChange={handlePasswordChange}
+                  disabled={changingPassword}
+                  className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100 disabled:bg-gray-50"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-gray-700">
+                  Mật khẩu mới
+                </span>
+                <input
+                  type="password"
+                  name="newPassword"
+                  autoComplete="new-password"
+                  value={passwordForm.newPassword}
+                  onChange={handlePasswordChange}
+                  disabled={changingPassword}
+                  className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100 disabled:bg-gray-50"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-gray-700">
+                  Xác nhận mật khẩu mới
+                </span>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  autoComplete="new-password"
+                  value={passwordForm.confirmPassword}
+                  onChange={handlePasswordChange}
+                  disabled={changingPassword}
+                  className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100 disabled:bg-gray-50"
+                />
+              </label>
+
+              {passwordError && (
+                <p role="alert" className="text-sm text-red-600">
+                  {passwordError}
+                </p>
+              )}
+
+              <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
+                <button
+                  type="button"
+                  onClick={closePasswordModal}
+                  disabled={changingPassword}
+                  className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={changingPassword}
+                  className="rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {changingPassword ? 'Đang cập nhật...' : 'Cập nhật mật khẩu'}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
       </div>
+      
     </div>
+
+    
   )
 }
 

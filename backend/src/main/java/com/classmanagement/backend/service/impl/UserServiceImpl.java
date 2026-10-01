@@ -1,5 +1,6 @@
 package com.classmanagement.backend.service.impl;
 
+import com.classmanagement.backend.dto.user.ChangePasswordRequest;
 import com.classmanagement.backend.dto.user.StudentClassResponse;
 import com.classmanagement.backend.dto.user.TeacherStudentResponse;
 import com.classmanagement.backend.dto.user.UpdateProfileRequest;
@@ -14,6 +15,8 @@ import com.classmanagement.backend.service.StorageService;
 import com.classmanagement.backend.service.UserService;
 
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +32,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final ClassStudentRepository classStudentRepository;
     private final StorageService storageService;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public List<UserResponse> getAllUsers(UserRole role) {
@@ -205,6 +209,50 @@ public List<TeacherStudentResponse> getMyStudents(String username) {
     }
 
     return new ArrayList<>(students.values());
+}
+
+@Override
+@Transactional
+public void changePassword(
+        String username,
+        ChangePasswordRequest request
+) {
+    User user = userRepository.findByUsername(username)
+            .orElseThrow(() ->
+                    new IllegalArgumentException(
+                            "Không tìm thấy người dùng"
+                    )
+            );
+
+    // Kiểm tra mật khẩu hiện tại
+    if (!passwordEncoder.matches(
+            request.getCurrentPassword(),
+            user.getPasswordHash()
+    )) {
+        throw new IllegalArgumentException(
+                "Mật khẩu hiện tại không chính xác"
+        );
+    }
+
+    // Không cho đổi sang chính mật khẩu đang dùng
+    if (passwordEncoder.matches(
+            request.getNewPassword(),
+            user.getPasswordHash()
+    )) {
+        throw new IllegalArgumentException(
+                "Mật khẩu mới không được trùng với mật khẩu hiện tại"
+        );
+    }
+
+    // Hash mật khẩu mới
+    String newPasswordHash =
+            passwordEncoder.encode(
+                    request.getNewPassword()
+            );
+
+    user.setPasswordHash(newPasswordHash);
+
+    userRepository.save(user);
 }
 
 }

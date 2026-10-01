@@ -16,6 +16,7 @@ import AddStudentModal from '../../../../components/classroom/detail/AddStudentM
 import ConfirmModal from '../../../../components/classroom/ConfirmModal'
 import classroomService from '../../../../services/classroomService'
 import AttendanceModal from '../../../../components/classroom/detail/AttendanceModal'
+import defaultAvatar from '../../../../assets/images/avatar_default.png'
 
 function getErrorMessage(data) {
   if (!data) return ''
@@ -35,15 +36,6 @@ function formatJoinedDate(value) {
     month: '2-digit',
     year: 'numeric',
   }).format(date)
-}
-
-function getInitials(name) {
-  if (!name?.trim()) return 'HS'
-
-  const parts = name.trim().split(/\s+/)
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-
-  return `${parts[0][0]}${parts.at(-1)[0]}`.toUpperCase()
 }
 
 function StudentsTab() {
@@ -203,11 +195,21 @@ function StudentsTab() {
     }
   }
 
+  const renderStudentAvatar = (student) => (
+    <img
+      src={student.avatar || defaultAvatar}
+      alt={student.fullName || 'Học sinh'}
+      onError={(event) => {
+        event.currentTarget.onerror = null
+        event.currentTarget.src = defaultAvatar
+      }}
+      className="h-11 w-11 shrink-0 rounded-full border border-green-100 object-cover"
+    />
+  )
+
   const renderStudentIdentity = (student) => (
     <div className="flex items-center gap-3">
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-green-100 text-sm font-bold text-green-700">
-        {getInitials(student.fullName)}
-      </div>
+      {renderStudentAvatar(student)}
 
       <div className="min-w-0">
         <p className="font-semibold text-[#18301D]">
@@ -501,9 +503,7 @@ const handleSubmitAttendance = async ({
                   className="cursor-pointer p-5 transition-colors hover:bg-[#ECFDF3] active:bg-green-100"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-green-100 text-sm font-bold text-green-700">
-                      {getInitials(student.fullName)}
-                    </div>
+                    {renderStudentAvatar(student)}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">

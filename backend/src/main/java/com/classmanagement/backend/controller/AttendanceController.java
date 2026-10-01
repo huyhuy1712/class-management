@@ -24,12 +24,15 @@ public class AttendanceController {
     public ResponseEntity<List<AttendanceResponse>> createAttendance(
             @PathVariable Long classroomId,
             @Valid @RequestBody CreateAttendanceRequest request) {
-
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(
-                        attendanceService.createAttendance(
-                                classroomId,
-                                request));
+                .body( attendanceService.createAttendance( classroomId, request));
+    }
+
+    @GetMapping("/{classroomId}/attendances")
+    public ResponseEntity<List<AttendanceResponse>> getAttendances(
+            @PathVariable Long classroomId) {
+        return ResponseEntity.ok(
+                attendanceService.getAttendancesByClassroom(classroomId));
     }
 }

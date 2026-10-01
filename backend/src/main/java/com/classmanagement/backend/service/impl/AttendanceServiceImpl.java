@@ -19,6 +19,7 @@ import com.classmanagement.backend.repository.ClassStudentRepository;
 import com.classmanagement.backend.repository.ClassroomRepository;
 import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.service.AttendanceService;
+import com.classmanagement.backend.service.StorageService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -26,14 +27,35 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AttendanceServiceImpl implements AttendanceService {
 
-        private static final DateTimeFormatter DISPLAY_DATE_FORMAT =
-                        DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        private static final DateTimeFormatter DISPLAY_DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private final AttendanceRepository attendanceRepository;
     private final ClassroomRepository classroomRepository;
     private final UserRepository userRepository;
     private final ClassStudentRepository classStudentRepository;
+        private final StorageService storageService;
 
+        private String getStudentAvatarUrl(User student) {
+                        String avatar = student.getAvatar();
+                        return avatar == null || avatar.isBlank()
+                                                        ? null
+                                                        : storageService.getUrl(avatar);
+        }
+
+    private AttendanceResponse toResponse(Attendance attendance) {
+            User student = attendance.getStudent();
+
+            return AttendanceResponse.builder()
+                            .id(attendance.getId())
+                            .studentId(student.getId())
+                            .studentCode(student.getStudentCode())
+                            .studentAvatar(getStudentAvatarUrl(student))
+                            .fullName(student.getFullName())
+                            .date(attendance.getDate())
+                            .status(attendance.getStatus())
+                            .note(attendance.getNote())
+                            .build();
+    }
     @Transactional
     @Override
     public List<AttendanceResponse> createAttendance(
@@ -107,6 +129,7 @@ public class AttendanceServiceImpl implements AttendanceService {
                             .id(saved.getId())
                             .studentId(student.getId())
                             .studentCode(student.getStudentCode())
+                            .studentAvatar(getStudentAvatarUrl(student))
                             .fullName(student.getFullName())
                             .date(saved.getDate())
                             .status(saved.getStatus())
@@ -116,4 +139,22 @@ public class AttendanceServiceImpl implements AttendanceService {
 
         return responses;
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AttendanceResponse> getAttendancesByClassroom(
+                    Long classroomId) {
+
+            if (!classroomRepository.existsById(classroomId)) {
+                    throw new IllegalArgumentException(
+                                    "Không tìm thấy lớp học");
+            }
+
+            return attendanceRepository
+                            .findAllByClassroom_IdOrderByDateDesc(classroomId)
+                            .stream()
+                            .map(this::toResponse)
+                            .toList();
+    }
+
 }

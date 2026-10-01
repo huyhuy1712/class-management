@@ -10,4 +10,7 @@ public interface AttendanceService {
     List<AttendanceResponse> createAttendance(
             Long classroomId,
             CreateAttendanceRequest request);
+            
+    List<AttendanceResponse> getAttendancesByClassroom(
+            Long classroomId);
 }

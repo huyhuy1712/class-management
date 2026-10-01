@@ -15,6 +15,7 @@ import FeatureCard from '../../components/dashboard/FeatureCard'
 import useAuthStore from '../../stores/authStore'
 import classroomService from '../../services/classroomService'
 import userService from '../../services/userService'
+import defaultAvatar from '../../assets/images/avatar_default.png'
 
 const features = [
   {
@@ -28,12 +29,6 @@ const features = [
     description: 'Xem và quản lý học sinh trong lớp',
     icon: Users,
     path: '/teacher/students',
-  },
-  {
-    title: 'Điểm danh',
-    description: 'Theo dõi chuyên cần theo ngày',
-    icon: ClipboardCheck,
-    path: '/teacher/attendance',
   },
   {
     title: 'Bảng điểm',

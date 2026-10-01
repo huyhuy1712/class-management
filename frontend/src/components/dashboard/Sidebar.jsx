@@ -17,7 +17,6 @@ const menuItems = [
   { label: 'Trang chủ', icon: House, path: '/teacher', end: true },
   { label: 'Lớp học', icon: School, path: '/teacher/classes' },
   { label: 'Học sinh', icon: Users, path: '/teacher/students' },
-  { label: 'Điểm danh', icon: ClipboardCheck, path: '/teacher/attendance' },
   { label: 'Bảng điểm', icon: ChartNoAxesColumnIncreasing, path: '/teacher/grades' },
   { label: 'Đề thi', icon: FileText, path: '/teacher/exams' },
   { label: 'Tài liệu', icon: BookOpen, path: '/teacher/materials' },

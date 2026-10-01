@@ -5,10 +5,20 @@ import {
   GraduationCap,
   Users,
 } from 'lucide-react'
-import { NavLink, useParams } from 'react-router-dom'
+import { NavLink, useLocation, useParams } from 'react-router-dom'
 
 function ClassDetailSidebar({ studentCount = 0 }) {
   const { classId } = useParams()
+  const { pathname } = useLocation()
+
+  const isItemActive = (item, routeIsActive) => {
+    if (!item.showCount) return routeIsActive
+
+    return (
+      pathname === item.to ||
+      pathname.startsWith(`${item.to}/students/`)
+    )
+  }
 
   const menuItems = [
     {
@@ -19,7 +29,7 @@ function ClassDetailSidebar({ studentCount = 0 }) {
       showCount: true,
     },
     {
-      label: 'Bài tập & Đề thi',
+      label: 'Đề thi',
       icon: FileText,
       to: `/teacher/classes/${classId}/assignments`,
     },
@@ -54,35 +64,39 @@ function ClassDetailSidebar({ studentCount = 0 }) {
                 end={item.end}
                 className={({ isActive }) =>
                   `flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition ${
-                    isActive
+                    isItemActive(item, isActive)
                       ? 'bg-green-50 text-green-700'
                       : 'text-gray-500 hover:bg-gray-50 hover:text-[#18301D]'
                   }`
                 }
               >
-                {({ isActive }) => (
-                  <>
-                    <div
-                      className={`flex h-9 w-9 items-center justify-center rounded-lg ${
-                        isActive
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-gray-50 text-gray-400'
-                      }`}
-                    >
-                      <Icon size={18} />
-                    </div>
+                {({ isActive }) => {
+                  const active = isItemActive(item, isActive)
 
-                    <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
-                      <span>{item.label}</span>
+                  return (
+                    <>
+                      <div
+                        className={`flex h-9 w-9 items-center justify-center rounded-lg ${
+                          active
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-gray-50 text-gray-400'
+                        }`}
+                      >
+                        <Icon size={18} />
+                      </div>
 
-                      {item.showCount && (
-                        <span className="rounded-full bg-white px-2 py-0.5 text-xs font-bold text-green-700 shadow-sm">
-                          {studentCount}
-                        </span>
-                      )}
-                    </span>
-                  </>
-                )}
+                      <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                        <span>{item.label}</span>
+
+                        {item.showCount && (
+                          <span className="rounded-full bg-white px-2 py-0.5 text-xs font-bold text-green-700 shadow-sm">
+                            {studentCount}
+                          </span>
+                        )}
+                      </span>
+                    </>
+                  )
+                }}
               </NavLink>
             )
           })}

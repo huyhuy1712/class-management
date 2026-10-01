@@ -1,5 +1,6 @@
 package com.classmanagement.backend.controller;
 
+import com.classmanagement.backend.dto.user.ChangePasswordRequest;
 import com.classmanagement.backend.dto.user.TeacherStudentResponse;
 import com.classmanagement.backend.dto.user.UpdateProfileRequest;
 import com.classmanagement.backend.dto.user.UserResponse;
@@ -59,6 +60,19 @@ public ResponseEntity<List<TeacherStudentResponse>> getMyStudents(
                     authentication.getName()
             )
     );
+}
+
+@PutMapping("/me/password")
+public ResponseEntity<Void> changePassword(
+        Authentication authentication,
+        @Valid @RequestBody ChangePasswordRequest request
+) {
+    userService.changePassword(
+            authentication.getName(),
+            request
+    );
+
+    return ResponseEntity.noContent().build();
 }
 
 }

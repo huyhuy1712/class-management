@@ -2,6 +2,7 @@ import { CheckCircle2, Search, UserPlus, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import userService from '../../../services/userService'
+import defaultAvatar from '../../../assets/images/avatar_default.png'
 
 function AddStudentModal({
   open,
@@ -181,11 +182,15 @@ function AddStudentModal({
           {selectedStudent && (
             <div className="mt-5 rounded-2xl border border-green-200 bg-green-50/60 p-4">
               <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100 font-bold text-green-700">
-                  {selectedStudent.fullName
-                    ?.charAt(0)
-                    .toUpperCase() || 'H'}
-                </div>
+                <img
+                  src={selectedStudent.avatar || defaultAvatar}
+                  alt={selectedStudent.fullName || 'Học sinh'}
+                  onError={(event) => {
+                    event.currentTarget.onerror = null
+                    event.currentTarget.src = defaultAvatar
+                  }}
+                  className="h-12 w-12 shrink-0 rounded-full border border-green-100 object-cover"
+                />
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">

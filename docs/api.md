@@ -21,11 +21,13 @@
 | GET | `/api/classes/{classroomId}/students` | Lấy học sinh trong lớp |
 | DELETE | `/api/classes/{classroomId}/students/{studentId}` | Xóa học sinh khỏi lớp |
 | POST | `/api/classes/{classroomId}/attendances` | Tạo điểm danh |
+| GET | `/api/classes/{classroomId}/attendances` | Lấy lịch sử điểm danh của lớp |
 | GET | `/api/subjects` | Lấy danh sách môn học |
 | GET | `/api/users` | Lấy người dùng, có thể lọc theo role |
 | GET | `/api/users/{userId}` | Lấy người dùng theo ID |
 | GET | `/api/users/my-students` | Lấy học sinh của giáo viên hiện tại |
 | PUT | `/api/users/me` | Cập nhật hồ sơ hiện tại |
+| PUT | `/api/users/me/password` | Đổi mật khẩu hiện tại |
 | POST | `/api/users/me/avatar` | Tải avatar |
 | DELETE | `/api/users/me/avatar` | Xóa avatar |
 
@@ -488,6 +490,7 @@ curl -X POST http://localhost:8080/api/classes/1/attendances \
 		"id": 1,
 		"studentId": 5,
 		"studentCode": "SV2026005",
+		"studentAvatar": "http://localhost:8080/uploads/avatars/avatar_user_5.jpg",
 		"fullName": "Trần Văn Bình",
 		"date": "2026-09-30",
 		"status": "PRESENT",
@@ -502,6 +505,47 @@ curl -X POST http://localhost:8080/api/classes/1/attendances \
 - `400 Bad Request`: Không tìm thấy lớp học hoặc học sinh.
 - `400 Bad Request`: Học sinh không thuộc lớp học này.
 - `400 Bad Request`: Học sinh đã được điểm danh trong ngày đã chọn.
+- `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+
+### GET `/api/classes/{classroomId}/attendances` | Lịch sử điểm danh
+
+`{classroomId}` là ID lớp cần xem. Kết quả được sắp xếp theo ngày mới nhất trước.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X GET http://localhost:8080/api/classes/1/attendances \
+	-H "Authorization: Bearer <accessToken>"
+```
+
+**Response thành công `200 OK`:**
+
+```json
+[
+	{
+		"id": 1,
+		"studentId": 5,
+		"studentCode": "SV2026005",
+		"studentAvatar": "http://localhost:8080/uploads/avatars/avatar_user_5.jpg",
+		"fullName": "Trần Văn Bình",
+		"date": "2026-09-30",
+		"status": "PRESENT",
+		"note": "Có mặt đúng giờ"
+	}
+]
+```
+
+`studentAvatar` là URL ảnh đại diện theo cấu hình storage hiện tại; nếu học sinh chưa có ảnh, giá trị là `null`. Nếu lớp chưa có dữ liệu điểm danh, API trả về `200 OK` với danh sách `[]`.
+
+**Lỗi:**
+
+- `400 Bad Request`: Không tìm thấy lớp học với `classroomId` đã cung cấp.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
 ## Tra cứu lớp học
@@ -840,6 +884,45 @@ curl -X PUT http://localhost:8080/api/users/me \
 - `400 Bad Request`: Dữ liệu không hợp lệ, email hoặc số điện thoại đã được tài khoản khác sử dụng.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 - `400 Bad Request`: Không tìm thấy người dùng hiện tại.
+
+### PUT `/api/users/me/password` | Đổi mật khẩu
+
+API xác định tài khoản hiện tại từ JWT. Mật khẩu mới phải dài từ 8 đến 100 ký tự và không được trùng mật khẩu hiện tại.
+
+**Headers:**
+
+```http
+Content-Type: application/json
+Authorization: Bearer <accessToken>
+```
+
+**Request body:**
+
+```json
+{
+	"currentPassword": "matkhaucu123",
+	"newPassword": "matkhaumoi456"
+}
+```
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X PUT http://localhost:8080/api/users/me/password \
+	-H "Content-Type: application/json" \
+	-H "Authorization: Bearer <accessToken>" \
+	-d '{
+		"currentPassword": "matkhaucu123",
+		"newPassword": "matkhaumoi456"
+	}'
+```
+
+**Response thành công `204 No Content`:** Không có response body.
+
+**Lỗi:**
+
+- `400 Bad Request`: Thiếu mật khẩu, mật khẩu hiện tại không đúng, mật khẩu mới không dài 8–100 ký tự hoặc trùng mật khẩu hiện tại.
+- `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
 ## Avatar
 
