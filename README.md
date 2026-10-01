@@ -50,7 +50,7 @@ Before running the project, make sure the following tools are installed.
 | VS Code | Latest stable | Latest stable |
 
 ### Verify Installation
-
+ ffd
 Run the following commands:
 
 ```bash
