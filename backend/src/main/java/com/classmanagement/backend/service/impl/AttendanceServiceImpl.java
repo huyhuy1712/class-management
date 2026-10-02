@@ -2,6 +2,7 @@ package com.classmanagement.backend.service.impl;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -27,22 +28,22 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AttendanceServiceImpl implements AttendanceService {
 
-        private static final DateTimeFormatter DISPLAY_DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final DateTimeFormatter DISPLAY_DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private final AttendanceRepository attendanceRepository;
     private final ClassroomRepository classroomRepository;
     private final UserRepository userRepository;
     private final ClassStudentRepository classStudentRepository;
-        private final StorageService storageService;
+    private final StorageService storageService;
 
-        private String getStudentAvatarUrl(User student) {
+private String getStudentAvatarUrl(User student) {
                         String avatar = student.getAvatar();
                         return avatar == null || avatar.isBlank()
                                                         ? null
                                                         : storageService.getUrl(avatar);
         }
 
-    private AttendanceResponse toResponse(Attendance attendance) {
+private AttendanceResponse toResponse(Attendance attendance) {
             User student = attendance.getStudent();
 
             return AttendanceResponse.builder()
@@ -56,9 +57,10 @@ public class AttendanceServiceImpl implements AttendanceService {
                             .note(attendance.getNote())
                             .build();
     }
+
     @Transactional
-    @Override
-    public List<AttendanceResponse> createAttendance(
+@Override
+public List<AttendanceResponse> createAttendance(
             Long classroomId,
             CreateAttendanceRequest request) {
 
@@ -140,9 +142,9 @@ public class AttendanceServiceImpl implements AttendanceService {
         return responses;
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<AttendanceResponse> getAttendancesByClassroom(
+@Override
+@Transactional(readOnly = true)
+public List<AttendanceResponse> getAttendancesByClassroom(
                     Long classroomId) {
 
             if (!classroomRepository.existsById(classroomId)) {
@@ -157,4 +159,26 @@ public class AttendanceServiceImpl implements AttendanceService {
                             .toList();
     }
 
+ @Override
+@Transactional
+public void deleteAttendance(
+        Long classroomId,
+        Long studentId,
+        LocalDate date
+) {
+    long deletedCount =
+            attendanceRepository
+                    .deleteByClassroom_IdAndStudent_IdAndDate(
+                            classroomId,
+                            studentId,
+                            date
+                    );
+
+    if (deletedCount == 0) {
+        throw new IllegalArgumentException(
+                "Không tìm thấy dữ liệu điểm danh của học sinh trong ngày này"
+        );
+    }
+}
+    
 }
