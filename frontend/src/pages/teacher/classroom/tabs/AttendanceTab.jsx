@@ -7,11 +7,14 @@ import {
   Pencil,
   Search,
   Trash2,
+  AlertTriangle,
   UserX,
+  LoaderCircle,
   X,
 } from 'lucide-react'
 import defaultAvatar from '../../../../assets/images/avatar_default.png'
 import attendanceService from '../../../../services/attendanceService'
+import { formatDate, parseDisplayDate } from '../../../../utils/dateUtils'
 
 
 function AttendanceStatusBadge({ status }) {
@@ -47,31 +50,6 @@ function AttendanceStatusBadge({ status }) {
   )
 }
 
-function formatDisplayDate(date) {
-  if (!date) return '—'
-
-  const [year, month, day] = String(date).slice(0, 10).split('-')
-  return year && month && day ? `${day}/${month}/${year}` : date
-}
-
-function parseDisplayDate(value) {
-  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
-  if (!match) return null
-
-  const [, day, month, year] = match
-  const parsedDate = new Date(Number(year), Number(month) - 1, Number(day))
-
-  if (
-    parsedDate.getFullYear() !== Number(year) ||
-    parsedDate.getMonth() !== Number(month) - 1 ||
-    parsedDate.getDate() !== Number(day)
-  ) {
-    return null
-  }
-
-  return `${year}-${month}-${day}`
-}
-
 function AttendanceTab() {
   const { classId } = useParams()
 
@@ -86,6 +64,9 @@ function AttendanceTab() {
   const [selectedStatus, setSelectedStatus] = useState('ALL')
 
   const [editingAttendance, setEditingAttendance] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
   const datePickerRef = useRef(null)
 
   const handleDateInputChange = (value) => {
@@ -104,7 +85,7 @@ function AttendanceTab() {
 
   const handleDatePickerChange = (value) => {
     setSelectedDate(value)
-    setDateInput(value ? formatDisplayDate(value) : '')
+    setDateInput(value ? formatDate(value) : '')
     setDateError('')
   }
 
@@ -185,17 +166,50 @@ function AttendanceTab() {
   ).length
 
   const handleDelete = (attendance) => {
-    const confirmed = window.confirm(
-      `Bạn có chắc muốn xóa điểm danh của ${attendance.fullName}?`,
-    )
+    setDeleteError('')
+    setDeleteTarget(attendance)
+  }
 
-    if (!confirmed) return
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget || deleting) return
 
-    // Tạm thời xóa local.
-    // Sau này thay bằng DELETE API.
-    setAttendances((current) =>
-      current.filter((item) => item.id !== attendance.id),
-    )
+    try {
+      setDeleting(true)
+      setDeleteError('')
+
+      await attendanceService.deleteAttendance(
+        classId,
+        deleteTarget.studentId,
+        deleteTarget.date,
+      )
+
+      setAttendances((current) =>
+        current.filter(
+          (item) =>
+            !(
+              Number(item.studentId) === Number(deleteTarget.studentId) &&
+              item.date === deleteTarget.date
+            ),
+        ),
+      )
+      setDeleteTarget(null)
+    } catch (requestError) {
+      console.error('Delete attendance error:', requestError)
+
+      const message =
+        requestError.response?.data?.message ||
+        requestError.response?.data?.error
+
+      if (requestError.response?.status === 400) {
+        setDeleteError(message || 'Không tìm thấy bản ghi điểm danh cần xóa.')
+      } else if (requestError.response?.status === 401) {
+        setDeleteError('Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.')
+      } else {
+        setDeleteError(message || 'Không thể xóa điểm danh. Vui lòng thử lại.')
+      }
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const handleSaveEdit = (event) => {
@@ -308,7 +322,7 @@ function AttendanceTab() {
               <CalendarDays size={16} />
               Đang xem ngày:
               <span className="font-semibold text-slate-800">
-                {formatDisplayDate(selectedDate)}
+                {formatDate(selectedDate)}
               </span>
             </div>
 
@@ -431,7 +445,7 @@ function AttendanceTab() {
                     </td>
 
                     <td className="px-5 py-4 text-sm text-slate-600">
-                      {formatDisplayDate(attendance.date)}
+                      {formatDate(attendance.date)}
                     </td>
 
                     <td className="px-5 py-4">
@@ -597,6 +611,79 @@ function AttendanceTab() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !deleting) {
+              setDeleteTarget(null)
+              setDeleteError('')
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-attendance-title"
+            className="w-full max-w-lg rounded-[20px] bg-white px-7 py-8 shadow-2xl sm:px-8"
+          >
+            <div className="mx-auto flex h-[60px] w-[60px] items-center justify-center rounded-full bg-red-50 text-red-500">
+              <AlertTriangle size={28} strokeWidth={2} />
+            </div>
+
+            <div className="mt-6 text-center">
+              <h3 id="delete-attendance-title" className="text-xl font-bold text-[#18301D] sm:text-[22px]">
+                Xóa điểm danh?
+              </h3>
+              <p className="mt-3 text-base leading-7 text-slate-500">
+                Bạn có chắc chắn muốn xóa điểm danh của{' '}
+                <span className="font-medium text-slate-600">{deleteTarget.fullName}</span>{' '}
+                vào ngày{' '}
+                <span className="font-medium text-slate-600">{formatDate(deleteTarget.date)}</span>?
+              </p>
+            </div>
+
+            {deleteError && (
+              <div
+                role="alert"
+                className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-center text-sm text-red-600"
+              >
+                {deleteError}
+              </div>
+            )}
+
+            <div className="mt-7 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => {
+                  setDeleteTarget(null)
+                  setDeleteError('')
+                }}
+                className="min-h-14 rounded-2xl border border-slate-200 px-4 py-3 text-base font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={handleConfirmDelete}
+                className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#ff2936] px-4 py-3 text-base font-semibold text-white transition hover:bg-[#ed1c2a] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deleting ? (
+                  <>
+                    <LoaderCircle size={16} className="animate-spin" />
+                    Đang xóa...
+                  </>
+                ) : (
+                  'Xóa điểm danh'
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </>
