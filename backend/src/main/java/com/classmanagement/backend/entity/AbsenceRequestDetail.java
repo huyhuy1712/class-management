@@ -1,0 +1,27 @@
+package com.classmanagement.backend.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity
+@Table(name = "absence_request_details")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class AbsenceRequestDetail {
+
+    @Id
+    @Column(name = "request_id")
+    private Long requestId;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @MapsId
+    @JoinColumn(name = "request_id")
+    private Request request;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "lesson_id", nullable = false)
+    private Lesson lesson;
+}

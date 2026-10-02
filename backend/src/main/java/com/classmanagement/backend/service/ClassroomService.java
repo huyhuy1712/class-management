@@ -4,10 +4,12 @@ import com.classmanagement.backend.dto.classroom.AddStudentToClassroomRequest;
 import com.classmanagement.backend.dto.classroom.ClassroomResponse;
 import com.classmanagement.backend.dto.classroom.ClassroomStudentResponse;
 import com.classmanagement.backend.dto.classroom.CreateClassroomRequest;
+import com.classmanagement.backend.dto.classroom.ImportStudentsResponse;
 import com.classmanagement.backend.dto.classroom.UpdateClassroomRequest;
 
-
 import java.util.List;
+
+import org.springframework.web.multipart.MultipartFile;
 
 public interface ClassroomService {
 
@@ -34,5 +36,10 @@ public interface ClassroomService {
             Long studentId);
     
     List<ClassroomResponse> getMyClassrooms(String username);
+
+    ImportStudentsResponse importStudents(
+        Long classroomId,
+        MultipartFile file
+);
     
 }

@@ -15,6 +15,15 @@ const attendanceService = {
       { params: { date } }
     )
   },
+
+updateAttendance: async (classroomId, attendanceId, data) => {
+  const response = await api.patch(
+    `/classes/${classroomId}/attendances/${attendanceId}`,
+    data
+  )
+
+  return response.data
+},
 }
 
 export default attendanceService

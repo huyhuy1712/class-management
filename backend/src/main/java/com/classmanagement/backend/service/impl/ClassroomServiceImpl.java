@@ -4,6 +4,8 @@ import com.classmanagement.backend.dto.classroom.AddStudentToClassroomRequest;
 import com.classmanagement.backend.dto.classroom.ClassroomResponse;
 import com.classmanagement.backend.dto.classroom.ClassroomStudentResponse;
 import com.classmanagement.backend.dto.classroom.CreateClassroomRequest;
+import com.classmanagement.backend.dto.classroom.ImportStudentErrorResponse;
+import com.classmanagement.backend.dto.classroom.ImportStudentsResponse;
 import com.classmanagement.backend.dto.classroom.UpdateClassroomRequest;
 import com.classmanagement.backend.entity.ClassStudent;
 import com.classmanagement.backend.entity.ClassStudentId;
@@ -19,12 +21,22 @@ import com.classmanagement.backend.repository.SubjectRepository;
 import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.service.ClassroomService;
 import com.classmanagement.backend.service.StorageService;
+import com.classmanagement.backend.service.excel.StudentExcelReader;
+
+import com.classmanagement.backend.exception.ConflictException;
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+
+
+import org.apache.poi.ss.usermodel.*;
 
 @Service
 @RequiredArgsConstructor
@@ -34,7 +46,8 @@ public class ClassroomServiceImpl implements ClassroomService {
     private final SubjectRepository subjectRepository;
     private final UserRepository userRepository;
     private final ClassStudentRepository classStudentRepository;
-        private final StorageService storageService;
+    private final StorageService storageService;
+    private final StudentExcelReader studentExcelReader;
 
 @Override
 @Transactional
@@ -298,14 +311,12 @@ public ClassroomStudentResponse addStudent(
         }
 
         if (classStudentRepository
-                .existsByClassroomIdAndStudentId(
-                        classroomId,
-                        student.getId()
-                )) {
+                        .existsByClassroomIdAndStudentId(
+                                        classroomId,
+                                        student.getId())) {
 
-                throw new IllegalStateException(
-                        "Học sinh đã có trong lớp học này"
-                );
+                throw new ConflictException(
+                                "Học sinh đã có trong lớp học này");
         }
 
         LocalDateTime joinedAt = LocalDateTime.now();
@@ -325,7 +336,10 @@ public ClassroomStudentResponse addStudent(
                 .fullName(student.getFullName())
                 .email(student.getEmail())
                 .phone(student.getPhone())
-                .avatar(storageService.getUrl(student.getAvatar()))
+                .avatar(
+                        student.getAvatar() != null && !student.getAvatar().isBlank()
+                        ? storageService.getUrl(student.getAvatar())
+                        : null)                
                 .joinedAt(joinedAt)
                 .build();
          }
@@ -413,6 +427,109 @@ public List<ClassroomResponse> getMyClassrooms(String username) {
         return classrooms.stream()
                         .map(this::toResponse)
                         .toList();
+}
+
+
+private Classroom getClassroomById(Long classroomId) {
+        return classroomRepository
+                        .findById(classroomId)
+                        .orElseThrow(() -> new IllegalArgumentException(
+                                        "Không tìm thấy lớp học"));
+}
+
+
+@Override
+@Transactional
+public ImportStudentsResponse importStudents( Long classroomId, MultipartFile file) {
+        Classroom classroom = getClassroomById(classroomId);
+
+        studentExcelReader.validateFile(file);
+
+        List<ImportStudentErrorResponse> errors = new ArrayList<>();
+        int[] result = { 0, 0 };
+
+        try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
+
+                Sheet sheet = workbook.getSheetAt(0);
+
+                studentExcelReader.validateHeader(sheet);
+
+                for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                        processImportRow(
+                                        sheet.getRow(i),
+                                        i + 1,
+                                        classroom,
+                                        errors,
+                                        result);
+                }
+
+        } catch (IOException e) {
+                throw new IllegalArgumentException(
+                                "Không thể đọc file Excel");
+        }
+
+        return ImportStudentsResponse.builder()
+                        .total(result[0])
+                        .success(result[1])
+                        .failed(errors.size())
+                        .errors(errors)
+                        .build();
+}
+
+private void processImportRow(
+                Row row,
+                int rowNumber,
+                Classroom classroom,
+                List<ImportStudentErrorResponse> errors,
+                int[] result) {
+        if (studentExcelReader.isRowEmpty(row)) {
+                return;
+        }
+
+        result[0]++;
+
+        String studentCode = studentExcelReader.getStudentCode(row);
+
+        if (studentCode.isBlank()) {
+                errors.add(
+                                ImportStudentErrorResponse.builder()
+                                                .row(rowNumber)
+                                                .studentCode("")
+                                                .message("Mã học sinh không được để trống")
+                                                .build());
+                return;
+        }
+
+        try {
+                importStudent(classroom, studentCode);
+                result[1]++;
+
+        } catch (IllegalArgumentException | ConflictException e) {
+                errors.add(
+                                ImportStudentErrorResponse.builder()
+                                                .row(rowNumber)
+                                                .studentCode(studentCode)
+                                                .message(e.getMessage())
+                                                .build());
+        }
+}
+
+private void importStudent(
+                Classroom classroom,
+                String studentCode) {
+        User student = userRepository
+                        .findByStudentCode(studentCode.trim())
+                        .orElseThrow(() -> new IllegalArgumentException(
+                                        "Không tìm thấy học sinh với mã "
+                                                        + studentCode));
+
+        AddStudentToClassroomRequest request = new AddStudentToClassroomRequest();
+
+        request.setStudentId(student.getId());
+
+        addStudent(
+                        classroom.getId(),
+                        request);
 }
 
 }

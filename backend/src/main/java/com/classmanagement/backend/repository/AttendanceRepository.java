@@ -27,4 +27,10 @@ long deleteByClassroom_IdAndStudent_IdAndDate(
                 Long classroomId,
                 Long studentId,
                 LocalDate date);
+
+boolean existsByClassroom_IdAndStudent_IdAndDateAndIdNot(
+                Long classroomId,
+                Long studentId,
+                LocalDate date,
+                Long attendanceId);
 }

@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.classmanagement.backend.dto.attendance.AttendanceResponse;
 import com.classmanagement.backend.dto.attendance.AttendanceStudentRequest;
 import com.classmanagement.backend.dto.attendance.CreateAttendanceRequest;
+import com.classmanagement.backend.dto.attendance.UpdateAttendanceRequest;
 import com.classmanagement.backend.entity.Attendance;
 import com.classmanagement.backend.entity.Classroom;
 import com.classmanagement.backend.entity.User;
@@ -179,6 +180,55 @@ public void deleteAttendance(
                 "Không tìm thấy dữ liệu điểm danh của học sinh trong ngày này"
         );
     }
+}
+
+@Override
+@Transactional
+public AttendanceResponse updateAttendance(
+                Long classroomId,
+                Long attendanceId,
+                UpdateAttendanceRequest request) {
+        Attendance attendance = attendanceRepository
+                        .findById(attendanceId)
+                        .orElseThrow(() -> new IllegalArgumentException(
+                                        "Không tìm thấy dữ liệu điểm danh"));
+
+        if (!attendance.getClassroom().getId().equals(classroomId)) {
+                throw new IllegalArgumentException(
+                                "Dữ liệu điểm danh không thuộc lớp học này");
+        }
+
+        // Nếu có thay đổi ngày thì kiểm tra trùng
+        if (request.getDate() != null) {
+
+                Long studentId = attendance.getStudent().getId();
+
+                boolean duplicate = attendanceRepository
+                                .existsByClassroom_IdAndStudent_IdAndDateAndIdNot(
+                                                classroomId,
+                                                studentId,
+                                                request.getDate(),
+                                                attendanceId);
+
+                if (duplicate) {
+                        throw new IllegalArgumentException(
+                                        "Học sinh đã có dữ liệu điểm danh trong ngày này");
+                }
+
+                attendance.setDate(request.getDate());
+        }
+
+        if (request.getStatus() != null) {
+                attendance.setStatus(request.getStatus());
+        }
+
+        if (request.getNote() != null) {
+                attendance.setNote(request.getNote());
+        }
+
+        attendance = attendanceRepository.save(attendance);
+
+        return toResponse(attendance);
 }
     
 }

@@ -20,9 +20,16 @@
 | DELETE | `/api/classes/{id}` | Xóa lớp |
 | POST | `/api/classes/{classroomId}/students` | Thêm học sinh vào lớp |
 | GET | `/api/classes/{classroomId}/students` | Lấy học sinh trong lớp |
+| GET | `/api/requests/join-class/received` | Lấy yêu cầu tham gia lớp đang chờ |
+| PATCH | `/api/requests/{requestId}/approve` | Chấp nhận yêu cầu tham gia lớp |
+| PATCH | `/api/requests/{requestId}/reject` | Từ chối yêu cầu tham gia lớp |
+| POST | `/api/notifications/request-approved/{requestId}` | Tạo thông báo yêu cầu được chấp nhận |
+| POST | `/api/notifications/request-rejected/{requestId}` | Tạo thông báo yêu cầu bị từ chối |
 | DELETE | `/api/classes/{classroomId}/students/{studentId}` | Xóa học sinh khỏi lớp |
 | POST | `/api/classes/{classroomId}/attendances` | Tạo điểm danh |
 | GET | `/api/classes/{classroomId}/attendances` | Lấy lịch sử điểm danh của lớp |
+| DELETE | `/api/classes/{classroomId}/attendances/students/{studentId}?date=YYYY-MM-DD` | Xóa điểm danh của học sinh trong một ngày |
+| PATCH | `/api/classes/{classroomId}/attendances/{attendanceId}` | Cập nhật bản ghi điểm danh |
 | GET | `/api/subjects` | Lấy danh sách môn học |
 | GET | `/api/users` | Lấy người dùng, có thể lọc theo role |
 | GET | `/api/users/{userId}` | Lấy người dùng theo ID |
@@ -417,6 +424,150 @@ Nếu lớp chưa có học sinh, API trả về:
 - `400 Bad Request`: Không tìm thấy lớp học với `classroomId` đã cung cấp.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
+### GET `/api/requests/join-class/received` | Lấy yêu cầu tham gia lớp đang chờ
+
+Lấy các yêu cầu tham gia lớp có trạng thái `PENDING` được gửi đến tài khoản đang đăng nhập, sắp xếp theo thời gian tạo mới nhất trước. API không cần tham số path, query hoặc request body.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X GET http://localhost:8080/api/requests/join-class/received \
+	-H "Authorization: Bearer <accessToken>"
+```
+
+**Response thành công `200 OK`:**
+
+```json
+[
+	{
+		"requestId": 12,
+		"studentId": 5,
+		"studentCode": "SV2026005",
+		"fullName": "Nguyễn Văn A",
+		"username": "nguyenvana",
+		"avatar": "http://localhost:8080/uploads/avatars/avatar.png",
+		"classroomId": 1,
+		"classroomName": "Lập trình Java K21",
+		"classroomCode": "JAVA-K21",
+		"message": "Em muốn tham gia lớp học.",
+		"status": "PENDING",
+		"createdAt": "2026-10-02T10:30:00"
+	}
+]
+```
+
+Nếu tài khoản hiện tại không có yêu cầu đang chờ, API trả về `[]`. Trường `avatar` có thể là `null` nếu học sinh chưa có avatar; `message` cũng có thể là `null` nếu yêu cầu không có lời nhắn.
+
+**Một số trường hợp lỗi:**
+
+- `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+
+### PATCH `/api/requests/{requestId}/approve` | Chấp nhận yêu cầu tham gia lớp
+
+Chấp nhận yêu cầu tham gia lớp đang ở trạng thái `PENDING` và được gửi đến tài khoản hiện tại. `{requestId}` là ID lấy từ response của `GET /api/requests/join-class/received`. API không cần request body. Sau khi PATCH thành công, gọi `POST /api/notifications/request-approved/{requestId}` để tạo thông báo cho học sinh gửi yêu cầu.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X PATCH http://localhost:8080/api/requests/12/approve \
+	-H "Authorization: Bearer <accessToken>"
+```
+
+**Response thành công `204 No Content`:** Không có response body.
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Không tìm thấy yêu cầu, yêu cầu không thuộc loại tham gia lớp hoặc yêu cầu đã được xử lý.
+- `403 Forbidden`: Yêu cầu không được gửi đến tài khoản đang đăng nhập.
+- `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+
+### POST `/api/notifications/request-approved/{requestId}` | Tạo thông báo yêu cầu được chấp nhận
+
+Tạo thông báo cho học sinh đã gửi yêu cầu tham gia lớp vừa được chấp nhận. Chỉ người nhận yêu cầu (giáo viên) mới được tạo thông báo. API không cần request body; chỉ gọi sau khi `PATCH /api/requests/{requestId}/approve` thành công.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X POST http://localhost:8080/api/notifications/request-approved/12 \
+	-H "Authorization: Bearer <accessToken>"
+```
+
+**Response thành công `204 No Content`:** Không có response body.
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Không tìm thấy yêu cầu, yêu cầu không phải yêu cầu tham gia lớp hoặc chưa được chấp nhận. Mỗi lần gọi thành công tạo một notification mới.
+- `403 Forbidden`: Tài khoản hiện tại không phải người nhận yêu cầu.
+- `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+
+### PATCH `/api/requests/{requestId}/reject` | Từ chối yêu cầu tham gia lớp
+
+Từ chối yêu cầu đang ở trạng thái `PENDING` và được gửi đến tài khoản hiện tại. `{requestId}` là ID lấy từ response của `GET /api/requests/join-class/received`. API không cần request body. Sau khi PATCH thành công, gọi `POST /api/notifications/request-rejected/{requestId}` để tạo thông báo cho học sinh gửi yêu cầu.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X PATCH http://localhost:8080/api/requests/12/reject \
+	-H "Authorization: Bearer <accessToken>"
+```
+
+**Response thành công `204 No Content`:** Không có response body.
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Không tìm thấy yêu cầu, yêu cầu không thuộc loại tham gia lớp hoặc yêu cầu đã được xử lý.
+- `403 Forbidden`: Yêu cầu không được gửi đến tài khoản đang đăng nhập.
+- `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+
+### POST `/api/notifications/request-rejected/{requestId}` | Tạo thông báo yêu cầu bị từ chối
+
+Tạo thông báo cho học sinh đã gửi yêu cầu tham gia lớp vừa bị từ chối. Chỉ người nhận yêu cầu (giáo viên) mới được tạo thông báo. API không cần request body; chỉ gọi sau khi `PATCH /api/requests/{requestId}/reject` thành công.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X POST http://localhost:8080/api/notifications/request-rejected/12 \
+	-H "Authorization: Bearer <accessToken>"
+```
+
+**Response thành công `204 No Content`:** Không có response body.
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Không tìm thấy yêu cầu, yêu cầu không phải yêu cầu tham gia lớp hoặc chưa bị từ chối. Mỗi lần gọi thành công tạo một notification mới.
+- `403 Forbidden`: Tài khoản hiện tại không phải người nhận yêu cầu.
+- `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+
 ### DELETE `/api/classes/{classroomId}/students/{studentId}` | Xóa học sinh khỏi lớp
 
 **Headers:**
@@ -563,6 +714,101 @@ curl -X GET http://localhost:8080/api/classes/1/attendances \
 **Lỗi:**
 
 - `400 Bad Request`: Không tìm thấy lớp học với `classroomId` đã cung cấp.
+- `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+
+### DELETE `/api/classes/{classroomId}/attendances/students/{studentId}` | Xóa điểm danh
+
+API xóa một bản ghi điểm danh theo `studentId` và ngày `date`. Dữ liệu điểm danh cần phải thuộc đúng lớp học và đúng ngày mới được xóa.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+**Query params:**
+
+```http
+date=2026-09-30
+```
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X DELETE "http://localhost:8080/api/classes/1/attendances/students/5?date=2026-09-30" \
+	-H "Authorization: Bearer <accessToken>"
+```
+
+**Response thành công `204 No Content`:**
+
+Không có body trả về. Nếu bản ghi điểm danh tồn tại, backend sẽ xóa và trả về `204 No Content`.
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Không tìm thấy dữ liệu điểm danh của học sinh trong ngày đã chọn.
+- `400 Bad Request`: Lớp học hoặc học sinh không hợp lệ.
+- `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+
+### PATCH `/api/classes/{classroomId}/attendances/{attendanceId}` | Cập nhật điểm danh
+
+API cập nhật một bản ghi điểm danh đã tồn tại. Chỉ các trường được gửi trong body mới được thay đổi; các trường còn lại giữ nguyên.
+
+**Headers:**
+
+```http
+Content-Type: application/json
+Authorization: Bearer <accessToken>
+```
+
+**Request body mẫu:**
+
+```json
+{
+	"date": "2026-09-30",
+	"status": "LATE",
+	"note": "Đến muộn 10 phút nhưng đã giải thích"
+}
+```
+
+Trong đó:
+
+- `date`: Ngày điểm danh mới, không bắt buộc. Nếu có, phải là ngày hợp lệ và không trùng với dữ liệu điểm danh của học sinh đó trong cùng lớp.
+- `status`: Trạng thái mới, không bắt buộc. Chỉ nhận `PRESENT`, `ABSENT` hoặc `LATE`.
+- `note`: Ghi chú mới, không bắt buộc. Nếu gửi `null`, backend giữ nguyên note cũ hoặc xóa note tùy theo logic hiện tại.
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X PATCH http://localhost:8080/api/classes/1/attendances/10 \
+	-H "Content-Type: application/json" \
+	-H "Authorization: Bearer <accessToken>" \
+	-d '{
+		"date": "2026-09-30",
+		"status": "LATE",
+		"note": "Đến muộn 10 phút nhưng đã giải thích"
+	}'
+```
+
+**Response thành công `200 OK`:**
+
+```json
+{
+	"id": 10,
+	"studentId": 5,
+	"studentCode": "SV2026005",
+	"studentAvatar": "http://localhost:8080/uploads/avatars/avatar_user_5.jpg",
+	"fullName": "Trần Văn Bình",
+	"date": "2026-09-30",
+	"status": "LATE",
+	"note": "Đến muộn 10 phút nhưng đã giải thích"
+}
+```
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Không tìm thấy dữ liệu điểm danh với `attendanceId` đã cung cấp.
+- `400 Bad Request`: Dữ liệu điểm danh không thuộc lớp học này.
+- `400 Bad Request`: Học sinh đã có dữ liệu điểm danh trong ngày mới chọn.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
 ## Tra cứu lớp học

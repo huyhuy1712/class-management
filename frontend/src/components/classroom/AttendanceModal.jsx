@@ -1,4 +1,4 @@
-import {
+﻿import {
   CalendarDays,
   Check,
   Clock3,
@@ -10,7 +10,6 @@ import { useEffect, useState } from 'react'
 
 function getToday() {
   const now = new Date()
-
   const year = now.getFullYear()
   const month = String(now.getMonth() + 1).padStart(2, '0')
   const day = String(now.getDate()).padStart(2, '0')
@@ -18,7 +17,7 @@ function getToday() {
   return `${year}-${month}-${day}`
 }
 
-const attendanceOptions = [
+const STATUS_OPTIONS = [
   {
     value: 'PRESENT',
     label: 'Có mặt',
@@ -44,6 +43,58 @@ const attendanceOptions = [
       'border-orange-400 bg-orange-50 text-orange-600 ring-2 ring-orange-100',
   },
 ]
+
+function StudentSummary({ student }) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl bg-[#F7FAF7] p-4">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-green-100 font-bold text-green-700">
+        {student.fullName
+          ?.trim()
+          .split(/\s+/)
+          .slice(-2)
+          .map((item) => item[0])
+          .join('')
+          .toUpperCase() || 'HS'}
+      </div>
+
+      <div>
+        <p className="font-semibold text-[#18301D]">{student.fullName}</p>
+        <p className="mt-1 text-xs text-gray-400">
+          {student.studentCode} · @{student.username}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function StatusButton({ option, active, disabled, onSelect }) {
+  const Icon = option.icon
+
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={() => onSelect(option.value)}
+      className={`relative rounded-xl border p-3 text-left transition ${
+        active
+          ? option.activeClass
+          : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
+      } disabled:cursor-not-allowed disabled:opacity-60`}
+    >
+      {active && (
+        <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-white">
+          <Check size={13} />
+        </span>
+      )}
+
+      <Icon size={19} />
+      <p className="mt-2 text-sm font-semibold">{option.label}</p>
+      <p className="mt-1 hidden text-[11px] opacity-70 sm:block">
+        {option.description}
+      </p>
+    </button>
+  )
+}
 
 function AttendanceModal({
   open,
@@ -89,7 +140,6 @@ function AttendanceModal({
         onClick={(event) => event.stopPropagation()}
         className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto overscroll-contain rounded-2xl bg-white shadow-2xl sm:max-h-[calc(100dvh-3rem)]"
       >
-        {/* HEADER */}
         <div className="flex items-start justify-between border-b border-gray-100 px-6 py-5">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-100 text-green-700">
@@ -100,7 +150,6 @@ function AttendanceModal({
               <h2 className="text-lg font-bold text-[#18301D]">
                 Điểm danh học sinh
               </h2>
-
               <p className="mt-1 text-sm text-gray-400">
                 Cập nhật trạng thái tham gia lớp học
               </p>
@@ -111,41 +160,18 @@ function AttendanceModal({
             type="button"
             disabled={loading}
             onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <X size={20} />
           </button>
         </div>
 
         <div className="space-y-5 p-6">
-          {/* STUDENT */}
-          <div className="flex items-center gap-3 rounded-xl bg-[#F7FAF7] p-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-green-100 font-bold text-green-700">
-              {student.fullName
-                ?.trim()
-                .split(/\s+/)
-                .slice(-2)
-                .map((item) => item[0])
-                .join('')
-                .toUpperCase() || 'HS'}
-            </div>
+          <StudentSummary student={student} />
 
-            <div>
-              <p className="font-semibold text-[#18301D]">
-                {student.fullName}
-              </p>
-
-              <p className="mt-1 text-xs text-gray-400">
-                {student.studentCode} · @{student.username}
-              </p>
-            </div>
-          </div>
-
-          {/* DATE */}
           <div>
             <label className="mb-2 block text-sm font-semibold text-[#18301D]">
               Ngày điểm danh
-              <span className="ml-1 text-red-500">*</span>
             </label>
 
             <div className="relative">
@@ -156,15 +182,13 @@ function AttendanceModal({
 
               <input
                 type="date"
-                required
+                disabled
                 value={date}
-                onChange={(event) => setDate(event.target.value)}
-                className="w-full rounded-xl border border-gray-200 py-3 pl-11 pr-4 text-sm text-gray-700 outline-none transition focus:border-green-400 focus:ring-4 focus:ring-green-100"
+                className="w-full cursor-not-allowed rounded-xl border border-gray-200 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-500 outline-none"
               />
             </div>
           </div>
 
-          {/* STATUS */}
           <div>
             <label className="mb-2 block text-sm font-semibold text-[#18301D]">
               Trạng thái
@@ -172,43 +196,18 @@ function AttendanceModal({
             </label>
 
             <div className="grid gap-2 sm:grid-cols-3">
-              {attendanceOptions.map((option) => {
-                const Icon = option.icon
-                const active = status === option.value
-
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setStatus(option.value)}
-                    className={`relative rounded-xl border p-3 text-left transition ${
-                      active
-                        ? option.activeClass
-                        : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
-                    }`}
-                  >
-                    {active && (
-                      <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-white">
-                        <Check size={13} />
-                      </span>
-                    )}
-
-                    <Icon size={19} />
-
-                    <p className="mt-2 text-sm font-semibold">
-                      {option.label}
-                    </p>
-
-                    <p className="mt-1 hidden text-[11px] opacity-70 sm:block">
-                      {option.description}
-                    </p>
-                  </button>
-                )
-              })}
+              {STATUS_OPTIONS.map((option) => (
+                <StatusButton
+                  key={option.value}
+                  option={option}
+                  active={status === option.value}
+                  disabled={loading}
+                  onSelect={setStatus}
+                />
+              ))}
             </div>
           </div>
 
-          {/* NOTE */}
           <div>
             <label className="mb-2 block text-sm font-semibold text-[#18301D]">
               Ghi chú
@@ -226,7 +225,6 @@ function AttendanceModal({
             />
           </div>
 
-          {/* ERROR */}
           {error && (
             <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
               {error}
@@ -234,13 +232,12 @@ function AttendanceModal({
           )}
         </div>
 
-        {/* FOOTER */}
         <div className="flex justify-end gap-3 border-t border-gray-100 bg-gray-50/50 px-6 py-4">
           <button
             type="button"
             disabled={loading}
             onClick={onClose}
-            className="rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
+            className="rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Hủy
           </button>
@@ -251,7 +248,6 @@ function AttendanceModal({
             className="flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <UserCheck size={17} />
-
             {loading ? 'Đang lưu...' : 'Lưu điểm danh'}
           </button>
         </div>

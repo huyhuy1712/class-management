@@ -102,4 +102,12 @@ public class GlobalExceptionHandler {
                 .body(response);
     }
 
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<?> handleConflictException(
+                    ConflictException ex) {
+            return ResponseEntity
+                            .status(HttpStatus.CONFLICT)
+                            .body(Map.of(
+                                            "message", ex.getMessage()));
+    }
 }

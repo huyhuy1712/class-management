@@ -1,7 +1,8 @@
 package com.classmanagement.backend.entity.enums;
 
-public enum ClassJoinRequestStatus {
+public enum RequestStatus {
     PENDING,
     APPROVED,
-    REJECTED
+    REJECTED,
+    CANCELLED
 }

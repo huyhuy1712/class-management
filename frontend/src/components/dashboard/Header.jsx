@@ -3,6 +3,7 @@ import useAuthStore from '../../stores/authStore'
 import { useNavigate } from 'react-router-dom'
 import logo from '../../assets/logos/logo.png'
 import defaultAvatar from '../../assets/images/avatar_default.png'
+import NotificationBell from '../dashboard/NotificationBell'
 
 
 function Header({ onMenuClick }) {
@@ -35,31 +36,34 @@ function Header({ onMenuClick }) {
         </div>
       </div>
 
-      {/* User */}
-      <div className="flex shrink-0 items-center gap-2 sm:gap-5">
-        <button
-          type="button"
-          onClick={() => navigate('/teacher/profile')}
-          className="group flex items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-green-50"
-        >
-          {/* avatar */}
-      <img
-        src={user?.avatar || defaultAvatar}
-        alt="Avatar"
-        className="h-12 w-12 rounded-xl object-cover"
-        onError={(e) => {
-          e.currentTarget.onerror = null
-          e.currentTarget.src = defaultAvatar
-        }}
-      />
+{/* Notification + User */}
+<div className="flex shrink-0 items-center gap-2 sm:gap-3">
+  {/* Notification */}
+  <NotificationBell />
 
-          <div className="hidden sm:block">
-            <p className="text-sm font-semibold text-[#18301D]">
-              {user?.fullName || user?.username}
-            </p>
-          </div>
-      </button>
-      </div>
+  {/* User profile */}
+  <button
+    type="button"
+    onClick={() => navigate('/teacher/profile')}
+    className="group flex items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-green-50 sm:px-3"
+  >
+    <img
+      src={user?.avatar || defaultAvatar}
+      alt="Avatar"
+      className="h-10 w-10 rounded-xl object-cover sm:h-12 sm:w-12"
+      onError={(e) => {
+        e.currentTarget.onerror = null
+        e.currentTarget.src = defaultAvatar
+      }}
+    />
+
+    <div className="hidden sm:block">
+      <p className="max-w-[160px] truncate text-sm font-semibold text-[#18301D]">
+        {user?.fullName || user?.username}
+      </p>
+    </div>
+  </button>
+</div>
     </header>
   )
 }

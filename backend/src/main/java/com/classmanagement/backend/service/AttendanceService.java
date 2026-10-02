@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.classmanagement.backend.dto.attendance.AttendanceResponse;
 import com.classmanagement.backend.dto.attendance.CreateAttendanceRequest;
+import com.classmanagement.backend.dto.attendance.UpdateAttendanceRequest;
 
 public interface AttendanceService {
 
@@ -19,4 +20,10 @@ void deleteAttendance(
         Long classroomId,
         Long studentId,
         LocalDate date);
+
+AttendanceResponse updateAttendance(
+        Long classroomId,
+        Long attendanceId,
+        UpdateAttendanceRequest request
+);
 }

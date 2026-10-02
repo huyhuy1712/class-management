@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 import com.classmanagement.backend.dto.attendance.AttendanceResponse;
 import com.classmanagement.backend.dto.attendance.CreateAttendanceRequest;
+import com.classmanagement.backend.dto.attendance.UpdateAttendanceRequest;
 import com.classmanagement.backend.service.AttendanceService;
 
 import jakarta.validation.Valid;
@@ -50,6 +51,21 @@ public ResponseEntity<Void> deleteAttendance(
     );
 
     return ResponseEntity.noContent().build();
+}
+
+@PatchMapping("/{classroomId}/attendances/{attendanceId}")
+public ResponseEntity<AttendanceResponse> updateAttendance(
+        @PathVariable Long classroomId,
+        @PathVariable Long attendanceId,
+        @RequestBody UpdateAttendanceRequest request
+) {
+    return ResponseEntity.ok(
+            attendanceService.updateAttendance(
+                    classroomId,
+                    attendanceId,
+                    request
+            )
+    );
 }
 
 }

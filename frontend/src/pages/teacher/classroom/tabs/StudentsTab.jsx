@@ -8,15 +8,16 @@ import {
   Search,
   Trash2,
   UserRound,
+  UserPlus,
   Users,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
 
-import AddStudentModal from '../../../../components/classroom/detail/AddStudentModal'
+import AddStudentModal from '../../../../components/classroom/AddStudentModal'
 import ConfirmModal from '../../../../components/classroom/ConfirmModal'
 import classroomService from '../../../../services/classroomService'
-import AttendanceModal from '../../../../components/classroom/detail/AttendanceModal'
+import AttendanceModal from '../../../../components/classroom/AttendanceModal'
 import defaultAvatar from '../../../../assets/images/avatar_default.png'
 
 function getErrorMessage(data) {
@@ -51,6 +52,8 @@ function StudentsTab() {
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState(null)
+  const [addMenuOpen, setAddMenuOpen] = useState(false)
+  const addMenuRef = useRef(null)
 
   const [studentToDelete, setStudentToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
@@ -124,6 +127,26 @@ function StudentsTab() {
     const timeoutId = window.setTimeout(() => setToast(null), 3500)
     return () => window.clearTimeout(timeoutId)
   }, [toast])
+
+  useEffect(() => {
+    if (!addMenuOpen) return undefined
+
+    const handlePointerDown = (event) => {
+      if (!addMenuRef.current?.contains(event.target)) {
+        setAddMenuOpen(false)
+      }
+    }
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') setAddMenuOpen(false)
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [addMenuOpen])
 
   const filteredStudents = useMemo(() => {
     const keyword = search.trim().toLowerCase()
@@ -391,19 +414,6 @@ const handleSubmitAttendance = async ({
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row">
-              <button
-                type="button"
-                onClick={() =>
-                  showUnavailableMessage(
-                    'Tính năng nhập file đang được phát triển.',
-                  )
-                }
-                className="flex items-center justify-center gap-2 rounded-xl border border-green-200 bg-white px-4 py-2.5 text-sm font-semibold text-green-700 transition hover:bg-green-50"
-              >
-                <FileSpreadsheet size={18} />
-                Nhập từ file
-              </button>
-
               {classroom?.status === 'ARCHIVED' && (
                 <button
                   type="button"
@@ -416,17 +426,53 @@ const handleSubmitAttendance = async ({
                 </button>
               )}
 
-              <button
-                type="button"
-                onClick={() => {
-                  setAddError(null)
-                  setAddModalOpen(true)
-                }}
-                className="flex items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700"
-              >
-                <Plus size={18} />
-                Thêm học sinh
-              </button>
+              <div ref={addMenuRef} className="relative">
+                <button
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded={addMenuOpen}
+                  onClick={() => setAddMenuOpen((open) => !open)}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 sm:w-auto"
+                >
+                  <Plus size={18} />
+                  Thêm
+                </button>
+
+                {addMenuOpen && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 top-full z-20 mt-1 min-w-72 overflow-hidden rounded-xl border border-gray-100 bg-white py-2 shadow-xl"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setAddMenuOpen(false)
+                        setAddError(null)
+                        setAddModalOpen(true)
+                      }}
+                      className="flex w-full items-center gap-3 px-5 py-3 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-green-50 hover:text-green-700 focus-visible:bg-green-50 focus-visible:text-green-700 focus-visible:outline-none"
+                    >
+                      <UserPlus size={18} />
+                      Thêm học sinh
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setAddMenuOpen(false)
+                        showUnavailableMessage(
+                          'Tính năng nhập file đang được phát triển.',
+                        )
+                      }}
+                      className="flex w-full items-center gap-3 px-5 py-3 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-green-50 hover:text-green-700 focus-visible:bg-green-50 focus-visible:text-green-700 focus-visible:outline-none"
+                    >
+                      <FileSpreadsheet size={18} />
+                      Thêm học sinh bằng Excel
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

@@ -4,8 +4,10 @@ import com.classmanagement.backend.dto.classroom.AddStudentToClassroomRequest;
 import com.classmanagement.backend.dto.classroom.ClassroomResponse;
 import com.classmanagement.backend.dto.classroom.ClassroomStudentResponse;
 import com.classmanagement.backend.dto.classroom.CreateClassroomRequest;
+import com.classmanagement.backend.dto.classroom.ImportStudentsResponse;
 import com.classmanagement.backend.dto.classroom.UpdateClassroomRequest;
 import com.classmanagement.backend.service.ClassroomService;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -13,7 +15,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
 import java.util.List;
 
 @RestController
@@ -121,5 +124,18 @@ public ResponseEntity<List<ClassroomResponse>> getMyClassrooms(
         return ResponseEntity.ok(
                         classroomService.getMyClassrooms(
                                         authentication.getName()));
+}
+
+@PostMapping(
+        value = "/{classroomId}/students/import",
+        consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+)
+public ResponseEntity<ImportStudentsResponse> importStudents(
+        @PathVariable Long classroomId,
+        @RequestParam("file") MultipartFile file
+) {
+    return ResponseEntity.ok(
+            classroomService.importStudents(classroomId, file)
+    );
 }
 }
