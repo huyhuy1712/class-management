@@ -16,6 +16,7 @@
 | POST | `/api/classes` | Tạo lớp |
 | PUT | `/api/classes/{id}` | Cập nhật lớp |
 | PATCH | `/api/classes/{id}/archive` | Lưu trữ lớp |
+| PATCH | `/api/classes/{id}/activate` | Kích hoạt lại lớp đã lưu trữ |
 | DELETE | `/api/classes/{id}` | Xóa lớp |
 | POST | `/api/classes/{classroomId}/students` | Thêm học sinh vào lớp |
 | GET | `/api/classes/{classroomId}/students` | Lấy học sinh trong lớp |
@@ -302,6 +303,18 @@ Lớp được chuyển sang status `ARCHIVED`.
 
 - `400 Bad Request`: Không tìm thấy lớp học với `id` đã cung cấp.
 - `403 Forbidden`: Lớp học đã được lưu trữ trước đó.
+
+### PATCH `/api/classes/{id}/activate` | Kích hoạt lớp
+
+Khôi phục lớp về status `ACTIVE`. Gọi lại với lớp đang hoạt động vẫn trả về thông tin lớp hiện tại.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+**Response thành công `200 OK`:** response có cùng cấu trúc với API lấy lớp, trong đó `status` là `ACTIVE`.
 
 ### DELETE `/api/classes/{id}` | Xóa lớp
 

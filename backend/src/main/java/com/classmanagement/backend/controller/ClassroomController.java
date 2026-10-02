@@ -60,6 +60,15 @@ public ResponseEntity<ClassroomResponse> archiveClassroom(
                 return ResponseEntity.ok(response);
         }
 
+@PatchMapping("/{id}/activate")
+public ResponseEntity<ClassroomResponse> activateClassroom(
+                        @PathVariable Long id) {
+
+                ClassroomResponse response = classroomService.activateClassroom(id);
+
+                return ResponseEntity.ok(response);
+        }
+
 @DeleteMapping("/{id}")
 public ResponseEntity<Void> deleteClassroom(
                         @PathVariable Long id) {
