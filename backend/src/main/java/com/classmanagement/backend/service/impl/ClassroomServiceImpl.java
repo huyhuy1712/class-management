@@ -231,6 +231,22 @@ public ClassroomResponse archiveClassroom(Long id) {
 }
 
 @Override
+@Transactional
+public ClassroomResponse activateClassroom(Long id) {
+        Classroom classroom = classroomRepository
+                        .findById(id)
+                        .orElseThrow(() -> new IllegalArgumentException(
+                                        "Không tìm thấy lớp học"));
+
+        if (classroom.getStatus() != ClassroomStatus.ACTIVE) {
+                classroom.setStatus(ClassroomStatus.ACTIVE);
+                classroom = classroomRepository.save(classroom);
+        }
+
+        return toResponse(classroom);
+}
+
+@Override
 public void deleteClassroom(Long id) {
 
         // 1. Tìm classroom

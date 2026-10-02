@@ -18,7 +18,8 @@ public interface ClassroomService {
     ClassroomResponse updateClass(Long id, UpdateClassroomRequest request);
     
 
-    ClassroomResponse archiveClassroom(Long id);
+    ClassroomResponse archiveClassroom(Long id);  
+    ClassroomResponse activateClassroom(Long id);
     void deleteClassroom(Long id);
 
     ClassroomStudentResponse addStudent(

@@ -31,6 +31,11 @@ const classroomService = {
     return response.data
   },
 
+  activate: async (id) => {
+    const response = await api.patch(`/classes/${id}/activate`)
+    return response.data
+  },
+
   delete: async (id) => {
     await api.delete(`/classes/${id}`)
   },

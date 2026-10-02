@@ -3,6 +3,7 @@ import {
   FileSpreadsheet,
   Mail,
   Phone,
+  Power,
   Plus,
   Search,
   Trash2,
@@ -39,7 +40,7 @@ function formatJoinedDate(value) {
 }
 
 function StudentsTab() {
-  const { classroom, onStudentCountChange } = useOutletContext()
+  const { classroom, onStudentCountChange, onActivate } = useOutletContext()
   const classroomId = classroom?.id
 
   const [students, setStudents] = useState([])
@@ -54,8 +55,29 @@ function StudentsTab() {
   const [studentToDelete, setStudentToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [toast, setToast] = useState(null)
+  const [activatingClass, setActivatingClass] = useState(false)
 
   const navigate = useNavigate()
+
+  const handleActivateClass = async () => {
+    try {
+      setActivatingClass(true)
+      await onActivate()
+      setToast({
+        type: 'success',
+        message: 'Kích hoạt lớp học thành công.',
+      })
+    } catch (activateError) {
+      setToast({
+        type: 'error',
+        message:
+          getErrorMessage(activateError.response?.data) ||
+          'Không thể kích hoạt lớp học. Vui lòng thử lại.',
+      })
+    } finally {
+      setActivatingClass(false)
+    }
+  }
 
   const [attendanceStudent, setAttendanceStudent] = useState(null)
   const [attendanceLoading, setAttendanceLoading] = useState(false)
@@ -381,6 +403,18 @@ const handleSubmitAttendance = async ({
                 <FileSpreadsheet size={18} />
                 Nhập từ file
               </button>
+
+              {classroom?.status === 'ARCHIVED' && (
+                <button
+                  type="button"
+                  onClick={handleActivateClass}
+                  disabled={activatingClass}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Power size={18} />
+                  {activatingClass ? 'Đang kích hoạt...' : 'Kích hoạt'}
+                </button>
+              )}
 
               <button
                 type="button"

@@ -22,4 +22,9 @@ boolean existsByClassroom_IdAndStudent_IdAndDate(
 List<Attendance> findAllByClassroom_IdOrderByDateDesc(
         Long classroomId
 );
+
+long deleteByClassroom_IdAndStudent_IdAndDate(
+                Long classroomId,
+                Long studentId,
+                LocalDate date);
 }

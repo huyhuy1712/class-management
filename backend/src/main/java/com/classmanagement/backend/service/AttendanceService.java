@@ -1,5 +1,6 @@
 package com.classmanagement.backend.service;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import com.classmanagement.backend.dto.attendance.AttendanceResponse;
@@ -7,10 +8,15 @@ import com.classmanagement.backend.dto.attendance.CreateAttendanceRequest;
 
 public interface AttendanceService {
 
-    List<AttendanceResponse> createAttendance(
+List<AttendanceResponse> createAttendance(
             Long classroomId,
             CreateAttendanceRequest request);
             
-    List<AttendanceResponse> getAttendancesByClassroom(
+List<AttendanceResponse> getAttendancesByClassroom(
             Long classroomId);
+
+void deleteAttendance(
+        Long classroomId,
+        Long studentId,
+        LocalDate date);
 }

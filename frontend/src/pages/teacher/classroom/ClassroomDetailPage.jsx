@@ -46,8 +46,10 @@ function ClassDetailPage() {
     fetchClassroom()
   }, [classId])
 
-  const handleActivate = () => {
-  console.log('Activate classroom:', classroom?.id)
+  const handleActivate = async () => {
+    const activeClassroom = await classroomService.activate(classroom.id)
+    setClassroom(activeClassroom)
+    return activeClassroom
   }
 
   return (
@@ -64,7 +66,6 @@ function ClassDetailPage() {
         <>
           <ClassDetailHeader
             classroom={classroom}
-            onActivate={handleActivate}
             studentCount={studentCount}
           />
 
@@ -76,6 +77,7 @@ function ClassDetailPage() {
                 context={{
                   classroom,
                   onStudentCountChange: setStudentCount,
+                  onActivate: handleActivate,
                 }}
               />
             </main>

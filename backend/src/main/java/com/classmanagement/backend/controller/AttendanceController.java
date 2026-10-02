@@ -1,5 +1,6 @@
 package com.classmanagement.backend.controller;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
@@ -18,10 +19,10 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AttendanceController {
 
-    private final AttendanceService attendanceService;
+private final AttendanceService attendanceService;
 
-    @PostMapping("/{classroomId}/attendances")
-    public ResponseEntity<List<AttendanceResponse>> createAttendance(
+@PostMapping("/{classroomId}/attendances")
+public ResponseEntity<List<AttendanceResponse>> createAttendance(
             @PathVariable Long classroomId,
             @Valid @RequestBody CreateAttendanceRequest request) {
         return ResponseEntity
@@ -29,10 +30,26 @@ public class AttendanceController {
                 .body( attendanceService.createAttendance( classroomId, request));
     }
 
-    @GetMapping("/{classroomId}/attendances")
-    public ResponseEntity<List<AttendanceResponse>> getAttendances(
+@GetMapping("/{classroomId}/attendances")
+public ResponseEntity<List<AttendanceResponse>> getAttendances(
             @PathVariable Long classroomId) {
         return ResponseEntity.ok(
                 attendanceService.getAttendancesByClassroom(classroomId));
     }
+
+@DeleteMapping("/{classroomId}/attendances/students/{studentId}")
+public ResponseEntity<Void> deleteAttendance(
+        @PathVariable Long classroomId,
+        @PathVariable Long studentId,
+        @RequestParam LocalDate date
+) {
+    attendanceService.deleteAttendance(
+            classroomId,
+            studentId,
+            date
+    );
+
+    return ResponseEntity.noContent().build();
+}
+
 }
