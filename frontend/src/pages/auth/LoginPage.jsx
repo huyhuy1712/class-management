@@ -253,7 +253,11 @@ function LoginPage() {
               disabled={loading}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3.5 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {loading && <LoaderCircle size={18} className="animate-spin" />}
+              <LoaderCircle
+                size={18}
+                className={loading ? 'animate-spin' : 'invisible'}
+                aria-hidden="true"
+              />
               {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </button>
           </form>
