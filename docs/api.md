@@ -79,11 +79,13 @@ Trong đó:
 	"fullName": "Nguyễn Văn A",
 	"role": "STUDENT",
     "avatar": "avatar",
+	"studentCode": "ST-3",
+	"teacherCode": null,
 	"status": "ACTIVE"
 }
 ```
 
-Tài khoản có role `STUDENT` được tạo với status `ACTIVE`. Tài khoản có role `TEACHER` được tạo với status `PENDING` để chờ duyệt.
+Tài khoản có role `STUDENT` được tạo với status `ACTIVE` và mã `studentCode` theo dạng `ST-<UserID>`. Tài khoản có role `TEACHER` được tạo với status `PENDING` để chờ duyệt và mã `teacherCode` theo dạng `TC-<UserID>`. Backend tự sinh mã sau khi tạo user; không gửi `studentCode` hoặc `teacherCode` trong request. Response chỉ có mã tương ứng với role, mã còn lại là `null`.
 
 **Một số trường hợp lỗi:**
 
@@ -138,6 +140,8 @@ Trong đó:
 	"fullName": "Nguyễn Văn A",
 	"phone": "0901234567",
 	"avatar": "avatar",
+	"studentCode": "ST-3",
+	"teacherCode": null,
 	"role": "STUDENT",
 	"status": "ACTIVE"
 }
@@ -702,6 +706,7 @@ curl -X GET "http://localhost:8080/api/users?role=STUDENT" \
 		"phone": "0901234567",
 		"avatar": "avatar",
 		"studentCode": null,
+		"teacherCode": "GV000002",
 		"role": "TEACHER",
 		"status": "ACTIVE"
 	},
@@ -713,6 +718,7 @@ curl -X GET "http://localhost:8080/api/users?role=STUDENT" \
 		"phone": "0912345678",
 		"avatar": "avatar",
 		"studentCode": "SV2026005",
+		"teacherCode": null,
 		"role": "STUDENT",
 		"status": "ACTIVE"
 	}
@@ -810,6 +816,7 @@ curl -X GET http://localhost:8080/api/users/5 \
 	"phone": "0912345678",
 	"avatar": "avatar",
 	"studentCode": "SV2026005",
+	"teacherCode": null,
 	"role": "STUDENT",
 	"status": "ACTIVE"
 }
