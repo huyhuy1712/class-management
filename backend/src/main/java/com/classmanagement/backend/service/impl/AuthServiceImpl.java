@@ -20,6 +20,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -38,6 +39,7 @@ public class AuthServiceImpl implements AuthService {
     // =========================
 
     @Override
+        @Transactional
     public SignupResponse signup(SignupRequest request) {
 
         // 1. Không cho phép signup ADMIN
@@ -112,6 +114,18 @@ public class AuthServiceImpl implements AuthService {
         // 7. Save DB
         User savedUser = userRepository.save(user);
 
+        if (savedUser.getRole() == UserRole.TEACHER) {
+            savedUser.setTeacherCode(
+                    "TC-" + savedUser.getId()
+            );
+        } else if (savedUser.getRole() == UserRole.STUDENT) {
+            savedUser.setStudentCode(
+                    "ST-" + savedUser.getId()
+            );
+        }
+
+        savedUser = userRepository.save(savedUser);
+
         // 8. Entity -> Response DTO
         return SignupResponse.builder()
                 .id(savedUser.getId())
@@ -120,6 +134,8 @@ public class AuthServiceImpl implements AuthService {
                 .fullName(savedUser.getFullName())
                 .phone(savedUser.getPhone())
                 .avatar(toAvatarUrl(savedUser.getAvatar()))
+                .studentCode(savedUser.getStudentCode())
+                .teacherCode(savedUser.getTeacherCode())
                 .role(savedUser.getRole())
                 .status(savedUser.getStatus())
                 .build();
@@ -223,6 +239,8 @@ public LoginResponse login(LoginRequest request) {
             .fullName(user.getFullName())
             .phone(user.getPhone())
             .avatar(toAvatarUrl(user.getAvatar()))
+            .studentCode(user.getStudentCode())
+            .teacherCode(user.getTeacherCode())
             .role(user.getRole())
             .status(user.getStatus())
             .accessToken(accessToken)

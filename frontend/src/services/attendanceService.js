@@ -8,6 +8,13 @@ const attendanceService = {
 
     return response.data
   },
+
+  deleteAttendance: async (classroomId, studentId, date) => {
+    await api.delete(
+      `/classes/${classroomId}/attendances/students/${studentId}`,
+      { params: { date } }
+    )
+  },
 }
 
 export default attendanceService

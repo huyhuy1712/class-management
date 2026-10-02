@@ -117,7 +117,7 @@ function SignupPage() {
     try {
       setLoading(true)
 
-      await signup({
+      const signupResult = await signup({
         username: form.username.trim(),
         password: form.password,
         email: form.email.trim(),
@@ -130,6 +130,11 @@ function SignupPage() {
       navigate('/login', {
         state: {
           signupSuccess: true,
+          signupRole: signupResult.role,
+          signupCode:
+            signupResult.role === 'TEACHER'
+              ? signupResult.teacherCode
+              : signupResult.studentCode,
         },
       })
     } catch (error) {

@@ -67,7 +67,7 @@ function TeacherDashboard() {
         if (cancelled) return
 
         setClassCount(
-          classes.filter((item) => item.status === 'ACTIVE').length,
+          classes.length,
         )
         setStudentCount(students.length)
       } catch (error) {

@@ -607,6 +607,26 @@ const handleChangePassword = async (event) => {
 
           <div>
             <p className="text-xs text-gray-400">
+              Email
+            </p>
+
+            <p className="mt-1 break-all text-sm font-semibold text-gray-700">
+              {user?.email || '---'}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs text-gray-400">
+              Mã giáo viên
+            </p>
+
+            <p className="mt-1 text-sm font-semibold text-gray-700">
+              {user?.teacherCode || '---'}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs text-gray-400">
               Vai trò
             </p>
 

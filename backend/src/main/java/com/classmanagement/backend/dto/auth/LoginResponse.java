@@ -18,6 +18,8 @@ public class LoginResponse {
     private String fullName;
     private String phone;
     private String avatar;
+    private String studentCode;
+    private String teacherCode;
     private UserRole role;
     private UserStatus status;
 }

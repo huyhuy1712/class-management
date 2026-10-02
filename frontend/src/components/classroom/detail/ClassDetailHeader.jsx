@@ -2,12 +2,11 @@ import {
   ArrowLeft,
   BookOpen,
   CalendarDays,
-  Power,
   Users,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
-function ClassDetailHeader({ classroom, onActivate, studentCount = 0 }) {
+function ClassDetailHeader({ classroom, studentCount = 0 }) {
   const navigate = useNavigate()
 
   return (
@@ -57,17 +56,6 @@ function ClassDetailHeader({ classroom, onActivate, studentCount = 0 }) {
             </div>
 
             <div className="flex flex-wrap gap-2">
-
-            {classroom?.status === 'ARCHIVED' && (
-                    <button
-                    type="button"
-                    onClick={onActivate}
-                    className="flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700"
-                    >
-                    <Power size={17} />
-                    Kích hoạt
-                    </button>
-            )}
 
               <div className="flex items-center gap-2 rounded-xl bg-[#F5FAF4] px-4 py-2.5 text-sm text-gray-500">
                 <CalendarDays size={17} className="text-green-600" />

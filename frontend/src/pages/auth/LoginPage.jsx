@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { Eye, EyeOff, LoaderCircle } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { login } from '../../services/authService'
 import useAuthStore from '../../stores/authStore'
@@ -8,7 +8,11 @@ import logo from '../../assets/logos/logo.png'
 
 function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const setAuth = useAuthStore((state) => state.setAuth)
+  const signupResult = location.state?.signupSuccess
+    ? location.state
+    : null
 
   const [form, setForm] = useState({
     username: '',
@@ -77,6 +81,8 @@ function LoginPage() {
         fullName: data.fullName,
         phone: data.phone,
         avatar: data.avatar,
+        studentCode: data.studentCode,
+        teacherCode: data.teacherCode,
         role: data.role,
         status: data.status,
       }
@@ -179,6 +185,22 @@ function LoginPage() {
               Đăng nhập để tiếp tục sử dụng hệ thống.
             </p>
           </div>
+
+          {signupResult && (
+            <div role="status" className="mb-5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+              <p className="font-semibold">
+                {signupResult.signupRole === 'TEACHER'
+                  ? 'Đăng ký thành công. Tài khoản đang chờ quản trị viên duyệt.'
+                  : 'Đăng ký thành công.'}
+              </p>
+              {signupResult.signupCode && (
+                <p className="mt-1">
+                  {signupResult.signupRole === 'TEACHER' ? 'Mã giáo viên' : 'Mã học sinh'}:{' '}
+                  <strong>{signupResult.signupCode}</strong>
+                </p>
+              )}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
