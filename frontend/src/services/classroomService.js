@@ -84,6 +84,26 @@ getMyClasses: async () => {
   return response.data
 },
 
+importStudents: async (classroomId, file) => {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await api.post(
+    `/classes/${classroomId}/students/import`,
+    formData,
+  )
+
+  return response.data
+},
+
+downloadStudentImportTemplate: async () => {
+  const response = await api.get('/classes/students/import-template', {
+    responseType: 'blob',
+  })
+
+  return response.data
+},
+
 }
 
 export default classroomService

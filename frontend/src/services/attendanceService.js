@@ -24,6 +24,20 @@ updateAttendance: async (classroomId, attendanceId, data) => {
 
   return response.data
 },
+
+exportAttendance: async (classroomId, date) => {
+  const response = await api.get(
+    `/classes/${classroomId}/attendances/export`,
+    {
+      params: { date },
+      responseType: 'blob',
+    },
+  )
+
+  return response
+},
+
+
 }
 
 export default attendanceService

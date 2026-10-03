@@ -14,11 +14,12 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
 
-import AddStudentModal from '../../../../components/classroom/AddStudentModal'
 import ConfirmModal from '../../../../components/classroom/ConfirmModal'
 import classroomService from '../../../../services/classroomService'
-import AttendanceModal from '../../../../components/classroom/AttendanceModal'
 import defaultAvatar from '../../../../assets/images/avatar_default.png'
+import AddStudentModal from './students/modals/AddStudentModal'
+import AttendanceModal from './students/modals/AttendanceModal'
+import ImportStudentsModal from './students/modals/ImportStudentsModal'
 
 function getErrorMessage(data) {
   if (!data) return ''
@@ -55,10 +56,13 @@ function StudentsTab() {
   const [addMenuOpen, setAddMenuOpen] = useState(false)
   const addMenuRef = useRef(null)
 
+  const [importModalOpen, setImportModalOpen] = useState(false)
+
   const [studentToDelete, setStudentToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [toast, setToast] = useState(null)
   const [activatingClass, setActivatingClass] = useState(false)
+
 
   const navigate = useNavigate()
 
@@ -381,6 +385,12 @@ const handleSubmitAttendance = async ({
   }
 }
 
+const handleImportedStudents = async () => {
+  const updatedStudents = await classroomService.getStudents(classroomId)
+  setStudents(updatedStudents)
+  onStudentCountChange?.(updatedStudents.length)
+}
+
   return (
     <>
       {toast && (
@@ -461,9 +471,7 @@ const handleSubmitAttendance = async ({
                       role="menuitem"
                       onClick={() => {
                         setAddMenuOpen(false)
-                        showUnavailableMessage(
-                          'Tính năng nhập file đang được phát triển.',
-                        )
+                        setImportModalOpen(true)
                       }}
                       className="flex w-full items-center gap-3 px-5 py-3 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-green-50 hover:text-green-700 focus-visible:bg-green-50 focus-visible:text-green-700 focus-visible:outline-none"
                     >
@@ -645,6 +653,15 @@ const handleSubmitAttendance = async ({
       }}
       onSubmit={handleSubmitAttendance}
     />
+
+
+      {importModalOpen && (
+        <ImportStudentsModal
+          classroomId={classroomId}
+          onClose={() => setImportModalOpen(false)}
+          onImported={handleImportedStudents}
+        />
+      )}
     </>
 
   )

@@ -33,4 +33,8 @@ boolean existsByClassroom_IdAndStudent_IdAndDateAndIdNot(
                 Long studentId,
                 LocalDate date,
                 Long attendanceId);
+
+List<Attendance> findAllByClassroomIdAndDate(
+                Long classroomId,
+                LocalDate date);
 }

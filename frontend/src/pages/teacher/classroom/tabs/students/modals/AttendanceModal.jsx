@@ -116,7 +116,9 @@ function AttendanceModal({
     setNote('')
   }, [open, student?.id])
 
-  if (!open || !student) return null
+  if (!open || !student) {
+    return null
+  }
 
   const handleSubmit = (event) => {
     event.preventDefault()

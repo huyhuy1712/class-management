@@ -34,13 +34,9 @@ public class StudentExcelReader {
                     "File Excel không có dòng tiêu đề");
         }
 
-        String stt = getCellValue(header.getCell(0));
-        String studentCode = getCellValue(header.getCell(1));
-        String fullName = getCellValue(header.getCell(2));
+        String studentCode = getCellValue(header.getCell(0));
 
-        if (!stt.equalsIgnoreCase("STT")
-                || !studentCode.equalsIgnoreCase("Mã học sinh")
-                || !fullName.equalsIgnoreCase("Họ và tên")) {
+        if (!studentCode.equalsIgnoreCase("Mã học sinh")) {
 
             throw new IllegalArgumentException(
                     "File Excel không đúng mẫu");
@@ -66,8 +62,8 @@ public class StudentExcelReader {
             return "";
         }
 
-        // Cột B = Mã học sinh
-        return getCellValue(row.getCell(1));
+        // Cột A = Mã học sinh
+        return getCellValue(row.getCell(0));
     }
 
     private String getCellValue(Cell cell) {

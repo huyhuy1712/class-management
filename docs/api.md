@@ -18,7 +18,9 @@
 | PATCH | `/api/classes/{id}/archive` | Lưu trữ lớp |
 | PATCH | `/api/classes/{id}/activate` | Kích hoạt lại lớp đã lưu trữ |
 | DELETE | `/api/classes/{id}` | Xóa lớp |
+| GET | `/api/classes/students/import-template` | Tải file Excel mẫu để import học sinh |
 | POST | `/api/classes/{classroomId}/students` | Thêm học sinh vào lớp |
+| POST | `/api/classes/{classroomId}/students/import` | Import danh sách học sinh từ file Excel |
 | GET | `/api/classes/{classroomId}/students` | Lấy học sinh trong lớp |
 | GET | `/api/requests/join-class/received` | Lấy yêu cầu tham gia lớp đang chờ |
 | PATCH | `/api/requests/{requestId}/approve` | Chấp nhận yêu cầu tham gia lớp |
@@ -28,6 +30,7 @@
 | DELETE | `/api/classes/{classroomId}/students/{studentId}` | Xóa học sinh khỏi lớp |
 | POST | `/api/classes/{classroomId}/attendances` | Tạo điểm danh |
 | GET | `/api/classes/{classroomId}/attendances` | Lấy lịch sử điểm danh của lớp |
+| GET | `/api/classes/{classroomId}/attendances/export?date=YYYY-MM-DD` | Xuất điểm danh theo ngày ra Excel |
 | DELETE | `/api/classes/{classroomId}/attendances/students/{studentId}?date=YYYY-MM-DD` | Xóa điểm danh của học sinh trong một ngày |
 | PATCH | `/api/classes/{classroomId}/attendances/{attendanceId}` | Cập nhật bản ghi điểm danh |
 | GET | `/api/subjects` | Lấy danh sách môn học |
@@ -168,6 +171,22 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
 - `403 Forbidden`: Tài khoản giáo viên đang chờ admin duyệt hoặc tài khoản đã bị khóa.
 
 ## Lớp học
+
+### GET `/api/classes/students/import-template` | Tải file Excel mẫu import học sinh
+
+Tải file `.xlsx` mẫu dùng cho API import học sinh. File có sheet đầu tiên với tiêu đề `Mã học sinh` tại ô A1; nhập mỗi mã học sinh vào một dòng bên dưới.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+**Response thành công `200 OK`:** File Excel `mau-import-hoc-sinh.xlsx`.
+
+**Một số trường hợp lỗi:**
+
+- `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
 
 ### POST `/api/classes` | Tạo lớp
 
@@ -380,6 +399,75 @@ Trong đó:
 - `400 Bad Request`: Thiếu `studentId` hoặc không tìm thấy lớp học/học sinh.
 - Học sinh không hợp lệ: Người dùng được chọn không có role `STUDENT` hoặc tài khoản không ở status `ACTIVE`.
 - `403 Forbidden`: Học sinh đã có trong lớp học này.
+
+### POST `/api/classes/{classroomId}/students/import` | Import học sinh từ file Excel
+
+Thêm nhiều học sinh vào lớp bằng danh sách mã học sinh trong file Excel. Các tài khoản học sinh phải tồn tại trong hệ thống; thao tác thêm mỗi học sinh áp dụng cùng quy tắc như API thêm một học sinh.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+Content-Type: multipart/form-data
+```
+
+**Tham số đường dẫn:**
+
+- `classroomId`: ID lớp cần thêm học sinh.
+
+**Form data:**
+
+| Tên trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `file` | File `.xlsx` | Có | File Excel danh sách học sinh. |
+
+File chỉ cần một cột mã học sinh. Sheet đầu tiên phải có dòng tiêu đề ở dòng 1:
+
+| Cột A |
+|---|
+| `Mã học sinh` |
+
+Tên tiêu đề không phân biệt chữ hoa/chữ thường. Mã học sinh được đọc từ cột A; không cần cột STT hoặc họ tên. Mỗi dòng từ dòng 2 trở đi chứa một mã học sinh. Các dòng trống được bỏ qua.
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X POST http://localhost:8080/api/classes/1/students/import \
+	-H "Authorization: Bearer <accessToken>" \
+	-F "file=@danh-sach-hoc-sinh.xlsx"
+```
+
+Không tự đặt `Content-Type` trong lệnh cURL; `-F` sẽ tạo `multipart/form-data` kèm boundary cần thiết.
+
+**Response thành công `200 OK`:**
+
+```json
+{
+	"total": 3,
+	"success": 2,
+	"failed": 1,
+	"errors": [
+		{
+			"row": 3,
+			"studentCode": "ST-999",
+			"message": "Không tìm thấy học sinh với mã ST-999"
+		}
+	]
+}
+```
+
+- `total`: Tổng số dòng dữ liệu không trống đã xử lý.
+- `success`: Số học sinh được thêm thành công.
+- `failed`: Số dòng không thêm được; bằng số phần tử trong `errors`.
+- `errors`: Danh sách lỗi theo từng dòng Excel. `row` là số dòng tính từ 1, bao gồm dòng tiêu đề; `studentCode` và `message` cho biết mã học sinh và nguyên nhân lỗi.
+
+Lỗi của một dòng không làm dừng import các dòng tiếp theo. Ví dụ, học sinh không tồn tại, mã học sinh để trống hoặc học sinh đã thuộc lớp sẽ được trả về trong `errors`.
+
+**Một số trường hợp lỗi toàn bộ request:**
+
+- `400 Bad Request`: Không có file, file rỗng, file không phải `.xlsx`, không đọc được Excel hoặc tiêu đề/sheet đầu tiên không đúng mẫu.
+- `400 Bad Request`: Không tìm thấy lớp theo `classroomId`.
+- `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
 
 ### GET `/api/classes/{classroomId}/students` | Học sinh trong lớp
 
@@ -715,6 +803,47 @@ curl -X GET http://localhost:8080/api/classes/1/attendances \
 
 - `400 Bad Request`: Không tìm thấy lớp học với `classroomId` đã cung cấp.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+
+### GET `/api/classes/{classroomId}/attendances/export` | Xuất điểm danh ra Excel
+
+Xuất danh sách học sinh hiện có trong lớp và trạng thái điểm danh của ngày được chọn thành file Excel `.xlsx`. Mỗi học sinh có một dòng; nếu học sinh chưa có bản ghi điểm danh trong ngày đó thì trạng thái xuất ra là `ABSENT`. File chỉ gồm mã học sinh, họ tên và trạng thái điểm danh; ghi chú điểm danh không được đưa vào file.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+**Query params:**
+
+| Tên | Bắt buộc | Định dạng | Mô tả |
+|---|---|---|---|
+| `date` | Có | `YYYY-MM-DD` | Ngày cần xuất điểm danh, ví dụ `2026-09-30`. |
+
+**Cách test bằng cURL:**
+
+```bash
+curl -L "http://localhost:8080/api/classes/1/attendances/export?date=2026-09-30" \
+	-H "Authorization: Bearer <accessToken>" \
+	-o "diemdanh_Lap_trinh_Java_K21_30-09-2026.xlsx"
+```
+
+`-o` lưu file response với tên do người gọi chỉ định. Để `curl` tự dùng tên file trong header `Content-Disposition`, thay `-o <ten-file>` bằng `-OJ`. API trả tên file theo dạng `diemdanh_<ten-lop>_<dd-MM-yyyy>.xlsx`; tên lớp được cắt khoảng trắng đầu/cuối, khoảng trắng ở giữa đổi thành `_`, và các ký tự `\ / : * ? " < > |` đổi thành `_`.
+
+**Response thành công `200 OK`:** Nội dung file Excel, MIME type `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`.
+
+Sheet `Điểm danh` có các cột:
+
+| Cột | Nội dung |
+|---|---|
+| `Mã học sinh` | Mã học sinh trong lớp |
+| `Họ và tên` | Họ tên học sinh |
+| `Điểm danh` | `PRESENT`, `ABSENT` hoặc `LATE` |
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Không tìm thấy lớp học với `classroomId` đã cung cấp, thiếu `date` hoặc `date` không đúng định dạng `YYYY-MM-DD`.
+- `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
 
 ### DELETE `/api/classes/{classroomId}/attendances/students/{studentId}` | Xóa điểm danh
 

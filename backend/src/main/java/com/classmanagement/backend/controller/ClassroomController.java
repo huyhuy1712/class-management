@@ -11,13 +11,21 @@ import com.classmanagement.backend.service.ClassroomService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.List;
+
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.security.core.Authentication;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.MediaType;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/classes")
@@ -124,6 +132,28 @@ public ResponseEntity<List<ClassroomResponse>> getMyClassrooms(
         return ResponseEntity.ok(
                         classroomService.getMyClassrooms(
                                         authentication.getName()));
+}
+
+@GetMapping("/students/import-template")
+public ResponseEntity<byte[]> downloadStudentImportTemplate() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook();
+                        ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                Sheet sheet = workbook.createSheet("Danh sách học sinh");
+                Row header = sheet.createRow(0);
+                header.createCell(0).setCellValue("Mã học sinh");
+                sheet.setColumnWidth(0, 20 * 256);
+                workbook.write(output);
+
+                return ResponseEntity.ok()
+                                .contentType(MediaType.parseMediaType(
+                                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                                .header(HttpHeaders.CONTENT_DISPOSITION,
+                                                ContentDisposition.attachment()
+                                                                .filename("mau-import-hoc-sinh.xlsx")
+                                                                .build()
+                                                                .toString())
+                                .body(output.toByteArray());
+        }
 }
 
 @PostMapping(

@@ -2,6 +2,8 @@ package com.classmanagement.backend.service.impl;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
@@ -9,19 +11,24 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.classmanagement.backend.dto.attendance.AttendanceExportRow;
+import com.classmanagement.backend.dto.attendance.AttendanceExportRow.AttendanceExportResult;
 import com.classmanagement.backend.dto.attendance.AttendanceResponse;
 import com.classmanagement.backend.dto.attendance.AttendanceStudentRequest;
 import com.classmanagement.backend.dto.attendance.CreateAttendanceRequest;
 import com.classmanagement.backend.dto.attendance.UpdateAttendanceRequest;
 import com.classmanagement.backend.entity.Attendance;
+import com.classmanagement.backend.entity.ClassStudent;
 import com.classmanagement.backend.entity.Classroom;
 import com.classmanagement.backend.entity.User;
+import com.classmanagement.backend.entity.enums.AttendanceStatus;
 import com.classmanagement.backend.repository.AttendanceRepository;
 import com.classmanagement.backend.repository.ClassStudentRepository;
 import com.classmanagement.backend.repository.ClassroomRepository;
 import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.service.AttendanceService;
 import com.classmanagement.backend.service.StorageService;
+import com.classmanagement.backend.service.excel.AttendanceExcelExporter;
 
 import lombok.RequiredArgsConstructor;
 
@@ -36,6 +43,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     private final UserRepository userRepository;
     private final ClassStudentRepository classStudentRepository;
     private final StorageService storageService;
+    private final AttendanceExcelExporter attendanceExcelExporter;
 
 private String getStudentAvatarUrl(User student) {
                         String avatar = student.getAvatar();
@@ -59,7 +67,7 @@ private AttendanceResponse toResponse(Attendance attendance) {
                             .build();
     }
 
-    @Transactional
+@Transactional
 @Override
 public List<AttendanceResponse> createAttendance(
             Long classroomId,
@@ -160,7 +168,7 @@ public List<AttendanceResponse> getAttendancesByClassroom(
                             .toList();
     }
 
- @Override
+@Override
 @Transactional
 public void deleteAttendance(
         Long classroomId,
@@ -230,5 +238,85 @@ public AttendanceResponse updateAttendance(
 
         return toResponse(attendance);
 }
-    
+   
+@Override
+@Transactional(readOnly = true)
+public AttendanceExportResult exportAttendance(
+        Long classroomId,
+        LocalDate date
+) {
+    Classroom classroom = classroomRepository
+            .findById(classroomId)
+            .orElseThrow(() ->
+                    new IllegalArgumentException(
+                            "Không tìm thấy lớp học"
+                    )
+            );
+
+    List<ClassStudent> classStudents =
+            classStudentRepository
+                    .findAllByClassroomId(classroomId);
+
+    List<Attendance> attendances =
+            attendanceRepository
+                    .findAllByClassroomIdAndDate(
+                            classroomId,
+                            date
+                    );
+
+    Map<Long, Attendance> attendanceMap =
+            createAttendanceMap(attendances);
+
+    List<AttendanceExportRow> rows =
+            createExportRows(
+                    classStudents,
+                    attendanceMap
+            );
+
+    byte[] file =
+            attendanceExcelExporter.export(rows);
+
+    return new AttendanceExportResult(
+            file,
+            classroom.getName()
+    );
+}
+
+// hepler
+private Map<Long, Attendance> createAttendanceMap(
+        List<Attendance> attendances) {
+        return attendances.stream()
+        .collect(Collectors.toMap(
+                        attendance -> attendance.getStudent().getId(),
+                        attendance -> attendance));
+}
+
+private List<AttendanceExportRow> createExportRows(
+                List<ClassStudent> classStudents,
+                Map<Long, Attendance> attendanceMap) {
+                return classStudents.stream()
+        .map(classStudent -> {
+
+        User student = classStudent.getStudent();
+
+        Attendance attendance = attendanceMap.get(student.getId());
+
+        AttendanceStatus status = attendance != null
+                        ? attendance.getStatus()
+                        : AttendanceStatus.ABSENT;
+
+        String reason = attendance != null
+                        ? attendance.getNote()
+                        : "";
+
+        return AttendanceExportRow.builder()
+                        .studentCode(student.getStudentCode())
+                        .fullName(student.getFullName())
+                        .status(status)
+                        .reason(reason)
+                        .build();
+                        })
+                        .toList();
+}
+
 }

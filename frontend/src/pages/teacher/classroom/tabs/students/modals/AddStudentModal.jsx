@@ -1,8 +1,8 @@
 import { CheckCircle2, Search, UserPlus, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import userService from '../../services/userService'
-import defaultAvatar from '../../assets/images/avatar_default.png'
+import userService from '../../../../../../services/userService'
+import defaultAvatar from '../../../../../../assets/images/avatar_default.png'
 
 function AddStudentModal({
   open,
