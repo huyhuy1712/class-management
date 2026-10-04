@@ -20,11 +20,14 @@ import com.classmanagement.backend.dto.attendance.UpdateAttendanceRequest;
 import com.classmanagement.backend.entity.Attendance;
 import com.classmanagement.backend.entity.ClassStudent;
 import com.classmanagement.backend.entity.Classroom;
+import com.classmanagement.backend.entity.Lesson;
 import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.entity.enums.AttendanceStatus;
+import com.classmanagement.backend.exception.ConflictException;
 import com.classmanagement.backend.repository.AttendanceRepository;
 import com.classmanagement.backend.repository.ClassStudentRepository;
 import com.classmanagement.backend.repository.ClassroomRepository;
+import com.classmanagement.backend.repository.LessonRepository;
 import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.service.AttendanceService;
 import com.classmanagement.backend.service.StorageService;
@@ -40,6 +43,7 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     private final AttendanceRepository attendanceRepository;
     private final ClassroomRepository classroomRepository;
+    private final LessonRepository lessonRepository;
     private final UserRepository userRepository;
     private final ClassStudentRepository classStudentRepository;
     private final StorageService storageService;
@@ -62,6 +66,10 @@ private AttendanceResponse toResponse(Attendance attendance) {
                             .studentAvatar(getStudentAvatarUrl(student))
                             .fullName(student.getFullName())
                             .date(attendance.getDate())
+                            .lessonId(attendance.getLesson() != null
+                                    ? attendance.getLesson().getId()
+                                    : null)
+                            .createdAt(attendance.getCreatedAt())
                             .status(attendance.getStatus())
                             .note(attendance.getNote())
                             .build();
@@ -77,6 +85,10 @@ public List<AttendanceResponse> createAttendance(
                 .findById(classroomId)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Không tìm thấy lớp học"));
+
+        Lesson lesson = requireLessonForAttendance(
+                classroomId,
+                request.getDate());
 
         List<AttendanceResponse> responses = new ArrayList<>();
 
@@ -117,6 +129,7 @@ public List<AttendanceResponse> createAttendance(
             Attendance attendance = Attendance.builder()
                     .classroom(classroom)
                     .student(student)
+                    .lesson(lesson)
                     .date(request.getDate())
                     .status(item.getStatus())
                     .note(item.getNote())
@@ -135,17 +148,7 @@ public List<AttendanceResponse> createAttendance(
                         exception);
             }
 
-            responses.add(
-                    AttendanceResponse.builder()
-                            .id(saved.getId())
-                            .studentId(student.getId())
-                            .studentCode(student.getStudentCode())
-                            .studentAvatar(getStudentAvatarUrl(student))
-                            .fullName(student.getFullName())
-                            .date(saved.getDate())
-                            .status(saved.getStatus())
-                            .note(saved.getNote())
-                            .build());
+            responses.add(toResponse(saved));
         }
 
         return responses;
@@ -224,6 +227,9 @@ public AttendanceResponse updateAttendance(
                 }
 
                 attendance.setDate(request.getDate());
+                attendance.setLesson(findLessonForAttendance(
+                                classroomId,
+                                request.getDate()));
         }
 
         if (request.getStatus() != null) {
@@ -237,6 +243,37 @@ public AttendanceResponse updateAttendance(
         attendance = attendanceRepository.save(attendance);
 
         return toResponse(attendance);
+}
+
+private Lesson findLessonForAttendance(
+        Long classroomId,
+        LocalDate date) {
+        List<Lesson> lessons =
+                lessonRepository
+                        .findAllByClassroom_IdAndLessonDateOrderByStartTimeAsc(
+                                classroomId,
+                                date);
+
+        if (lessons.size() > 1) {
+                throw new IllegalArgumentException(
+                                "Có nhiều buổi học trong ngày "
+                                                + date
+                                                + "; không thể tự động liên kết điểm danh");
+        }
+
+        return lessons.isEmpty() ? null : lessons.get(0);
+}
+
+private Lesson requireLessonForAttendance(
+        Long classroomId,
+        LocalDate date) {
+        Lesson lesson = findLessonForAttendance(classroomId, date);
+        if (lesson == null) {
+                throw new ConflictException(
+                        "Chưa tạo phiên điểm danh cho ngày "
+                                + date.format(DISPLAY_DATE_FORMAT));
+        }
+        return lesson;
 }
    
 @Override

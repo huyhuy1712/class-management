@@ -8,6 +8,7 @@ import {
   Search,
   Trash2,
   UserRound,
+  Clock3,
   UserPlus,
   Users,
 } from 'lucide-react'
@@ -20,6 +21,8 @@ import defaultAvatar from '../../../../assets/images/avatar_default.png'
 import AddStudentModal from './students/modals/AddStudentModal'
 import AttendanceModal from './students/modals/AttendanceModal'
 import ImportStudentsModal from './students/modals/ImportStudentsModal'
+import CreateAttendanceSessionModal from './attendance/modals/CreateAttendanceSessionModal'
+import lessonService from '../../../../services/lessonService'
 
 function getErrorMessage(data) {
   if (!data) return ''
@@ -63,6 +66,20 @@ function StudentsTab() {
   const [toast, setToast] = useState(null)
   const [activatingClass, setActivatingClass] = useState(false)
 
+const [createAttendanceOpen, setCreateAttendanceOpen] =
+  useState(false)
+
+  const [creatingAttendance, setCreatingAttendance] = useState(false)
+    const [loadingAttendanceSession, setLoadingAttendanceSession] =
+      useState(false)
+    const [createAttendanceError, setCreateAttendanceError] = useState('')
+    const [existingAttendanceSession, setExistingAttendanceSession] =
+      useState(null)
+    const [attendanceSessionLookupFailed, setAttendanceSessionLookupFailed] =
+      useState(false)
+  const [attendanceStudent, setAttendanceStudent] = useState(null)
+  const [attendanceLoading, setAttendanceLoading] = useState(false)
+  const [attendanceError, setAttendanceError] = useState(null)
 
   const navigate = useNavigate()
 
@@ -86,9 +103,30 @@ function StudentsTab() {
     }
   }
 
-  const [attendanceStudent, setAttendanceStudent] = useState(null)
-  const [attendanceLoading, setAttendanceLoading] = useState(false)
-  const [attendanceError, setAttendanceError] = useState(null)
+  // helper methods
+  const buildDateTime = (date, time) => {
+  return `${date}T${time}:00`
+}
+
+const formatLessonTitleDate = (date) => {
+  const [year, month, day] = date.split('-')
+  return `${day}/${month}/${year}`
+}
+
+const buildLessonTitle = (date) => {
+  const [year, month, day] = date.split('-')
+
+  return `Điểm danh buổi học ${day}/${month}/${year}`
+}
+
+const getLocalDate = () => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
 
   useEffect(() => {
     let ignore = false
@@ -361,6 +399,14 @@ const handleSubmitAttendance = async ({
       error.response?.data,
     )
 
+    if (statusCode === 409) {
+      setAttendanceError(
+        backendMessage ||
+          'Chưa tạo phiên điểm danh cho ngày đã chọn.',
+      )
+      return
+    }
+
     if (statusCode === 400) {
       setAttendanceError(
         backendMessage ||
@@ -389,6 +435,122 @@ const handleImportedStudents = async () => {
   const updatedStudents = await classroomService.getStudents(classroomId)
   setStudents(updatedStudents)
   onStudentCountChange?.(updatedStudents.length)
+}
+
+const handleOpenAttendanceSession = async () => {
+  if (!classroomId) return
+
+  setCreateAttendanceOpen(true)
+  setLoadingAttendanceSession(true)
+  setCreateAttendanceError('')
+  setExistingAttendanceSession(null)
+  setAttendanceSessionLookupFailed(false)
+
+  try {
+    const lessons = await lessonService.getByDate(
+      classroomId,
+      getLocalDate(),
+    )
+    setExistingAttendanceSession(
+      Array.isArray(lessons) ? lessons[0] ?? null : null,
+    )
+  } catch (error) {
+    console.error('Get attendance session error:', error)
+    setAttendanceSessionLookupFailed(true)
+    setCreateAttendanceError(
+      getErrorMessage(error.response?.data) ||
+        'Không thể tải thông tin phiên điểm danh. Vui lòng thử lại.',
+    )
+  } finally {
+    setLoadingAttendanceSession(false)
+  }
+}
+
+const handleCreateAttendanceSession = async ({
+  password,
+  date,
+  startTime,
+  lateTime,
+  endTime,
+}) => {
+  if (!classroomId) return
+
+  try {
+    setCreatingAttendance(true)
+    setCreateAttendanceError('')
+
+    const commonData = {
+      title:
+        existingAttendanceSession?.title || buildLessonTitle(date),
+      lessonDate: date,
+      attendanceCode: password,
+      startTime: buildDateTime(date, startTime),
+      lateTime: buildDateTime(date, lateTime),
+      endTime: buildDateTime(date, endTime),
+    }
+
+    if (!existingAttendanceSession) {
+      const createdSession = await lessonService.create(
+        classroomId,
+        commonData,
+      )
+      setExistingAttendanceSession(createdSession)
+
+      setToast({
+        type: 'success',
+        message: 'Tạo phiên điểm danh thành công.',
+      })
+    } else {
+      const updatedSession = await lessonService.update(
+        classroomId,
+        existingAttendanceSession.id,
+        commonData,
+      )
+      setExistingAttendanceSession(updatedSession)
+
+      setToast({
+        type: 'success',
+        message:
+          'Cập nhật phiên điểm danh thành công.',
+      })
+    }
+
+    setCreateAttendanceOpen(false)
+  } catch (error) {
+    console.error(
+      'Create/update attendance session error:',
+      error,
+    )
+
+    const status = error.response?.status
+
+    const backendMessage = getErrorMessage(
+      error.response?.data,
+    )
+
+    if (status === 400) {
+      setCreateAttendanceError(
+        backendMessage ||
+          'Thông tin buổi học không hợp lệ. Vui lòng kiểm tra lại thời gian.',
+      )
+    } else if (status === 401) {
+      setCreateAttendanceError(
+        'Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.',
+      )
+    } else if (status === 403) {
+      setCreateAttendanceError(
+        backendMessage ||
+          'Bạn không có quyền tạo điểm danh cho lớp học này.',
+      )
+    } else {
+      setCreateAttendanceError(
+        backendMessage ||
+          'Không thể tạo điểm danh. Vui lòng thử lại.',
+      )
+    }
+  } finally {
+    setCreatingAttendance(false)
+  }
 }
 
   return (
@@ -424,17 +586,26 @@ const handleImportedStudents = async () => {
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row">
-              {classroom?.status === 'ARCHIVED' && (
                 <button
                   type="button"
-                  onClick={handleActivateClass}
-                  disabled={activatingClass}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={handleOpenAttendanceSession}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-green-200 bg-white px-4 py-2.5 text-sm font-semibold text-green-700 transition hover:bg-green-50"
                 >
-                  <Power size={18} />
-                  {activatingClass ? 'Đang kích hoạt...' : 'Kích hoạt'}
+                  <Clock3 size={18} />
+                  Tạo điểm danh
                 </button>
-              )}
+
+                {classroom?.status === 'ARCHIVED' && (
+                  <button
+                    type="button"
+                    onClick={handleActivateClass}
+                    disabled={activatingClass}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Power size={18} />
+                    {activatingClass ? 'Đang kích hoạt...' : 'Kích hoạt'}
+                  </button>
+                )}
 
               <div ref={addMenuRef} className="relative">
                 <button
@@ -662,6 +833,24 @@ const handleImportedStudents = async () => {
           onImported={handleImportedStudents}
         />
       )}
+
+<CreateAttendanceSessionModal
+  open={createAttendanceOpen}
+  loading={creatingAttendance}
+  loadingSession={loadingAttendanceSession}
+  existingSession={existingAttendanceSession}
+  sessionLookupFailed={attendanceSessionLookupFailed}
+  error={createAttendanceError}
+  onClose={() => {
+    if (!creatingAttendance) {
+      setCreateAttendanceOpen(false)
+      setCreateAttendanceError('')
+      setExistingAttendanceSession(null)
+    }
+  }}
+  onSubmit={handleCreateAttendanceSession}
+/>
+
     </>
 
   )

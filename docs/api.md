@@ -22,6 +22,9 @@
 | POST | `/api/classes/{classroomId}/students` | Thêm học sinh vào lớp |
 | POST | `/api/classes/{classroomId}/students/import` | Import danh sách học sinh từ file Excel |
 | GET | `/api/classes/{classroomId}/students` | Lấy học sinh trong lớp |
+| POST | `/api/classes/{classroomId}/lessons` | Tạo buổi học cho lớp |
+| GET | `/api/classes/{classroomId}/lessons?date=YYYY-MM-DD` | Lấy buổi học của lớp theo ngày |
+| PUT | `/api/classes/{classroomId}/lessons/{lessonId}` | Cập nhật buổi học |
 | GET | `/api/requests/join-class/received` | Lấy yêu cầu tham gia lớp đang chờ |
 | PATCH | `/api/requests/{requestId}/approve` | Chấp nhận yêu cầu tham gia lớp |
 | PATCH | `/api/requests/{requestId}/reject` | Từ chối yêu cầu tham gia lớp |
@@ -681,6 +684,196 @@ Học sinh bị gỡ khỏi lớp; tài khoản vẫn tồn tại.
 - `400 Bad Request`: Học sinh không thuộc lớp học này.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
+### POST `/api/classes/{classroomId}/lessons` | Tạo buổi học
+
+Tạo một buổi học trong lớp. Chỉ giáo viên phụ trách lớp mới được tạo buổi học.
+
+**Headers:**
+
+```http
+Content-Type: application/json
+Authorization: Bearer <accessToken>
+```
+
+**Request body mẫu:**
+
+```json
+{
+	"title": "Buổi 1 - Giới thiệu Java",
+	"lessonDate": "2026-10-05",
+	"attendanceCode": "JAVA101",
+	"startTime": "2026-10-05T08:00:00",
+	"lateTime": "2026-10-05T08:15:00",
+	"endTime": "2026-10-05T10:00:00"
+}
+```
+
+Trong đó:
+
+- `title`: Tên buổi học, bắt buộc và không được để trống.
+- `lessonDate`: Ngày học, bắt buộc, định dạng `YYYY-MM-DD`.
+- `attendanceCode`: Mã điểm danh, bắt buộc và không được để trống.
+- `startTime`: Thời gian bắt đầu, bắt buộc, định dạng `YYYY-MM-DDTHH:mm:ss`.
+- `lateTime`: Thời điểm bắt đầu tính đi trễ, bắt buộc, cùng định dạng.
+- `endTime`: Thời gian kết thúc, bắt buộc, cùng định dạng.
+- Ngày của `startTime`, `lateTime` và `endTime` phải trùng với `lessonDate`; thứ tự phải là `startTime <= lateTime <= endTime`.
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X POST http://localhost:8080/api/classes/1/lessons \
+	-H "Content-Type: application/json" \
+	-H "Authorization: Bearer <accessToken>" \
+	-d '{
+		"title": "Buổi 1 - Giới thiệu Java",
+		"lessonDate": "2026-10-05",
+		"attendanceCode": "JAVA101",
+		"startTime": "2026-10-05T08:00:00",
+		"lateTime": "2026-10-05T08:15:00",
+		"endTime": "2026-10-05T10:00:00"
+	}'
+```
+
+**Response thành công `201 Created`:**
+
+```json
+{
+	"id": 1,
+	"classroomId": 1,
+	"classroomName": "Lập trình Java K21",
+	"title": "Buổi 1 - Giới thiệu Java",
+	"lessonDate": "2026-10-05",
+	"attendanceCode": "JAVA101",
+	"startTime": "2026-10-05T08:00:00",
+	"lateTime": "2026-10-05T08:15:00",
+	"endTime": "2026-10-05T10:00:00",
+	"createdAt": "2026-10-03T19:30:00"
+}
+```
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Thiếu hoặc để trống trường bắt buộc, sai định dạng ngày/giờ, hoặc thời gian không đúng thứ tự/ngày học.
+- `400 Bad Request`: Không tìm thấy lớp học với `classroomId` đã cung cấp.
+- `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
+- `403 Forbidden`: Người dùng hiện tại không phải giáo viên phụ trách lớp.
+
+### GET `/api/classes/{classroomId}/lessons?date=YYYY-MM-DD` | Lấy buổi học theo ngày
+
+Lấy danh sách buổi học thuộc lớp và ngày được chỉ định. Chỉ giáo viên phụ trách lớp mới được xem danh sách. Kết quả được sắp xếp theo `startTime` tăng dần.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+**Query parameters:**
+
+- `date`: Bắt buộc, ngày cần tra cứu, định dạng `YYYY-MM-DD`.
+- `{classroomId}`: ID lớp cần tra cứu, truyền trong URL.
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X GET "http://localhost:8080/api/classes/1/lessons?date=2026-10-05" \
+	-H "Authorization: Bearer <accessToken>"
+```
+
+**Response thành công `200 OK`:**
+
+```json
+[
+	{
+		"id": 1,
+		"classroomId": 1,
+		"classroomName": "Lập trình Java K21",
+		"title": "Buổi 1 - Giới thiệu Java",
+		"lessonDate": "2026-10-05",
+		"attendanceCode": "JAVA101",
+		"startTime": "2026-10-05T08:00:00",
+		"lateTime": "2026-10-05T08:15:00",
+		"endTime": "2026-10-05T10:00:00",
+		"createdAt": "2026-10-03T19:30:00"
+	}
+]
+```
+
+Nếu ngày đó không có buổi học, API trả về `200 OK` với danh sách rỗng `[]`.
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Thiếu `date` hoặc ngày không đúng định dạng `YYYY-MM-DD`.
+- `400 Bad Request`: Không tìm thấy lớp học với `classroomId` đã cung cấp.
+- `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
+- `403 Forbidden`: Người dùng hiện tại không phải giáo viên phụ trách lớp.
+
+### PUT `/api/classes/{classroomId}/lessons/{lessonId}` | Cập nhật buổi học
+
+Cập nhật thông tin buổi học trong lớp. Chỉ giáo viên phụ trách lớp mới được cập nhật. API yêu cầu gửi đầy đủ các trường trong request body; các trường không gửi hoặc để `null` không được xem là cập nhật một phần.
+
+**Headers:**
+
+```http
+Content-Type: application/json
+Authorization: Bearer <accessToken>
+```
+
+**Request body mẫu:**
+
+```json
+{
+	"title": "Buổi 1 - Java cơ bản (cập nhật)",
+	"lessonDate": "2026-10-05",
+	"attendanceCode": "JAVA101-UPDATED",
+	"startTime": "2026-10-05T08:30:00",
+	"lateTime": "2026-10-05T08:45:00",
+	"endTime": "2026-10-05T10:30:00"
+}
+```
+
+Trong đó, các trường `title`, `lessonDate`, `attendanceCode`, `startTime`, `lateTime` và `endTime` đều bắt buộc; định dạng và quy tắc thời gian giống API tạo buổi học. Ngày của cả ba mốc thời gian phải trùng với `lessonDate`, theo thứ tự `startTime <= lateTime <= endTime`.
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X PUT http://localhost:8080/api/classes/1/lessons/1 \
+	-H "Content-Type: application/json" \
+	-H "Authorization: Bearer <accessToken>" \
+	-d '{
+		"title": "Buổi 1 - Java cơ bản (cập nhật)",
+		"lessonDate": "2026-10-05",
+		"attendanceCode": "JAVA101-UPDATED",
+		"startTime": "2026-10-05T08:30:00",
+		"lateTime": "2026-10-05T08:45:00",
+		"endTime": "2026-10-05T10:30:00"
+	}'
+```
+
+**Response thành công `200 OK`:**
+
+```json
+{
+	"id": 1,
+	"classroomId": 1,
+	"classroomName": "Lập trình Java K21",
+	"title": "Buổi 1 - Java cơ bản (cập nhật)",
+	"lessonDate": "2026-10-05",
+	"attendanceCode": "JAVA101-UPDATED",
+	"startTime": "2026-10-05T08:30:00",
+	"lateTime": "2026-10-05T08:45:00",
+	"endTime": "2026-10-05T10:30:00",
+	"createdAt": "2026-10-03T19:30:00"
+}
+```
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Thiếu hoặc để trống trường bắt buộc, sai định dạng ngày/giờ hoặc thời gian không hợp lệ.
+- `400 Bad Request`: Không tìm thấy lớp học, không tìm thấy buổi học, hoặc buổi học không thuộc lớp chỉ định.
+- `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
+- `403 Forbidden`: Người dùng hiện tại không phải giáo viên phụ trách lớp.
+
 ## Điểm danh
 
 ### POST `/api/classes/{classroomId}/attendances` | Tạo điểm danh
@@ -720,6 +913,12 @@ Trong đó:
 - `status`: Trạng thái điểm danh, bắt buộc. Chỉ nhận `PRESENT`, `ABSENT` hoặc `LATE`.
 - `note`: Ghi chú, không bắt buộc.
 
+Backend tự tìm buổi học trong đúng lớp có `lessonDate` trùng với `date`:
+
+- Nếu tìm thấy đúng một buổi học, bản ghi điểm danh được liên kết với buổi học đó (`lessonId`).
+- Nếu không có buổi học phù hợp, `lessonId` là `null`.
+- Nếu có nhiều buổi học cùng ngày trong lớp, API trả `400 Bad Request`; cần xử lý để ngày đó chỉ có một buổi học trước khi điểm danh.
+
 **Cách test bằng cURL:**
 
 ```bash
@@ -749,6 +948,8 @@ curl -X POST http://localhost:8080/api/classes/1/attendances \
 		"studentAvatar": "http://localhost:8080/uploads/avatars/avatar_user_5.jpg",
 		"fullName": "Trần Văn Bình",
 		"date": "2026-09-30",
+		"lessonId": 2,
+		"createdAt": "2026-10-03T20:00:00",
 		"status": "PRESENT",
 		"note": "Có mặt đúng giờ"
 	}
@@ -761,6 +962,7 @@ curl -X POST http://localhost:8080/api/classes/1/attendances \
 - `400 Bad Request`: Không tìm thấy lớp học hoặc học sinh.
 - `400 Bad Request`: Học sinh không thuộc lớp học này.
 - `400 Bad Request`: Học sinh đã được điểm danh trong ngày đã chọn.
+- `400 Bad Request`: Có nhiều buổi học trong lớp cùng ngày nên không thể tự động liên kết điểm danh.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
 ### GET `/api/classes/{classroomId}/attendances` | Lịch sử điểm danh
@@ -791,6 +993,8 @@ curl -X GET http://localhost:8080/api/classes/1/attendances \
 		"studentAvatar": "http://localhost:8080/uploads/avatars/avatar_user_5.jpg",
 		"fullName": "Trần Văn Bình",
 		"date": "2026-09-30",
+		"lessonId": 2,
+		"createdAt": "2026-10-03T20:00:00",
 		"status": "PRESENT",
 		"note": "Có mặt đúng giờ"
 	}
@@ -880,7 +1084,7 @@ Không có body trả về. Nếu bản ghi điểm danh tồn tại, backend s�
 
 ### PATCH `/api/classes/{classroomId}/attendances/{attendanceId}` | Cập nhật điểm danh
 
-API cập nhật một bản ghi điểm danh đã tồn tại. Chỉ các trường được gửi trong body mới được thay đổi; các trường còn lại giữ nguyên.
+API cập nhật một bản ghi điểm danh đã tồn tại. Chỉ các trường được gửi trong body mới được thay đổi; các trường còn lại giữ nguyên. Nếu thay đổi `date`, backend tự liên kết lại với buổi học duy nhất trong lớp vào ngày mới; `lessonId` được trả về trong response. Nếu ngày mới có nhiều buổi học, API trả `400 Bad Request`.
 
 **Headers:**
 
@@ -928,6 +1132,8 @@ curl -X PATCH http://localhost:8080/api/classes/1/attendances/10 \
 	"studentAvatar": "http://localhost:8080/uploads/avatars/avatar_user_5.jpg",
 	"fullName": "Trần Văn Bình",
 	"date": "2026-09-30",
+	"lessonId": 2,
+	"createdAt": "2026-10-03T20:00:00",
 	"status": "LATE",
 	"note": "Đến muộn 10 phút nhưng đã giải thích"
 }

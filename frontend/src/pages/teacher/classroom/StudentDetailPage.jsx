@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft,
   BarChart3,
@@ -12,14 +13,76 @@ import {
 } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import defaultAvatar from '../../../assets/images/avatar_default.png'
+import attendanceService from '../../../services/attendanceService'
 
 function StudentDetailPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { classId, studentId } = useParams()
+  const [attendances, setAttendances] = useState(null)
+  const [attendanceError, setAttendanceError] = useState('')
 
   // Student được truyền từ StudentsTab qua navigate()
   const student = location.state?.student
+
+  useEffect(() => {
+    let cancelled = false
+
+    const fetchAttendances = async () => {
+      if (!classId || !studentId) {
+        setAttendanceError('Thiếu thông tin lớp hoặc học sinh để tải điểm danh.')
+        setAttendances([])
+        return
+      }
+
+      setAttendances(null)
+      setAttendanceError('')
+
+      try {
+        const data = await attendanceService.getByClass(classId)
+
+        if (!Array.isArray(data)) {
+          throw new Error('Invalid attendances response format')
+        }
+
+        if (!cancelled) {
+          setAttendances(data)
+        }
+      } catch (error) {
+        console.error('Get student attendances error:', error)
+
+        if (!cancelled) {
+          setAttendanceError('Không thể tải tình trạng điểm danh. Vui lòng thử lại.')
+          setAttendances([])
+        }
+      }
+    }
+
+    fetchAttendances()
+
+    return () => {
+      cancelled = true
+    }
+  }, [classId, studentId])
+
+  const attendanceStats = useMemo(() => {
+    const studentAttendances = (attendances ?? []).filter(
+      (attendance) => String(attendance.studentId) === String(studentId),
+    )
+
+    return studentAttendances.reduce(
+      (stats, attendance) => {
+        const status = String(attendance.status ?? '').toUpperCase()
+        if (status === 'PRESENT') stats.present += 1
+        if (status === 'ABSENT') stats.absent += 1
+        if (status === 'LATE') stats.late += 1
+        return stats
+      },
+      { present: 0, absent: 0, late: 0 },
+    )
+  }, [attendances, studentId])
+
+  const attendanceLoading = attendances === null
 
   return (
     <div className="space-y-6">
@@ -193,7 +256,9 @@ function StudentDetailPage() {
     </div>
 
     <div className="flex items-baseline gap-1.5">
-      <p className="text-2xl font-bold leading-none text-emerald-700">0</p>
+      <p className="text-2xl font-bold leading-none text-emerald-700">
+        {attendanceLoading ? '...' : attendanceError ? '—' : attendanceStats.present}
+      </p>
       <p className="text-xs text-slate-500">buổi</p>
     </div>
   </div>
@@ -208,7 +273,9 @@ function StudentDetailPage() {
     </div>
 
     <div className="flex items-baseline gap-1.5">
-      <p className="text-2xl font-bold leading-none text-red-600">0</p>
+      <p className="text-2xl font-bold leading-none text-red-600">
+        {attendanceLoading ? '...' : attendanceError ? '—' : attendanceStats.absent}
+      </p>
       <p className="text-xs text-slate-500">buổi</p>
     </div>
   </div>
@@ -223,11 +290,18 @@ function StudentDetailPage() {
     </div>
 
     <div className="flex items-baseline gap-1.5">
-      <p className="text-2xl font-bold leading-none text-amber-600">0</p>
+      <p className="text-2xl font-bold leading-none text-amber-600">
+        {attendanceLoading ? '...' : attendanceError ? '—' : attendanceStats.late}
+      </p>
       <p className="text-xs text-slate-500">buổi</p>
     </div>
   </div>
 </div>
+    {attendanceError && (
+      <p className="mt-3 text-sm text-red-600" role="alert">
+        {attendanceError}
+      </p>
+    )}
   </section>
 
       </div>

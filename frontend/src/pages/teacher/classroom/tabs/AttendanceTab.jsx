@@ -24,6 +24,11 @@ import EditAttendanceModal from './attendance/modals/EditAttendanceModal'
 import useAttendanceActions from './attendance/useAttendanceActions'
 import ExportAttendanceModal from './attendance/modals/ExportAttendanceModal'
 
+function formatAttendanceTime(createdAt) {
+  const match = String(createdAt ?? '').match(/T(\d{2}):(\d{2})/)
+  return match ? `${match[1]}:${match[2]}` : ''
+}
+
 function AttendanceTab() {
   const { classId } = useParams()
 
@@ -484,7 +489,15 @@ const handleExportAttendance = async () => {
                     </td>
 
                     <td className="px-5 py-4 text-sm text-slate-600">
-                      {formatDate(attendance.date)}
+                      <div>{formatDate(attendance.date)}</div>
+                      {formatAttendanceTime(attendance.createdAt) && (
+                        <div className="mt-1 flex items-center gap-1 text-xs text-slate-400">
+                          <Clock3 size={13} />
+                          <span>
+                            Điểm danh: {formatAttendanceTime(attendance.createdAt)}
+                          </span>
+                        </div>
+                      )}
                     </td>
 
                     <td className="px-5 py-4">

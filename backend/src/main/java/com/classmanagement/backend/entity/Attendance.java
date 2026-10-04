@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(
@@ -50,4 +51,18 @@ public class Attendance {
 
     @Column(name = "note", columnDefinition = "TEXT")
     private String note;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "lesson_id", nullable = true)
+    private Lesson lesson;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+    }
 }
