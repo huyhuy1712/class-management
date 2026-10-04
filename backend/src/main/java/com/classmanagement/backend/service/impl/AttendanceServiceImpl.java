@@ -1,8 +1,10 @@
 package com.classmanagement.backend.service.impl;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -152,6 +154,52 @@ public List<AttendanceResponse> createAttendance(
         }
 
         return responses;
+    }
+
+@Transactional
+@Override
+public List<AttendanceResponse> markAbsentForUnrecordedStudents(
+        Long classroomId,
+        LocalDate date) {
+
+        Classroom classroom = classroomRepository
+                .findById(classroomId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Không tìm thấy lớp học"));
+
+        Lesson lesson = requireLessonForAttendance(classroomId, date);
+
+        Set<Long> recordedStudentIds = new HashSet<>(
+                attendanceRepository.findAllByClassroomIdAndDate(
+                                classroomId,
+                                date)
+                        .stream()
+                        .map(attendance -> attendance.getStudent().getId())
+                        .toList());
+
+        List<Attendance> absentAttendances = classStudentRepository
+                .findAllByClassroomId(classroomId)
+                .stream()
+                .filter(classStudent ->
+                        !recordedStudentIds.contains(
+                                classStudent.getStudent().getId()))
+                .map(classStudent -> Attendance.builder()
+                        .classroom(classroom)
+                        .student(classStudent.getStudent())
+                        .lesson(lesson)
+                        .date(date)
+                        .status(AttendanceStatus.ABSENT)
+                        .build())
+                .toList();
+
+        if (absentAttendances.isEmpty()) {
+                return List.of();
+        }
+
+        return attendanceRepository.saveAllAndFlush(absentAttendances)
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
 @Override

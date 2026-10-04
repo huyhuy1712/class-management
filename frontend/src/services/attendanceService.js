@@ -9,6 +9,16 @@ const attendanceService = {
     return response.data
   },
 
+  markAbsentForUnrecordedStudents: async (classroomId, date) => {
+    const response = await api.post(
+      `/classes/${classroomId}/attendances/absent-all`,
+      null,
+      { params: { date } },
+    )
+
+    return response.data
+  },
+
   deleteAttendance: async (classroomId, studentId, date) => {
     await api.delete(
       `/classes/${classroomId}/attendances/students/${studentId}`,

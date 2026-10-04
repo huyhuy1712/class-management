@@ -38,6 +38,21 @@ public ResponseEntity<List<AttendanceResponse>> createAttendance(
                 .body( attendanceService.createAttendance( classroomId, request));
     }
 
+@PostMapping("/{classroomId}/attendances/absent-all")
+public ResponseEntity<List<AttendanceResponse>> markAbsentForUnrecordedStudents(
+        @PathVariable Long classroomId,
+        @RequestParam
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+        LocalDate date
+) {
+    return ResponseEntity.ok(
+            attendanceService.markAbsentForUnrecordedStudents(
+                    classroomId,
+                    date
+            )
+    );
+}
+
 @GetMapping("/{classroomId}/attendances")
 public ResponseEntity<List<AttendanceResponse>> getAttendances(
             @PathVariable Long classroomId) {

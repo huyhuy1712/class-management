@@ -126,6 +126,15 @@ public ResponseEntity<Void> removeStudentFromClassroom(
         return ResponseEntity.noContent().build();
 }
 
+@DeleteMapping("/{classroomId}/students")
+public ResponseEntity<Void> removeAllStudentsFromClassroom(
+                @PathVariable Long classroomId) {
+
+        classroomService.removeAllStudentsFromClassroom(classroomId);
+
+        return ResponseEntity.noContent().build();
+}
+
 @GetMapping("/my")
 public ResponseEntity<List<ClassroomResponse>> getMyClassrooms(
                 Authentication authentication) {

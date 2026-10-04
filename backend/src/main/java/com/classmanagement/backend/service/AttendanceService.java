@@ -13,6 +13,10 @@ public interface AttendanceService {
 List<AttendanceResponse> createAttendance(
             Long classroomId,
             CreateAttendanceRequest request);
+
+List<AttendanceResponse> markAbsentForUnrecordedStudents(
+        Long classroomId,
+        LocalDate date);
             
 List<AttendanceResponse> getAttendancesByClassroom(
             Long classroomId);

@@ -70,6 +70,10 @@ removeStudent: async (classroomId, studentId) => {
   )
 },
 
+removeAllStudents: async (classroomId) => {
+  await api.delete(`/classes/${classroomId}/students`)
+},
+
 createAttendance: async (classroomId, attendanceData) => {
   const response = await api.post(
     `/classes/${classroomId}/attendances`,

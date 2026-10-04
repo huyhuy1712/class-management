@@ -9,6 +9,7 @@ import com.classmanagement.backend.dto.classroom.ImportStudentsResponse;
 import com.classmanagement.backend.dto.classroom.UpdateClassroomRequest;
 import com.classmanagement.backend.entity.ClassStudent;
 import com.classmanagement.backend.entity.ClassStudentId;
+import com.classmanagement.backend.entity.ClassJoinRequestDetail;
 import com.classmanagement.backend.entity.Classroom;
 import com.classmanagement.backend.entity.Subject;
 import com.classmanagement.backend.entity.User;
@@ -16,7 +17,9 @@ import com.classmanagement.backend.entity.enums.ClassroomStatus;
 import com.classmanagement.backend.entity.enums.UserRole;
 import com.classmanagement.backend.entity.enums.UserStatus;
 import com.classmanagement.backend.repository.ClassStudentRepository;
+import com.classmanagement.backend.repository.ClassJoinRequestDetailRepository;
 import com.classmanagement.backend.repository.ClassroomRepository;
+import com.classmanagement.backend.repository.RequestRepository;
 import com.classmanagement.backend.repository.SubjectRepository;
 import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.service.ClassroomService;
@@ -46,6 +49,8 @@ public class ClassroomServiceImpl implements ClassroomService {
     private final SubjectRepository subjectRepository;
     private final UserRepository userRepository;
     private final ClassStudentRepository classStudentRepository;
+    private final ClassJoinRequestDetailRepository classJoinRequestDetailRepository;
+    private final RequestRepository requestRepository;
     private final StorageService storageService;
     private final StudentExcelReader studentExcelReader;
 
@@ -259,6 +264,7 @@ public ClassroomResponse activateClassroom(Long id) {
         return toResponse(classroom);
 }
 
+@Transactional
 @Override
 public void deleteClassroom(Long id) {
 
@@ -271,7 +277,21 @@ public void deleteClassroom(Long id) {
                         )
                 );
 
-        // 2. Xóa thật
+        // Requests are parents of class_join_request_details, so this
+        // relationship cannot cascade upward through a foreign key.
+        List<Long> requestIds = classJoinRequestDetailRepository
+                .findAllByClassroomId(id)
+                .stream()
+                .map(detail -> detail.getRequest().getId())
+                .toList();
+
+        // Delete managed details first, then their parent requests. This
+        // keeps Hibernate's persistence context consistent with the database.
+        List<ClassJoinRequestDetail> details =
+                classJoinRequestDetailRepository.findAllByClassroomId(id);
+        classJoinRequestDetailRepository.deleteAll(details);
+        classJoinRequestDetailRepository.flush();
+        requestRepository.deleteAllById(requestIds);
         classroomRepository.delete(classroom);
         }
 
@@ -406,6 +426,19 @@ public void removeStudentFromClassroom(
         }
 
         classStudentRepository.deleteById(classStudentId);
+}
+
+@Transactional
+@Override
+public void removeAllStudentsFromClassroom(Long classroomId) {
+
+        if (!classroomRepository.existsById(classroomId)) {
+                throw new IllegalArgumentException(
+                        "Không tìm thấy lớp học"
+                );
+        }
+
+        classStudentRepository.deleteAllByClassroomId(classroomId);
 }
 
 @Override

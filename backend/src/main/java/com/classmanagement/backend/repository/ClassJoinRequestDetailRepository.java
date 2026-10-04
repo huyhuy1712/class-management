@@ -29,4 +29,7 @@ public interface ClassJoinRequestDetailRepository
                         "classroom"
         })
         Optional<ClassJoinRequestDetail> findByRequest_Id(Long requestId);
+
+        List<ClassJoinRequestDetail> findAllByClassroomId(Long classroomId);
+
 }

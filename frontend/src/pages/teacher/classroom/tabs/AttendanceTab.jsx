@@ -10,6 +10,7 @@ import {
   Trash2,
   UserX,
   X,
+  UserRoundX,
 } from 'lucide-react'
 import defaultAvatar from '../../../../assets/images/avatar_default.png'
 import attendanceService from '../../../../services/attendanceService'
@@ -23,6 +24,7 @@ import DeleteAttendanceModal from './attendance/modals/DeleteAttendanceModal'
 import EditAttendanceModal from './attendance/modals/EditAttendanceModal'
 import useAttendanceActions from './attendance/useAttendanceActions'
 import ExportAttendanceModal from './attendance/modals/ExportAttendanceModal'
+import ConfirmModal from '../../../../components/classroom/ConfirmModal'
 
 function formatAttendanceTime(createdAt) {
   const match = String(createdAt ?? '').match(/T(\d{2}):(\d{2})/)
@@ -44,6 +46,9 @@ function AttendanceTab() {
   const [exportDate, setExportDate] = useState(getTodayDate())
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState('')
+  const [markAbsentOpen, setMarkAbsentOpen] = useState(false)
+  const [markingAbsent, setMarkingAbsent] = useState(false)
+  const [markAbsentError, setMarkAbsentError] = useState('')
 
   const datePickerRef = useRef(null)
   const {
@@ -160,6 +165,39 @@ const lateCount = statusAttendances.filter(
   setExportModalOpen(true)
 }
 
+const handleMarkAbsent = async () => {
+  if (!classId || markingAbsent) return
+
+  const today = getTodayDate()
+
+  try {
+    setMarkingAbsent(true)
+    setMarkAbsentError('')
+
+    await attendanceService.markAbsentForUnrecordedStudents(
+      classId,
+      today,
+    )
+
+    const refreshedAttendances =
+      await attendanceService.getByClass(classId)
+
+    setAttendances(refreshedAttendances)
+    setSelectedDate(today)
+    setDateInput(formatDate(today))
+    setMarkAbsentOpen(false)
+  } catch (error) {
+    console.error('Mark absent for unrecorded students error:', error)
+    setMarkAbsentError(
+      error.response?.data?.message ||
+        error.response?.data?.error ||
+        'Không thể đánh vắng học sinh. Vui lòng thử lại.',
+    )
+  } finally {
+    setMarkingAbsent(false)
+  }
+}
+
 const handleCloseExport = () => {
   if (exporting) return
 
@@ -274,14 +312,28 @@ const handleExportAttendance = async () => {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={handleOpenExport}
-              className="flex shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-2.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
-            >
-              <Download size={18} />
-              Xuất Excel
-            </button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => {
+                  setMarkAbsentError('')
+                  setMarkAbsentOpen(true)
+                }}
+                className="flex shrink-0 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+              >
+                <UserRoundX size={18} />
+                Đánh vắng hôm nay
+              </button>
+
+              <button
+                type="button"
+                onClick={handleOpenExport}
+                className="flex shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-2.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
+              >
+                <Download size={18} />
+                Xuất Excel
+              </button>
+            </div>
           </div>
 
         {/* Filters */}
@@ -581,6 +633,23 @@ const handleExportAttendance = async () => {
       }}
       onClose={handleCloseExport}
       onExport={handleExportAttendance}
+    />
+
+    <ConfirmModal
+      open={markAbsentOpen}
+      title="Đánh vắng toàn bộ hôm nay"
+      description="Bạn có chắc chắn muốn đánh vắng những học sinh chưa có bản ghi điểm danh trong ngày hôm nay không? Những học sinh đã được điểm danh sẽ không bị thay đổi."
+      confirmText="Đánh vắng"
+      danger
+      loading={markingAbsent}
+      error={markAbsentError}
+      onClose={() => {
+        if (!markingAbsent) {
+          setMarkAbsentOpen(false)
+          setMarkAbsentError('')
+        }
+      }}
+      onConfirm={handleMarkAbsent}
     />
 
     <EditAttendanceModal

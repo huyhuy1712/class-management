@@ -63,6 +63,8 @@ function StudentsTab() {
 
   const [studentToDelete, setStudentToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [deleteAllStudentsOpen, setDeleteAllStudentsOpen] = useState(false)
+  const [deletingAllStudents, setDeletingAllStudents] = useState(false)
   const [toast, setToast] = useState(null)
   const [activatingClass, setActivatingClass] = useState(false)
 
@@ -264,6 +266,31 @@ const getLocalDate = () => {
 
   const handleRequestDelete = (student) => {
     setStudentToDelete(student)
+  }
+
+  const handleDeleteAllStudents = async () => {
+    if (!classroomId) return
+
+    try {
+      setDeletingAllStudents(true)
+      await classroomService.removeAllStudents(classroomId)
+      setStudents([])
+      onStudentCountChange?.(0)
+      setDeleteAllStudentsOpen(false)
+      setToast({
+        type: 'success',
+        message: 'Đã xóa toàn bộ học sinh khỏi lớp.',
+      })
+    } catch (deleteError) {
+      setToast({
+        type: 'error',
+        message:
+          getErrorMessage(deleteError.response?.data) ||
+          'Không thể xóa toàn bộ học sinh khỏi lớp.',
+      })
+    } finally {
+      setDeletingAllStudents(false)
+    }
   }
 
   const showUnavailableMessage = (message) => {
@@ -595,6 +622,16 @@ const handleCreateAttendanceSession = async ({
                   Tạo điểm danh
                 </button>
 
+                <button
+                  type="button"
+                  onClick={() => setDeleteAllStudentsOpen(true)}
+                  disabled={students.length === 0 || deletingAllStudents}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Trash2 size={18} />
+                  Xóa toàn bộ
+                </button>
+
                 {classroom?.status === 'ARCHIVED' && (
                   <button
                     type="button"
@@ -809,6 +846,19 @@ const handleCreateAttendanceSession = async ({
           if (!deleting) setStudentToDelete(null)
         }}
         onConfirm={handleDeleteStudent}
+      />
+
+      <ConfirmModal
+        open={deleteAllStudentsOpen}
+        title="Xóa toàn bộ học sinh"
+        description={`Bạn có chắc chắn muốn xóa toàn bộ ${students.length} học sinh khỏi lớp không? Dữ liệu điểm danh cũ sẽ không bị xóa.`}
+        confirmText="Xóa toàn bộ"
+        danger
+        loading={deletingAllStudents}
+        onClose={() => {
+          if (!deletingAllStudents) setDeleteAllStudentsOpen(false)
+        }}
+        onConfirm={handleDeleteAllStudents}
       />
       
       <AttendanceModal

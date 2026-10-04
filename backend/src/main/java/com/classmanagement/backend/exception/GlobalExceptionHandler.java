@@ -7,6 +7,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.hibernate.TransientPropertyValueException;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -109,5 +110,21 @@ public class GlobalExceptionHandler {
                             .status(HttpStatus.CONFLICT)
                             .body(Map.of(
                                             "message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(TransientPropertyValueException.class)
+    public ResponseEntity<ErrorResponse> handleTransientProperty(
+            TransientPropertyValueException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse response = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.CONFLICT.value())
+                .error("Dữ liệu liên kết không hợp lệ")
+                .message("Không thể lưu dữ liệu vì bản ghi liên kết chưa tồn tại")
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
 }

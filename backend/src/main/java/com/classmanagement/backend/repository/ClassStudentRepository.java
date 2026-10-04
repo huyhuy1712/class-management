@@ -14,6 +14,8 @@ public interface ClassStudentRepository
     
     List<ClassStudent> findAllByClassroomId(Long classroomId);
 
+    void deleteAllByClassroomId(Long classroomId);
+
     List<ClassStudent> findAllByClassroom_Teacher_Id(Long teacherId);
 
     
