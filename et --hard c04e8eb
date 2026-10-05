@@ -1,0 +1,40 @@
+[33m97d886f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mtrucvi[m[33m)[m HEAD@{0}: checkout: moving from development to trucvi
+[33m0ef22f0[m[33m ([m[1;31morigin/production[m[33m, [m[1;31morigin/development[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;31morigin/AH[m[33m, [m[1;32mdevelopment[m[33m)[m HEAD@{1}: checkout: moving from trucvi to development
+[33m97d886f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mtrucvi[m[33m)[m HEAD@{2}: reset: moving to HEAD~1
+[33mef2a1ef[m[33m ([m[1;31morigin/trucvi[m[33m)[m HEAD@{3}: reset: moving to HEAD~1
+[33m440c5ae[m HEAD@{4}: reset: moving to HEAD~1
+[33mc04e8eb[m HEAD@{5}: checkout: moving from development to trucvi
+[33m0ef22f0[m[33m ([m[1;31morigin/production[m[33m, [m[1;31morigin/development[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;31morigin/AH[m[33m, [m[1;32mdevelopment[m[33m)[m HEAD@{6}: pull: Fast-forward
+[33m440c5ae[m HEAD@{7}: checkout: moving from trucvi to development
+[33mc04e8eb[m HEAD@{8}: commit: cap nhat trang student
+[33m440c5ae[m HEAD@{9}: merge development: Fast-forward
+[33m97d886f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mtrucvi[m[33m)[m HEAD@{10}: checkout: moving from development to trucvi
+[33m440c5ae[m HEAD@{11}: checkout: moving from trucvi to development
+[33m97d886f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mtrucvi[m[33m)[m HEAD@{12}: reset: moving to HEAD~1
+[33mef2a1ef[m[33m ([m[1;31morigin/trucvi[m[33m)[m HEAD@{13}: reset: moving to HEAD~1
+[33m440c5ae[m HEAD@{14}: reset: moving to HEAD~1
+[33mf5158fb[m HEAD@{15}: checkout: moving from development to trucvi
+[33m440c5ae[m HEAD@{16}: checkout: moving from trucvi to development
+[33mf5158fb[m HEAD@{17}: commit: check
+[33m440c5ae[m HEAD@{18}: checkout: moving from development to trucvi
+[33m440c5ae[m HEAD@{19}: checkout: moving from trucvi to development
+[33m440c5ae[m HEAD@{20}: merge development: Fast-forward
+[33mef2a1ef[m[33m ([m[1;31morigin/trucvi[m[33m)[m HEAD@{21}: checkout: moving from development to trucvi
+[33m440c5ae[m HEAD@{22}: checkout: moving from trucvi to development
+[33mef2a1ef[m[33m ([m[1;31morigin/trucvi[m[33m)[m HEAD@{23}: checkout: moving from development to trucvi
+[33m440c5ae[m HEAD@{24}: pull: Fast-forward
+[33mef2a1ef[m[33m ([m[1;31morigin/trucvi[m[33m)[m HEAD@{25}: checkout: moving from trucvi to development
+[33mef2a1ef[m[33m ([m[1;31morigin/trucvi[m[33m)[m HEAD@{26}: checkout: moving from development to trucvi
+[33mef2a1ef[m[33m ([m[1;31morigin/trucvi[m[33m)[m HEAD@{27}: merge trucvi: Fast-forward
+[33mb366214[m[33m ([m[1;31morigin/duy[m[33m)[m HEAD@{28}: checkout: moving from trucvi to development
+[33mef2a1ef[m[33m ([m[1;31morigin/trucvi[m[33m)[m HEAD@{29}: merge development: Merge made by the 'ort' strategy.
+[33m97d886f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mtrucvi[m[33m)[m HEAD@{30}: checkout: moving from development to trucvi
+[33mb366214[m[33m ([m[1;31morigin/duy[m[33m)[m HEAD@{31}: pull: Fast-forward
+[33m3cd3152[m HEAD@{32}: checkout: moving from trucvi to development
+[33m97d886f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mtrucvi[m[33m)[m HEAD@{33}: commit: fix button in LoginPage
+[33mc5d4317[m HEAD@{34}: commit: g
+[33m2459f20[m[33m ([m[1;32mproduction[m[33m)[m HEAD@{35}: reset: moving to HEAD
+[33m2459f20[m[33m ([m[1;32mproduction[m[33m)[m HEAD@{36}: checkout: moving from production to trucvi
+[33m2459f20[m[33m ([m[1;32mproduction[m[33m)[m HEAD@{37}: pull: Fast-forward
+[33m3cd3152[m HEAD@{38}: checkout: moving from development to production
+[33m3cd3152[m HEAD@{39}: clone: from https://github.com/huyhuy1712/class-management.git
