@@ -84,6 +84,14 @@ getMyClasses: async () => {
   return response.data
 },
 
+  requestToJoin: async (classroomId, message) => {
+    const response = await api.post(
+      `/classes/${classroomId}/join-requests`,
+      { message },
+    )
+    return response.data
+  },
+
 }
 
 export default classroomService

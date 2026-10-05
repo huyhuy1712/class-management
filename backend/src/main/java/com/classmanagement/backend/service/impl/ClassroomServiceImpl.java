@@ -1,19 +1,24 @@
 package com.classmanagement.backend.service.impl;
 
 import com.classmanagement.backend.dto.classroom.AddStudentToClassroomRequest;
+import com.classmanagement.backend.dto.classroom.ClassJoinRequestResponse;
 import com.classmanagement.backend.dto.classroom.ClassroomResponse;
 import com.classmanagement.backend.dto.classroom.ClassroomStudentResponse;
+import com.classmanagement.backend.dto.classroom.CreateClassJoinRequestRequest;
 import com.classmanagement.backend.dto.classroom.CreateClassroomRequest;
 import com.classmanagement.backend.dto.classroom.UpdateClassroomRequest;
 import com.classmanagement.backend.entity.ClassStudent;
 import com.classmanagement.backend.entity.ClassStudentId;
+import com.classmanagement.backend.entity.ClassJoinRequest;
 import com.classmanagement.backend.entity.Classroom;
 import com.classmanagement.backend.entity.Subject;
 import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.entity.enums.ClassroomStatus;
+import com.classmanagement.backend.entity.enums.ClassJoinRequestStatus;
 import com.classmanagement.backend.entity.enums.UserRole;
 import com.classmanagement.backend.entity.enums.UserStatus;
 import com.classmanagement.backend.repository.ClassStudentRepository;
+import com.classmanagement.backend.repository.ClassJoinRequestRepository;
 import com.classmanagement.backend.repository.ClassroomRepository;
 import com.classmanagement.backend.repository.SubjectRepository;
 import com.classmanagement.backend.repository.UserRepository;
@@ -34,6 +39,7 @@ public class ClassroomServiceImpl implements ClassroomService {
     private final SubjectRepository subjectRepository;
     private final UserRepository userRepository;
     private final ClassStudentRepository classStudentRepository;
+        private final ClassJoinRequestRepository classJoinRequestRepository;
         private final StorageService storageService;
 
 @Override
@@ -413,6 +419,74 @@ public List<ClassroomResponse> getMyClassrooms(String username) {
         return classrooms.stream()
                         .map(this::toResponse)
                         .toList();
+}
+
+@Override
+@Transactional
+public ClassJoinRequestResponse requestToJoinClass(
+        Long classroomId,
+        String username,
+        CreateClassJoinRequestRequest request) {
+    User student = userRepository.findByUsername(username)
+            .orElseThrow(() -> new IllegalArgumentException(
+                    "Không tìm thấy người dùng"));
+
+    if (student.getRole() != UserRole.STUDENT) {
+        throw new IllegalStateException(
+                "Chỉ học sinh mới được gửi yêu cầu tham gia lớp");
+    }
+
+    Classroom classroom = classroomRepository.findById(classroomId)
+            .orElseThrow(() -> new IllegalArgumentException(
+                    "Không tìm thấy lớp học"));
+
+    if (classroom.getStatus() != ClassroomStatus.ACTIVE) {
+        throw new IllegalStateException(
+                "Không thể gửi yêu cầu vào lớp đã lưu trữ");
+    }
+
+    if (classStudentRepository.existsByClassroomIdAndStudentId(
+            classroomId,
+            student.getId())) {
+        throw new IllegalStateException(
+                "Bạn đã tham gia lớp học này");
+    }
+
+    String message = request.getMessage() == null || request.getMessage().isBlank()
+            ? null
+            : request.getMessage().trim();
+
+    ClassJoinRequest joinRequest = classJoinRequestRepository
+            .findByClassroom_IdAndStudent_Id(classroomId, student.getId())
+            .map(existingRequest -> {
+                if (existingRequest.getStatus() == ClassJoinRequestStatus.APPROVED) {
+                    throw new IllegalStateException(
+                            "Yêu cầu tham gia lớp này đã được duyệt");
+                }
+
+                existingRequest.setStatus(ClassJoinRequestStatus.PENDING);
+                existingRequest.setMessage(message);
+                return existingRequest;
+            })
+            .orElseGet(() -> ClassJoinRequest.builder()
+                    .classroom(classroom)
+                    .student(student)
+                    .status(ClassJoinRequestStatus.PENDING)
+                    .message(message)
+                    .build());
+
+    ClassJoinRequest savedRequest = classJoinRequestRepository.save(joinRequest);
+
+    return ClassJoinRequestResponse.builder()
+            .id(savedRequest.getId())
+            .classroomId(classroom.getId())
+            .classroomName(classroom.getName())
+            .studentId(student.getId())
+            .status(savedRequest.getStatus())
+            .message(savedRequest.getMessage())
+            .createdAt(savedRequest.getCreatedAt())
+            .updatedAt(savedRequest.getUpdatedAt())
+            .build();
 }
 
 }

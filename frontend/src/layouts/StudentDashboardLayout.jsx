@@ -1,27 +1,20 @@
-import { useState } from 'react'
+import StudentHeader from "../components/dashboard/StudentHeader";
+import StudentSidebar from "../components/dashboard/StudentSidebar";
 
-import Sidebar from '../components/dashboard/StudentSidebar'
-import Header from '../components/dashboard/Header'
-
-function DashboardLayout({ children }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-
+function StudentDashboardLayout({ children }) {
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#F5FAF4]">
-      <Sidebar
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
+    <div className="min-h-screen bg-[#f7fbf8]">
 
-      <div className="min-h-screen lg:ml-64">
-        <Header onMenuClick={() => setSidebarOpen(true)} />
+      <StudentSidebar />
 
-        <main className="mx-auto max-w-[1600px] px-3 py-5 sm:px-6 sm:py-8 lg:px-8">
-          {children}
-        </main>
+      <StudentHeader />
+
+      <div className="ml-[275px] min-h-screen">
+        {children}
       </div>
+
     </div>
-  )
+  );
 }
 
-export default DashboardLayout
+export default StudentDashboardLayout;

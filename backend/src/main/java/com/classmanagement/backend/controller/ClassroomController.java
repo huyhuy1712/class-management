@@ -1,8 +1,10 @@
 package com.classmanagement.backend.controller;
 
 import com.classmanagement.backend.dto.classroom.AddStudentToClassroomRequest;
+import com.classmanagement.backend.dto.classroom.ClassJoinRequestResponse;
 import com.classmanagement.backend.dto.classroom.ClassroomResponse;
 import com.classmanagement.backend.dto.classroom.ClassroomStudentResponse;
+import com.classmanagement.backend.dto.classroom.CreateClassJoinRequestRequest;
 import com.classmanagement.backend.dto.classroom.CreateClassroomRequest;
 import com.classmanagement.backend.dto.classroom.UpdateClassroomRequest;
 import com.classmanagement.backend.service.ClassroomService;
@@ -22,6 +24,17 @@ import java.util.List;
 public class ClassroomController {
 
 private final ClassroomService classroomService;
+
+@PostMapping("/{classroomId}/join-requests")
+public ResponseEntity<ClassJoinRequestResponse> requestToJoinClass(
+        @PathVariable Long classroomId,
+        Authentication authentication,
+        @Valid @RequestBody CreateClassJoinRequestRequest request) {
+    return ResponseEntity.ok(classroomService.requestToJoinClass(
+            classroomId,
+            authentication.getName(),
+            request));
+}
 
 @PostMapping
 public ResponseEntity<ClassroomResponse> createClassroom(

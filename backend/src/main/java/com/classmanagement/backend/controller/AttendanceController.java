@@ -9,7 +9,9 @@ import org.springframework.web.bind.annotation.*;
 
 import com.classmanagement.backend.dto.attendance.AttendanceResponse;
 import com.classmanagement.backend.dto.attendance.CreateAttendanceRequest;
+import com.classmanagement.backend.dto.attendance.StudentAttendanceResponse;
 import com.classmanagement.backend.service.AttendanceService;
+import org.springframework.security.core.Authentication;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +22,13 @@ import lombok.RequiredArgsConstructor;
 public class AttendanceController {
 
 private final AttendanceService attendanceService;
+
+@GetMapping("/student/attendance")
+public ResponseEntity<List<StudentAttendanceResponse>> getMyAttendances(
+    Authentication authentication) {
+    return ResponseEntity.ok(
+        attendanceService.getMyAttendances(authentication.getName()));
+}
 
 @PostMapping("/{classroomId}/attendances")
 public ResponseEntity<List<AttendanceResponse>> createAttendance(

@@ -2,6 +2,7 @@ package com.classmanagement.backend.service.impl;
 
 import com.classmanagement.backend.dto.user.ChangePasswordRequest;
 import com.classmanagement.backend.dto.user.StudentClassResponse;
+import com.classmanagement.backend.dto.user.StudentDashboardResponse;
 import com.classmanagement.backend.dto.user.TeacherStudentResponse;
 import com.classmanagement.backend.dto.user.UpdateProfileRequest;
 import com.classmanagement.backend.dto.user.UserResponse;
@@ -9,6 +10,8 @@ import com.classmanagement.backend.entity.ClassStudent;
 import com.classmanagement.backend.entity.Classroom;
 import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.entity.enums.UserRole;
+import com.classmanagement.backend.entity.enums.AttendanceStatus;
+import com.classmanagement.backend.repository.AttendanceRepository;
 import com.classmanagement.backend.repository.ClassStudentRepository;
 import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.service.StorageService;
@@ -31,6 +34,7 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final ClassStudentRepository classStudentRepository;
+        private final AttendanceRepository attendanceRepository;
     private final StorageService storageService;
     private final PasswordEncoder passwordEncoder;
 
@@ -210,6 +214,50 @@ public List<TeacherStudentResponse> getMyStudents(String username) {
     }
 
     return new ArrayList<>(students.values());
+}
+
+@Override
+@Transactional(readOnly = true)
+public StudentDashboardResponse getMyStudentDashboard(String username) {
+    User student = userRepository.findByUsername(username)
+            .orElseThrow(() -> new IllegalArgumentException(
+                    "Không tìm thấy người dùng"));
+
+    if (student.getRole() != UserRole.STUDENT) {
+        throw new IllegalStateException(
+                "Chỉ học sinh mới được xem trang tổng quan học sinh");
+    }
+
+    List<StudentClassResponse> classes = classStudentRepository
+            .findAllByStudent_Id(student.getId())
+            .stream()
+            .map(classStudent -> {
+                Classroom classroom = classStudent.getClassroom();
+                return StudentClassResponse.builder()
+                        .id(classroom.getId())
+                        .name(classroom.getName())
+                        .code(classroom.getCode())
+                        .academicYear(classroom.getAcademicYear())
+                        .status(classroom.getStatus())
+                        .build();
+            })
+            .toList();
+
+    long attendanceCount = attendanceRepository.countByStudent_Id(student.getId());
+    long attendedCount = attendanceRepository.countByStudent_IdAndStatusIn(
+            student.getId(),
+            List.of(AttendanceStatus.PRESENT, AttendanceStatus.LATE));
+    double attendanceRate = attendanceCount == 0
+            ? 0
+            : attendedCount * 100.0 / attendanceCount;
+
+    return StudentDashboardResponse.builder()
+            .fullName(student.getFullName())
+            .classes(classes)
+            .attendanceCount(attendanceCount)
+            .attendedCount(attendedCount)
+            .attendanceRate(attendanceRate)
+            .build();
 }
 
 @Override

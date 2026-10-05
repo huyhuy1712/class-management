@@ -21,12 +21,15 @@
 | POST | `/api/classes/{classroomId}/students` | Thêm học sinh vào lớp |
 | GET | `/api/classes/{classroomId}/students` | Lấy học sinh trong lớp |
 | DELETE | `/api/classes/{classroomId}/students/{studentId}` | Xóa học sinh khỏi lớp |
+| POST | `/api/classes/{classroomId}/join-requests` | Gửi yêu cầu tham gia lớp và lưu lời nhắn |
 | POST | `/api/classes/{classroomId}/attendances` | Tạo điểm danh |
 | GET | `/api/classes/{classroomId}/attendances` | Lấy lịch sử điểm danh của lớp |
+| GET | `/api/classes/student/attendance` | Lấy lịch sử điểm danh của học sinh hiện tại |
 | GET | `/api/subjects` | Lấy danh sách môn học |
 | GET | `/api/users` | Lấy người dùng, có thể lọc theo role |
 | GET | `/api/users/{userId}` | Lấy người dùng theo ID |
 | GET | `/api/users/my-students` | Lấy học sinh của giáo viên hiện tại |
+| GET | `/api/users/me/student-dashboard` | Lấy lớp và thống kê điểm danh của học sinh hiện tại |
 | PUT | `/api/users/me` | Cập nhật hồ sơ hiện tại |
 | PUT | `/api/users/me/password` | Đổi mật khẩu hiện tại |
 | POST | `/api/users/me/avatar` | Tải avatar |
@@ -374,6 +377,57 @@ Trong đó:
 - Học sinh không hợp lệ: Người dùng được chọn không có role `STUDENT` hoặc tài khoản không ở status `ACTIVE`.
 - `403 Forbidden`: Học sinh đã có trong lớp học này.
 
+### POST `/api/classes/{classroomId}/join-requests` | Gửi yêu cầu tham gia lớp
+
+API lấy học sinh từ JWT, lưu yêu cầu vào bảng `class_join_requests` với trạng thái ban đầu `PENDING`, đồng thời lưu lời nhắn nếu có. Chỉ học sinh được gửi yêu cầu vào lớp đang hoạt động. Nếu yêu cầu trước đó bị từ chối, gửi lại sẽ chuyển yêu cầu đó về `PENDING` và cập nhật lời nhắn; không tạo bản ghi trùng cho cùng học sinh/lớp.
+
+**Headers:**
+
+```http
+Content-Type: application/json
+Authorization: Bearer <accessToken>
+```
+
+**Request body mẫu:**
+
+```json
+{
+	"message": "Em muốn tham gia lớp để học Java cơ bản."
+}
+```
+
+`message` không bắt buộc và tối đa 500 ký tự. Gửi `{}` nếu không có lời nhắn.
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X POST http://localhost:8080/api/classes/1/join-requests \
+	-H "Content-Type: application/json" \
+	-H "Authorization: Bearer <accessToken>" \
+	-d '{"message":"Em muốn tham gia lớp học."}'
+```
+
+**Response thành công `200 OK`:**
+
+```json
+{
+	"id": 4,
+	"classroomId": 1,
+	"classroomName": "Lập trình Java K21",
+	"studentId": 5,
+	"status": "PENDING",
+	"message": "Em muốn tham gia lớp học.",
+	"createdAt": "2026-10-05T10:30:00",
+	"updatedAt": "2026-10-05T10:30:00"
+}
+```
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Không tìm thấy học sinh hoặc lớp học; lời nhắn vượt quá 500 ký tự.
+- `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+- `403 Forbidden`: Người dùng không phải học sinh, đã tham gia lớp, lớp đã lưu trữ hoặc yêu cầu trước đó đã được duyệt.
+
 ### GET `/api/classes/{classroomId}/students` | Học sinh trong lớp
 
 **Headers:**
@@ -564,6 +618,47 @@ curl -X GET http://localhost:8080/api/classes/1/attendances \
 
 - `400 Bad Request`: Không tìm thấy lớp học với `classroomId` đã cung cấp.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+
+### GET `/api/classes/student/attendance` | Lịch sử điểm danh của học sinh hiện tại
+
+API xác định học sinh từ JWT và chỉ trả về các bản ghi điểm danh của học sinh đó, kèm thông tin lớp. Chỉ tài khoản có role `STUDENT` mới được gọi. Kết quả được sắp xếp theo ngày mới nhất trước.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X GET http://localhost:8080/api/classes/student/attendance \
+	-H "Authorization: Bearer <accessToken>"
+```
+
+**Response thành công `200 OK`:**
+
+```json
+[
+	{
+		"id": 12,
+		"classroomId": 1,
+		"classroomName": "Lập trình Java K21",
+		"classroomCode": "JAVA-K21",
+		"date": "2026-09-30",
+		"status": "PRESENT",
+		"note": "Có mặt đúng giờ"
+	}
+]
+```
+
+Các giá trị `status` gồm `PRESENT`, `ABSENT` và `LATE`. Nếu học sinh chưa có bản ghi điểm danh, API trả về `200 OK` với danh sách `[]`.
+
+**Một số trường hợp lỗi:**
+
+- `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+- `403 Forbidden`: Tài khoản hiện tại không có role `STUDENT`.
+- `400 Bad Request`: Không tìm thấy người dùng hiện tại.
 
 ## Tra cứu lớp học
 
@@ -800,6 +895,49 @@ Nếu giáo viên chưa có học sinh thuộc lớp nào, API trả về danh s
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 - `403 Forbidden`: Người dùng hiện tại không có role `TEACHER`.
 - `400 Bad Request`: Không tìm thấy người dùng ứng với tài khoản hiện tại.
+
+### GET `/api/users/me/student-dashboard` | Dashboard học sinh hiện tại
+
+API xác định học sinh từ JWT, trả về họ tên, các lớp đã tham gia và thống kê điểm danh. `attendanceCount` là tổng số bản ghi điểm danh; `attendedCount` đếm các bản ghi có trạng thái `PRESENT` hoặc `LATE`; `attendanceRate` bằng `attendedCount / attendanceCount * 100`, làm tròn ở giao diện. Khi chưa có bản ghi, tỷ lệ là `0`. Chỉ tài khoản có role `STUDENT` mới được gọi.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X GET http://localhost:8080/api/users/me/student-dashboard \
+	-H "Authorization: Bearer <accessToken>"
+```
+
+**Response thành công `200 OK`:**
+
+```json
+{
+	"fullName": "Trần Văn Bình",
+	"classes": [
+		{
+			"id": 1,
+			"name": "Lập trình Java K21",
+			"code": "JAVA-K21",
+			"academicYear": "2026-2027",
+			"status": "ACTIVE"
+		}
+	],
+	"attendanceCount": 10,
+	"attendedCount": 9,
+	"attendanceRate": 90.0
+}
+```
+
+**Một số trường hợp lỗi:**
+
+- `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+- `403 Forbidden`: Tài khoản hiện tại không có role `STUDENT`.
+- `400 Bad Request`: Không tìm thấy người dùng hiện tại.
 
 ### GET `/api/users/{userId}` | Người dùng theo ID
 

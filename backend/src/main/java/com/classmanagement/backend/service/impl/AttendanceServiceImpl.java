@@ -12,9 +12,11 @@ import org.springframework.transaction.annotation.Transactional;
 import com.classmanagement.backend.dto.attendance.AttendanceResponse;
 import com.classmanagement.backend.dto.attendance.AttendanceStudentRequest;
 import com.classmanagement.backend.dto.attendance.CreateAttendanceRequest;
+import com.classmanagement.backend.dto.attendance.StudentAttendanceResponse;
 import com.classmanagement.backend.entity.Attendance;
 import com.classmanagement.backend.entity.Classroom;
 import com.classmanagement.backend.entity.User;
+import com.classmanagement.backend.entity.enums.UserRole;
 import com.classmanagement.backend.repository.AttendanceRepository;
 import com.classmanagement.backend.repository.ClassStudentRepository;
 import com.classmanagement.backend.repository.ClassroomRepository;
@@ -158,6 +160,32 @@ public List<AttendanceResponse> getAttendancesByClassroom(
                             .map(this::toResponse)
                             .toList();
     }
+
+@Override
+@Transactional(readOnly = true)
+public List<StudentAttendanceResponse> getMyAttendances(String username) {
+    User student = userRepository.findByUsername(username)
+            .orElseThrow(() -> new IllegalArgumentException(
+                    "Không tìm thấy người dùng"));
+
+    if (student.getRole() != UserRole.STUDENT) {
+        throw new IllegalStateException(
+                "Chỉ học sinh mới được xem lịch sử điểm danh của mình");
+    }
+
+    return attendanceRepository.findAllByStudent_IdOrderByDateDesc(student.getId())
+            .stream()
+            .map(attendance -> StudentAttendanceResponse.builder()
+                    .id(attendance.getId())
+                    .classroomId(attendance.getClassroom().getId())
+                    .classroomName(attendance.getClassroom().getName())
+                    .classroomCode(attendance.getClassroom().getCode())
+                    .date(attendance.getDate())
+                    .status(attendance.getStatus())
+                    .note(attendance.getNote())
+                    .build())
+            .toList();
+}
 
  @Override
 @Transactional

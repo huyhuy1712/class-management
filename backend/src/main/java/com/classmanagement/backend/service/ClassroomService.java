@@ -1,8 +1,10 @@
 package com.classmanagement.backend.service;
 
 import com.classmanagement.backend.dto.classroom.AddStudentToClassroomRequest;
+import com.classmanagement.backend.dto.classroom.ClassJoinRequestResponse;
 import com.classmanagement.backend.dto.classroom.ClassroomResponse;
 import com.classmanagement.backend.dto.classroom.ClassroomStudentResponse;
+import com.classmanagement.backend.dto.classroom.CreateClassJoinRequestRequest;
 import com.classmanagement.backend.dto.classroom.CreateClassroomRequest;
 import com.classmanagement.backend.dto.classroom.UpdateClassroomRequest;
 
@@ -34,5 +36,10 @@ public interface ClassroomService {
             Long studentId);
     
     List<ClassroomResponse> getMyClassrooms(String username);
+
+    ClassJoinRequestResponse requestToJoinClass(
+            Long classroomId,
+            String username,
+            CreateClassJoinRequestRequest request);
     
 }
