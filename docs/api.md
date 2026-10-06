@@ -41,10 +41,12 @@
 | 30 | GET | `/api/users/{userId}` | Lấy người dùng theo ID |
 | 31 | GET | `/api/users/my-students` | Lấy học sinh của giáo viên hiện tại |
 | 32 | GET | `/api/exams` | Lấy danh sách đề thi của giáo viên hiện tại |
-| 33 | PUT | `/api/users/me` | Cập nhật hồ sơ hiện tại |
-| 34 | PUT | `/api/users/me/password` | Đổi mật khẩu hiện tại |
-| 35 | POST | `/api/users/me/avatar` | Tải avatar |
-| 36 | DELETE | `/api/users/me/avatar` | Xóa avatar |
+| 33 | DELETE | `/api/exams/{examId}?force=false` | Xóa đề thi |
+| 34 | PUT | `/api/exams/{examId}` | Cập nhật đề thi |
+| 35 | PUT | `/api/users/me` | Cập nhật hồ sơ hiện tại |
+| 36 | PUT | `/api/users/me/password` | Đổi mật khẩu hiện tại |
+| 37 | POST | `/api/users/me/avatar` | Tải avatar |
+| 38 | DELETE | `/api/users/me/avatar` | Xóa avatar |
 
 ## Xác thực
 
@@ -199,8 +201,13 @@ curl -X GET http://localhost:8080/api/exams \
 [
 	{
 		"id": 1,
+		"subjectId": 2,
+		"subjectName": "Lập trình Java",
 		"title": "Kiểm tra giữa kỳ Java",
 		"code": "JAVA-MIDTERM-2026",
+		"description": "Đề kiểm tra kiến thức Java cơ bản",
+		"gradeLevel": "K21",
+		"purpose": "Giữa kỳ",
 		"submittedCount": 18,
 		"status": "PUBLISHED",
 		"assignedClassCount": 2,
@@ -212,8 +219,13 @@ curl -X GET http://localhost:8080/api/exams \
 Trong đó:
 
 - `id`: ID đề thi.
+- `subjectId`: ID môn học.
+- `subjectName`: Tên môn học.
 - `title`: Tên đề thi.
 - `code`: Mã đề thi.
+- `description`: Mô tả đề thi.
+- `gradeLevel`: Khối/lớp.
+- `purpose`: Mục đích đề thi.
 - `submittedCount`: Số lượt làm bài đã ở trạng thái `SUBMITTED` hoặc `GRADED`.
 - `status`: Trạng thái đề thi, nhận một trong `DRAFT`, `PUBLISHED` hoặc `CLOSED`.
 - `assignedClassCount`: Số lớp được giao đề; mỗi lớp chỉ được tính một lần.
@@ -227,6 +239,115 @@ Nếu giáo viên chưa có đề thi, API trả về `200 OK` với danh sách 
 
 **Một số trường hợp lỗi:**
 
+- `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
+
+### 33. DELETE `/api/exams/{examId}` | Xóa đề thi
+
+Xóa đề thi do giáo viên hiện tại tạo. API mặc định không cho xóa đề thi đã có học sinh làm bài để tránh mất dữ liệu bài làm và kết quả. Có thể dùng `force=true` khi đã xác nhận muốn xóa cả dữ liệu liên quan.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+**Query parameters:**
+
+- `force`: Không bắt buộc, mặc định là `false`.
+  - `false`: Từ chối xóa nếu đề thi đã có bài làm.
+  - `true`: Cho phép xóa đề thi dù đã có bài làm; toàn bộ bài làm và kết quả liên quan sẽ bị xóa theo.
+
+**Cách test bằng cURL khi đề thi chưa có bài làm:**
+
+```bash
+curl -X DELETE "http://localhost:8080/api/exams/1" \
+	-H "Authorization: Bearer <accessToken>"
+```
+
+**Cách test bằng cURL khi đã xác nhận xóa cả bài làm:**
+
+```bash
+curl -X DELETE "http://localhost:8080/api/exams/1?force=true" \
+	-H "Authorization: Bearer <accessToken>"
+```
+
+**Response thành công `204 No Content`:**
+
+API không trả về response body. Đề thi và các dữ liệu liên quan được xóa thành công.
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Không tìm thấy đề thi hoặc đề thi không thuộc giáo viên đang đăng nhập.
+- `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
+- `409 Conflict`: Đề thi đã có học sinh làm bài và `force=false`. Gọi lại với `force=true` chỉ sau khi đã xác nhận muốn xóa toàn bộ bài làm và kết quả liên quan.
+
+### 34. PUT `/api/exams/{examId}` | Cập nhật đề thi
+
+Cập nhật môn học và thông tin mô tả của đề thi do giáo viên hiện tại tạo. API này chỉ cho phép sửa `subjectId`, `title`, `description`, `gradeLevel` và `purpose`; mã đề, thời gian làm bài và số lần làm bài không bị thay đổi.
+
+**Headers:**
+
+```http
+Content-Type: application/json
+Authorization: Bearer <accessToken>
+```
+
+**Request body mẫu:**
+
+```json
+{
+	"subjectId": 2,
+	"title": "Kiểm tra giữa kỳ Java - Cập nhật",
+	"description": "Đề kiểm tra kiến thức Java cơ bản",
+	"gradeLevel": "K21",
+	"purpose": "Giữa kỳ"
+}
+```
+
+Trong đó:
+
+- `subjectId`: ID môn học, bắt buộc. Môn học phải tồn tại.
+- `title`: Tên đề thi, bắt buộc, tối đa 255 ký tự.
+- `description`: Mô tả đề thi, không bắt buộc. Chuỗi rỗng sau khi trim được lưu thành `null`.
+- `gradeLevel`: Khối/lớp, không bắt buộc, tối đa 30 ký tự.
+- `purpose`: Mục đích đề thi, không bắt buộc, tối đa 50 ký tự.
+
+Trạng thái `status` không được cập nhật qua API này; hệ thống giữ nguyên trạng thái hiện tại của đề thi.
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X PUT http://localhost:8080/api/exams/1 \
+	-H "Content-Type: application/json" \
+	-H "Authorization: Bearer <accessToken>" \
+	-d '{
+		"subjectId": 2,
+		"title": "Kiểm tra giữa kỳ Java - Cập nhật",
+		"description": "Đề kiểm tra kiến thức Java cơ bản",
+		"gradeLevel": "K21",
+		"purpose": "Giữa kỳ"
+	}'
+```
+
+**Response thành công `200 OK`:**
+
+```json
+{
+	"id": 1,
+	"subjectId": 2,
+	"subjectName": "Lập trình Java",
+	"title": "Kiểm tra giữa kỳ Java - Cập nhật",
+	"description": "Đề kiểm tra kiến thức Java cơ bản",
+	"gradeLevel": "K21",
+	"purpose": "Giữa kỳ",
+	"status": "PUBLISHED"
+}
+```
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Thiếu `subjectId` hoặc `title`, giá trị vượt quá giới hạn ký tự, môn học không tồn tại, hoặc dữ liệu không hợp lệ.
+- `400 Bad Request`: Không tìm thấy đề thi với `examId` đã cung cấp hoặc đề thi không thuộc giáo viên đang đăng nhập.
 - `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
 
 ## Lớp học
@@ -1477,7 +1598,7 @@ curl -X GET http://localhost:8080/api/users/5 \
 - `400 Bad Request`: Không tìm thấy người dùng với `userId` đã cung cấp.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
-### 33. PUT `/api/users/me` | Cập nhật hồ sơ hiện tại
+### 35. PUT `/api/users/me` | Cập nhật hồ sơ hiện tại
 
 API tự xác định người dùng cần cập nhật từ JWT trong header, không cần truyền `userId`.
 
@@ -1542,7 +1663,7 @@ curl -X PUT http://localhost:8080/api/users/me \
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 - `400 Bad Request`: Không tìm thấy người dùng hiện tại.
 
-### 34. PUT `/api/users/me/password` | Đổi mật khẩu
+### 36. PUT `/api/users/me/password` | Đổi mật khẩu
 
 API xác định tài khoản hiện tại từ JWT. Mật khẩu mới phải dài từ 8 đến 100 ký tự và không được trùng mật khẩu hiện tại.
 
@@ -1583,7 +1704,7 @@ curl -X PUT http://localhost:8080/api/users/me/password \
 
 ## Avatar
 
-### 35. POST `/api/users/me/avatar` | Tải avatar
+### 37. POST `/api/users/me/avatar` | Tải avatar
 
 API tự xác định người dùng hiện tại từ JWT, không cần truyền `userId`. Ảnh tải lên sẽ thay avatar hiện tại.
 
@@ -1624,7 +1745,7 @@ Trường `avatar` trong response là URL của ảnh vừa tải lên và đư�
 - File vượt quá giới hạn 2 MB sẽ bị server từ chối.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
-### 36. DELETE `/api/users/me/avatar` | Xóa avatar
+### 38. DELETE `/api/users/me/avatar` | Xóa avatar
 
 API tự xác định người dùng hiện tại từ JWT, xóa file ảnh đại diện đang lưu và đặt trường `avatar` của hồ sơ thành `null`.
 

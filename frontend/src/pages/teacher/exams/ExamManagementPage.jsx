@@ -1,6 +1,5 @@
 import {
   ArrowDownUp,
-  FileCheck2,
   Plus,
   Search,
 } from 'lucide-react'
@@ -9,6 +8,10 @@ import useExams from './hooks/useExams'
 import ExamTable from './components/ExamTable'
 import useExamFilters from './hooks/useExamFilters'
 import DashboardLayout from '../../../layouts/DashboardLayout'
+import DeleteExamModal from './modals/DeleteExamModal'
+import EditExamModal from './modals/EditExamModal'
+import useDeleteExam from './hooks/useDeleteExam'
+import useUpdateExam from './hooks/useUpdateExam'
 import { useNavigate } from 'react-router-dom'
 
 
@@ -21,7 +24,33 @@ function ExamManagementPage() {
       refetch,
     } = useExams()
 
+    const {
+  deleteTarget,
+  forceDelete,
+  deleting,
+  deleteError,
+
+  openDeleteModal,
+  closeDeleteModal,
+  confirmDelete,
+} = useDeleteExam({
+  onDeleted: async () => {
+    await refetch()
+  },
+})
+
   const navigate = useNavigate()
+
+  const {
+    editTarget,
+    updating,
+    updateError,
+    openEditModal,
+    closeEditModal,
+    updateExam,
+  } = useUpdateExam({
+    onUpdated: refetch,
+  })
 
   const {
     search,
@@ -45,12 +74,12 @@ function ExamManagementPage() {
 }
 
   const handleEdit = (exam) => {
-    console.log('Edit:', exam)
+    openEditModal(exam)
   }
 
   const handleDelete = (exam) => {
-    console.log('Delete:', exam)
-  }
+  openDeleteModal(exam)
+}
 
   return (
     <DashboardLayout>
@@ -73,6 +102,7 @@ function ExamManagementPage() {
             onClick={handleCreate}
             className="flex items-center justify-center gap-2 rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700"
           >
+
             <Plus size={18} />
             Tạo đề thi
           </button>
@@ -203,7 +233,27 @@ function ExamManagementPage() {
             />
           )}
       </div>
+
+  <DeleteExamModal
+  open={Boolean(deleteTarget)}
+  exam={deleteTarget}
+  force={forceDelete}
+  loading={deleting}
+  error={deleteError}
+  onClose={closeDeleteModal}
+  onConfirm={confirmDelete}
+/>
+  <EditExamModal
+    open={Boolean(editTarget)}
+    exam={editTarget}
+    loading={updating}
+    error={updateError}
+    onClose={closeEditModal}
+    onSubmit={updateExam}
+  />
+
     </DashboardLayout>
+
   )
 }
 
