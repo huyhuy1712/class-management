@@ -8,15 +8,12 @@ import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.entity.enums.UserRole;
 import com.classmanagement.backend.entity.enums.UserStatus;
 import com.classmanagement.backend.repository.UserRepository;
-import com.classmanagement.backend.security.CustomUserDetailsService;
 import com.classmanagement.backend.security.JwtService;
 import com.classmanagement.backend.service.AuthService;
 import com.classmanagement.backend.service.StorageService;
 
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -28,9 +25,7 @@ public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
-    private final CustomUserDetailsService userDetailsService;
     private final StorageService storageService;
 
 
@@ -178,32 +173,7 @@ public LoginResponse login(LoginRequest request) {
                 );
         }
 
-    // 3. Cho Spring Security authenticate
-    try {
-
-        System.out.println("BEFORE AUTHENTICATION");
-
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getUsername(),
-                        request.getPassword()
-                )
-        );
-
-        System.out.println("AUTHENTICATION SUCCESS");
-
-    } catch (Exception ex) {
-
-        System.out.println("===== AUTHENTICATION ERROR =====");
-        System.out.println("TYPE: " + ex.getClass().getName());
-        System.out.println("MESSAGE: " + ex.getMessage());
-
-        ex.printStackTrace();
-
-        throw ex;
-    }
-
-    // 4. Check status
+    // 3. Check status
     if (user.getStatus() == UserStatus.PENDING) {
         throw new IllegalStateException(
                 "Tài khoản của bạn đang chờ quản trị viên phê duyệt"
@@ -216,22 +186,22 @@ public LoginResponse login(LoginRequest request) {
         );
     }
 
-    // 5. Load UserDetails
+    // 4. Build UserDetails from the already loaded user
     UserDetails userDetails =
-            userDetailsService.loadUserByUsername(
-                    user.getUsername()
-            );
+            org.springframework.security.core.userdetails.User
+                    .withUsername(user.getUsername())
+                    .password(user.getPasswordHash())
+                    .authorities("ROLE_" + user.getRole().name())
+                    .build();
 
-    System.out.println("USER DETAILS LOADED");
-
-    // 6. Generate JWT
+    // 5. Generate JWT
     String accessToken =
             jwtService.generateToken(userDetails);
 
     System.out.println("JWT GENERATED");
     System.out.println("===== LOGIN SUCCESS =====");
 
-    // 7. Response
+    // 6. Response
     return LoginResponse.builder()
             .id(user.getId())
             .username(user.getUsername())

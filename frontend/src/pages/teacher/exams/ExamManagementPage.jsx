@@ -4,8 +4,8 @@ import {
   Plus,
   Search,
 } from 'lucide-react'
-import { useState } from 'react'
 
+import useExams from './hooks/useExams'
 import ExamTable from './components/ExamTable'
 import useExamFilters from './hooks/useExamFilters'
 import DashboardLayout from '../../../layouts/DashboardLayout'
@@ -14,49 +14,14 @@ import { useNavigate } from 'react-router-dom'
 
 function ExamManagementPage() {
 
-  const navigate = useNavigate()
-  // MOCK DATA
-  // Sau này thay bằng API
+    const {
+      exams,
+      loading,
+      error,
+      refetch,
+    } = useExams()
 
-  const [exams] = useState([
-    {
-      id: 1,
-      code: 'JAVA-MID-01',
-      title:
-        'Kiểm tra giữa kỳ - Lập trình Java',
-      submissionCount: 32,
-      status: 'PUBLISHED',
-      assignedClassCount: 2,
-      createdAt: '2026-10-06T08:30:00',
-    },
-    {
-      id: 2,
-      code: 'DB-QUIZ-01',
-      title: 'Quiz chương 1 - Cơ sở dữ liệu',
-      submissionCount: 45,
-      status: 'PUBLISHED',
-      assignedClassCount: 3,
-      createdAt: '2026-10-04T14:20:00',
-    },
-    {
-      id: 3,
-      code: 'JAVA-FINAL',
-      title: 'Đề thi cuối kỳ - Java nâng cao',
-      submissionCount: 0,
-      status: 'DRAFT',
-      assignedClassCount: 0,
-      createdAt: '2026-09-28T09:15:00',
-    },
-    {
-      id: 4,
-      code: 'WEB-TEST-02',
-      title: 'Kiểm tra ReactJS - Chương 2',
-      submissionCount: 38,
-      status: 'CLOSED',
-      assignedClassCount: 1,
-      createdAt: '2026-09-20T19:30:00',
-    },
-  ])
+  const navigate = useNavigate()
 
   const {
     search,
@@ -89,18 +54,12 @@ function ExamManagementPage() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-[#F7F9F7] p-4 sm:p-6 lg:p-8">
-        <div className="mx-auto max-w-[1500px]">
+      <div className="mx-auto max-w-[1500px] pb-4 sm:pb-6 lg:pb-8">
         {/* HEADER */}
         <div className="mb-7 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-green-700">
-              <FileCheck2 size={17} />
-              Quản lý đề thi
-            </div>
-
             <h1 className="text-2xl font-bold tracking-tight text-[#18301D] sm:text-3xl">
-              Đề thi của tôi
+              Đề thi
             </h1>
 
             <p className="mt-2 text-sm text-slate-500">
@@ -209,13 +168,40 @@ function ExamManagementPage() {
         </div>
 
         {/* TABLE */}
-        <ExamTable
-          exams={filteredExams}
-          onView={handleView}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
-        </div>
+          {loading ? (
+            <div className="flex min-h-[300px] items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex flex-col items-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-green-100 border-t-green-600" />
+
+                <p className="mt-3 text-sm font-medium text-slate-400">
+                  Đang tải danh sách đề thi...
+                </p>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="flex min-h-[300px] items-center justify-center rounded-2xl border border-red-100 bg-white p-6 shadow-sm">
+              <div className="text-center">
+                <p className="text-sm font-semibold text-red-600">
+                  {error}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={refetch}
+                  className="mt-4 cursor-pointer rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700"
+                >
+                  Thử lại
+                </button>
+              </div>
+            </div>
+          ) : (
+            <ExamTable
+              exams={filteredExams}
+              onView={handleView}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+          )}
       </div>
     </DashboardLayout>
   )

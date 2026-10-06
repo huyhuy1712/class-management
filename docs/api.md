@@ -7,47 +7,48 @@
 
 ## Danh sách API
 
-| Method | Endpoint | Chức năng |
-|---|---|---|
-| POST | `/api/auth/signup` | Đăng ký |
-| POST | `/api/auth/login` | Đăng nhập |
-| GET | `/api/classes` | Lấy tất cả lớp |
-| GET | `/api/classes/my` | Lấy lớp của giáo viên hiện tại |
-| POST | `/api/classes` | Tạo lớp |
-| PUT | `/api/classes/{id}` | Cập nhật lớp |
-| PATCH | `/api/classes/{id}/archive` | Lưu trữ lớp |
-| PATCH | `/api/classes/{id}/activate` | Kích hoạt lại lớp đã lưu trữ |
-| DELETE | `/api/classes/{id}` | Xóa lớp |
-| GET | `/api/classes/students/import-template` | Tải file Excel mẫu để import học sinh |
-| POST | `/api/classes/{classroomId}/students` | Thêm học sinh vào lớp |
-| POST | `/api/classes/{classroomId}/students/import` | Import danh sách học sinh từ file Excel |
-| GET | `/api/classes/{classroomId}/students` | Lấy học sinh trong lớp |
-| POST | `/api/classes/{classroomId}/lessons` | Tạo buổi học cho lớp |
-| GET | `/api/classes/{classroomId}/lessons?date=YYYY-MM-DD` | Lấy buổi học của lớp theo ngày |
-| PUT | `/api/classes/{classroomId}/lessons/{lessonId}` | Cập nhật buổi học |
-| GET | `/api/requests/join-class/received` | Lấy yêu cầu tham gia lớp đang chờ |
-| PATCH | `/api/requests/{requestId}/approve` | Chấp nhận yêu cầu tham gia lớp |
-| PATCH | `/api/requests/{requestId}/reject` | Từ chối yêu cầu tham gia lớp |
-| POST | `/api/notifications/request-approved/{requestId}` | Tạo thông báo yêu cầu được chấp nhận |
-| POST | `/api/notifications/request-rejected/{requestId}` | Tạo thông báo yêu cầu bị từ chối |
-| DELETE | `/api/classes/{classroomId}/students/{studentId}` | Xóa học sinh khỏi lớp |
-| POST | `/api/classes/{classroomId}/attendances` | Tạo điểm danh |
-| GET | `/api/classes/{classroomId}/attendances` | Lấy lịch sử điểm danh của lớp |
-| GET | `/api/classes/{classroomId}/attendances/export?date=YYYY-MM-DD` | Xuất điểm danh theo ngày ra Excel |
-| DELETE | `/api/classes/{classroomId}/attendances/students/{studentId}?date=YYYY-MM-DD` | Xóa điểm danh của học sinh trong một ngày |
-| PATCH | `/api/classes/{classroomId}/attendances/{attendanceId}` | Cập nhật bản ghi điểm danh |
-| GET | `/api/subjects` | Lấy danh sách môn học |
-| GET | `/api/users` | Lấy người dùng, có thể lọc theo role |
-| GET | `/api/users/{userId}` | Lấy người dùng theo ID |
-| GET | `/api/users/my-students` | Lấy học sinh của giáo viên hiện tại |
-| PUT | `/api/users/me` | Cập nhật hồ sơ hiện tại |
-| PUT | `/api/users/me/password` | Đổi mật khẩu hiện tại |
-| POST | `/api/users/me/avatar` | Tải avatar |
-| DELETE | `/api/users/me/avatar` | Xóa avatar |
+| STT | Method | Endpoint | Chức năng |
+|---:|---|---|---|
+| 1 | POST | `/api/auth/signup` | Đăng ký |
+| 2 | POST | `/api/auth/login` | Đăng nhập |
+| 3 | GET | `/api/classes` | Lấy tất cả lớp |
+| 4 | GET | `/api/classes/my` | Lấy lớp của giáo viên hiện tại |
+| 5 | POST | `/api/classes` | Tạo lớp |
+| 6 | PUT | `/api/classes/{id}` | Cập nhật lớp |
+| 7 | PATCH | `/api/classes/{id}/archive` | Lưu trữ lớp |
+| 8 | PATCH | `/api/classes/{id}/activate` | Kích hoạt lại lớp đã lưu trữ |
+| 9 | DELETE | `/api/classes/{id}` | Xóa lớp |
+| 10 | GET | `/api/classes/students/import-template` | Tải file Excel mẫu để import học sinh |
+| 11 | POST | `/api/classes/{classroomId}/students` | Thêm học sinh vào lớp |
+| 12 | POST | `/api/classes/{classroomId}/students/import` | Import danh sách học sinh từ file Excel |
+| 13 | GET | `/api/classes/{classroomId}/students` | Lấy học sinh trong lớp |
+| 14 | POST | `/api/classes/{classroomId}/lessons` | Tạo buổi học cho lớp |
+| 15 | GET | `/api/classes/{classroomId}/lessons?date=YYYY-MM-DD` | Lấy buổi học của lớp theo ngày |
+| 16 | PUT | `/api/classes/{classroomId}/lessons/{lessonId}` | Cập nhật buổi học |
+| 17 | GET | `/api/requests/join-class/received` | Lấy yêu cầu tham gia lớp đang chờ |
+| 18 | PATCH | `/api/requests/{requestId}/approve` | Chấp nhận yêu cầu tham gia lớp |
+| 19 | PATCH | `/api/requests/{requestId}/reject` | Từ chối yêu cầu tham gia lớp |
+| 20 | POST | `/api/notifications/request-approved/{requestId}` | Tạo thông báo yêu cầu được chấp nhận |
+| 21 | POST | `/api/notifications/request-rejected/{requestId}` | Tạo thông báo yêu cầu bị từ chối |
+| 22 | DELETE | `/api/classes/{classroomId}/students/{studentId}` | Xóa học sinh khỏi lớp |
+| 23 | POST | `/api/classes/{classroomId}/attendances` | Tạo điểm danh |
+| 24 | GET | `/api/classes/{classroomId}/attendances` | Lấy lịch sử điểm danh của lớp |
+| 25 | GET | `/api/classes/{classroomId}/attendances/export?date=YYYY-MM-DD` | Xuất điểm danh theo ngày ra Excel |
+| 26 | DELETE | `/api/classes/{classroomId}/attendances/students/{studentId}?date=YYYY-MM-DD` | Xóa điểm danh của học sinh trong một ngày |
+| 27 | PATCH | `/api/classes/{classroomId}/attendances/{attendanceId}` | Cập nhật bản ghi điểm danh |
+| 28 | GET | `/api/subjects` | Lấy danh sách môn học |
+| 29 | GET | `/api/users` | Lấy người dùng, có thể lọc theo role |
+| 30 | GET | `/api/users/{userId}` | Lấy người dùng theo ID |
+| 31 | GET | `/api/users/my-students` | Lấy học sinh của giáo viên hiện tại |
+| 32 | GET | `/api/exams` | Lấy danh sách đề thi của giáo viên hiện tại |
+| 33 | PUT | `/api/users/me` | Cập nhật hồ sơ hiện tại |
+| 34 | PUT | `/api/users/me/password` | Đổi mật khẩu hiện tại |
+| 35 | POST | `/api/users/me/avatar` | Tải avatar |
+| 36 | DELETE | `/api/users/me/avatar` | Xóa avatar |
 
 ## Xác thực
 
-### POST `/api/auth/signup` | Đăng ký tài khoản
+### 1. POST `/api/auth/signup` | Đăng ký tài khoản
 
 ```http
 Authorization: Bearer <accessToken>
@@ -109,7 +110,7 @@ Tài khoản có role `STUDENT` được tạo với status `ACTIVE` và mã `st
 - Phone đã tồn tại: Sử dụng số điện thoại khác hoặc bỏ qua trường `phone`.
 - Role không hợp lệ hoặc là `ADMIN`: Chỉ sử dụng `TEACHER` hoặc `STUDENT`.
 
-### POST `/api/auth/login` | Đăng nhập
+### 2. POST `/api/auth/login` | Đăng nhập
 
 **Headers:**
 
@@ -173,9 +174,64 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
 - `401 Unauthorized`: Username hoặc password không chính xác.
 - `403 Forbidden`: Tài khoản giáo viên đang chờ admin duyệt hoặc tài khoản đã bị khóa.
 
+## Đề thi
+
+### 32. GET `/api/exams` | Lấy danh sách đề thi của giáo viên hiện tại
+
+Lấy toàn bộ đề thi do giáo viên đang đăng nhập tạo. API không nhận tham số query hoặc request body; danh sách được xác định dựa trên tài khoản trong JWT.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X GET http://localhost:8080/api/exams \
+	-H "Authorization: Bearer <accessToken>"
+```
+
+**Response thành công `200 OK`:**
+
+```json
+[
+	{
+		"id": 1,
+		"title": "Kiểm tra giữa kỳ Java",
+		"code": "JAVA-MIDTERM-2026",
+		"submittedCount": 18,
+		"status": "PUBLISHED",
+		"assignedClassCount": 2,
+		"createdAt": "2026-10-06T20:30:00"
+	}
+]
+```
+
+Trong đó:
+
+- `id`: ID đề thi.
+- `title`: Tên đề thi.
+- `code`: Mã đề thi.
+- `submittedCount`: Số lượt làm bài đã ở trạng thái `SUBMITTED` hoặc `GRADED`.
+- `status`: Trạng thái đề thi, nhận một trong `DRAFT`, `PUBLISHED` hoặc `CLOSED`.
+- `assignedClassCount`: Số lớp được giao đề; mỗi lớp chỉ được tính một lần.
+- `createdAt`: Thời điểm tạo đề thi, định dạng `YYYY-MM-DDTHH:mm:ss`.
+
+Nếu giáo viên chưa có đề thi, API trả về `200 OK` với danh sách rỗng:
+
+```json
+[]
+```
+
+**Một số trường hợp lỗi:**
+
+- `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
+
 ## Lớp học
 
-### GET `/api/classes/students/import-template` | Tải file Excel mẫu import học sinh
+### 10. GET `/api/classes/students/import-template` | Tải file Excel mẫu import học sinh
 
 Tải file `.xlsx` mẫu dùng cho API import học sinh. File có sheet đầu tiên với tiêu đề `Mã học sinh` tại ô A1; nhập mỗi mã học sinh vào một dòng bên dưới.
 
@@ -191,7 +247,7 @@ Authorization: Bearer <accessToken>
 
 - `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
 
-### POST `/api/classes` | Tạo lớp
+### 5. POST `/api/classes` | Tạo lớp
 
 **Headers:**
 
@@ -245,7 +301,7 @@ Trong đó:
 - Không tìm thấy môn học hoặc giáo viên: Kiểm tra lại `subjectId` và `teacherId`.
 - `teacherId` không thuộc người dùng có role `TEACHER`: Chọn đúng tài khoản giáo viên.
 
-### PUT `/api/classes/{id}` | Cập nhật lớp
+### 6. PUT `/api/classes/{id}` | Cập nhật lớp
 
 **Headers:**
 
@@ -303,7 +359,7 @@ Trong đó:
 - Không tìm thấy môn học hoặc giáo viên: Kiểm tra lại `subjectId` và `teacherId`.
 - Giáo viên không hợp lệ: Người dùng phải có role `TEACHER` và status `ACTIVE`.
 
-### PATCH `/api/classes/{id}/archive` | Lưu trữ lớp
+### 7. PATCH `/api/classes/{id}/archive` | Lưu trữ lớp
 
 **Headers:**
 
@@ -333,7 +389,7 @@ Lớp được chuyển sang status `ARCHIVED`.
 - `400 Bad Request`: Không tìm thấy lớp học với `id` đã cung cấp.
 - `403 Forbidden`: Lớp học đã được lưu trữ trước đó.
 
-### PATCH `/api/classes/{id}/activate` | Kích hoạt lớp
+### 8. PATCH `/api/classes/{id}/activate` | Kích hoạt lớp
 
 Khôi phục lớp về status `ACTIVE`. Gọi lại với lớp đang hoạt động vẫn trả về thông tin lớp hiện tại.
 
@@ -345,7 +401,7 @@ Authorization: Bearer <accessToken>
 
 **Response thành công `200 OK`:** response có cùng cấu trúc với API lấy lớp, trong đó `status` là `ACTIVE`.
 
-### DELETE `/api/classes/{id}` | Xóa lớp
+### 9. DELETE `/api/classes/{id}` | Xóa lớp
 
 **Headers:**
 
@@ -361,7 +417,7 @@ Xóa vĩnh viễn lớp học khỏi database.
 
 - `400 Bad Request`: Không tìm thấy lớp học với `id` đã cung cấp.
 
-### POST `/api/classes/{classroomId}/students` | Thêm học sinh vào lớp
+### 11. POST `/api/classes/{classroomId}/students` | Thêm học sinh vào lớp
 
 **Headers:**
 
@@ -403,7 +459,7 @@ Trong đó:
 - Học sinh không hợp lệ: Người dùng được chọn không có role `STUDENT` hoặc tài khoản không ở status `ACTIVE`.
 - `403 Forbidden`: Học sinh đã có trong lớp học này.
 
-### POST `/api/classes/{classroomId}/students/import` | Import học sinh từ file Excel
+### 12. POST `/api/classes/{classroomId}/students/import` | Import học sinh từ file Excel
 
 Thêm nhiều học sinh vào lớp bằng danh sách mã học sinh trong file Excel. Các tài khoản học sinh phải tồn tại trong hệ thống; thao tác thêm mỗi học sinh áp dụng cùng quy tắc như API thêm một học sinh.
 
@@ -472,7 +528,7 @@ Lỗi của một dòng không làm dừng import các dòng tiếp theo. Ví d�
 - `400 Bad Request`: Không tìm thấy lớp theo `classroomId`.
 - `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
 
-### GET `/api/classes/{classroomId}/students` | Học sinh trong lớp
+### 13. GET `/api/classes/{classroomId}/students` | Học sinh trong lớp
 
 **Headers:**
 
@@ -515,7 +571,7 @@ Nếu lớp chưa có học sinh, API trả về:
 - `400 Bad Request`: Không tìm thấy lớp học với `classroomId` đã cung cấp.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
-### GET `/api/requests/join-class/received` | Lấy yêu cầu tham gia lớp đang chờ
+### 17. GET `/api/requests/join-class/received` | Lấy yêu cầu tham gia lớp đang chờ
 
 Lấy các yêu cầu tham gia lớp có trạng thái `PENDING` được gửi đến tài khoản đang đăng nhập, sắp xếp theo thời gian tạo mới nhất trước. API không cần tham số path, query hoặc request body.
 
@@ -559,7 +615,7 @@ Nếu tài khoản hiện tại không có yêu cầu đang chờ, API trả v�
 
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
-### PATCH `/api/requests/{requestId}/approve` | Chấp nhận yêu cầu tham gia lớp
+### 18. PATCH `/api/requests/{requestId}/approve` | Chấp nhận yêu cầu tham gia lớp
 
 Chấp nhận yêu cầu tham gia lớp đang ở trạng thái `PENDING` và được gửi đến tài khoản hiện tại. `{requestId}` là ID lấy từ response của `GET /api/requests/join-class/received`. API không cần request body. Sau khi PATCH thành công, gọi `POST /api/notifications/request-approved/{requestId}` để tạo thông báo cho học sinh gửi yêu cầu.
 
@@ -584,7 +640,7 @@ curl -X PATCH http://localhost:8080/api/requests/12/approve \
 - `403 Forbidden`: Yêu cầu không được gửi đến tài khoản đang đăng nhập.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
-### POST `/api/notifications/request-approved/{requestId}` | Tạo thông báo yêu cầu được chấp nhận
+### 20. POST `/api/notifications/request-approved/{requestId}` | Tạo thông báo yêu cầu được chấp nhận
 
 Tạo thông báo cho học sinh đã gửi yêu cầu tham gia lớp vừa được chấp nhận. Chỉ người nhận yêu cầu (giáo viên) mới được tạo thông báo. API không cần request body; chỉ gọi sau khi `PATCH /api/requests/{requestId}/approve` thành công.
 
@@ -609,7 +665,7 @@ curl -X POST http://localhost:8080/api/notifications/request-approved/12 \
 - `403 Forbidden`: Tài khoản hiện tại không phải người nhận yêu cầu.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
-### PATCH `/api/requests/{requestId}/reject` | Từ chối yêu cầu tham gia lớp
+### 19. PATCH `/api/requests/{requestId}/reject` | Từ chối yêu cầu tham gia lớp
 
 Từ chối yêu cầu đang ở trạng thái `PENDING` và được gửi đến tài khoản hiện tại. `{requestId}` là ID lấy từ response của `GET /api/requests/join-class/received`. API không cần request body. Sau khi PATCH thành công, gọi `POST /api/notifications/request-rejected/{requestId}` để tạo thông báo cho học sinh gửi yêu cầu.
 
@@ -634,7 +690,7 @@ curl -X PATCH http://localhost:8080/api/requests/12/reject \
 - `403 Forbidden`: Yêu cầu không được gửi đến tài khoản đang đăng nhập.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
-### POST `/api/notifications/request-rejected/{requestId}` | Tạo thông báo yêu cầu bị từ chối
+### 21. POST `/api/notifications/request-rejected/{requestId}` | Tạo thông báo yêu cầu bị từ chối
 
 Tạo thông báo cho học sinh đã gửi yêu cầu tham gia lớp vừa bị từ chối. Chỉ người nhận yêu cầu (giáo viên) mới được tạo thông báo. API không cần request body; chỉ gọi sau khi `PATCH /api/requests/{requestId}/reject` thành công.
 
@@ -659,7 +715,7 @@ curl -X POST http://localhost:8080/api/notifications/request-rejected/12 \
 - `403 Forbidden`: Tài khoản hiện tại không phải người nhận yêu cầu.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
-### DELETE `/api/classes/{classroomId}/students/{studentId}` | Xóa học sinh khỏi lớp
+### 22. DELETE `/api/classes/{classroomId}/students/{studentId}` | Xóa học sinh khỏi lớp
 
 **Headers:**
 
@@ -684,7 +740,7 @@ Học sinh bị gỡ khỏi lớp; tài khoản vẫn tồn tại.
 - `400 Bad Request`: Học sinh không thuộc lớp học này.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
-### POST `/api/classes/{classroomId}/lessons` | Tạo buổi học
+### 14. POST `/api/classes/{classroomId}/lessons` | Tạo buổi học
 
 Tạo một buổi học trong lớp. Chỉ giáo viên phụ trách lớp mới được tạo buổi học.
 
@@ -758,7 +814,7 @@ curl -X POST http://localhost:8080/api/classes/1/lessons \
 - `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
 - `403 Forbidden`: Người dùng hiện tại không phải giáo viên phụ trách lớp.
 
-### GET `/api/classes/{classroomId}/lessons?date=YYYY-MM-DD` | Lấy buổi học theo ngày
+### 15. GET `/api/classes/{classroomId}/lessons?date=YYYY-MM-DD` | Lấy buổi học theo ngày
 
 Lấy danh sách buổi học thuộc lớp và ngày được chỉ định. Chỉ giáo viên phụ trách lớp mới được xem danh sách. Kết quả được sắp xếp theo `startTime` tăng dần.
 
@@ -808,7 +864,7 @@ Nếu ngày đó không có buổi học, API trả về `200 OK` với danh sá
 - `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
 - `403 Forbidden`: Người dùng hiện tại không phải giáo viên phụ trách lớp.
 
-### PUT `/api/classes/{classroomId}/lessons/{lessonId}` | Cập nhật buổi học
+### 16. PUT `/api/classes/{classroomId}/lessons/{lessonId}` | Cập nhật buổi học
 
 Cập nhật thông tin buổi học trong lớp. Chỉ giáo viên phụ trách lớp mới được cập nhật. API yêu cầu gửi đầy đủ các trường trong request body; các trường không gửi hoặc để `null` không được xem là cập nhật một phần.
 
@@ -876,7 +932,7 @@ curl -X PUT http://localhost:8080/api/classes/1/lessons/1 \
 
 ## Điểm danh
 
-### POST `/api/classes/{classroomId}/attendances` | Tạo điểm danh
+### 23. POST `/api/classes/{classroomId}/attendances` | Tạo điểm danh
 
 **Headers:**
 
@@ -965,7 +1021,7 @@ curl -X POST http://localhost:8080/api/classes/1/attendances \
 - `400 Bad Request`: Có nhiều buổi học trong lớp cùng ngày nên không thể tự động liên kết điểm danh.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
-### GET `/api/classes/{classroomId}/attendances` | Lịch sử điểm danh
+### 24. GET `/api/classes/{classroomId}/attendances` | Lịch sử điểm danh
 
 `{classroomId}` là ID lớp cần xem. Kết quả được sắp xếp theo ngày mới nhất trước.
 
@@ -1008,7 +1064,7 @@ curl -X GET http://localhost:8080/api/classes/1/attendances \
 - `400 Bad Request`: Không tìm thấy lớp học với `classroomId` đã cung cấp.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
-### GET `/api/classes/{classroomId}/attendances/export` | Xuất điểm danh ra Excel
+### 25. GET `/api/classes/{classroomId}/attendances/export` | Xuất điểm danh ra Excel
 
 Xuất danh sách học sinh hiện có trong lớp và trạng thái điểm danh của ngày được chọn thành file Excel `.xlsx`. Mỗi học sinh có một dòng; nếu học sinh chưa có bản ghi điểm danh trong ngày đó thì trạng thái xuất ra là `ABSENT`. File chỉ gồm mã học sinh, họ tên và trạng thái điểm danh; ghi chú điểm danh không được đưa vào file.
 
@@ -1049,7 +1105,7 @@ Sheet `Điểm danh` có các cột:
 - `400 Bad Request`: Không tìm thấy lớp học với `classroomId` đã cung cấp, thiếu `date` hoặc `date` không đúng định dạng `YYYY-MM-DD`.
 - `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
 
-### DELETE `/api/classes/{classroomId}/attendances/students/{studentId}` | Xóa điểm danh
+### 26. DELETE `/api/classes/{classroomId}/attendances/students/{studentId}` | Xóa điểm danh
 
 API xóa một bản ghi điểm danh theo `studentId` và ngày `date`. Dữ liệu điểm danh cần phải thuộc đúng lớp học và đúng ngày mới được xóa.
 
@@ -1082,7 +1138,7 @@ Không có body trả về. Nếu bản ghi điểm danh tồn tại, backend s�
 - `400 Bad Request`: Lớp học hoặc học sinh không hợp lệ.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
-### PATCH `/api/classes/{classroomId}/attendances/{attendanceId}` | Cập nhật điểm danh
+### 27. PATCH `/api/classes/{classroomId}/attendances/{attendanceId}` | Cập nhật điểm danh
 
 API cập nhật một bản ghi điểm danh đã tồn tại. Chỉ các trường được gửi trong body mới được thay đổi; các trường còn lại giữ nguyên. Nếu thay đổi `date`, backend tự liên kết lại với buổi học duy nhất trong lớp vào ngày mới; `lessonId` được trả về trong response. Nếu ngày mới có nhiều buổi học, API trả `400 Bad Request`.
 
@@ -1148,7 +1204,7 @@ curl -X PATCH http://localhost:8080/api/classes/1/attendances/10 \
 
 ## Tra cứu lớp học
 
-### GET `/api/classes` | Tất cả lớp
+### 3. GET `/api/classes` | Tất cả lớp
 
 **Headers:**
 
@@ -1182,7 +1238,7 @@ Nếu database chưa có lớp học, API sẽ trả về danh sách rỗng:
 []
 ```
 
-### GET `/api/classes/my` | Lớp của giáo viên hiện tại
+### 4. GET `/api/classes/my` | Lớp của giáo viên hiện tại
 
 API lấy giáo viên từ JWT, không cần truyền `teacherId`. Chỉ tài khoản có role `TEACHER` mới được gọi. Danh sách gồm các lớp được gán cho giáo viên, không lọc theo trạng thái lớp.
 
@@ -1230,7 +1286,7 @@ Nếu giáo viên chưa được gán lớp nào, API trả về `200 OK` với 
 
 ## Môn học
 
-### GET `/api/subjects` | Danh sách môn học
+### 28. GET `/api/subjects` | Danh sách môn học
 
 **Headers:**
 
@@ -1264,7 +1320,7 @@ Authorization: Bearer <accessToken>
 
 ## Người dùng
 
-### GET `/api/users` | Danh sách người dùng
+### 29. GET `/api/users` | Danh sách người dùng
 
 Query parameter `role` nhận `STUDENT` hoặc `TEACHER`. Không truyền `role` để lấy tất cả người dùng trừ `ADMIN`.
 
@@ -1331,7 +1387,7 @@ Nếu chưa có người dùng (ngoài tài khoản `ADMIN`), API trả về:
 - `403 Forbidden`: Token không có quyền truy cập tài nguyên.
 - `400 Bad Request`: Giá trị `role` không hợp lệ. Chỉ sử dụng `STUDENT` hoặc `TEACHER`; không được sử dụng `ADMIN`.
 
-### GET `/api/users/my-students` | Học sinh của giáo viên hiện tại
+### 31. GET `/api/users/my-students` | Học sinh của giáo viên hiện tại
 
 API xác định giáo viên từ JWT, không cần truyền `teacherId`. Chỉ tài khoản có role `TEACHER` mới được gọi. Response gồm các học sinh thuộc lớp của giáo viên; mỗi học sinh chỉ xuất hiện một lần và có mảng `classes` liệt kê các lớp liên quan. Các lớp được trả về không lọc theo trạng thái.
 
@@ -1382,7 +1438,7 @@ Nếu giáo viên chưa có học sinh thuộc lớp nào, API trả về danh s
 - `403 Forbidden`: Người dùng hiện tại không có role `TEACHER`.
 - `400 Bad Request`: Không tìm thấy người dùng ứng với tài khoản hiện tại.
 
-### GET `/api/users/{userId}` | Người dùng theo ID
+### 30. GET `/api/users/{userId}` | Người dùng theo ID
 
 Trong đó, `{userId}` là ID của người dùng cần xem.
 
@@ -1421,7 +1477,7 @@ curl -X GET http://localhost:8080/api/users/5 \
 - `400 Bad Request`: Không tìm thấy người dùng với `userId` đã cung cấp.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
-### PUT `/api/users/me` | Cập nhật hồ sơ hiện tại
+### 33. PUT `/api/users/me` | Cập nhật hồ sơ hiện tại
 
 API tự xác định người dùng cần cập nhật từ JWT trong header, không cần truyền `userId`.
 
@@ -1486,7 +1542,7 @@ curl -X PUT http://localhost:8080/api/users/me \
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 - `400 Bad Request`: Không tìm thấy người dùng hiện tại.
 
-### PUT `/api/users/me/password` | Đổi mật khẩu
+### 34. PUT `/api/users/me/password` | Đổi mật khẩu
 
 API xác định tài khoản hiện tại từ JWT. Mật khẩu mới phải dài từ 8 đến 100 ký tự và không được trùng mật khẩu hiện tại.
 
@@ -1527,7 +1583,7 @@ curl -X PUT http://localhost:8080/api/users/me/password \
 
 ## Avatar
 
-### POST `/api/users/me/avatar` | Tải avatar
+### 35. POST `/api/users/me/avatar` | Tải avatar
 
 API tự xác định người dùng hiện tại từ JWT, không cần truyền `userId`. Ảnh tải lên sẽ thay avatar hiện tại.
 
@@ -1568,7 +1624,7 @@ Trường `avatar` trong response là URL của ảnh vừa tải lên và đư�
 - File vượt quá giới hạn 2 MB sẽ bị server từ chối.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
-### DELETE `/api/users/me/avatar` | Xóa avatar
+### 36. DELETE `/api/users/me/avatar` | Xóa avatar
 
 API tự xác định người dùng hiện tại từ JWT, xóa file ảnh đại diện đang lưu và đặt trường `avatar` của hồ sơ thành `null`.
 

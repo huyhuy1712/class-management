@@ -59,6 +59,9 @@ public class Exam {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @Column(name = "code", length = 50, nullable = false)
+    private String code;
+
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();

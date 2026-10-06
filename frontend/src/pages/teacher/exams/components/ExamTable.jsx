@@ -90,7 +90,7 @@ function ExamTable({
                       className="text-green-600"
                     />
 
-                    {exam.submissionCount ?? 0}
+                    {exam.submittedCount  ?? 0}
                   </div>
                 </td>
 

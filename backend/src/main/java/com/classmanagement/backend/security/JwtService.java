@@ -30,6 +30,13 @@ public class JwtService {
 
         return Jwts.builder()
                 .subject(userDetails.getUsername())
+                .claim(
+                        "role",
+                        userDetails.getAuthorities().stream()
+                                .findFirst()
+                                .map(authority -> authority.getAuthority())
+                                .orElse("ROLE_USER")
+                )
                 .issuedAt(now)
                 .expiration(expiration)
                 .signWith(getSigningKey())
@@ -51,6 +58,10 @@ public class JwtService {
 
         return username.equals(userDetails.getUsername())
                 && !isTokenExpired(token);
+    }
+
+    public String extractRole(String token) {
+        return extractClaim(token, claims -> claims.get("role", String.class));
     }
 
     private boolean isTokenExpired(String token) {

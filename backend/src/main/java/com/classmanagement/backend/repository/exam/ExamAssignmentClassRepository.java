@@ -5,19 +5,25 @@ import com.classmanagement.backend.entity.compositeID.ExamAssignmentClassId;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 
 public interface ExamAssignmentClassRepository
-        extends JpaRepository<ExamAssignmentClass, ExamAssignmentClassId> {
+                extends JpaRepository<ExamAssignmentClass, ExamAssignmentClassId> {
 
-    @EntityGraph(attributePaths = {
-            "classroom"
-    })
-    List<ExamAssignmentClass> findAllByAssignment_Id(Long assignmentId);
+        @EntityGraph(attributePaths = {
+                        "classroom"
+        })
+        List<ExamAssignmentClass> findAllByAssignment_Id(
+                        Long assignmentId);
 
-    boolean existsByAssignment_IdAndClassroom_Id(
-            Long assignmentId,
-            Long classroomId);
+        List<ExamAssignmentClass> findAllByAssignment_IdIn(
+                        Collection<Long> assignmentIds);
 
-    void deleteAllByAssignment_Id(Long assignmentId);
+        boolean existsByAssignment_IdAndClassroom_Id(
+                        Long assignmentId,
+                        Long classroomId);
+
+        void deleteAllByAssignment_Id(
+                        Long assignmentId);
 }
