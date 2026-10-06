@@ -22,6 +22,7 @@ import com.classmanagement.backend.repository.ClassroomRepository;
 import com.classmanagement.backend.repository.RequestRepository;
 import com.classmanagement.backend.repository.SubjectRepository;
 import com.classmanagement.backend.repository.UserRepository;
+import com.classmanagement.backend.repository.projection.ClassroomSummaryProjection;
 import com.classmanagement.backend.service.ClassroomService;
 import com.classmanagement.backend.service.StorageService;
 import com.classmanagement.backend.service.excel.StudentExcelReader;
@@ -98,10 +99,27 @@ public ClassroomResponse createClassroom(CreateClassroomRequest request) {
 @Transactional(readOnly = true)
 public List<ClassroomResponse> getAllClassrooms() {
 
-        return classroomRepository.findAll()
+        return classroomRepository.findAllSummaries()
                 .stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+private ClassroomResponse toResponse(ClassroomSummaryProjection classroom) {
+        return ClassroomResponse.builder()
+                .id(classroom.getId())
+                .name(classroom.getName())
+                .code(classroom.getCode())
+                .subjectId(classroom.getSubjectId())
+                .subjectName(classroom.getSubjectName())
+                .teacherId(classroom.getTeacherId())
+                .teacherName(classroom.getTeacherName())
+                .academicYear(classroom.getAcademicYear())
+                .description(classroom.getDescription())
+                .status(classroom.getStatus())
+                .createdAt(classroom.getCreatedAt())
+                .updatedAt(classroom.getUpdatedAt())
+                .build();
     }
 
 private ClassroomResponse toResponse(Classroom classroom) {
