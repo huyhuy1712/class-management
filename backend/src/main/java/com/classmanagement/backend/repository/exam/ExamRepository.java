@@ -18,4 +18,9 @@ public interface ExamRepository extends JpaRepository<Exam, Long> {
         Optional<Exam> findByIdAndTeacher_Username(
                         Long id,
                         String username);
+
+        boolean existsByTeacher_UsernameAndCodeAndIdNot(
+                        String username,
+                        String code,
+                        Long id);
 }

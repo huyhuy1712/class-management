@@ -48,4 +48,6 @@ public interface ExamAttemptRepository
         List<ExamAttempt> findAllByAssignment_IdInAndStatusIn(
                         Collection<Long> assignmentIds,
                         Collection<ExamAttemptStatus> statuses);
+
+        boolean existsByAssignment_Exam_Id(Long examId);
 }

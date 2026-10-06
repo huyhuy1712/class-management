@@ -1,15 +1,20 @@
 package com.classmanagement.backend.service.impl;
 
 import com.classmanagement.backend.dto.exam.ExamListResponse;
+import com.classmanagement.backend.dto.exam.ExamUpdateResponse;
+import com.classmanagement.backend.dto.exam.UpdateExamRequest;
 import com.classmanagement.backend.entity.Exam;
 import com.classmanagement.backend.entity.ExamAssignment;
 import com.classmanagement.backend.entity.ExamAssignmentClass;
 import com.classmanagement.backend.entity.ExamAttempt;
+import com.classmanagement.backend.entity.Subject;
 import com.classmanagement.backend.entity.enums.ExamAttemptStatus;
+import com.classmanagement.backend.exception.ConflictException;
 import com.classmanagement.backend.repository.exam.ExamAssignmentClassRepository;
 import com.classmanagement.backend.repository.exam.ExamAssignmentRepository;
 import com.classmanagement.backend.repository.exam.ExamAttemptRepository;
 import com.classmanagement.backend.repository.exam.ExamRepository;
+import com.classmanagement.backend.repository.SubjectRepository;
 import com.classmanagement.backend.service.ExamService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,10 +34,11 @@ public class ExamServiceImpl implements ExamService {
     private final ExamAssignmentRepository examAssignmentRepository;
     private final ExamAssignmentClassRepository examAssignmentClassRepository;
     private final ExamAttemptRepository examAttemptRepository;
+    private final SubjectRepository subjectRepository;
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<ExamListResponse> getMyExams(String username) {
+@Override
+@Transactional(readOnly = true)
+public List<ExamListResponse> getMyExams(String username) {
 
         // Query 1: lấy toàn bộ Exam của teacher hiện tại
         List<Exam> exams = examRepository.findAllByTeacher_Username(username);
@@ -160,11 +166,108 @@ public class ExamServiceImpl implements ExamService {
             long assignedClassCount) {
         return new ExamListResponse(
                 exam.getId(),
+                exam.getSubject() != null
+                        ? exam.getSubject().getId()
+                        : null,
+                exam.getSubject() != null
+                        ? exam.getSubject().getName()
+                        : null,
                 exam.getTitle(),
                 exam.getCode(),
+                exam.getDescription(),
+                exam.getGradeLevel(),
+                exam.getPurpose(),
                 submittedCount,
                 exam.getStatus(),
                 assignedClassCount,
                 exam.getCreatedAt());
     }
+
+@Override
+@Transactional
+public void deleteExam(
+                    Long examId,
+                    String username,
+                    boolean force) {
+            Exam exam = examRepository
+                            .findByIdAndTeacher_Username(examId, username)
+                            .orElseThrow(() -> new IllegalArgumentException(
+                                            "Không tìm thấy đề thi."));
+
+            if (!force) {
+                    boolean hasAttempts = examAttemptRepository
+                                    .existsByAssignment_Exam_Id(examId);
+
+                    if (hasAttempts) {
+                            throw new ConflictException(
+                                            "Đề thi này đã có học sinh làm. "
+                                                            + "Xóa đề sẽ xóa toàn bộ bài làm và kết quả liên quan. "
+                                                            + "Bạn có chắc muốn xóa không?");
+                    }
+            }
+
+            examRepository.delete(exam);
+    }
+
+
+@Override
+@Transactional
+public ExamUpdateResponse updateExam(
+        Long examId,
+        String username,
+        UpdateExamRequest request
+) {
+    Exam exam = examRepository
+            .findByIdAndTeacher_Username(examId, username)
+            .orElseThrow(() ->
+                    new IllegalArgumentException(
+                            "Không tìm thấy đề thi."
+                    )
+            );
+
+    Subject subject = subjectRepository.findById(request.subjectId())
+            .orElseThrow(() -> new IllegalArgumentException(
+                    "Không tìm thấy môn học."));
+
+    exam.setSubject(subject);
+    exam.setTitle(request.title().trim());
+    exam.setDescription(trimToNull(request.description()));
+    exam.setGradeLevel(trimToNull(request.gradeLevel()));
+    exam.setPurpose(trimToNull(request.purpose()));
+
+    Exam updatedExam = examRepository.save(exam);
+
+    return toUpdateResponse(updatedExam);
+}
+
+// helpers methods
+private ExamUpdateResponse toUpdateResponse(Exam exam) {
+        return new ExamUpdateResponse(
+                        exam.getId(),
+                        exam.getSubject() != null
+                                ? exam.getSubject().getId()
+                                : null,
+                        exam.getSubject() != null
+                                ? exam.getSubject().getName()
+                                : null,
+                        exam.getTitle(),
+                        exam.getDescription(),
+                        exam.getGradeLevel(),
+                        exam.getPurpose(),
+                        exam.getStatus());
+}
+
+private String trimToNull(String value) {
+        if (value == null) {
+                return null;
+        }
+
+        String trimmed = value.trim();
+
+        return trimmed.isEmpty()
+                        ? null
+                        : trimmed;
+}
+
+
 }
