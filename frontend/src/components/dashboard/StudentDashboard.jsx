@@ -10,6 +10,7 @@ import {
   ArrowUpRight,
   Users,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import userService from "../../services/userService";
 import useAuthStore from "../../stores/authStore";
 
@@ -218,11 +219,19 @@ function StudentDashboard() {
           {features.map((feature) => {
 
             const Icon = feature.icon;
+            const isImplementedRoute = [
+              "/student/attendance",
+              "/student/classes",
+            ].includes(feature.path);
+            const FeatureLink = isImplementedRoute ? Link : "a";
+            const destinationProps = isImplementedRoute
+              ? { to: feature.path }
+              : { href: feature.path };
 
             return (
-              <a
+              <FeatureLink
                 key={feature.title}
-                href={feature.path}
+                {...destinationProps}
                 className="group relative rounded-2xl border border-[#dcefe3] bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-[#a9dfbe] hover:shadow-md"
               >
 
@@ -251,7 +260,7 @@ function StudentDashboard() {
                   {feature.description}
                 </p>
 
-              </a>
+              </FeatureLink>
             );
           })}
 
@@ -301,12 +310,12 @@ function StudentDashboard() {
                   </p>
                 </div>
               </div>
-              <a
-                href="/student/classes"
+              <Link
+                to="/student/classes"
                 className="shrink-0 rounded-xl bg-[#159447] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#117c3b]"
               >
                 Vào lớp
-              </a>
+              </Link>
             </article>
           ))}
         </div>
