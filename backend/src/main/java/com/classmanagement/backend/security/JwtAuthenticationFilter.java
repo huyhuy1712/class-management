@@ -20,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         private final JwtService jwtService;
+        private final CustomUserDetailsService userDetailsService;
 
         @Override
         protected void doFilterInternal(
@@ -39,17 +40,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         if (username != null
                                         && SecurityContextHolder.getContext().getAuthentication() == null) {
                                 String role = jwtService.extractRole(token);
-                                if (role == null || role.isBlank()) {
-                                        filterChain.doFilter(request, response);
-                                        return;
-                                }
+                                UserDetails userDetails;
 
-                                UserDetails userDetails =
-                                                org.springframework.security.core.userdetails.User
-                                                                .withUsername(username)
-                                                                .authorities(role)
-                                                                .password("")
-                                                                .build();
+                                if (role == null || role.isBlank()) {
+                                        // Support tokens issued before the role claim was added.
+                                        userDetails = userDetailsService
+                                                        .loadUserByUsername(username);
+                                } else {
+                                        userDetails =
+                                                        org.springframework.security.core.userdetails.User
+                                                                        .withUsername(username)
+                                                                        .authorities(role)
+                                                                        .password("")
+                                                                        .build();
+                                }
 
                                 if (jwtService.isTokenValid(token, userDetails)) {
                                         SecurityContextHolder.getContext().setAuthentication(
