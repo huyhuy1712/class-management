@@ -1,6 +1,5 @@
 package com.classmanagement.backend.entity;
 
-import com.classmanagement.backend.entity.enums.ExamAttemptStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -8,42 +7,28 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "exam_attempts", uniqueConstraints = {
-        @UniqueConstraint(name = "uq_exam_attempts_assignment_student", columnNames = { "assignment_id", "student_id" })
+@Table(name = "attempt_section_scores", uniqueConstraints = {
+        @UniqueConstraint(name = "uq_attempt_section_scores_attempt_section", columnNames = { "attempt_id",
+                "section_id" })
 })
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ExamAttempt {
+public class AttemptSectionScore {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "assignment_id", nullable = false)
-    private ExamAssignment assignment;
+    @JoinColumn(name = "attempt_id", nullable = false)
+    private ExamAttempt attempt;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "student_id", nullable = false)
-    private User student;
-
-    @Column(name = "attempt_count", nullable = false)
-    private Integer attemptCount;
-
-    @Column(name = "tab_switch_count", nullable = false)
-    private Integer tabSwitchCount;
-
-    @Column(name = "started_at")
-    private LocalDateTime startedAt;
-
-    @Column(name = "submitted_at")
-    private LocalDateTime submittedAt;
-
-    @Column(name = "duration_seconds")
-    private Integer durationSeconds;
+    @JoinColumn(name = "section_id", nullable = false)
+    private ExamSection section;
 
     @Column(name = "auto_score", nullable = false, precision = 6, scale = 2)
     private BigDecimal autoScore;
@@ -53,13 +38,6 @@ public class ExamAttempt {
 
     @Column(name = "total_score", nullable = false, precision = 6, scale = 2)
     private BigDecimal totalScore;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private ExamAttemptStatus status;
-
-    @Column(name = "teacher_comment", columnDefinition = "TEXT")
-    private String teacherComment;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -77,14 +55,6 @@ public class ExamAttempt {
 
         updatedAt = now;
 
-        if (attemptCount == null) {
-            attemptCount = 0;
-        }
-
-        if (tabSwitchCount == null) {
-            tabSwitchCount = 0;
-        }
-
         if (autoScore == null) {
             autoScore = BigDecimal.ZERO;
         }
@@ -95,10 +65,6 @@ public class ExamAttempt {
 
         if (totalScore == null) {
             totalScore = BigDecimal.ZERO;
-        }
-
-        if (status == null) {
-            status = ExamAttemptStatus.NOT_STARTED;
         }
     }
 

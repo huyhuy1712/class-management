@@ -1,6 +1,6 @@
 package com.classmanagement.backend.entity;
 
-import com.classmanagement.backend.entity.enums.ScoringType;
+import com.classmanagement.backend.entity.enums.AnswerType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -8,25 +8,29 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "questions", uniqueConstraints = {
-        @UniqueConstraint(name = "uq_questions_section_order", columnNames = { "section_id", "order_index" })
+@Table(name = "answers", uniqueConstraints = {
+        @UniqueConstraint(name = "uq_answers_question_order", columnNames = { "question_id", "order_index" })
 })
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Question {
+public class Answer {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "section_id", nullable = false)
-    private ExamSection section;
+    @JoinColumn(name = "question_id", nullable = false)
+    private Question question;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Enumerated(EnumType.STRING)
+    @Column(name = "answer_type", nullable = false, length = 30)
+    private AnswerType answerType;
+
+    @Column(columnDefinition = "TEXT")
     private String content;
 
     @Column(name = "image_url", columnDefinition = "TEXT")
@@ -41,9 +45,14 @@ public class Question {
     @Column(nullable = false, precision = 6, scale = 2)
     private BigDecimal points;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "scoring_type", nullable = false, length = 30)
-    private ScoringType scoringType;
+    @Column(name = "correct_answer_text", columnDefinition = "TEXT")
+    private String correctAnswerText;
+
+    @Column(name = "correct_boolean")
+    private Boolean correctBoolean;
+
+    @Column(name = "case_sensitive", nullable = false)
+    private Boolean caseSensitive;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -65,8 +74,8 @@ public class Question {
             points = BigDecimal.ZERO;
         }
 
-        if (scoringType == null) {
-            scoringType = ScoringType.PER_ANSWER;
+        if (caseSensitive == null) {
+            caseSensitive = false;
         }
     }
 

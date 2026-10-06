@@ -5,8 +5,8 @@ import com.classmanagement.backend.dto.lesson.LessonResponse;
 import com.classmanagement.backend.entity.Classroom;
 import com.classmanagement.backend.entity.Lesson;
 import com.classmanagement.backend.exception.ConflictException;
-import com.classmanagement.backend.repository.ClassroomRepository;
 import com.classmanagement.backend.repository.LessonRepository;
+import com.classmanagement.backend.repository.classroom.ClassroomRepository;
 import com.classmanagement.backend.service.LessonService;
 
 import lombok.RequiredArgsConstructor;

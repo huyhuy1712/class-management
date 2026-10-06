@@ -1,4 +1,4 @@
-package com.classmanagement.backend.entity;
+package com.classmanagement.backend.entity.compositeID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
@@ -12,10 +12,10 @@ import java.io.Serializable;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode
-public class ClassStudentId implements Serializable {
+public class ExamAssignmentStudentId implements Serializable {
 
-    @Column(name = "class_id")
-    private Long classId;
+    @Column(name = "assignment_id")
+    private Long assignmentId;
 
     @Column(name = "student_id")
     private Long studentId;

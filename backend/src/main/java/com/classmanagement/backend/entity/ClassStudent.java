@@ -2,6 +2,7 @@ package com.classmanagement.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import com.classmanagement.backend.entity.compositeID.ClassStudentId;
 
 import java.time.LocalDateTime;
 

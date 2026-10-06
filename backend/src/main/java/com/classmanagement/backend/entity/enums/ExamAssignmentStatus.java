@@ -1,7 +1,8 @@
 package com.classmanagement.backend.entity.enums;
 
-public enum ClassExamStatus {
+public enum ExamAssignmentStatus {
     DRAFT,
-    PUBLISHED,
+    SCHEDULED,
+    OPEN,
     CLOSED
 }

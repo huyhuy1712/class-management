@@ -1,32 +1,30 @@
 package com.classmanagement.backend.entity;
 
-import com.classmanagement.backend.entity.enums.ScoringType;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "questions", uniqueConstraints = {
-        @UniqueConstraint(name = "uq_questions_section_order", columnNames = { "section_id", "order_index" })
+@Table(name = "answer_options", uniqueConstraints = {
+        @UniqueConstraint(name = "uq_answer_options_answer_order", columnNames = { "answer_id", "order_index" })
 })
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Question {
+public class AnswerOption {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "section_id", nullable = false)
-    private ExamSection section;
+    @JoinColumn(name = "answer_id", nullable = false)
+    private Answer answer;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT")
     private String content;
 
     @Column(name = "image_url", columnDefinition = "TEXT")
@@ -35,15 +33,11 @@ public class Question {
     @Column(name = "audio_url", columnDefinition = "TEXT")
     private String audioUrl;
 
+    @Column(name = "is_correct", nullable = false)
+    private Boolean correct;
+
     @Column(name = "order_index", nullable = false)
     private Integer orderIndex;
-
-    @Column(nullable = false, precision = 6, scale = 2)
-    private BigDecimal points;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "scoring_type", nullable = false, length = 30)
-    private ScoringType scoringType;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -61,12 +55,8 @@ public class Question {
 
         updatedAt = now;
 
-        if (points == null) {
-            points = BigDecimal.ZERO;
-        }
-
-        if (scoringType == null) {
-            scoringType = ScoringType.PER_ANSWER;
+        if (correct == null) {
+            correct = false;
         }
     }
 

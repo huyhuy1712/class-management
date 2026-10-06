@@ -1,4 +1,4 @@
-package com.classmanagement.backend.repository;
+package com.classmanagement.backend.repository.request;
 
 import com.classmanagement.backend.entity.ClassJoinRequestDetail;
 import com.classmanagement.backend.entity.enums.RequestStatus;

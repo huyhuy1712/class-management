@@ -1,4 +1,4 @@
-package com.classmanagement.backend.repository;
+package com.classmanagement.backend.repository.classroom;
 
 import com.classmanagement.backend.entity.Classroom;
 import com.classmanagement.backend.repository.projection.ClassroomSummaryProjection;

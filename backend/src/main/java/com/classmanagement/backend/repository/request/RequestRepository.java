@@ -1,4 +1,4 @@
-package com.classmanagement.backend.repository;
+package com.classmanagement.backend.repository.request;
 
 import com.classmanagement.backend.entity.Request;
 import org.springframework.data.jpa.repository.JpaRepository;

@@ -9,8 +9,8 @@ import com.classmanagement.backend.entity.ClassStudent;
 import com.classmanagement.backend.entity.Classroom;
 import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.entity.enums.UserRole;
-import com.classmanagement.backend.repository.ClassStudentRepository;
 import com.classmanagement.backend.repository.UserRepository;
+import com.classmanagement.backend.repository.classroom.ClassStudentRepository;
 import com.classmanagement.backend.service.StorageService;
 import com.classmanagement.backend.service.UserService;
 
