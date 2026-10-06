@@ -9,3 +9,7 @@ export const signup = async (data) => {
   const response = await api.post('/auth/signup', data)
   return response.data
 }
+
+export const logout = async () => {
+  await api.post('/auth/logout')
+}

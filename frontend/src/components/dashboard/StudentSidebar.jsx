@@ -11,6 +11,7 @@ import {
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import useAuthStore from '../../stores/authStore'
+import { logout as logoutRequest } from '../../services/authService'
 import logo from '../../assets/logos/logo.png'
 
 const menuItems = [
@@ -28,10 +29,14 @@ function Sidebar({ isOpen, onClose }) {
   const [showLogoutModal, setShowLogoutModal] = useState(false)
 
   const handleLogout = () => {
-    logout()
-    setShowLogoutModal(false)
-    onClose?.()
-    navigate('/login', { replace: true })
+    logoutRequest()
+      .catch((error) => console.error('Logout error:', error))
+      .finally(() => {
+        logout()
+        setShowLogoutModal(false)
+        onClose?.()
+        navigate('/login', { replace: true })
+      })
   }
 
   return (

@@ -77,7 +77,8 @@ public class SecurityConfig {
                         // Auth public
                         .requestMatchers(
                                 "/api/auth/signup",
-                                "/api/auth/login")
+                                "/api/auth/login",
+                                "/api/auth/logout")
                         .permitAll()
 
                         // TẤT CẢ API CÒN LẠI PHẢI LOGIN
@@ -124,6 +125,7 @@ public class SecurityConfig {
                 "OPTIONS"));
 
         configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();

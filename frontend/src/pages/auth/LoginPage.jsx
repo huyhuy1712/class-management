@@ -87,7 +87,7 @@ function LoginPage() {
         status: data.status,
       }
 
-      setAuth(user, data.accessToken)
+      setAuth(user)
 
       if (data.role === 'TEACHER') {
         navigate('/teacher')

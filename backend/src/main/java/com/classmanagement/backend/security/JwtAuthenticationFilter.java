@@ -10,6 +10,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -27,52 +28,46 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         HttpServletResponse response,
                         FilterChain filterChain) throws ServletException, IOException {
 
-                String authHeader = request.getHeader("Authorization");
-
-                // Nếu không có Bearer token thì bỏ qua filter này
-                if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                String token = extractToken(request);
+                if (token == null) {
                         filterChain.doFilter(request, response);
                         return;
                 }
-
-                // Lấy chuỗi JWT (bỏ qua "Bearer ")
-                String token = authHeader.substring(7);
-                String username;
 
                 try {
-                        // Đọc username từ JWT
-                        username = jwtService.extractUsername(token);
-                } catch (Exception ex) {
-                        // Bỏ qua nếu token lỗi/hết hạn
-                        filterChain.doFilter(request, response);
-                        return;
-                }
+                        String username = jwtService.extractUsername(token);
 
-                // Chỉ authenticate nếu JWT hợp lệ và SecurityContext chưa được xác thực
-                if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                        UserDetails userDetails;
+                        if (username != null
+                                        && SecurityContextHolder.getContext().getAuthentication() == null) {
+                                UserDetails userDetails =
+                                                userDetailsService.loadUserByUsername(username);
 
-                        try {
-                                userDetails = userDetailsService.loadUserByUsername(username);
-                        } catch (Exception ex) {
-                                filterChain.doFilter(request, response);
-                                return;
-                        }
-
-                        try {
                                 if (jwtService.isTokenValid(token, userDetails)) {
-                                        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                                                        userDetails,
-                                                        null,
-                                                        userDetails.getAuthorities());
-
-                                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                                        SecurityContextHolder.getContext().setAuthentication(
+                                                        new UsernamePasswordAuthenticationToken(
+                                                                        userDetails,
+                                                                        null,
+                                                                        userDetails.getAuthorities()));
                                 }
-                        } catch (Exception ex) {
-                                // Bỏ qua ngoại lệ xác thực JWT
                         }
+                } catch (Exception ignored) {
+                        SecurityContextHolder.clearContext();
                 }
 
                 filterChain.doFilter(request, response);
+        }
+
+        private String extractToken(HttpServletRequest request) {
+                if (request.getCookies() == null) {
+                        return null;
+                }
+
+                for (Cookie cookie : request.getCookies()) {
+                        if ("access_token".equals(cookie.getName())) {
+                                return cookie.getValue();
+                        }
+                }
+
+                return null;
         }
 }

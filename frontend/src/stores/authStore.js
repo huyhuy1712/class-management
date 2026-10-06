@@ -8,15 +8,15 @@ const getStoredUser = () => {
 
 const useAuthStore = create((set, get) => ({
   user: getStoredUser(),
-  token: localStorage.getItem('accessToken'),
+  token: null,
 
-  setAuth: (user, token) => {
-    localStorage.setItem('accessToken', token)
+  setAuth: (user) => {
+    localStorage.removeItem('accessToken')
     localStorage.setItem('user', JSON.stringify(user))
 
     set({
       user,
-      token,
+      token: null,
     })
   },
 
