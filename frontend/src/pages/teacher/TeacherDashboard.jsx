@@ -15,7 +15,6 @@ import FeatureCard from '../../components/dashboard/FeatureCard'
 import useAuthStore from '../../stores/authStore'
 import classroomService from '../../services/classroomService'
 import userService from '../../services/userService'
-import defaultAvatar from '../../assets/images/avatar_default.png'
 
 const features = [
   {

@@ -446,11 +446,12 @@ const handleChangePassword = async (event) => {
       )}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
-        {/* EDIT PROFILE */}
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-2xl border border-green-100 bg-white p-6 shadow-sm"
-        >
+        <div className="space-y-6">
+          {/* EDIT PROFILE */}
+          <form
+            onSubmit={handleSubmit}
+            className="rounded-2xl border border-green-100 bg-white p-6 shadow-sm lg:self-start"
+          >
           <div className="border-b border-gray-100 pb-5">
             <h2 className="text-lg font-bold text-[#18301D]">
               Thông tin cá nhân
@@ -581,7 +582,46 @@ const handleChangePassword = async (event) => {
               </button>
              </div>
           </div>
-        </form>
+          </form>
+
+          <button
+            type="button"
+            onClick={() => {
+              setPasswordError('')
+              setPasswordSuccess('')
+              setShowPasswordModal(true)
+            }}
+            className="group flex w-full items-center justify-between rounded-2xl border border-green-100 bg-white px-5 py-4 text-left shadow-sm transition-all duration-200 hover:border-green-300 hover:shadow-md"
+          >
+            <div className="flex min-w-0 items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-green-50 text-green-700 transition-colors duration-200 group-hover:bg-green-100">
+                <LockKeyhole size={21} strokeWidth={2} />
+              </div>
+
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-[#18301D]">
+                  Đổi mật khẩu
+                </p>
+
+                <p className="mt-1 text-xs leading-5 text-gray-500">
+                  Cập nhật mật khẩu để tăng cường bảo mật tài khoản
+                </p>
+              </div>
+            </div>
+
+            <div className="ml-4 flex shrink-0 items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-green-50 text-green-700 transition-all duration-200 group-hover:translate-x-1 group-hover:bg-green-100">
+                <ChevronRight size={18} />
+              </div>
+            </div>
+          </button>
+
+          {passwordSuccess && (
+            <p role="status" className="text-sm text-green-700">
+              {passwordSuccess}
+            </p>
+          )}
+        </div>
 
         {/* ACCOUNT INFO */}
         <section className="rounded-2xl border border-green-100 bg-white p-5 shadow-sm">
@@ -695,45 +735,6 @@ const handleChangePassword = async (event) => {
         </div>
       </section>
 
-      <button
-          type="button"
-          onClick={() => {
-            setPasswordError('')
-            setPasswordSuccess('')
-            setShowPasswordModal(true)
-          }}
-          className="group flex w-full items-center justify-between rounded-2xl border border-green-100 bg-white px-5 py-4 text-left shadow-sm transition-all duration-200 hover:border-green-300 hover:shadow-md"
-        >
-          {/* Left */}
-          <div className="flex min-w-0 items-center gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-green-50 text-green-700 transition-colors duration-200 group-hover:bg-green-100">
-              <LockKeyhole size={21} strokeWidth={2} />
-            </div>
-
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-[#18301D]">
-                Đổi mật khẩu
-              </p>
-
-              <p className="mt-1 text-xs leading-5 text-gray-500">
-                Cập nhật mật khẩu để tăng cường bảo mật tài khoản
-              </p>
-            </div>
-          </div>
-
-          {/* Right */}
-          <div className="ml-4 flex shrink-0 items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-green-50 text-green-700 transition-all duration-200 group-hover:translate-x-1 group-hover:bg-green-100">
-              <ChevronRight size={18} />
-            </div>
-          </div>
-      </button>
-
-      {passwordSuccess && (
-        <p role="status" className="text-sm text-green-700">
-          {passwordSuccess}
-        </p>
-      )}
 
       {showPasswordModal && (
         <div

@@ -12,6 +12,8 @@ import GradesTab from '../pages/teacher/classroom/tabs/GradesTab'
 import AttendanceTab from '../pages/teacher/classroom/tabs/AttendanceTab'
 import StudentDetailPage from '../pages/teacher/classroom/StudentDetailPage'
 import TeacherProfilePage from '../pages/teacher/TeacherProfilePage'
+import ExamManagementPage from '../pages/teacher/exams/ExamManagementPage'
+import ExamDetailPage from '../pages/teacher/exams/ExamDetailPage'
 
 function AppRoutes() {
   return (
@@ -57,6 +59,16 @@ function AppRoutes() {
       {/* Nested Route classDetail studentDetail */}
       <Route path="students/:studentId" element={<StudentDetailPage />} />
     </Route>
+
+      {/* Route exam management */}
+      <Route
+        path="/teacher/exams"
+        element={<ExamManagementPage />}
+    />
+    <Route
+      path="/teacher/exams/:examId"
+      element={<ExamDetailPage />}
+    />
 
     </Routes>
   )
