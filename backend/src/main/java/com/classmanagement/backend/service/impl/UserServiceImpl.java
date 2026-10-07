@@ -188,9 +188,10 @@ public List<TeacherStudentResponse> getMyStudents(String username) {
                                 .studentCode(student.getStudentCode())
                                 .status(student.getStatus())
                                 .avatar(
-                                        storageService.getUrl(
-                                                student.getAvatar()
-                                        )
+                                        student.getAvatar() != null
+                                                && !student.getAvatar().isBlank()
+                                                ? storageService.getUrl(student.getAvatar())
+                                                : null
                                 )
                                 .classes(new ArrayList<>())
                                 .build()

@@ -13,6 +13,10 @@ import EditExamModal from './modals/EditExamModal'
 import useDeleteExam from './hooks/useDeleteExam'
 import useUpdateExam from './hooks/useUpdateExam'
 import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import examService from '../../../services/examService'
+import EditExamModal from './components/EditExamModal'
+import DeleteExamModal from './components/DeleteExamModal'
 
 
 function ExamManagementPage() {
@@ -40,17 +44,12 @@ function ExamManagementPage() {
 })
 
   const navigate = useNavigate()
-
-  const {
-    editTarget,
-    updating,
-    updateError,
-    openEditModal,
-    closeEditModal,
-    updateExam,
-  } = useUpdateExam({
-    onUpdated: refetch,
-  })
+  const [editingExam, setEditingExam] = useState(null)
+  const [deletingExam, setDeletingExam] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [actionError, setActionError] = useState('')
+  const [forceDelete, setForceDelete] = useState(false)
 
   const {
     search,
@@ -66,7 +65,7 @@ function ExamManagementPage() {
   } = useExamFilters(exams)
 
   const handleCreate = () => {
-    console.log('Create exam')
+  navigate('/teacher/exams/create')
   }
 
   const handleView = (exam) => {
@@ -74,12 +73,55 @@ function ExamManagementPage() {
 }
 
   const handleEdit = (exam) => {
-    openEditModal(exam)
+    setActionError('')
+    setEditingExam(exam)
+  }
+
+  const handleSaveEdit = async (payload) => {
+    try {
+      setSaving(true)
+      setActionError('')
+      await examService.updateExam(editingExam.id, payload)
+      setEditingExam(null)
+      await refetch()
+    } catch (updateError) {
+      setActionError(
+        updateError.response?.data?.message ||
+          'Không thể cập nhật đề thi. Vui lòng thử lại.',
+      )
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleDelete = (exam) => {
-  openDeleteModal(exam)
-}
+    setActionError('')
+    setForceDelete(false)
+    setDeletingExam(exam)
+  }
+
+  const handleConfirmDelete = async () => {
+    try {
+      setDeleting(true)
+      setActionError('')
+      await examService.deleteExam(deletingExam.id, forceDelete)
+      setDeletingExam(null)
+      setForceDelete(false)
+      await refetch()
+    } catch (deleteError) {
+      if (deleteError.response?.status === 409 && !forceDelete) {
+        setForceDelete(true)
+        setActionError('')
+        return
+      }
+      setActionError(
+        deleteError.response?.data?.message ||
+          'Không thể xóa đề thi. Vui lòng thử lại.',
+      )
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   return (
     <DashboardLayout>
@@ -234,24 +276,24 @@ function ExamManagementPage() {
           )}
       </div>
 
-  <DeleteExamModal
-  open={Boolean(deleteTarget)}
-  exam={deleteTarget}
-  force={forceDelete}
-  loading={deleting}
-  error={deleteError}
-  onClose={closeDeleteModal}
-  onConfirm={confirmDelete}
-/>
-  <EditExamModal
-    open={Boolean(editTarget)}
-    exam={editTarget}
-    loading={updating}
-    error={updateError}
-    onClose={closeEditModal}
-    onSubmit={updateExam}
-  />
+      <EditExamModal
+        exam={editingExam}
+        open={Boolean(editingExam)}
+        saving={saving}
+        error={editingExam ? actionError : ''}
+        onClose={() => { if (!saving) { setEditingExam(null); setActionError('') } }}
+        onSave={handleSaveEdit}
+      />
 
+      <DeleteExamModal
+        exam={deletingExam}
+        open={Boolean(deletingExam)}
+        deleting={deleting}
+        forceRequired={forceDelete}
+        error={deletingExam ? actionError : ''}
+        onClose={() => { if (!deleting) { setDeletingExam(null); setForceDelete(false); setActionError('') } }}
+        onConfirm={handleConfirmDelete}
+      />
     </DashboardLayout>
 
   )

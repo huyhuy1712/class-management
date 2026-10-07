@@ -21,16 +21,16 @@ function Header({ onMenuClick }) {
         <Menu size={22} />
       </button>
 
-      <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+      <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden sm:gap-4">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-green-100 bg-green-50 p-1.5 shadow-sm shadow-green-900/5 sm:h-12 sm:w-12">
           <img src={logo} alt="FrogH" className="h-full w-full object-contain" />
         </div>
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
           <h1 className="truncate text-lg font-extrabold text-[#18301D] sm:text-xl">
             FrogH
           </h1>
           <span className="hidden h-6 w-px bg-green-100 sm:block" />
-          <span className="hidden text-xs font-semibold uppercase text-green-700 sm:block">
+          <span className="hidden min-w-0 flex-1 truncate text-xs font-semibold uppercase text-green-700 sm:block">
             Tôi tạo ra web này chỉ dành cho cô ấy mặc dù cô ấy đã có bồ mới và cần web này để dạy học nên tôi làm miễn phí cho cô ấy
           </span>
         </div>

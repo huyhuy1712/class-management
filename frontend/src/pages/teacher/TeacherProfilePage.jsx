@@ -20,6 +20,7 @@ import useAuthStore from '../../stores/authStore'
 import userService from '../../services/userService'
 import defaultAvatar from '../../assets/images/avatar_default.png'
 import classroomService from '../../services/classroomService'
+import { optimizeAvatar } from './helpers/avatarImageUtils'
 
 function TeacherProfilePage() {
   const user = useAuthStore((state) => state.user)
@@ -86,6 +87,7 @@ const avatarInputRef = useRef(null)
 const fullNameInputRef = useRef(null)
 const emailInputRef = useRef(null)
 const phoneInputRef = useRef(null)
+const avatarPreviewUrlRef = useRef(null)
 const [avatarPreview, setAvatarPreview] = useState(
     user?.avatar && user.avatar !== 'avatar'
       ? user.avatar
@@ -155,20 +157,35 @@ const handleAvatarChange = async (event) => {
     return
   }
 
+  const localPreviewUrl = URL.createObjectURL(file)
+  if (avatarPreviewUrlRef.current) URL.revokeObjectURL(avatarPreviewUrlRef.current)
+  avatarPreviewUrlRef.current = localPreviewUrl
+  setAvatarPreview(localPreviewUrl)
+
   try {
     setUploadingAvatar(true)
 
-    const data = await userService.uploadAvatar(file)
+    const optimizedFile = await optimizeAvatar(file)
+    const data = await userService.uploadAvatar(optimizedFile)
 
     updateUser({
       avatar: data.avatar,
     })
+    if (avatarPreviewUrlRef.current) {
+      URL.revokeObjectURL(avatarPreviewUrlRef.current)
+      avatarPreviewUrlRef.current = null
+    }
     setAvatarPreview(data.avatar)
 
     setAvatarSuccess(
       'Cập nhật ảnh đại diện thành công.'
     )
   } catch (err) {
+    if (avatarPreviewUrlRef.current) {
+      URL.revokeObjectURL(avatarPreviewUrlRef.current)
+      avatarPreviewUrlRef.current = null
+    }
+    setAvatarPreview(user?.avatar && user.avatar !== 'avatar' ? user.avatar : defaultAvatar)
     setAvatarError(
       err.response?.data?.message ||
       'Không thể tải ảnh lên. Vui lòng thử lại.'
