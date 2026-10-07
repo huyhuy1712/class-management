@@ -2,10 +2,13 @@ package com.classmanagement.backend.entity;
 
 import com.classmanagement.backend.entity.enums.ExamAssignmentStatus;
 import com.classmanagement.backend.entity.enums.ExamAssignmentType;
+import com.classmanagement.backend.entity.enums.AnswerVisibility;
+import com.classmanagement.backend.entity.enums.ScoreVisibility;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 
 @Entity
 @Table(name = "exam_assignments")
@@ -44,6 +47,20 @@ public class ExamAssignment {
     @Column(nullable = false, length = 20)
     private ExamAssignmentStatus status;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "score_visibility", nullable = false, length = 30)
+    private ScoreVisibility scoreVisibility;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "answer_visibility", nullable = false, length = 30)
+    private AnswerVisibility answerVisibility;
+
+    @Column(name = "answer_visibility_score", precision = 6, scale = 2)
+    private BigDecimal answerVisibilityScore;
+
+    @Column(name = "hide_correct_answer_on_wrong", nullable = false)
+    private Boolean hideCorrectAnswerOnWrong;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -62,6 +79,18 @@ public class ExamAssignment {
 
         if (status == null) {
             status = ExamAssignmentStatus.DRAFT;
+        }
+
+        if (scoreVisibility == null) {
+            scoreVisibility = ScoreVisibility.NEVER;
+        }
+
+        if (answerVisibility == null) {
+            answerVisibility = AnswerVisibility.NEVER;
+        }
+
+        if (hideCorrectAnswerOnWrong == null) {
+            hideCorrectAnswerOnWrong = false;
         }
     }
 
