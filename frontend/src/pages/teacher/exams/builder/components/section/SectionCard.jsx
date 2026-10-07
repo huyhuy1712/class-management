@@ -4,7 +4,7 @@ import { getSectionScore } from '../../helpers/examScoreUtils'
 import QuestionCard from '../question/QuestionCard'
 import MediaFilePicker from '../common/MediaFilePicker'
 
-function SectionCard({ section, index, actions }) {
+function SectionCard({ section, index, actions, validationErrors = {} }) {
   const score = getSectionScore(section)
 
   return (
