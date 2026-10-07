@@ -45,6 +45,10 @@ function SectionCard({ section, index, actions }) {
               addChoice: () => actions.addGroupChoice(section.id, question.id, groupId),
               updateAnswer: (answerId, changes) => actions.updateGroupAnswer(section.id, question.id, groupId, answerId, changes),
               removeAnswer: (answerId) => actions.removeGroupAnswer(section.id, question.id, groupId, answerId),
+              updateGroup: (changes) => actions.updateAnswerGroup(section.id, question.id, groupId, changes),
+              addScoringRule: () => actions.addScoringRule(section.id, question.id, groupId),
+              updateScoringRule: (ruleId, changes) => actions.updateScoringRule(section.id, question.id, groupId, ruleId, changes),
+              removeScoringRule: (ruleId) => actions.removeScoringRule(section.id, question.id, groupId, ruleId),
             })}
           />
         ))}
