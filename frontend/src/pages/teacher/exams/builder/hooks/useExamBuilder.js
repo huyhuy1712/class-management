@@ -19,21 +19,21 @@ function useExamBuilder() {
   const removeAnswerGroup = (sectionId, questionId, groupId) => mapQuestion(sectionId, questionId, (q) => ({ ...q, answerGroups: q.answerGroups.filter((g) => g.id !== groupId) }))
   const setAnswerGroupType = (sectionId, questionId, groupId, type) => mapGroup(sectionId, questionId, groupId, (g) => {
     if (!type) return { ...g, answerType: null, answers: [] }
-    if (type === 'TRUE_FALSE') return { ...g, answerType: type, answers: [createAnswer(type, 0), createAnswer(type, 1)] }
+    if (type === 'TRUE_FALSE') return { ...g, answerType: type, choiceMode: 'MULTIPLE', answers: [] }
     if (type === 'CHOICE') return { ...g, answerType: type, choiceMode: 'SINGLE', answers: [] }
     return { ...g, answerType: type, answers: [createAnswer(type, 0)] }
   })
   const setGroupChoiceCount = (sectionId, questionId, groupId, count) => mapGroup(sectionId, questionId, groupId, (g) => {
     const size = Math.max(0, Math.min(50, Number(count) || 0))
-    return { ...g, answers: Array.from({ length: size }, (_, i) => g.answers[i] ?? createAnswer('CHOICE', i)).map((a, i) => ({ ...a, orderIndex: i + 1 })) }
+    return { ...g, answers: Array.from({ length: size }, (_, i) => g.answers[i] ?? createAnswer(g.answerType, i)).map((a, i) => ({ ...a, orderIndex: i + 1 })) }
   })
   const setGroupChoiceMode = (sectionId, questionId, groupId, mode) => mapGroup(sectionId, questionId, groupId, (g) => {
     const firstCorrect = g.answers.findIndex((a) => a.isCorrect)
     return { ...g, choiceMode: mode, answers: mode === 'SINGLE' ? g.answers.map((a, i) => ({ ...a, isCorrect: i === firstCorrect && a.isCorrect })) : g.answers }
   })
-  const addGroupChoice = (sectionId, questionId, groupId) => mapGroup(sectionId, questionId, groupId, (g) => ({ ...g, answers: [...g.answers, createAnswer('CHOICE', g.answers.length)] }))
+  const addGroupChoice = (sectionId, questionId, groupId) => mapGroup(sectionId, questionId, groupId, (g) => ({ ...g, answers: [...g.answers, createAnswer(g.answerType, g.answers.length)] }))
   const updateGroupAnswer = (sectionId, questionId, groupId, answerId, changes) => mapGroup(sectionId, questionId, groupId, (g) => ({
-    ...g, answers: g.answers.map((a) => changes.isCorrect === true && g.answerType === 'CHOICE' && g.choiceMode === 'SINGLE' ? { ...a, isCorrect: a.id === answerId } : a.id === answerId ? { ...a, ...changes } : a),
+    ...g, answers: g.answers.map((a) => changes.isCorrect === true && (g.answerType === 'CHOICE' || g.answerType === 'TRUE_FALSE') && g.choiceMode === 'SINGLE' ? { ...a, isCorrect: a.id === answerId } : a.id === answerId ? { ...a, ...changes } : a),
   }))
   const removeGroupAnswer = (sectionId, questionId, groupId, answerId) => mapGroup(sectionId, questionId, groupId, (g) => ({ ...g, answers: g.answers.filter((a) => a.id !== answerId) }))
 
