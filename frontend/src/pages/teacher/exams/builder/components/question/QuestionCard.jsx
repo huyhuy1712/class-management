@@ -4,7 +4,7 @@ import AnswerTypeSelector from '../answer/AnswerTypeSelector'
 import MediaFilePicker from '../common/MediaFilePicker'
 import MathContentInput from '../math/MathContentInput'
 
-function QuestionCard({ question, index, onChange, onRemove, onSetAnswerType, onSetChoiceCount, onSetChoiceMode, onUpdateAnswer, onRemoveAnswer }) {
+function QuestionCard({ question, index, onChange, onRemove, onSetAnswerType, onSetChoiceCount, onSetChoiceMode, onAddAnswer, onUpdateAnswer, onRemoveAnswer }) {
   const isChoice = question.answerMode === 'CHOICE'
   return (
     <div id={`question-${question.id}`} className="rounded-[18px] border border-slate-200/80 bg-slate-50/70 p-4 shadow-[0_4px_14px_rgba(31,56,45,0.04)]">
@@ -44,7 +44,12 @@ function QuestionCard({ question, index, onChange, onRemove, onSetAnswerType, on
                 </div>
               </div>
             )}
-            {question.answers.map((answer) => <AnswerEditor key={answer.id} answer={answer} selectable={isChoice || question.answerMode==='TRUE_FALSE'} onChange={(changes)=>onUpdateAnswer(answer.id,changes)} onRemove={isChoice ? undefined : ()=>onRemoveAnswer(answer.id)}/>)}
+            {question.answers.map((answer) => <AnswerEditor key={answer.id} answer={answer} selectable={isChoice || question.answerMode==='TRUE_FALSE'} onChange={(changes)=>onUpdateAnswer(answer.id,changes)} onRemove={question.answerMode === 'TRUE_FALSE' ? undefined : ()=>onRemoveAnswer(answer.id)}/>)}
+            {question.answerMode !== 'TRUE_FALSE' && (
+              <button type="button" onClick={onAddAnswer} className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-emerald-300 bg-emerald-50/40 py-2.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50">
+                + Thêm đáp án
+              </button>
+            )}
           </div>
         )}
       </div>
