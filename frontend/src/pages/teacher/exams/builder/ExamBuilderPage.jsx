@@ -48,7 +48,7 @@ function ExamBuilderPage() {
               <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 px-4 py-2.5 text-sm font-bold text-emerald-700">
                 Tổng điểm: {builder.totalScore}
               </div>
-              <button type="button" className="flex cursor-pointer items-center gap-2 rounded-xl bg-[#159a68] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#11845a]">
+              <button type="button" onClick={handleSaveDraft} className="flex cursor-pointer items-center gap-2 rounded-xl bg-[#159a68] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#11845a]">
                 <Save size={17} />
                 Lưu nháp
               </button>
@@ -66,7 +66,8 @@ function ExamBuilderPage() {
               onRemoveAnswerGroup={builder.removeAnswerGroup}
             />
 
-            <main className="min-h-0 overflow-y-auto rounded-[22px] border border-slate-200/80 bg-white/70 p-4 pr-3 shadow-[0_8px_24px_rgba(31,56,45,0.04)] [scrollbar-color:#a7d9bf_transparent] [scrollbar-width:thin] sm:p-5">
+            <main id="builder-root" className="min-h-0 overflow-y-auto rounded-[22px] border border-slate-200/80 bg-white/70 p-4 pr-3 shadow-[0_8px_24px_rgba(31,56,45,0.04)] [scrollbar-color:#a7d9bf_transparent] [scrollbar-width:thin] sm:p-5">
+              {validationErrors['builder-root'] && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">{validationErrors['builder-root']}</div>}
               {builder.sections.length === 0 ? (
                 <div className="flex min-h-[460px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
                   <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
