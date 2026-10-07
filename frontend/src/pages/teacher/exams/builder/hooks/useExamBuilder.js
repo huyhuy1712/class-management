@@ -1,71 +1,42 @@
 import { useMemo, useState } from 'react'
-
-import { createAnswer, createQuestion, createSection } from '../helpers/examBuilderConstants'
+import { createAnswer, createAnswerGroup, createQuestion, createSection } from '../helpers/examBuilderConstants'
 import { getExamScore } from '../helpers/examScoreUtils'
 
 function useExamBuilder() {
   const [sections, setSections] = useState([])
   const totalScore = useMemo(() => getExamScore(sections), [sections])
+  const mapQuestion = (sectionId, questionId, updater) => setSections((current) => current.map((section) => section.id !== sectionId ? section : ({ ...section, questions: section.questions.map((q) => q.id === questionId ? updater(q) : q) })))
+  const mapGroup = (sectionId, questionId, groupId, updater) => mapQuestion(sectionId, questionId, (q) => ({ ...q, answerGroups: q.answerGroups.map((g) => g.id === groupId ? updater(g) : g) }))
 
-  const addSection = () => setSections((current) => [...current, createSection(current.length)])
-  const updateSection = (sectionId, changes) => setSections((current) => current.map((section) => section.id === sectionId ? { ...section, ...changes } : section))
-  const removeSection = (sectionId) => setSections((current) => current.filter((section) => section.id !== sectionId))
+  const addSection = () => setSections((c) => [...c, createSection(c.length)])
+  const updateSection = (id, changes) => setSections((c) => c.map((s) => s.id === id ? { ...s, ...changes } : s))
+  const removeSection = (id) => setSections((c) => c.filter((s) => s.id !== id))
+  const addQuestion = (sectionId) => setSections((c) => c.map((s) => s.id === sectionId ? { ...s, questions: [...s.questions, createQuestion(s.questions.length)] } : s))
+  const updateQuestion = (sectionId, questionId, changes) => mapQuestion(sectionId, questionId, (q) => ({ ...q, ...changes }))
+  const removeQuestion = (sectionId, questionId) => setSections((c) => c.map((s) => s.id === sectionId ? { ...s, questions: s.questions.filter((q) => q.id !== questionId) } : s))
 
-  const addQuestion = (sectionId) => setSections((current) => current.map((section) => section.id === sectionId ? { ...section, questions: [...section.questions, createQuestion(section.questions.length)] } : section))
-  const updateQuestion = (sectionId, questionId, changes) => setSections((current) => current.map((section) => section.id === sectionId ? { ...section, questions: section.questions.map((question) => question.id === questionId ? { ...question, ...changes } : question) } : section))
-  const removeQuestion = (sectionId, questionId) => setSections((current) => current.map((section) => section.id === sectionId ? { ...section, questions: section.questions.filter((question) => question.id !== questionId) } : section))
-
-  const setAnswerType = (sectionId, questionId, type) => setSections((current) => current.map((section) => section.id !== sectionId ? section : {
-    ...section,
-    questions: section.questions.map((question) => {
-      if (question.id !== questionId) return question
-      if (type === 'CHOICE') return { ...question, answerMode: type, choiceMode: 'SINGLE', answers: [] }
-      if (type === 'TRUE_FALSE') return { ...question, answerMode: type, answers: [createAnswer('TRUE_FALSE', 0), createAnswer('TRUE_FALSE', 1)] }
-      return { ...question, answerMode: type, answers: [createAnswer(type, 0)] }
-    }),
+  const addAnswerGroup = (sectionId, questionId) => mapQuestion(sectionId, questionId, (q) => ({ ...q, answerGroups: [...q.answerGroups, createAnswerGroup(q.answerGroups.length)] }))
+  const removeAnswerGroup = (sectionId, questionId, groupId) => mapQuestion(sectionId, questionId, (q) => ({ ...q, answerGroups: q.answerGroups.filter((g) => g.id !== groupId) }))
+  const setAnswerGroupType = (sectionId, questionId, groupId, type) => mapGroup(sectionId, questionId, groupId, (g) => {
+    if (!type) return { ...g, answerType: null, answers: [] }
+    if (type === 'TRUE_FALSE') return { ...g, answerType: type, answers: [createAnswer(type, 0), createAnswer(type, 1)] }
+    if (type === 'CHOICE') return { ...g, answerType: type, choiceMode: 'SINGLE', answers: [] }
+    return { ...g, answerType: type, answers: [createAnswer(type, 0)] }
+  })
+  const setGroupChoiceCount = (sectionId, questionId, groupId, count) => mapGroup(sectionId, questionId, groupId, (g) => {
+    const size = Math.max(0, Math.min(50, Number(count) || 0))
+    return { ...g, answers: Array.from({ length: size }, (_, i) => g.answers[i] ?? createAnswer('CHOICE', i)).map((a, i) => ({ ...a, orderIndex: i + 1 })) }
+  })
+  const setGroupChoiceMode = (sectionId, questionId, groupId, mode) => mapGroup(sectionId, questionId, groupId, (g) => {
+    const firstCorrect = g.answers.findIndex((a) => a.isCorrect)
+    return { ...g, choiceMode: mode, answers: mode === 'SINGLE' ? g.answers.map((a, i) => ({ ...a, isCorrect: i === firstCorrect && a.isCorrect })) : g.answers }
+  })
+  const addGroupChoice = (sectionId, questionId, groupId) => mapGroup(sectionId, questionId, groupId, (g) => ({ ...g, answers: [...g.answers, createAnswer('CHOICE', g.answers.length)] }))
+  const updateGroupAnswer = (sectionId, questionId, groupId, answerId, changes) => mapGroup(sectionId, questionId, groupId, (g) => ({
+    ...g, answers: g.answers.map((a) => changes.isCorrect === true && g.answerType === 'CHOICE' && g.choiceMode === 'SINGLE' ? { ...a, isCorrect: a.id === answerId } : a.id === answerId ? { ...a, ...changes } : a),
   }))
+  const removeGroupAnswer = (sectionId, questionId, groupId, answerId) => mapGroup(sectionId, questionId, groupId, (g) => ({ ...g, answers: g.answers.filter((a) => a.id !== answerId) }))
 
-  const setChoiceCount = (sectionId, questionId, count) => setSections((current) => current.map((section) => section.id !== sectionId ? section : {
-    ...section,
-    questions: section.questions.map((question) => {
-      if (question.id !== questionId) return question
-      const size = Math.max(0, Math.min(50, Number(count) || 0))
-      const answers = Array.from({ length: size }, (_, index) => question.answers[index] ?? createAnswer('CHOICE', index))
-      return { ...question, answers: answers.map((answer, index) => ({ ...answer, orderIndex: index + 1 })) }
-    }),
-  }))
-
-  const setChoiceMode = (sectionId, questionId, mode) => setSections((current) => current.map((section) => section.id !== sectionId ? section : {
-    ...section,
-    questions: section.questions.map((question) => question.id === questionId ? {
-      ...question,
-      choiceMode: mode,
-      answers: mode === 'SINGLE' ? question.answers.map((answer, index) => ({ ...answer, isCorrect: index === question.answers.findIndex((item) => item.isCorrect) && answer.isCorrect })) : question.answers,
-    } : question),
-  }))
-
-  const updateAnswer = (sectionId, questionId, answerId, changes) => setSections((current) => current.map((section) => section.id !== sectionId ? section : {
-    ...section,
-    questions: section.questions.map((question) => {
-      if (question.id !== questionId) return question
-      const answers = question.answers.map((answer) => {
-        if (changes.isCorrect === true && question.answerMode === 'CHOICE' && question.choiceMode === 'SINGLE') return { ...answer, isCorrect: answer.id === answerId }
-        return answer.id === answerId ? { ...answer, ...changes } : answer
-      })
-      return { ...question, answers }
-    }),
-  }))
-
-  const addAnswer = (sectionId, questionId) => setSections((current) => current.map((section) => section.id === sectionId ? {
-    ...section,
-    questions: section.questions.map((question) => question.id === questionId ? {
-      ...question,
-      answers: [...question.answers, createAnswer(question.answerMode, question.answers.length)],
-    } : question),
-  } : section))
-
-  const removeAnswer = (sectionId, questionId, answerId) => setSections((current) => current.map((section) => section.id === sectionId ? { ...section, questions: section.questions.map((question) => question.id === questionId ? { ...question, answers: question.answers.filter((answer) => answer.id !== answerId) } : question) } : section))
-
-  return { sections, totalScore, addSection, updateSection, removeSection, addQuestion, updateQuestion, removeQuestion, setAnswerType, setChoiceCount, setChoiceMode, addAnswer, updateAnswer, removeAnswer }
+  return { sections, totalScore, addSection, updateSection, removeSection, addQuestion, updateQuestion, removeQuestion, addAnswerGroup, removeAnswerGroup, setAnswerGroupType, setGroupChoiceCount, setGroupChoiceMode, addGroupChoice, updateGroupAnswer, removeGroupAnswer }
 }
 export default useExamBuilder
