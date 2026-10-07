@@ -14,7 +14,7 @@ export const createQuestion = (index) => ({
   id: crypto.randomUUID(), content: '', imageFile: null, audioFile: null, point: 1,
   orderIndex: index + 1, scoringType: 'PER_QUESTION', answerGroups: [],
 })
-
+//g
 export const createAnswer = (type, index) => ({
   id: crypto.randomUUID(),
   answerType: type,
