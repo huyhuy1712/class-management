@@ -2,6 +2,7 @@ import { Plus, Trash2 } from 'lucide-react'
 
 import { getSectionScore } from '../../helpers/examScoreUtils'
 import QuestionCard from '../question/QuestionCard'
+import MediaFilePicker from '../common/MediaFilePicker'
 
 function SectionCard({ section, index, actions }) {
   const score = getSectionScore(section)
@@ -21,8 +22,8 @@ function SectionCard({ section, index, actions }) {
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
           <input value={section.title} onChange={(e) => actions.updateSection(section.id, { title: e.target.value })} placeholder="Tên section" className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-400" />
-          <input value={section.imageUrl} onChange={(e) => actions.updateSection(section.id, { imageUrl: e.target.value })} placeholder="Image URL" className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none" />
-          <input value={section.audioUrl} onChange={(e) => actions.updateSection(section.id, { audioUrl: e.target.value })} placeholder="Audio URL" className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none" />
+          <MediaFilePicker type="image" file={section.imageFile} onChange={(file) => actions.updateSection(section.id, { imageFile: file })} />
+          <MediaFilePicker type="audio" file={section.audioFile} onChange={(file) => actions.updateSection(section.id, { audioFile: file })} />
           <input type="number" min="1" value={section.orderIndex} onChange={(e) => actions.updateSection(section.id, { orderIndex: e.target.value })} placeholder="Thứ tự" className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none" />
         </div>
       </div>
