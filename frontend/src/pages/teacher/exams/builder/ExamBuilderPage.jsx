@@ -64,6 +64,7 @@ function ExamBuilderPage() {
               onRemoveQuestion={builder.removeQuestion}
               onUpdateQuestion={builder.updateQuestion}
               onRemoveAnswerGroup={builder.removeAnswerGroup}
+              validationErrors={validationErrors}
             />
 
             <main id="builder-root" className="min-h-0 overflow-y-auto rounded-[22px] border border-slate-200/80 bg-white/70 p-4 pr-3 shadow-[0_8px_24px_rgba(31,56,45,0.04)] [scrollbar-color:#a7d9bf_transparent] [scrollbar-width:thin] sm:p-5">
