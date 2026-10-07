@@ -13,6 +13,9 @@ export const INITIAL_EXAM_FORM = {
   maxAttempts: 1,
   maxScore: 10,
   gradeLevel: '',
+  scoreVisibility: 'AFTER_SUBMIT',
+  answerVisibility: 'AFTER_SUBMIT',
+  hideWrongAnswers: false,
 }
 
 export const GRADE_OPTIONS = [
