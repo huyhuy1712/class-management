@@ -5,7 +5,7 @@ import TrueFalseScoringRules from './TrueFalseScoringRules'
 
 const typeLabel = { CHOICE: 'Trắc nghiệm', TRUE_FALSE: 'Đúng / Sai', SHORT_ANSWER: 'Trả lời ngắn', TEXT: 'Văn bản' }
 
-function AnswerGroup({ group, index, actions }) {
+function AnswerGroup({ group, index, actions, error }) {
   const isChoice = group.answerType === 'CHOICE'
   const isTrueFalse = group.answerType === 'TRUE_FALSE'
   const hasMultipleItems = isChoice || isTrueFalse
@@ -19,6 +19,7 @@ function AnswerGroup({ group, index, actions }) {
 
   return (
     <div id={`answer-group-${group.id}`} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3">
+      {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">{error}</p>}
       <div className="flex items-center justify-between gap-3">
         <div><span className="text-xs font-bold text-slate-400">Đáp án {index + 1}</span><p className="text-sm font-bold text-emerald-700">{typeLabel[group.answerType]}</p></div>
         <div className="flex items-center gap-2"><button type="button" onClick={() => actions.setType(null)} className="cursor-pointer text-xs font-semibold text-slate-500 hover:text-emerald-700">Đổi kiểu</button><button type="button" onClick={actions.remove} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500"><Trash2 size={15}/></button></div>
