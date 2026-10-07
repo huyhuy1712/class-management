@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
 
 @Service
 @RequiredArgsConstructor
@@ -63,17 +64,10 @@ public class AvatarServiceImpl implements AvatarService {
                                         "Không thể cập nhật ảnh đại diện");
                 }
 
-                // DB update thành công rồi mới xóa avatar cũ
-                if (oldAvatar != null && !oldAvatar.isBlank()) {
-                        try {
-                                storageService.delete(oldAvatar);
-                        } catch (Exception ignored) {
-                                // Không rollback avatar mới chỉ vì cleanup ảnh cũ lỗi.
-                                // Sau này có thể thêm log.
-                        }
-                }
-
                 String avatarUrl = storageService.getUrl(newObjectPath);
+
+                // Cleanup avatar cũ không nằm trên critical path của response.
+                cleanupOldAvatarAsync(oldAvatar);
 
                 return new AvatarResponse(avatarUrl);
         }
@@ -120,52 +114,65 @@ public class AvatarServiceImpl implements AvatarService {
 
         private String detectExtension(MultipartFile file) {
 
-                try {
-                        byte[] bytes = file.getBytes();
+                byte[] header = new byte[12];
+
+                try (InputStream input = file.getInputStream()) {
+                        int read = input.read(header);
 
                         // JPEG: FF D8 FF
-                        if (bytes.length >= 3
-                                        && (bytes[0] & 0xFF) == 0xFF
-                                        && (bytes[1] & 0xFF) == 0xD8
-                                        && (bytes[2] & 0xFF) == 0xFF) {
-
+                        if (read >= 3
+                                        && (header[0] & 0xFF) == 0xFF
+                                        && (header[1] & 0xFF) == 0xD8
+                                        && (header[2] & 0xFF) == 0xFF) {
                                 return "jpg";
                         }
 
                         // PNG: 89 50 4E 47 0D 0A 1A 0A
-                        if (bytes.length >= 8
-                                        && (bytes[0] & 0xFF) == 0x89
-                                        && bytes[1] == 0x50
-                                        && bytes[2] == 0x4E
-                                        && bytes[3] == 0x47
-                                        && bytes[4] == 0x0D
-                                        && bytes[5] == 0x0A
-                                        && bytes[6] == 0x1A
-                                        && bytes[7] == 0x0A) {
-
+                        if (read >= 8
+                                        && (header[0] & 0xFF) == 0x89
+                                        && header[1] == 0x50
+                                        && header[2] == 0x4E
+                                        && header[3] == 0x47
+                                        && header[4] == 0x0D
+                                        && header[5] == 0x0A
+                                        && header[6] == 0x1A
+                                        && header[7] == 0x0A) {
                                 return "png";
                         }
 
                         // WEBP: RIFF....WEBP
-                        if (bytes.length >= 12
-                                        && bytes[0] == 'R'
-                                        && bytes[1] == 'I'
-                                        && bytes[2] == 'F'
-                                        && bytes[3] == 'F'
-                                        && bytes[8] == 'W'
-                                        && bytes[9] == 'E'
-                                        && bytes[10] == 'B'
-                                        && bytes[11] == 'P') {
-
+                        if (read >= 12
+                                        && header[0] == 'R'
+                                        && header[1] == 'I'
+                                        && header[2] == 'F'
+                                        && header[3] == 'F'
+                                        && header[8] == 'W'
+                                        && header[9] == 'E'
+                                        && header[10] == 'B'
+                                        && header[11] == 'P') {
                                 return "webp";
                         }
 
                 } catch (IOException e) {
-                        throw new IllegalStateException(
-                                        "Không thể đọc file ảnh");
+                        throw new IllegalStateException("Không thể đọc file ảnh");
                 }
 
                 throw new IllegalArgumentException(
                                 "Ảnh đại diện chỉ hỗ trợ JPG, PNG hoặc WEBP");
         }
+
+        private void cleanupOldAvatarAsync(String oldAvatar) {
+                if (oldAvatar == null || oldAvatar.isBlank()) {
+                        return;
+                }
+
+                Thread.startVirtualThread(() -> {
+                        try {
+                                storageService.delete(oldAvatar);
+                        } catch (Exception ignored) {
+                                // Cleanup lỗi không ảnh hưởng avatar mới.
+                        }
+                });
+        }
+
 }
