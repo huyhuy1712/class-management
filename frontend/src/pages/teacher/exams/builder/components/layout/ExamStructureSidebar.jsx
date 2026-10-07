@@ -7,8 +7,8 @@ function ExamStructureSidebar({ sections, totalScore, onAddSection }) {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 
   return (
-    <aside className="lg:sticky lg:top-4 lg:self-start">
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <aside className="min-h-0 lg:h-full">
+      <div className="flex h-full min-h-0 flex-col rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_8px_25px_rgba(15,23,42,0.05)]">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <p className="text-sm font-bold text-slate-900">Cấu trúc đề thi</p>
@@ -17,13 +17,13 @@ function ExamStructureSidebar({ sections, totalScore, onAddSection }) {
           <FileText size={19} className="text-emerald-600" />
         </div>
 
-        <div className="max-h-[60vh] space-y-2 overflow-y-auto">
+        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 [scrollbar-color:#bbf7d0_transparent] [scrollbar-width:thin]">
           {sections.map((section, sectionIndex) => (
             <div key={section.id}>
               <button
                 type="button"
                 onClick={() => focusItem(`section-${section.id}`)}
-                className="flex w-full cursor-pointer items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5 text-left hover:bg-emerald-50"
+                className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-transparent bg-slate-50 px-3 py-2.5 text-left transition hover:border-emerald-100 hover:bg-emerald-50"
               >
                 <span className="truncate text-sm font-semibold text-slate-700">
                   {sectionIndex + 1}. {section.title || 'Chưa có tiêu đề'}
