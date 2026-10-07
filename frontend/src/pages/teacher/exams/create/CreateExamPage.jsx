@@ -99,6 +99,7 @@ function CreateExamPage() {
 
   const {
     form,
+    errors,
     accessType,
 
     selectedClasses,
@@ -122,6 +123,7 @@ function CreateExamPage() {
     setClassSearch,
     setStudentSearch,
 
+    validate,
     buildExamData,
   } = useCreateExamForm({
     classes,
@@ -129,6 +131,8 @@ function CreateExamPage() {
   })
 
   const handleCreateOnline = () => {
+    if (!validate()) return
+
     const data = buildExamData()
 
     console.log(
@@ -217,6 +221,7 @@ function CreateExamPage() {
           {/* THÔNG TIN CƠ BẢN */}
           <ExamBasicInfoSection
             form={form}
+            errors={errors}
             onChange={handleChange}
             subjects={subjects}
             subjectsLoading={subjectsLoading}
@@ -226,6 +231,7 @@ function CreateExamPage() {
           {/* THIẾT LẬP BÀI THI */}
           <ExamSettingsSection
             form={form}
+            errors={errors}
             onChange={handleChange}
           />
 
