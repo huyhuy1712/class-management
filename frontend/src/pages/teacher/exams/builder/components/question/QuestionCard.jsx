@@ -2,13 +2,14 @@ import { Trash2 } from 'lucide-react'
 import AnswerEditor from '../answer/AnswerEditor'
 import AnswerTypeSelector from '../answer/AnswerTypeSelector'
 import MediaFilePicker from '../common/MediaFilePicker'
+import MathContentInput from '../math/MathContentInput'
 
 function QuestionCard({ question, index, onChange, onRemove, onSetAnswerType, onSetChoiceCount, onSetChoiceMode, onUpdateAnswer, onRemoveAnswer }) {
   const isChoice = question.answerMode === 'CHOICE'
   return (
     <div id={`question-${question.id}`} className="rounded-[18px] border border-slate-200/80 bg-slate-50/70 p-4 shadow-[0_4px_14px_rgba(31,56,45,0.04)]">
       <div className="mb-4 flex items-center justify-between"><p className="text-sm font-bold text-slate-800">Câu {index + 1}</p><button type="button" onClick={onRemove} className="cursor-pointer text-slate-400 hover:text-red-500"><Trash2 size={17}/></button></div>
-      <textarea value={question.content} onChange={(e) => onChange({ content: e.target.value })} rows={3} placeholder="Nhập nội dung câu hỏi..." className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-emerald-400"/>
+      <MathContentInput value={question.content} onChange={(content) => onChange({ content })} placeholder="Nhập nội dung câu hỏi..." />
       <div className="mt-3 flex flex-wrap items-end gap-2">
         <div className="w-[140px]"><MediaFilePicker type="image" file={question.imageFile} onChange={(file) => onChange({ imageFile: file })}/></div>
         <div className="w-[140px]"><MediaFilePicker type="audio" file={question.audioFile} onChange={(file) => onChange({ audioFile: file })}/></div>
