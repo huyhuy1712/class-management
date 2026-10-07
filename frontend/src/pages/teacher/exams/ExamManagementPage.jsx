@@ -10,6 +10,7 @@ import ExamTable from './components/ExamTable'
 import useExamFilters from './hooks/useExamFilters'
 import DashboardLayout from '../../../layouts/DashboardLayout'
 import { useNavigate } from 'react-router-dom'
+import examService from '../../../services/examService'
 
 
 function ExamManagementPage() {
@@ -45,11 +46,45 @@ function ExamManagementPage() {
 }
 
   const handleEdit = (exam) => {
-    console.log('Edit:', exam)
+    navigate(`/teacher/exams/${exam.id}`)
   }
 
-  const handleDelete = (exam) => {
-    console.log('Delete:', exam)
+  const handleDelete = async (exam) => {
+    const confirmed = window.confirm(
+      `Bạn có chắc muốn xóa đề thi "${exam.title}" không?`,
+    )
+
+    if (!confirmed) return
+
+    try {
+      await examService.deleteExam(exam.id)
+      await refetch()
+    } catch (deleteError) {
+      if (deleteError.response?.status === 409) {
+        const forceDelete = window.confirm(
+          'Đề thi đã có bài làm. Bạn có muốn xóa cưỡng chế đề thi này không?',
+        )
+
+        if (!forceDelete) return
+
+        try {
+          await examService.deleteExam(exam.id, true)
+          await refetch()
+          return
+        } catch (forceError) {
+          window.alert(
+            forceError.response?.data?.message ||
+              'Không thể xóa đề thi. Vui lòng thử lại.',
+          )
+          return
+        }
+      }
+
+      window.alert(
+        deleteError.response?.data?.message ||
+          'Không thể xóa đề thi. Vui lòng thử lại.',
+      )
+    }
   }
 
   return (
