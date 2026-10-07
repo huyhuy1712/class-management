@@ -12,8 +12,8 @@ function ExamStructureSidebar({ sections, totalScore, onAddSection, onRemoveSect
 
   return (
     <aside className="min-h-0 lg:h-full">
-      <div className="flex h-full min-h-0 flex-col rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_8px_25px_rgba(31,56,45,0.05)]">
-        <div className="mb-4 flex items-center justify-between"><div><p className="text-sm font-bold text-slate-900">Cấu trúc đề thi</p><p className="mt-1 text-xs text-slate-400">Tổng điểm: {totalScore}</p></div><FileText size={19} className="text-emerald-600"/></div>
+      <div className={`flex h-full min-h-0 flex-col rounded-[22px] border bg-white p-4 shadow-[0_8px_25px_rgba(31,56,45,0.05)] ${Object.keys(validationErrors).length ? 'border-red-300 ring-1 ring-red-100' : 'border-slate-200/80'}`}>
+        <div className="mb-4 flex items-center justify-between"><div><p className={`text-sm font-bold ${Object.keys(validationErrors).length ? 'text-red-600' : 'text-slate-900'}`}>Cấu trúc đề thi</p><p className={`mt-1 text-xs ${Object.keys(validationErrors).length ? 'text-red-400' : 'text-slate-400'}`}>Tổng điểm: {totalScore}</p></div><FileText size={19} className={Object.keys(validationErrors).length ? 'text-red-500' : 'text-emerald-600'}/></div>
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 [scrollbar-color:#bbf7d0_transparent] [scrollbar-width:thin]">
           {sections.map((section, sectionIndex) => {
             const sectionCollapsed = collapsedSections[section.id]
