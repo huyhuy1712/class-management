@@ -15,6 +15,7 @@ import TeacherProfilePage from '../pages/teacher/TeacherProfilePage'
 import ExamManagementPage from '../pages/teacher/exams/ExamManagementPage'
 import ExamDetailPage from '../pages/teacher/exams/ExamDetailPage'
 import CreateExamPage from '../pages/teacher/exams/create/CreateExamPage'
+import ExamBuilderPage from '../pages/teacher/exams/builder/ExamBuilderPage'
 
 function AppRoutes() {
   return (
@@ -74,6 +75,10 @@ function AppRoutes() {
   <Route
     path="/teacher/exams/create"
     element={<CreateExamPage />}
+  />
+  <Route
+    path="/teacher/exams/create/online"
+    element={<ExamBuilderPage />}
   />
 
     </Routes>
