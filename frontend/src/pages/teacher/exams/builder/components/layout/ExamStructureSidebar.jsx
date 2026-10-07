@@ -32,7 +32,8 @@ function ExamStructureSidebar({ sections, totalScore, onAddSection, onRemoveSect
 
               <div className="ml-4 mt-1 space-y-1 border-l border-slate-200 pl-2">
                 {section.questions.map((question, questionIndex) => (
-                  <div key={question.id} className="group flex items-center rounded-lg transition hover:bg-slate-50">
+                  <div key={question.id}>
+                  <div className="group flex items-center rounded-lg transition hover:bg-slate-50">
                     <button type="button" onClick={() => focusItem(`question-${question.id}`)} className="flex min-w-0 flex-1 cursor-pointer justify-between px-2 py-1.5 text-xs text-slate-500 hover:text-emerald-700">
                       <span>Câu {questionIndex + 1}</span>
                       <label className="ml-auto flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
@@ -45,11 +46,12 @@ function ExamStructureSidebar({ sections, totalScore, onAddSection, onRemoveSect
                     </button>
                   </div>
                   <div className="ml-4 space-y-0.5 border-l border-slate-100 pl-2">
-                    {question.answerGroups.map((group, groupIndex) => (
+                    {(question.answerGroups ?? []).map((group, groupIndex) => (
                       <button key={group.id} type="button" onClick={() => focusItem(`answer-group-${group.id}`)} className="block w-full cursor-pointer truncate rounded-md px-2 py-1 text-left text-[11px] text-slate-400 hover:bg-emerald-50 hover:text-emerald-700">
                         Đáp án {groupIndex + 1} · {group.answerType === 'CHOICE' ? 'Trắc nghiệm' : group.answerType === 'TRUE_FALSE' ? 'Đúng / Sai' : group.answerType === 'SHORT_ANSWER' ? 'Trả lời ngắn' : group.answerType === 'TEXT' ? 'Văn bản' : 'Chưa chọn kiểu'}
                       </button>
                     ))}
+                  </div>
                   </div>
                 ))}
               </div>
