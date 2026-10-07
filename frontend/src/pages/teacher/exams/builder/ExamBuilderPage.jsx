@@ -1,18 +1,34 @@
 import { ArrowLeft, Plus, Save } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 
 import DashboardLayout from '../../../../layouts/DashboardLayout'
 import ExamStructureSidebar from './components/layout/ExamStructureSidebar'
 import SectionCard from './components/section/SectionCard'
 import useExamBuilder from './hooks/useExamBuilder'
 import { loadExamDraft, saveExamDraft } from '../draft/examDraftStorage'
+import { validateExamBuilder } from './helpers/examBuilderValidation'
 
 function ExamBuilderPage() {
   const navigate = useNavigate()
   const { state } = useLocation()
   const builder = useExamBuilder()
+  const [validationErrors, setValidationErrors] = useState({})
   const draft = loadExamDraft()
   const examConfig = state?.examConfig ?? draft?.general?.form
+
+  const handleSaveDraft = () => {
+    const result = validateExamBuilder(builder.sections)
+    setValidationErrors(result.errors)
+    if (!result.isValid) {
+      requestAnimationFrame(() => {
+        document.getElementById(result.firstErrorId)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        document.getElementById(result.firstErrorId)?.querySelector('input, textarea, button, math-field')?.focus?.()
+      })
+      return
+    }
+    saveExamDraft({ builder: { sections: builder.sections } })
+  }
 
   return (
     <DashboardLayout>
@@ -67,7 +83,8 @@ function ExamBuilderPage() {
                 </div>
               ) : (
                 builder.sections.map((section, index) => (
-                  <SectionCard key={section.id} section={section} index={index} actions={builder} />
+                  <SectionCard key={section.id} section={section} index={index} actions={builder}
+              validationErrors={validationErrors} />
                 ))
               )}
             </main>
