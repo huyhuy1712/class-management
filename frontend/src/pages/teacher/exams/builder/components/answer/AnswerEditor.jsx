@@ -1,5 +1,6 @@
 import { Check, Trash2 } from 'lucide-react'
 import MediaFilePicker from '../common/MediaFilePicker'
+import MathContentInput from '../math/MathContentInput'
 
 function AnswerEditor({ answer, selectable = false, onChange, onRemove }) {
   return (
@@ -8,7 +9,7 @@ function AnswerEditor({ answer, selectable = false, onChange, onRemove }) {
         {selectable && <button type="button" onClick={() => onChange({ isCorrect: !answer.isCorrect })} className={`mt-1 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-md border-2 transition ${answer.isCorrect ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300 bg-white hover:border-emerald-400'}`}>{answer.isCorrect && <Check size={13} strokeWidth={3}/>}</button>}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <input value={answer.content} onChange={(e) => onChange({ content: e.target.value })} placeholder="Nhập phương án trả lời..." className={`min-w-0 flex-1 rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition ${answer.isCorrect ? 'border-emerald-200 focus:border-emerald-400' : 'border-slate-200 focus:border-emerald-400'}`}/>
+            <div className="min-w-0 flex-1"><MathContentInput value={answer.content} onChange={(content) => onChange({ content })} placeholder="Nhập phương án trả lời..." rows={2} /></div>
             {answer.isCorrect && <span className="shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-700">Đáp án đúng</span>}
             {onRemove && <button type="button" onClick={onRemove} className="cursor-pointer rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500"><Trash2 size={16}/></button>}
           </div>
