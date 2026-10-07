@@ -6,6 +6,8 @@ const typeLabel = { CHOICE: 'Trắc nghiệm', TRUE_FALSE: 'Đúng / Sai', SHORT
 
 function AnswerGroup({ group, index, actions }) {
   const isChoice = group.answerType === 'CHOICE'
+  const isTrueFalse = group.answerType === 'TRUE_FALSE'
+  const hasMultipleItems = isChoice || isTrueFalse
 
   if (!group.answerType) return (
     <div className="rounded-2xl border border-dashed border-emerald-200 bg-white p-3">
@@ -21,15 +23,15 @@ function AnswerGroup({ group, index, actions }) {
         <div className="flex items-center gap-2"><button type="button" onClick={() => actions.setType(null)} className="cursor-pointer text-xs font-semibold text-slate-500 hover:text-emerald-700">Đổi kiểu</button><button type="button" onClick={actions.remove} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500"><Trash2 size={15}/></button></div>
       </div>
 
-      {isChoice && (
+      {hasMultipleItems && (
         <div className="grid gap-3 rounded-xl border border-sky-100 bg-sky-50/60 p-3 lg:grid-cols-[160px_1fr]">
-          <label><span className="mb-1 block text-xs font-bold text-slate-600">Số phương án</span><input type="number" min="2" max="50" value={group.answers.length || ''} onChange={(e)=>actions.setChoiceCount(e.target.value)} placeholder="Số lượng" className="w-full rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm outline-none"/></label>
-          <div><span className="mb-1 block text-xs font-bold text-slate-600">Nhiều đáp án đúng</span><button type="button" role="switch" aria-checked={group.choiceMode === 'MULTIPLE'} onClick={()=>actions.setChoiceMode(group.choiceMode === 'MULTIPLE' ? 'SINGLE' : 'MULTIPLE')} className="flex cursor-pointer items-center gap-2 rounded-lg border border-violet-100 bg-violet-50 px-3 py-2 text-xs font-bold text-slate-700"><span className={`relative h-5 w-9 rounded-full ${group.choiceMode === 'MULTIPLE' ? 'bg-violet-500' : 'bg-slate-300'}`}><span className={`absolute top-1 h-3 w-3 rounded-full bg-white transition-all ${group.choiceMode === 'MULTIPLE' ? 'left-5' : 'left-1'}`}/></span>{group.choiceMode === 'MULTIPLE' ? 'Đang bật' : 'Đang tắt'}</button></div>
+          <label><span className="mb-1 block text-xs font-bold text-slate-600">Số lượng</span><input type="number" min="2" max="50" value={group.answers.length || ''} onChange={(e)=>actions.setChoiceCount(e.target.value)} placeholder="Số lượng" className="w-full rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm outline-none"/></label>
+          <div><span className="mb-1 block text-xs font-bold text-slate-600">Cho phép nhiều câu đúng</span><button type="button" role="switch" aria-checked={group.choiceMode === 'MULTIPLE'} onClick={()=>actions.setChoiceMode(group.choiceMode === 'MULTIPLE' ? 'SINGLE' : 'MULTIPLE')} className="flex cursor-pointer items-center gap-2 rounded-lg border border-violet-100 bg-violet-50 px-3 py-2 text-xs font-bold text-slate-700"><span className={`relative h-5 w-9 rounded-full ${group.choiceMode === 'MULTIPLE' ? 'bg-violet-500' : 'bg-slate-300'}`}><span className={`absolute top-1 h-3 w-3 rounded-full bg-white transition-all ${group.choiceMode === 'MULTIPLE' ? 'left-5' : 'left-1'}`}/></span>{group.choiceMode === 'MULTIPLE' ? 'Đang bật' : 'Đang tắt'}</button></div>
         </div>
       )}
 
-      {group.answers.map((answer) => <AnswerEditor key={answer.id} answer={answer} selectable={isChoice || group.answerType === 'TRUE_FALSE'} onChange={(changes)=>actions.updateAnswer(answer.id, changes)} onRemove={group.answerType === 'TRUE_FALSE' ? undefined : ()=>actions.removeAnswer(answer.id)} />)}
-      {isChoice && <button type="button" onClick={actions.addChoice} className="w-full cursor-pointer rounded-xl border border-dashed border-sky-300 py-2 text-xs font-bold text-sky-700 hover:bg-sky-50">+ Thêm phương án</button>}
+      {group.answers.map((answer) => <AnswerEditor key={answer.id} answer={answer} selectable={hasMultipleItems} onChange={(changes)=>actions.updateAnswer(answer.id, changes)} onRemove={()=>actions.removeAnswer(answer.id)} />)}
+      {hasMultipleItems && <button type="button" onClick={actions.addChoice} className="w-full cursor-pointer rounded-xl border border-dashed border-sky-300 py-2 text-xs font-bold text-sky-700 hover:bg-sky-50">+ {isTrueFalse ? 'Thêm câu đúng / sai' : 'Thêm phương án'}</button>}
     </div>
   )
 }
