@@ -1,5 +1,4 @@
 import { ChevronDown, ChevronRight, FileText, Plus, X } from 'lucide-react'
-// connector write test
 import { useState } from 'react'
 import { getSectionScore } from '../../helpers/examScoreUtils'
 
