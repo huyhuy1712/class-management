@@ -10,14 +10,14 @@ function AnswerGroup({ group, index, actions }) {
   const hasMultipleItems = isChoice || isTrueFalse
 
   if (!group.answerType) return (
-    <div className="rounded-2xl border border-dashed border-emerald-200 bg-white p-3">
+    <div id={`answer-group-${group.id}`} className="rounded-2xl border border-dashed border-emerald-200 bg-white p-3">
       <div className="mb-2 flex items-center justify-between"><span className="text-xs font-bold text-slate-500">Đáp án {index + 1}</span><button type="button" onClick={actions.remove} className="cursor-pointer text-slate-400 hover:text-red-500"><Trash2 size={15}/></button></div>
       <AnswerTypeSelector onSelect={actions.setType} />
     </div>
   )
 
   return (
-    <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3">
+    <div id={`answer-group-${group.id}`} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3">
       <div className="flex items-center justify-between gap-3">
         <div><span className="text-xs font-bold text-slate-400">Đáp án {index + 1}</span><p className="text-sm font-bold text-emerald-700">{typeLabel[group.answerType]}</p></div>
         <div className="flex items-center gap-2"><button type="button" onClick={() => actions.setType(null)} className="cursor-pointer text-xs font-semibold text-slate-500 hover:text-emerald-700">Đổi kiểu</button><button type="button" onClick={actions.remove} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500"><Trash2 size={15}/></button></div>
