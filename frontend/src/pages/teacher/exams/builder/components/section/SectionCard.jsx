@@ -10,7 +10,8 @@ function SectionCard({ section, index, actions }) {
   return (
     <section id={`section-${section.id}`} className="overflow-hidden rounded-[20px] border border-slate-200/80 bg-white shadow-[0_5px_18px_rgba(31,56,45,0.04)]">
       <div className="border-b border-slate-100 bg-[#fbfcfb] p-5">
-        <div className="mb-4 flex items-center justify-between">
+        {validationErrors[`section-${section.id}`] && <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">{validationErrors[`section-${section.id}`]}</p>}
+      <div className="mb-4 flex items-center justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-emerald-600">Phần {index + 1}</p>
             <p className="mt-1 text-sm font-semibold text-slate-500">{score} điểm · {section.questions.length} câu hỏi</p>
@@ -36,6 +37,7 @@ function SectionCard({ section, index, actions }) {
             index={questionIndex}
             onChange={(changes) => actions.updateQuestion(section.id, question.id, changes)}
             onRemove={() => actions.removeQuestion(section.id, question.id)}
+            validationErrors={validationErrors}
             answerActions={(groupId) => ({
               addGroup: () => actions.addAnswerGroup(section.id, question.id),
               remove: () => actions.removeAnswerGroup(section.id, question.id, groupId),
