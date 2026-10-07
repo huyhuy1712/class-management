@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { loadExamDraft, saveExamDraft } from '../../draft/examDraftStorage'
 
 import {
   EXAM_ACCESS_TYPE,
@@ -6,14 +7,22 @@ import {
 } from '../helpers/examFormConstants'
 
 function useCreateExamForm({ classes = [], students = [] } = {}) {
-  const [form, setForm] = useState(INITIAL_EXAM_FORM)
+  const savedDraft = useMemo(() => loadExamDraft(), [])
+  const generalDraft = savedDraft?.general
+  const [form, setForm] = useState(() => ({ ...INITIAL_EXAM_FORM, ...(generalDraft?.form ?? {}) }))
   const [errors, setErrors] = useState({})
-  const [accessType, setAccessType] = useState(EXAM_ACCESS_TYPE.ALL)
-  const [selectedClasses, setSelectedClasses] = useState([])
-  const [selectedStudents, setSelectedStudents] = useState([])
-  const [selectedStudentClassId, setSelectedStudentClassId] = useState(null)
+  const [accessType, setAccessType] = useState(generalDraft?.accessType ?? EXAM_ACCESS_TYPE.ALL)
+  const [selectedClasses, setSelectedClasses] = useState(generalDraft?.selectedClasses ?? [])
+  const [selectedStudents, setSelectedStudents] = useState(generalDraft?.selectedStudents ?? [])
+  const [selectedStudentClassId, setSelectedStudentClassId] = useState(generalDraft?.selectedStudentClassId ?? null)
   const [classSearch, setClassSearch] = useState('')
   const [studentSearch, setStudentSearch] = useState('')
+
+  useEffect(() => {
+    saveExamDraft({
+      general: { form, accessType, selectedClasses, selectedStudents, selectedStudentClassId },
+    })
+  }, [form, accessType, selectedClasses, selectedStudents, selectedStudentClassId])
 
   const handleChange = (event) => {
     const { name, value, type, checked } = event.target
