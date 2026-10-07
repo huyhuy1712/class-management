@@ -1,8 +1,8 @@
-import { FileText, Plus } from 'lucide-react'
+import { FileText, Plus, X } from 'lucide-react'
 
 import { getSectionScore } from '../../helpers/examScoreUtils'
 
-function ExamStructureSidebar({ sections, totalScore, onAddSection }) {
+function ExamStructureSidebar({ sections, totalScore, onAddSection, onRemoveSection, onRemoveQuestion }) {
   const focusItem = (id) =>
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 
@@ -20,41 +20,35 @@ function ExamStructureSidebar({ sections, totalScore, onAddSection }) {
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 [scrollbar-color:#bbf7d0_transparent] [scrollbar-width:thin]">
           {sections.map((section, sectionIndex) => (
             <div key={section.id}>
-              <button
-                type="button"
-                onClick={() => focusItem(`section-${section.id}`)}
-                className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-transparent bg-slate-50 px-3 py-2.5 text-left transition hover:border-emerald-100 hover:bg-emerald-50"
-              >
-                <span className="truncate text-sm font-semibold text-slate-700">
-                  {sectionIndex + 1}. {section.title || 'Chưa có tiêu đề'}
-                </span>
-                <span className="ml-2 text-xs font-bold text-emerald-600">{getSectionScore(section)}đ</span>
-              </button>
+              <div className="group flex items-center rounded-xl border border-transparent bg-slate-50 transition hover:border-emerald-100 hover:bg-emerald-50">
+                <button type="button" onClick={() => focusItem(`section-${section.id}`)} className="flex min-w-0 flex-1 cursor-pointer items-center justify-between px-3 py-2.5 text-left">
+                  <span className="truncate text-sm font-semibold text-slate-700">{sectionIndex + 1}. {section.title || 'Chưa có tiêu đề'}</span>
+                  <span className="ml-2 shrink-0 text-xs font-bold text-emerald-600">{getSectionScore(section)}đ</span>
+                </button>
+                <button type="button" title="Xóa phần" onClick={() => onRemoveSection(section.id)} className="mr-2 flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-500">
+                  <X size={15} />
+                </button>
+              </div>
 
               <div className="ml-4 mt-1 space-y-1 border-l border-slate-200 pl-2">
                 {section.questions.map((question, questionIndex) => (
-                  <button
-                    key={question.id}
-                    type="button"
-                    onClick={() => focusItem(`question-${question.id}`)}
-                    className="flex w-full cursor-pointer justify-between rounded-lg px-2 py-1.5 text-xs text-slate-500 hover:bg-slate-50 hover:text-emerald-700"
-                  >
-                    <span>Câu {questionIndex + 1}</span>
-                    <span>{Number(question.point) || 0}đ</span>
-                  </button>
+                  <div key={question.id} className="group flex items-center rounded-lg transition hover:bg-slate-50">
+                    <button type="button" onClick={() => focusItem(`question-${question.id}`)} className="flex min-w-0 flex-1 cursor-pointer justify-between px-2 py-1.5 text-xs text-slate-500 hover:text-emerald-700">
+                      <span>Câu {questionIndex + 1}</span>
+                      <span>{Number(question.point) || 0}đ</span>
+                    </button>
+                    <button type="button" title="Xóa câu hỏi" onClick={() => onRemoveQuestion(section.id, question.id)} className="mr-1 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-slate-300 transition hover:bg-red-50 hover:text-red-500">
+                      <X size={13} />
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>
           ))}
         </div>
 
-        <button
-          type="button"
-          onClick={onAddSection}
-          className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-emerald-300 py-2.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
-        >
-          <Plus size={17} />
-          Thêm phần
+        <button type="button" onClick={onAddSection} className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-emerald-300 py-2.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50">
+          <Plus size={17} /> Thêm phần
         </button>
       </div>
     </aside>
