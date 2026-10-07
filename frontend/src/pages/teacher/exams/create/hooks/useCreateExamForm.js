@@ -23,11 +23,11 @@ function useCreateExamForm({
   const [studentSearch, setStudentSearch] = useState('')
 
   const handleChange = (event) => {
-    const { name, value } = event.target
+    const { name, value, type, checked } = event.target
 
     setForm((current) => ({
       ...current,
-      [name]: value,
+      [name]: type === 'checkbox' ? checked : value,
     }))
   }
 
