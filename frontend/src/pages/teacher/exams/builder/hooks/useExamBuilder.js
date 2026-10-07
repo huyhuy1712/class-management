@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { createAnswer, createAnswerGroup, createQuestion, createSection } from '../helpers/examBuilderConstants'
+import { createAnswer, createAnswerGroup, createQuestion, createScoringRule, createSection } from '../helpers/examBuilderConstants'
 import { getExamScore } from '../helpers/examScoreUtils'
 
 function useExamBuilder() {
@@ -35,8 +35,13 @@ function useExamBuilder() {
   const updateGroupAnswer = (sectionId, questionId, groupId, answerId, changes) => mapGroup(sectionId, questionId, groupId, (g) => ({
     ...g, answers: g.answers.map((a) => changes.isCorrect === true && (g.answerType === 'CHOICE' || g.answerType === 'TRUE_FALSE') && g.choiceMode === 'SINGLE' ? { ...a, isCorrect: a.id === answerId } : a.id === answerId ? { ...a, ...changes } : a),
   }))
+  const updateAnswerGroup = (sectionId, questionId, groupId, changes) => mapGroup(sectionId, questionId, groupId, (g) => ({ ...g, ...changes }))
+  const addScoringRule = (sectionId, questionId, groupId) => mapGroup(sectionId, questionId, groupId, (g) => ({ ...g, scoringRules: [...(g.scoringRules ?? []), createScoringRule()] }))
+  const updateScoringRule = (sectionId, questionId, groupId, ruleId, changes) => mapGroup(sectionId, questionId, groupId, (g) => ({ ...g, scoringRules: (g.scoringRules ?? []).map((rule) => rule.id === ruleId ? { ...rule, ...changes } : rule) }))
+  const removeScoringRule = (sectionId, questionId, groupId, ruleId) => mapGroup(sectionId, questionId, groupId, (g) => ({ ...g, scoringRules: (g.scoringRules ?? []).filter((rule) => rule.id !== ruleId) }))
+
   const removeGroupAnswer = (sectionId, questionId, groupId, answerId) => mapGroup(sectionId, questionId, groupId, (g) => ({ ...g, answers: g.answers.filter((a) => a.id !== answerId) }))
 
-  return { sections, totalScore, addSection, updateSection, removeSection, addQuestion, updateQuestion, removeQuestion, addAnswerGroup, removeAnswerGroup, setAnswerGroupType, setGroupChoiceCount, setGroupChoiceMode, addGroupChoice, updateGroupAnswer, removeGroupAnswer }
+  return { sections, totalScore, addSection, updateSection, removeSection, addQuestion, updateQuestion, removeQuestion, addAnswerGroup, removeAnswerGroup, setAnswerGroupType, setGroupChoiceCount, setGroupChoiceMode, addGroupChoice, updateGroupAnswer, removeGroupAnswer, updateAnswerGroup, addScoringRule, updateScoringRule, removeScoringRule }
 }
 export default useExamBuilder

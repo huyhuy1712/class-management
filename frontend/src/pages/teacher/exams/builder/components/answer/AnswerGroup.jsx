@@ -1,6 +1,7 @@
 import { Trash2 } from 'lucide-react'
 import AnswerEditor from './AnswerEditor'
 import AnswerTypeSelector from './AnswerTypeSelector'
+import TrueFalseScoringRules from './TrueFalseScoringRules'
 
 const typeLabel = { CHOICE: 'Trắc nghiệm', TRUE_FALSE: 'Đúng / Sai', SHORT_ANSWER: 'Trả lời ngắn', TEXT: 'Văn bản' }
 
@@ -29,6 +30,8 @@ function AnswerGroup({ group, index, actions }) {
           {isChoice && <div><span className="mb-1 block text-xs font-bold text-slate-600">Cho phép nhiều đáp án đúng</span><button type="button" role="switch" aria-checked={group.choiceMode === 'MULTIPLE'} onClick={()=>actions.setChoiceMode(group.choiceMode === 'MULTIPLE' ? 'SINGLE' : 'MULTIPLE')} className="flex cursor-pointer items-center gap-2 rounded-lg border border-violet-100 bg-violet-50 px-3 py-2 text-xs font-bold text-slate-700"><span className={`relative h-5 w-9 rounded-full ${group.choiceMode === 'MULTIPLE' ? 'bg-violet-500' : 'bg-slate-300'}`}><span className={`absolute top-1 h-3 w-3 rounded-full bg-white transition-all ${group.choiceMode === 'MULTIPLE' ? 'left-5' : 'left-1'}`}/></span>{group.choiceMode === 'MULTIPLE' ? 'Đang bật' : 'Đang tắt'}</button></div>}
         </div>
       )}
+
+      {isTrueFalse && <TrueFalseScoringRules enabled={Boolean(group.scoreByCorrectCount)} rules={group.scoringRules ?? []} onToggle={()=>actions.updateGroup({ scoreByCorrectCount: !group.scoreByCorrectCount })} onAdd={actions.addScoringRule} onChange={actions.updateScoringRule} onRemove={actions.removeScoringRule} />}
 
       {group.answers.map((answer) => <AnswerEditor key={answer.id} answer={answer} selectable={hasMultipleItems} onChange={(changes)=>actions.updateAnswer(answer.id, changes)} onRemove={()=>actions.removeAnswer(answer.id)} />)}
       {hasMultipleItems && <button type="button" onClick={actions.addChoice} className="w-full cursor-pointer rounded-xl border border-dashed border-sky-300 py-2 text-xs font-bold text-sky-700 hover:bg-sky-50">+ {isTrueFalse ? 'Thêm câu đúng / sai' : 'Thêm phương án'}</button>}
