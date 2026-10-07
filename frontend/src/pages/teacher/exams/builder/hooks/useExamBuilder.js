@@ -19,7 +19,7 @@ function useExamBuilder() {
     ...section,
     questions: section.questions.map((question) => {
       if (question.id !== questionId) return question
-      if (type === 'CHOICE') return { ...question, answerMode: type, choiceMode: 'SINGLE', answers: Array.from({ length: 4 }, (_, index) => createAnswer('CHOICE', index)) }
+      if (type === 'CHOICE') return { ...question, answerMode: type, choiceMode: 'SINGLE', answers: [] }
       if (type === 'TRUE_FALSE') return { ...question, answerMode: type, answers: [createAnswer('TRUE_FALSE', 0), createAnswer('TRUE_FALSE', 1)] }
       return { ...question, answerMode: type, answers: [createAnswer(type, 0)] }
     }),
@@ -29,7 +29,7 @@ function useExamBuilder() {
     ...section,
     questions: section.questions.map((question) => {
       if (question.id !== questionId) return question
-      const size = Math.max(2, Math.min(10, Number(count) || 2))
+      const size = Math.max(0, Math.min(50, Number(count) || 0))
       const answers = Array.from({ length: size }, (_, index) => question.answers[index] ?? createAnswer('CHOICE', index))
       return { ...question, answers: answers.map((answer, index) => ({ ...answer, orderIndex: index + 1 })) }
     }),
