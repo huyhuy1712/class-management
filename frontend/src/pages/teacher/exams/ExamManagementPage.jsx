@@ -1,5 +1,6 @@
 import {
   ArrowDownUp,
+  FileCheck2,
   Plus,
   Search,
 } from 'lucide-react'
@@ -8,10 +9,6 @@ import useExams from './hooks/useExams'
 import ExamTable from './components/ExamTable'
 import useExamFilters from './hooks/useExamFilters'
 import DashboardLayout from '../../../layouts/DashboardLayout'
-import DeleteExamModal from './modals/DeleteExamModal'
-import EditExamModal from './modals/EditExamModal'
-import useDeleteExam from './hooks/useDeleteExam'
-import useUpdateExam from './hooks/useUpdateExam'
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import examService from '../../../services/examService'
@@ -27,21 +24,6 @@ function ExamManagementPage() {
       error,
       refetch,
     } = useExams()
-
-    const {
-  deleteTarget,
-  forceDelete,
-  deleting,
-  deleteError,
-
-  openDeleteModal,
-  closeDeleteModal,
-  confirmDelete,
-} = useDeleteExam({
-  onDeleted: async () => {
-    await refetch()
-  },
-})
 
   const navigate = useNavigate()
   const [editingExam, setEditingExam] = useState(null)
@@ -144,7 +126,6 @@ function ExamManagementPage() {
             onClick={handleCreate}
             className="flex items-center justify-center gap-2 rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700"
           >
-
             <Plus size={18} />
             Tạo đề thi
           </button>
@@ -295,7 +276,6 @@ function ExamManagementPage() {
         onConfirm={handleConfirmDelete}
       />
     </DashboardLayout>
-
   )
 }
 
