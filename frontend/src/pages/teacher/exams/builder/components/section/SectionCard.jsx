@@ -36,12 +36,16 @@ function SectionCard({ section, index, actions }) {
             index={questionIndex}
             onChange={(changes) => actions.updateQuestion(section.id, question.id, changes)}
             onRemove={() => actions.removeQuestion(section.id, question.id)}
-            onSetAnswerType={(type) => actions.setAnswerType(section.id, question.id, type)}
-            onSetChoiceCount={(count) => actions.setChoiceCount(section.id, question.id, count)}
-            onSetChoiceMode={(mode) => actions.setChoiceMode(section.id, question.id, mode)}
-            onAddAnswer={() => actions.addAnswer(section.id, question.id)}
-            onUpdateAnswer={(answerId, changes) => actions.updateAnswer(section.id, question.id, answerId, changes)}
-            onRemoveAnswer={(answerId) => actions.removeAnswer(section.id, question.id, answerId)}
+            answerActions={(groupId) => ({
+              addGroup: () => actions.addAnswerGroup(section.id, question.id),
+              remove: () => actions.removeAnswerGroup(section.id, question.id, groupId),
+              setType: (type) => actions.setAnswerGroupType(section.id, question.id, groupId, type),
+              setChoiceCount: (count) => actions.setGroupChoiceCount(section.id, question.id, groupId, count),
+              setChoiceMode: (mode) => actions.setGroupChoiceMode(section.id, question.id, groupId, mode),
+              addChoice: () => actions.addGroupChoice(section.id, question.id, groupId),
+              updateAnswer: (answerId, changes) => actions.updateGroupAnswer(section.id, question.id, groupId, answerId, changes),
+              removeAnswer: (answerId) => actions.removeGroupAnswer(section.id, question.id, groupId, answerId),
+            })}
           />
         ))}
 
