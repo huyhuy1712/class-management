@@ -24,6 +24,12 @@ function useCreateExamForm({ classes = [], students = [] } = {}) {
     })
   }, [form, accessType, selectedClasses, selectedStudents, selectedStudentClassId])
 
+  useEffect(() => {
+    saveExamDraft({
+      general: { form, accessType, selectedClasses, selectedStudents, selectedStudentClassId },
+    })
+  }, [form, accessType, selectedClasses, selectedStudents, selectedStudentClassId])
+
   const handleChange = (event) => {
     const { name, value, type, checked } = event.target
     setForm((current) => ({
