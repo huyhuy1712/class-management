@@ -9,16 +9,14 @@ import { useEffect, useState } from 'react'
 
 import DashboardLayout from '../../../../layouts/DashboardLayout'
 import subjectService from '../../../../services/subjectService'
+import classroomService from '../../../../services/classroomService'
+import userService from '../../../../services/userService'
 
 import ExamAccessSection from './components/ExamAccessSection'
 import ExamBasicInfoSection from './components/ExamBasicInfoSection'
 import CreateMethodSection from './components/CreateMethodSection'
 import ExamSettingsSection from './components/ExamSettingsSection'
 
-import {
-  MOCK_CLASSES,
-  MOCK_STUDENTS,
-} from './data/mockExamData'
 
 import useCreateExamForm from './hooks/useCreateExamForm'
 
@@ -27,6 +25,8 @@ function CreateExamPage() {
   const [subjects, setSubjects] = useState([])
   const [subjectsLoading, setSubjectsLoading] = useState(true)
   const [subjectsError, setSubjectsError] = useState('')
+  const [classes, setClasses] = useState([])
+  const [students, setStudents] = useState([])
 
   useEffect(() => {
     let cancelled = false
@@ -52,6 +52,32 @@ function CreateExamPage() {
     }
 
     loadSubjects()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    Promise.all([
+      classroomService.getMyClasses(),
+      userService.getMyStudents(),
+    ])
+      .then(([classData, studentData]) => {
+        if (!cancelled) {
+          setClasses(Array.isArray(classData) ? classData : [])
+          setStudents(Array.isArray(studentData) ? studentData : [])
+        }
+      })
+      .catch((error) => {
+        console.error('Get exam access data error:', error)
+        if (!cancelled) {
+          setClasses([])
+          setStudents([])
+        }
+      })
 
     return () => {
       cancelled = true
@@ -85,8 +111,8 @@ function CreateExamPage() {
 
     buildExamData,
   } = useCreateExamForm({
-    classes: MOCK_CLASSES,
-    students: MOCK_STUDENTS,
+    classes,
+    students,
   })
 
   const handleCreateOnline = () => {
