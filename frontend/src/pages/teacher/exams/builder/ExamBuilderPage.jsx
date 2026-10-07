@@ -5,11 +5,14 @@ import DashboardLayout from '../../../../layouts/DashboardLayout'
 import ExamStructureSidebar from './components/layout/ExamStructureSidebar'
 import SectionCard from './components/section/SectionCard'
 import useExamBuilder from './hooks/useExamBuilder'
+import { loadExamDraft, saveExamDraft } from '../draft/examDraftStorage'
 
 function ExamBuilderPage() {
   const navigate = useNavigate()
   const { state } = useLocation()
   const builder = useExamBuilder()
+  const draft = loadExamDraft()
+  const examConfig = state?.examConfig ?? draft?.general?.form
 
   return (
     <DashboardLayout>
@@ -17,11 +20,11 @@ function ExamBuilderPage() {
         <div className="mx-auto flex h-full max-w-[1500px] flex-col px-4 py-5 sm:px-6 lg:px-8">
           <header className="mb-5 flex shrink-0 flex-col gap-4 rounded-[22px] border border-slate-200/80 bg-white p-5 shadow-[0_10px_30px_rgba(31,56,45,0.05)] sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <button type="button" onClick={() => navigate('/teacher/exams/create')} className="mb-2 flex cursor-pointer items-center gap-1.5 text-sm font-medium text-slate-500 transition hover:text-emerald-700">
+              <button type="button" onClick={() => { if (state?.examConfig) saveExamDraft({ general: { ...(draft?.general ?? {}), form: state.examConfig } }); navigate('/teacher/exams/create') }} className="mb-2 flex cursor-pointer items-center gap-1.5 text-sm font-medium text-slate-500 transition hover:text-emerald-700">
                 <ArrowLeft size={17} />
                 Quay lại cấu hình
               </button>
-              <h1 className="text-2xl font-extrabold tracking-tight text-[#18301d]">{state?.examConfig?.title || 'Tạo nội dung đề thi'}</h1>
+              <h1 className="text-2xl font-extrabold tracking-tight text-[#18301d]">{examConfig?.title || 'Tạo nội dung đề thi'}</h1>
               <p className="mt-1 text-sm text-slate-500">Xây dựng section, câu hỏi và đáp án cho đề thi.</p>
             </div>
 
