@@ -56,8 +56,16 @@ function useExamBuilder() {
     }),
   }))
 
+  const addAnswer = (sectionId, questionId) => setSections((current) => current.map((section) => section.id === sectionId ? {
+    ...section,
+    questions: section.questions.map((question) => question.id === questionId ? {
+      ...question,
+      answers: [...question.answers, createAnswer(question.answerMode, question.answers.length)],
+    } : question),
+  } : section))
+
   const removeAnswer = (sectionId, questionId, answerId) => setSections((current) => current.map((section) => section.id === sectionId ? { ...section, questions: section.questions.map((question) => question.id === questionId ? { ...question, answers: question.answers.filter((answer) => answer.id !== answerId) } : question) } : section))
 
-  return { sections, totalScore, addSection, updateSection, removeSection, addQuestion, updateQuestion, removeQuestion, setAnswerType, setChoiceCount, setChoiceMode, updateAnswer, removeAnswer }
+  return { sections, totalScore, addSection, updateSection, removeSection, addQuestion, updateQuestion, removeQuestion, setAnswerType, setChoiceCount, setChoiceMode, addAnswer, updateAnswer, removeAnswer }
 }
 export default useExamBuilder
