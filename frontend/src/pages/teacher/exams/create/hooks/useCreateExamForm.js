@@ -96,8 +96,11 @@ function useCreateExamForm({
     () =>
       filteredStudents.filter(
         (student) =>
-          String(student.classId) ===
-          String(selectedStudentClassId),
+          student.classes?.some(
+            (classroom) =>
+              String(classroom.id) ===
+              String(selectedStudentClassId),
+          ),
       ),
     [filteredStudents, selectedStudentClassId],
   )
