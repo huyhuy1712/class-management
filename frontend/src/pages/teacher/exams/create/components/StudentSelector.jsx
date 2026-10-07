@@ -5,6 +5,7 @@ import {
   UserRound,
 } from 'lucide-react'
 
+import defaultAvatar from '../../../../../assets/images/avatar_default.png'
 import Checkbox from './ui/Checkbox'
 import SearchBox from './ui/SearchBox'
 
@@ -107,9 +108,15 @@ function StudentSelector({
                 className="flex w-full cursor-pointer items-center gap-4 px-5 py-4 text-left transition hover:bg-green-50/40"
               >
                 <Checkbox checked={checked} />
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">
-                  <UserRound size={19} />
-                </div>
+                <img
+                  src={student.avatar || defaultAvatar}
+                  alt={student.fullName || 'Học sinh'}
+                  onError={(event) => {
+                    event.currentTarget.onerror = null
+                    event.currentTarget.src = defaultAvatar
+                  }}
+                  className="h-10 w-10 shrink-0 rounded-full border border-slate-100 object-cover"
+                />
                 <div>
                   <p className="text-sm font-semibold text-slate-700">
                     {student.fullName}
