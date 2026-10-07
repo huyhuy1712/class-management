@@ -16,6 +16,7 @@ import ExamAccessSection from './components/ExamAccessSection'
 import ExamBasicInfoSection from './components/ExamBasicInfoSection'
 import CreateMethodSection from './components/CreateMethodSection'
 import ExamSettingsSection from './components/ExamSettingsSection'
+import ExamResultSettingsSection from './components/ExamResultSettingsSection'
 
 
 import useCreateExamForm from './hooks/useCreateExamForm'
@@ -224,6 +225,12 @@ function CreateExamPage() {
 
           {/* THIẾT LẬP BÀI THI */}
           <ExamSettingsSection
+            form={form}
+            onChange={handleChange}
+          />
+
+          {/* ĐIỂM VÀ ĐÁP ÁN */}
+          <ExamResultSettingsSection
             form={form}
             onChange={handleChange}
           />
