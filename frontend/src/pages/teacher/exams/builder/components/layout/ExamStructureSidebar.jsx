@@ -2,7 +2,7 @@ import { FileText, Plus, X } from 'lucide-react'
 
 import { getSectionScore } from '../../helpers/examScoreUtils'
 
-function ExamStructureSidebar({ sections, totalScore, onAddSection, onRemoveSection, onRemoveQuestion }) {
+function ExamStructureSidebar({ sections, totalScore, onAddSection, onRemoveSection, onRemoveQuestion, onUpdateQuestion }) {
   const focusItem = (id) =>
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 
@@ -35,11 +35,21 @@ function ExamStructureSidebar({ sections, totalScore, onAddSection, onRemoveSect
                   <div key={question.id} className="group flex items-center rounded-lg transition hover:bg-slate-50">
                     <button type="button" onClick={() => focusItem(`question-${question.id}`)} className="flex min-w-0 flex-1 cursor-pointer justify-between px-2 py-1.5 text-xs text-slate-500 hover:text-emerald-700">
                       <span>Câu {questionIndex + 1}</span>
-                      <span>{Number(question.point) || 0}đ</span>
+                      <label className="ml-auto flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+                        <input type="number" min="0" step="0.25" value={question.point} onChange={(e) => onUpdateQuestion(section.id, question.id, { point: e.target.value })} className="w-12 rounded-md border border-transparent bg-transparent px-1 py-0.5 text-right text-xs font-semibold text-slate-500 outline-none hover:border-emerald-200 focus:border-emerald-300 focus:bg-white" />
+                        <span>đ</span>
+                      </label>
                     </button>
                     <button type="button" title="Xóa câu hỏi" onClick={() => onRemoveQuestion(section.id, question.id)} className="mr-1 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-slate-300 transition hover:bg-red-50 hover:text-red-500">
                       <X size={13} />
                     </button>
+                  </div>
+                  <div className="ml-4 space-y-0.5 border-l border-slate-100 pl-2">
+                    {question.answerGroups.map((group, groupIndex) => (
+                      <button key={group.id} type="button" onClick={() => focusItem(`answer-group-${group.id}`)} className="block w-full cursor-pointer truncate rounded-md px-2 py-1 text-left text-[11px] text-slate-400 hover:bg-emerald-50 hover:text-emerald-700">
+                        Đáp án {groupIndex + 1} · {group.answerType === 'CHOICE' ? 'Trắc nghiệm' : group.answerType === 'TRUE_FALSE' ? 'Đúng / Sai' : group.answerType === 'SHORT_ANSWER' ? 'Trả lời ngắn' : group.answerType === 'TEXT' ? 'Văn bản' : 'Chưa chọn kiểu'}
+                      </button>
+                    ))}
                   </div>
                 ))}
               </div>
