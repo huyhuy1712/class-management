@@ -117,13 +117,25 @@ function StudentSelector({
                   }}
                   className="h-10 w-10 shrink-0 rounded-full border border-slate-100 object-cover"
                 />
-                <div>
-                  <p className="text-sm font-semibold text-slate-700">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-slate-700">
                     {student.fullName}
                   </p>
-                  <p className="mt-1 text-xs text-slate-400">
-                    {student.studentCode}
-                  </p>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+                    <span>
+                      MSSV:{' '}
+                      <span className="font-medium text-slate-500">
+                        {student.studentCode || '---'}
+                      </span>
+                    </span>
+                    <span className="hidden text-slate-300 sm:inline">•</span>
+                    <span>
+                      SĐT:{' '}
+                      <span className="font-medium text-slate-500">
+                        {student.phone || 'Chưa cập nhật'}
+                      </span>
+                    </span>
+                  </div>
                 </div>
               </button>
             )
