@@ -7,16 +7,16 @@ function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#F5FAF4]">
+    <div className="min-h-screen overflow-x-hidden bg-[#F4F6F8]">
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
 
-      <div className="min-h-screen lg:ml-64">
+      <div className="min-h-screen min-w-0 lg:ml-64">
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
-        <main className="mx-auto max-w-[1600px] px-3 py-5 sm:px-6 sm:py-8 lg:px-8">
+        <main className="mx-auto min-w-0 w-full max-w-[1600px] pb-12 pt-5 sm:px-6 lg:px-8">
           {children}
         </main>
       </div>

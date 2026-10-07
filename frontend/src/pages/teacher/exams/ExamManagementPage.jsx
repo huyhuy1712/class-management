@@ -37,7 +37,7 @@ function ExamManagementPage() {
   } = useExamFilters(exams)
 
   const handleCreate = () => {
-    console.log('Create exam')
+  navigate('/teacher/exams/create')
   }
 
   const handleView = (exam) => {
