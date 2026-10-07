@@ -6,34 +6,22 @@ export const ANSWER_TYPES = [
 ]
 
 export const createSection = (index) => ({
-  id: crypto.randomUUID(),
-  title: `Phần ${index + 1}`,
-  imageFile: null,
-  audioFile: null,
-  orderIndex: index + 1,
-  questions: [],
+  id: crypto.randomUUID(), title: `Phần ${index + 1}`, imageFile: null, audioFile: null,
+  orderIndex: index + 1, questions: [],
 })
 
 export const createQuestion = (index) => ({
-  id: crypto.randomUUID(),
-  content: '',
-  imageFile: null,
-  audioFile: null,
-  point: 1,
-  orderIndex: index + 1,
-  scoringType: 'PER_QUESTION',
-  answerMode: null,
-  choiceMode: 'SINGLE',
-  answers: [],
+  id: crypto.randomUUID(), content: '', imageFile: null, audioFile: null, point: 1,
+  orderIndex: index + 1, scoringType: 'PER_QUESTION', answerGroups: [],
 })
 
 export const createAnswer = (type, index) => ({
-  id: crypto.randomUUID(),
-  answerType: type,
+  id: crypto.randomUUID(), answerType: type,
   content: type === 'TRUE_FALSE' ? (index === 0 ? 'Đúng' : 'Sai') : '',
-  imageFile: null,
-  audioFile: null,
-  orderIndex: index + 1,
-  point: 0,
-  isCorrect: false,
+  imageFile: null, audioFile: null, orderIndex: index + 1, point: 0, isCorrect: false,
+})
+
+export const createAnswerGroup = (index) => ({
+  id: crypto.randomUUID(), answerType: null, choiceMode: 'SINGLE',
+  orderIndex: index + 1, answers: [],
 })
