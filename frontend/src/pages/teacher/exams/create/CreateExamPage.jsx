@@ -67,8 +67,20 @@ function CreateExamPage() {
     ])
       .then(([classData, studentData]) => {
         if (!cancelled) {
-          setClasses(Array.isArray(classData) ? classData : [])
-          setStudents(Array.isArray(studentData) ? studentData : [])
+          const teacherClasses = Array.isArray(classData) ? classData : []
+          const teacherStudents = Array.isArray(studentData) ? studentData : []
+          const studentCountByClass = teacherStudents.reduce((counts, student) => {
+            student.classes?.forEach((classroom) => {
+              counts[classroom.id] = (counts[classroom.id] ?? 0) + 1
+            })
+            return counts
+          }, {})
+
+          setClasses(teacherClasses.map((classroom) => ({
+            ...classroom,
+            studentCount: studentCountByClass[classroom.id] ?? 0,
+          })))
+          setStudents(teacherStudents)
         }
       })
       .catch((error) => {
