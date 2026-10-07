@@ -39,6 +39,7 @@ function SectionCard({ section, index, actions }) {
             onSetAnswerType={(type) => actions.setAnswerType(section.id, question.id, type)}
             onSetChoiceCount={(count) => actions.setChoiceCount(section.id, question.id, count)}
             onSetChoiceMode={(mode) => actions.setChoiceMode(section.id, question.id, mode)}
+            onAddAnswer={() => actions.addAnswer(section.id, question.id)}
             onUpdateAnswer={(answerId, changes) => actions.updateAnswer(section.id, question.id, answerId, changes)}
             onRemoveAnswer={(answerId) => actions.removeAnswer(section.id, question.id, answerId)}
           />
