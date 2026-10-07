@@ -135,10 +135,9 @@ function CreateExamPage() {
 
     const data = buildExamData()
 
-    console.log(
-      'CREATE ONLINE:',
-      data,
-    )
+    navigate('/teacher/exams/create/online', {
+      state: { examConfig: data },
+    })
   }
 
   const handleImportFile = () => {
