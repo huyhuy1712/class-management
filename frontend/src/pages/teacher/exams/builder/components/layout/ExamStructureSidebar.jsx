@@ -8,7 +8,7 @@ function ExamStructureSidebar({ sections, totalScore, onAddSection }) {
 
   return (
     <aside className="min-h-0 lg:h-full">
-      <div className="flex h-full min-h-0 flex-col rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_8px_25px_rgba(15,23,42,0.05)]">
+      <div className="flex h-full min-h-0 flex-col rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_8px_25px_rgba(31,56,45,0.05)]">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <p className="text-sm font-bold text-slate-900">Cấu trúc đề thi</p>

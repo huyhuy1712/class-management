@@ -6,7 +6,7 @@ import MediaFilePicker from '../common/MediaFilePicker'
 
 function QuestionCard({ question, index, onChange, onRemove, onAddAnswer, onUpdateAnswer, onRemoveAnswer }) {
   return (
-    <div id={`question-${question.id}`} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div id={`question-${question.id}`} className="rounded-[18px] border border-slate-200/80 bg-white p-4 shadow-[0_4px_14px_rgba(31,56,45,0.04)]">
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm font-bold text-slate-800">Câu {index + 1}</p>
         <button type="button" onClick={onRemove} className="cursor-pointer text-slate-400 hover:text-red-500"><Trash2 size={17} /></button>

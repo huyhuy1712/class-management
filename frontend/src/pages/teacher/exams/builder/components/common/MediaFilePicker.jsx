@@ -17,8 +17,10 @@ function MediaFilePicker({ type, file, onChange }) {
   const { accept, icon: Icon, empty } = config[type]
 
   return (
-    <label className="flex min-w-0 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs transition hover:border-emerald-300 hover:bg-emerald-50/40">
-      <Icon size={16} className="shrink-0 text-emerald-600" />
+    <label className="flex min-w-0 cursor-pointer items-center gap-2 rounded-lg border border-slate-200/90 bg-slate-50/70 px-2.5 py-2 text-xs transition hover:border-emerald-200 hover:bg-emerald-50/50">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-600">
+        <Icon size={14} />
+      </span>
       <span className="min-w-0 flex-1 truncate font-medium text-slate-500">
         {file?.name || empty}
       </span>
@@ -29,7 +31,7 @@ function MediaFilePicker({ type, file, onChange }) {
             event.preventDefault()
             onChange(null)
           }}
-          className="cursor-pointer text-slate-400 hover:text-red-500"
+          className="cursor-pointer rounded-md p-0.5 text-slate-400 hover:bg-red-50 hover:text-red-500"
         >
           <X size={14} />
         </button>

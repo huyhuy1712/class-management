@@ -8,8 +8,8 @@ function SectionCard({ section, index, actions }) {
   const score = getSectionScore(section)
 
   return (
-    <section id={`section-${section.id}`} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-100 bg-slate-50/70 p-5">
+    <section id={`section-${section.id}`} className="overflow-hidden rounded-[20px] border border-slate-200/80 bg-white shadow-[0_5px_18px_rgba(31,56,45,0.04)]">
+      <div className="border-b border-slate-100 bg-[#fbfcfb] p-5">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-emerald-600">Phần {index + 1}</p>
