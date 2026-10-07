@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { loadExamDraft, saveExamDraft } from '../../draft/examDraftStorage'
 import { createAnswer, createAnswerGroup, createQuestion, createScoringRule, createSection } from '../helpers/examBuilderConstants'
 import { getExamScore } from '../helpers/examScoreUtils'
 
 function useExamBuilder() {
-  const [sections, setSections] = useState([])
+  const [sections, setSections] = useState(() => loadExamDraft()?.builder?.sections ?? [])
+  useEffect(() => { saveExamDraft({ builder: { sections } }) }, [sections])
   const totalScore = useMemo(() => getExamScore(sections), [sections])
   const mapQuestion = (sectionId, questionId, updater) => setSections((current) => current.map((section) => section.id !== sectionId ? section : ({ ...section, questions: section.questions.map((q) => q.id === questionId ? updater(q) : q) })))
   const mapGroup = (sectionId, questionId, groupId, updater) => mapQuestion(sectionId, questionId, (q) => ({ ...q, answerGroups: q.answerGroups.map((g) => g.id === groupId ? updater(g) : g) }))
