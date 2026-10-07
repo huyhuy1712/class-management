@@ -16,9 +16,14 @@ export const createQuestion = (index) => ({
 })
 
 export const createAnswer = (type, index) => ({
-  id: crypto.randomUUID(), answerType: type,
-  content: type === 'TRUE_FALSE' ? (index === 0 ? 'Đúng' : 'Sai') : '',
-  imageFile: null, audioFile: null, orderIndex: index + 1, point: 0, isCorrect: false,
+  id: crypto.randomUUID(),
+  answerType: type,
+  content: '',
+  imageFile: null,
+  audioFile: null,
+  orderIndex: index + 1,
+  point: 0,
+  isCorrect: false,
 })
 
 export const createAnswerGroup = (index) => ({
