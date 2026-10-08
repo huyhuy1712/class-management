@@ -33,8 +33,8 @@ function ExamBuilderPage() {
   return (
     <DashboardLayout>
       <div className="h-[calc(100vh-76px)] overflow-hidden bg-[#f6f8f7]">
-        <div className="mx-auto flex h-full max-w-[1500px] flex-col px-4 py-5 sm:px-6 lg:px-8">
-          <header className="mb-5 flex shrink-0 flex-col gap-4 rounded-[22px] border border-slate-200/80 bg-white p-5 shadow-[0_10px_30px_rgba(31,56,45,0.05)] sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex h-full w-full min-w-0 flex-col px-3 py-3 sm:px-4 lg:px-5">
+          <header className="mb-3 flex shrink-0 flex-col gap-4 rounded-[22px] border border-slate-200/80 bg-white p-5 shadow-[0_10px_30px_rgba(31,56,45,0.05)] sm:flex-row sm:items-center sm:justify-between">
             <div>
               <button type="button" onClick={() => { if (state?.examConfig) saveExamDraft({ general: { ...(draft?.general ?? {}), form: state.examConfig } }); navigate('/teacher/exams/create') }} className="mb-2 flex cursor-pointer items-center gap-1.5 text-sm font-medium text-slate-500 transition hover:text-emerald-700">
                 <ArrowLeft size={17} />
@@ -55,7 +55,7 @@ function ExamBuilderPage() {
             </div>
           </header>
 
-          <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[285px_minmax(0,1fr)]">
+          <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[285px_minmax(0,1fr)]">
             <ExamStructureSidebar
               sections={builder.sections}
               totalScore={builder.totalScore}
@@ -67,7 +67,7 @@ function ExamBuilderPage() {
               validationErrors={validationErrors}
             />
 
-            <main id="builder-root" className="min-h-0 overflow-y-auto rounded-[22px] border border-slate-200/80 bg-white/70 p-4 pr-3 shadow-[0_8px_24px_rgba(31,56,45,0.04)] [scrollbar-color:#a7d9bf_transparent] [scrollbar-width:thin] sm:p-5">
+            <main id="builder-root" className="h-full min-h-0 min-w-0 overflow-y-auto rounded-[22px] border border-slate-200/80 bg-white/70 p-3 pr-2 shadow-[0_8px_24px_rgba(31,56,45,0.04)] [scrollbar-color:#a7d9bf_transparent] [scrollbar-width:thin] sm:p-4">
               {validationErrors['builder-root'] && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">{validationErrors['builder-root']}</div>}
               {builder.sections.length === 0 ? (
                 <div className="flex min-h-[460px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
