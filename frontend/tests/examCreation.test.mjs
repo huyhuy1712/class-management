@@ -1,3 +1,5 @@
+import { distributeQuestionScore } from '../src/pages/teacher/exams/builder/helpers/examScoreDistribution.js'
+import { getGroupScore, getQuestionScore, migrateDraftScores } from '../src/pages/teacher/exams/builder/helpers/examScoreUtils.js'
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { File } from 'node:buffer'
@@ -67,7 +69,7 @@ test('all false, all true and mixed TRUE_FALSE answers are valid', () => {
   }
 })
 
-test('validates decimal scores without floating-point mismatch and rejects unmatched totals', () => {
+test('derives decimal totals and ignores obsolete manually entered totals', () => {
   const tree = sections()
   const question = tree[0].questions[0]
   question.point = 0.3
@@ -76,7 +78,9 @@ test('validates decimal scores without floating-point mismatch and rejects unmat
   question.answerGroups[0].answers[1].point = 0.2
   assert.equal(validateExamBuilder(tree).isValid, true)
   question.point = 1
-  assert.ok(validateExamBuilder(tree).errors['question-q'])
+  assert.equal(validateExamBuilder(tree).isValid, true)
+  assert.equal(getQuestionScore(question), 0.3)
+  assert.equal(buildExamPayload(config, tree).sections[0].questions[0].points, 0.3)
   question.answerGroups[0].answers[0].point = 0.001
   assert.ok(validateExamBuilder(tree).errors['answer-group-g'])
 })
@@ -171,4 +175,102 @@ test('draft persists targets, upload metadata and pending save without storing b
     delete globalThis.localStorage
     delete globalThis.File
   }
+})
+
+
+test('choice sums only correct options; text scores come from the answer item', () => {
+  const choice = { answerType: 'CHOICE', point: 99, answers: [item('a', true), item('b', false)] }
+  choice.answers[1].point = 9
+  assert.equal(getGroupScore(choice), 0.5)
+  choice.answers[1].isCorrect = true
+  assert.equal(getGroupScore(choice), 9.5)
+  choice.answers.pop()
+  assert.equal(getGroupScore(choice), 0.5)
+  assert.equal(getGroupScore({ answerType: 'SHORT_ANSWER', answers: [{ point: 2 }] }), 2)
+})
+
+test('rule endpoint determines group, question and payload scores', () => {
+  const tree = sections()
+  const answerGroup = tree[0].questions[0].answerGroups[0]
+  answerGroup.scoreByCorrectCount = true
+  answerGroup.scoringRules = [{ correctCount: 0, point: 0 }, { correctCount: 1, point: 0.25 }, { correctCount: 2, point: 2 }]
+  assert.equal(getGroupScore(answerGroup), 2)
+  assert.equal(getQuestionScore(tree[0].questions[0]), 2)
+  assert.equal(validateExamBuilder(tree).isValid, true)
+  const question = buildExamPayload(config, tree).sections[0].questions[0]
+  assert.equal(question.points, 2)
+  assert.equal(question.answers[0].points, 2)
+})
+
+
+test('migrates old draft group totals without losing cents or overwriting answer scores', () => {
+  const tree = sections()
+  const oldGroup = tree[0].questions[0].answerGroups[0]
+  oldGroup.answerType = 'CHOICE'
+  oldGroup.point = 1
+  oldGroup.answers = [item('a', true), item('b', true), item('c', true)]
+  oldGroup.answers.forEach((answer) => { answer.point = 0 })
+  const migrated = migrateDraftScores(tree)[0].questions[0].answerGroups[0]
+  assert.deepEqual(migrated.answers.map((answer) => answer.point), [0.33, 0.33, 0.34])
+  assert.equal(getGroupScore(migrated), 1)
+  assert.equal('point' in migrated, false)
+  assert.deepEqual(migrateDraftScores(migrateDraftScores(tree)), migrateDraftScores(tree))
+  oldGroup.answers[0].point = 2
+  assert.equal(getGroupScore(migrateDraftScores(tree)[0].questions[0].answerGroups[0]), 2)
+})
+
+
+test('sidebar score distributes exact cents and preserves relative item scores', () => {
+  const question = sections()[0].questions[0]
+  question.answerGroups[0].answers[0].point = 1
+  question.answerGroups[0].answers[1].point = 2
+  const updated = distributeQuestionScore(question, '1')
+  assert.equal(getQuestionScore(updated), 1)
+  assert.deepEqual(updated.answerGroups[0].answers.map((answer) => answer.point), [0.33, 0.67])
+  assert.equal(getQuestionScore(distributeQuestionScore(updated, '0')), 0)
+  assert.equal(getQuestionScore(distributeQuestionScore(distributeQuestionScore(updated, '0'), '1')), 1)
+})
+
+test('sidebar scales count rules and keeps payload totals consistent', () => {
+  const tree = sections()
+  const question = tree[0].questions[0]
+  question.answerGroups[0].scoreByCorrectCount = true
+  question.answerGroups[0].scoringRules = [{ correctCount: 0, point: 0 }, { correctCount: 1, point: 0.25 }, { correctCount: 2, point: 1 }]
+  tree[0].questions[0] = distributeQuestionScore(question, '2')
+  assert.deepEqual(tree[0].questions[0].answerGroups[0].scoringRules.map((rule) => rule.point), [0, 0.5, 2])
+  assert.equal(validateExamBuilder(tree).isValid, true)
+  const payloadQuestion = buildExamPayload(config, tree).sections[0].questions[0]
+  assert.equal(payloadQuestion.points, 2)
+  assert.equal(payloadQuestion.answers[0].points, 2)
+})
+
+
+test('CHOICE accepts one or many correct options and rejects zero correct options', () => {
+  for (const flags of [[true, false], [true, true], [false, false]]) {
+    const tree = sections()
+    const answerGroup = tree[0].questions[0].answerGroups[0]
+    answerGroup.answerType = 'CHOICE'
+    answerGroup.choiceMode = 'MULTIPLE'
+    answerGroup.answers.forEach((answer, index) => { answer.isCorrect = flags[index] })
+    const result = validateExamBuilder(tree)
+    assert.equal(result.isValid, flags.some(Boolean))
+    if (!flags.some(Boolean)) assert.ok(result.errors['answer-group-g'])
+    assert.equal(buildExamPayload(config, tree).sections[0].questions[0].answers[0].answerType, 'MULTIPLE_CHOICE')
+  }
+})
+
+
+test('SINGLE choice rejects multiple correct options while MULTIPLE accepts them', () => {
+  const tree = sections()
+  const answer = tree[0].questions[0].answerGroups[0]
+  answer.answerType = 'CHOICE'
+  answer.choiceMode = 'SINGLE'
+  answer.answers.forEach((item) => { item.isCorrect = true })
+  assert.ok(validateExamBuilder(tree).errors['answer-group-g'])
+  answer.answers[1].isCorrect = false
+  assert.equal(validateExamBuilder(tree).isValid, true)
+  assert.equal(buildExamPayload(config, tree).sections[0].questions[0].answers[0].answerType, 'SINGLE_CHOICE')
+  answer.choiceMode = 'MULTIPLE'
+  answer.answers[1].isCorrect = true
+  assert.equal(validateExamBuilder(tree).isValid, true)
 })

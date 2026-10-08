@@ -27,7 +27,7 @@ export const createAnswer = (type, index) => ({
 
 export const createAnswerGroup = (index) => ({
   id: crypto.randomUUID(), answerType: null, choiceMode: 'SINGLE',
-  orderIndex: index + 1, point: 0, answers: [], scoreByCorrectCount: false, scoringRules: [],
+  orderIndex: index + 1, answers: [], scoreByCorrectCount: false, scoringRules: [],
 })
 
 export const createScoringRule = () => ({

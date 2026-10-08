@@ -1,3 +1,4 @@
+import { getQuestionScore } from './examScoreUtils.js'
 import { isExamPoint, pointUnits, validateGroupScore } from './examScoringValidation.js'
 
 const hasText = (value) => String(value ?? '').trim().length > 0
@@ -17,8 +18,8 @@ export function validateExamBuilder(sections) {
       const id = `question-${question.id}`
       const name = `Câu ${questionIndex + 1} - Phần ${sectionIndex + 1}`
       if (!hasText(question.content) || question.content.length > 20000) add(id, `${name} cần nội dung từ 1 đến 20000 ký tự.`)
-      if (!isExamPoint(question.point) || Number(question.point) <= 0) add(id, `${name} cần điểm lớn hơn 0, tối đa 9999.99 và 2 chữ số thập phân.`)
-      totalPoints += pointUnits(question.point) || 0
+      if (!isExamPoint(getQuestionScore(question)) || Number(getQuestionScore(question)) <= 0) add(id, `${name} cần điểm lớn hơn 0, tối đa 9999.99 và 2 chữ số thập phân.`)
+      totalPoints += pointUnits(getQuestionScore(question)) || 0
       const groups = question.answerGroups ?? []
       if (!groups.length || groups.length > 20) add(id, `${name} phải có từ 1 đến 20 nhóm đáp án.`)
       groups.forEach((group) => {
@@ -42,7 +43,6 @@ export function validateExamBuilder(sections) {
         const scoreError = validateGroupScore({ ...group, answers: items })
         if (scoreError) add(groupId, scoreError)
       })
-      if (groups.every((group) => isExamPoint(group.point)) && groups.reduce((sum, group) => sum + pointUnits(group.point), 0) !== pointUnits(question.point)) add(id, `${name}: điểm câu phải bằng tổng điểm nhóm đáp án.`)
     })
   })
   if (questionCount > 500 || groupCount > 2000 || optionCount > 10000) add('builder-root', 'Đề vượt giới hạn 500 câu hỏi, 2000 nhóm hoặc 10000 phương án.')

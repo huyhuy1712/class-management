@@ -1,3 +1,5 @@
+import { getGroupScore, getQuestionScore } from './examScoreUtils.js'
+
 const number = (value) => String(value ?? '').trim() === '' ? NaN : Number(value)
 export const sortExamItems = (items = []) => [...items].sort((a, b) => Number(a.orderIndex) - Number(b.orderIndex))
 
@@ -23,7 +25,7 @@ function buildAnswer(group) {
   const countScoring = trueFalse && group.scoreByCorrectCount
   const answer = {
     answerType: choice ? (group.choiceMode === 'MULTIPLE' ? 'MULTIPLE_CHOICE' : 'SINGLE_CHOICE') : group.answerType === 'TEXT' ? 'ESSAY' : group.answerType,
-    points: number(group.point),
+    points: getGroupScore(group),
     scoringType: countScoring ? 'CORRECT_COUNT' : 'PER_ANSWER',
   }
   if (choice || trueFalse) {
@@ -63,7 +65,7 @@ export function buildExamPayload(config, sections, draftToken) {
     sections: sections.map((section) => ({
       title: section.title?.trim() ?? '', ...mediaFields(section),
       questions: section.questions.map((question) => ({
-        content: question.content?.trim() ?? '', points: number(question.point),
+        content: question.content?.trim() ?? '', points: getQuestionScore(question),
         ...mediaFields(question), answers: question.answerGroups.map(buildAnswer),
       })),
     })),

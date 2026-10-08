@@ -116,7 +116,7 @@ public class ExamStructureValidator {
         if (choice) {
             long correct = options.stream().filter(CreateCompleteExamRequest.Option::isCorrect).count();
             if (correct == 0 || (a.answerType() == AnswerType.SINGLE_CHOICE && correct != 1)) {
-                fail(path + ".options", "Số phương án đúng không phù hợp loại trắc nghiệm");
+                fail(path + ".options", "Trắc nghiệm một lựa chọn cần đúng một phương án đúng; nhiều lựa chọn cần ít nhất một");
             }
             for (var option : options) if (positive(option.points())) {
                 fail(path + ".options", "Trắc nghiệm chấm toàn bộ nhóm, không nhận điểm từng phương án");

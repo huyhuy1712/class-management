@@ -1,12 +1,17 @@
+import { getGroupScore } from './examScoreUtils.js'
+
 export const isExamPoint = (value) => /^\d+(\.\d{1,2})?$/.test(String(value ?? '')) && Number(value) <= 9999.99
 export const pointUnits = (value) => Math.round(Number(value) * 100)
 
 export function validateGroupScore(group) {
-  if (!isExamPoint(group.point)) return 'Điểm nhóm phải từ 0 đến 9999.99 và có tối đa 2 chữ số thập phân.'
-  if (group.answerType !== 'TRUE_FALSE') return null
+  const score = getGroupScore(group)
+  if (!isExamPoint(score)) return 'Điểm nhóm phải từ 0 đến 9999.99 và có tối đa 2 chữ số thập phân.'
+  if (group.answerType !== 'TRUE_FALSE') {
+    const items = group.answerType === 'CHOICE' ? group.answers.filter((item) => item.isCorrect === true) : group.answers
+    return items.some((item) => !isExamPoint(item.point)) ? 'Điểm đáp án phải từ 0 đến 9999.99 và có tối đa 2 chữ số thập phân.' : null
+  }
   if (!group.scoreByCorrectCount) {
     if (group.answers.some((item) => !isExamPoint(item.point))) return 'Điểm từng ý phải từ 0 đến 9999.99 và có tối đa 2 chữ số thập phân.'
-    if (group.answers.reduce((sum, item) => sum + pointUnits(item.point), 0) !== pointUnits(group.point)) return 'Điểm nhóm phải bằng tổng điểm các ý đúng/sai.'
     return null
   }
   const rules = group.scoringRules ?? []
@@ -26,6 +31,6 @@ export function validateGroupScore(group) {
     if (score === undefined || (index === 0 && score !== 0) || score < previous) return 'Điểm quy luật phải tăng không giảm; 0 ý đúng nhận 0 điểm.'
     previous = score
   }
-  if (previous !== pointUnits(group.point)) return 'Điểm khi đúng toàn bộ ý phải bằng điểm nhóm.'
+  if (previous !== pointUnits(score)) return 'Điểm khi đúng toàn bộ ý phải bằng điểm nhóm.'
   return null
 }

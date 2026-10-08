@@ -23,15 +23,25 @@ class ExamStructureValidatorTest {
     @Test void acceptsAllFalseTrueFalseGroup() {
         assertDoesNotThrow(() -> validator.validate(request(List.of(trueFalse()), "2", assignment())));
     }
+    @Test void acceptsChoiceWithMultipleCorrectOptions() {
+        var answer = new Answer(AnswerType.MULTIPLE_CHOICE, null, null, null, number("1"), ScoringType.PER_ANSWER,
+                null, false, List.of(option(true, null), option(true, null)), null);
+        assertDoesNotThrow(() -> validator.validate(request(List.of(answer), "1", assignment())));
+    }
+    @Test void rejectsSingleChoiceWithMultipleCorrectOptions() {
+        var answer = new Answer(AnswerType.SINGLE_CHOICE, null, null, null, number("1"), ScoringType.PER_ANSWER,
+                null, false, List.of(option(true, null), option(true, null)), null);
+        assertThrows(ExamValidationException.class, () -> validator.validate(request(List.of(answer), "1", assignment())));
+    }
+    @Test void rejectsChoiceWithoutCorrectOption() {
+        var answer = new Answer(AnswerType.SINGLE_CHOICE, null, null, null, number("1"), ScoringType.PER_ANSWER,
+                null, false, List.of(option(false, null), option(false, null)), null);
+        assertThrows(ExamValidationException.class, () -> validator.validate(request(List.of(answer), "1", assignment())));
+    }
     @Test void rejectsQuestionPointMismatch() {
         var error = assertThrows(ExamValidationException.class,
                 () -> validator.validate(request(List.of(choice()), "2", assignment())));
         assertTrue(error.getValidationErrors().containsKey("sections[0].questions[0].points"));
-    }
-    @Test void rejectsSingleChoiceWithTwoCorrectOptions() {
-        var answer = new Answer(AnswerType.SINGLE_CHOICE, null, null, null, number("1"), ScoringType.PER_ANSWER,
-                null, false, List.of(option(true, null), option(true, null)), null);
-        assertThrows(ExamValidationException.class, () -> validator.validate(request(List.of(answer), "1", assignment())));
     }
     @Test void rejectsMissingCorrectCountRule() {
         var answer = new Answer(AnswerType.TRUE_FALSE, null, null, null, number("2"), ScoringType.CORRECT_COUNT,

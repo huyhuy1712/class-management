@@ -71,7 +71,7 @@ Business validator kiểm tra:
 - Subject tồn tại; mã đề tự sinh bằng SecureRandom và kiểm tra theo teacher, retry tối đa 10 candidate. UNIQUE(teacher_id, code) DB vẫn là lớp bảo vệ cuối; collision concurrent trả 409 và rollback, không retry trong transaction đã lỗi.
 - ALL không nhận targets dư; CLASS có classIds, không studentIds; STUDENT có studentIds, không classIds. Batch query quyền sở hữu/quan hệ bằng IN và tập ID.
 - Order trong mỗi parent không trùng, ổn định; đề xuất server chuẩn hóa liên tiếp từ thứ tự array. Không nhận hai nguồn thứ tự mâu thuẫn.
-- SINGLE_CHOICE có ít nhất hai options và đúng một đáp án đúng; MULTIPLE_CHOICE có ít nhất hai options và ít nhất một đúng. Chính sách điểm phần đúng/sai phải chốt trước triển khai chấm bài.
+- SINGLE_CHOICE cần đúng một đáp án đúng; MULTIPLE_CHOICE cần ít nhất một đáp án đúng. Cả hai cần ít nhất hai options. Chính sách điểm phần đúng/sai phải chốt trước triển khai chấm bài.
 - TRUE_FALSE có correctBoolean; SHORT_ANSWER/FILL_BLANK có đáp án hợp lệ theo representation hiện có; ESSAY không buộc đáp án tự động. Từ chối field không phù hợp với loại đáp án.
 - Cấu hình chấm nằm ở từng Answer. PER_ANSWER không có scoringRules; CORRECT_COUNT của nhóm TRUE_FALSE đếm các ý (AnswerOption) trả lời đúng. Một question được trộn nhiều nhóm với cấu hình khác nhau, kể cả nhóm tự luận; ESSAY không dùng CORRECT_COUNT.
 - AFTER_SCORE yêu cầu threshold >= 0 và <= maxScore; các chế độ khác không nhận threshold dư. ScoreVisibility chỉ NEVER/AFTER_SUBMIT/AFTER_EXAM; AFTER_SCORE chỉ thuộc AnswerVisibility.
