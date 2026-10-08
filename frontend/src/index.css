@@ -16,6 +16,11 @@ body {
   min-height: 100vh;
 }
 
+.exam-builder {
+  font-family: "Segoe UI", Arial, sans-serif;
+  color: #1e293b;
+}
+
 button,
 input,
 textarea,

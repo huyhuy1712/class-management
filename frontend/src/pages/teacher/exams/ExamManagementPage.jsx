@@ -1,6 +1,5 @@
 import {
   ArrowDownUp,
-  FileCheck2,
   Plus,
   Search,
 } from 'lucide-react'
@@ -9,7 +8,7 @@ import useExams from './hooks/useExams'
 import ExamTable from './components/ExamTable'
 import useExamFilters from './hooks/useExamFilters'
 import DashboardLayout from '../../../layouts/DashboardLayout'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import examService from '../../../services/examService'
 import EditExamModal from './components/EditExamModal'
@@ -26,6 +25,7 @@ function ExamManagementPage() {
     } = useExams()
 
   const navigate = useNavigate()
+  const { state } = useLocation()
   const [editingExam, setEditingExam] = useState(null)
   const [deletingExam, setDeletingExam] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -108,6 +108,7 @@ function ExamManagementPage() {
   return (
     <DashboardLayout>
       <div className="mx-auto max-w-[1500px] pb-4 sm:pb-6 lg:pb-8">
+        {state?.createdExam && <p role="status" className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">Đã lưu đề {state.createdExam.code} ở trạng thái nháp. Tổng điểm: {state.createdExam.maxScore}.</p>}
         {/* HEADER */}
         <div className="mb-7 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>

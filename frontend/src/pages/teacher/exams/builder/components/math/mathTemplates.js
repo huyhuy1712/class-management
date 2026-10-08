@@ -1,10 +1,18 @@
+import { MATH_BRACKETS } from './mathBrackets.js'
+
 export const MATH_TEMPLATE_GROUPS = [
+  {
+    id: 'brackets', label: 'Ngoặc', items: [
+      { label: 'Hệ ngoặc nhọn', symbol: '{', latex: MATH_BRACKETS['{'] },
+      { label: 'Hệ ngoặc vuông', symbol: '[', latex: MATH_BRACKETS['['] },
+    ],
+  },
   {
     id: 'basic', label: 'Cơ bản', items: [
       { label: 'Phân số', symbol: 'a/b', latex: '\\frac{}{}' },
       { label: 'Hỗn số', symbol: '1 a/b', latex: '1\\frac{}{}' },
-      { label: 'Căn bậc hai', symbol: '√', latex: '\\sqrt{}' },
-      { label: 'Căn bậc n', symbol: 'ⁿ√', latex: '\\sqrt[]{}' },
+      { label: 'Căn bậc hai', symbol: '√', latex: '\\sqrt{\\placeholder{}}' },
+      { label: 'Căn bậc n', symbol: 'ⁿ√', latex: '\\sqrt[\\placeholder{}]{\\placeholder{}}' },
       { label: 'Lũy thừa', symbol: 'x²', latex: '^{}' },
       { label: 'Chỉ số dưới', symbol: 'xₙ', latex: '_{}' },
       { label: 'Cộng trừ', symbol: '±', latex: '\\pm' },
@@ -63,6 +71,18 @@ export const MATH_TEMPLATE_GROUPS = [
   },
   {
     id: 'symbols', label: 'Ký hiệu', items: [
+      { label: 'Tập rỗng', symbol: '∅', latex: '\\varnothing' },
+      { label: 'Phần bù của tập hợp', symbol: 'Aᶜ', latex: '\\placeholder{}^{c}' },
+      { label: 'Tổ hợp', symbol: 'Cₙᵏ', latex: 'C_{\\placeholder{}}^{\\placeholder{}}' },
+      { label: 'Chỉnh hợp', symbol: 'Aₙᵏ', latex: 'A_{\\placeholder{}}^{\\placeholder{}}' },
+      { label: 'Xác suất', symbol: 'P(A)', latex: 'P(\\placeholder{})' },
+      { label: 'Hoán vị', symbol: 'Pₙ', latex: 'P_{\\placeholder{}}' },
+      { label: 'Tam giác', symbol: '△', latex: '\\triangle' },
+      { label: 'Vuông góc', symbol: '⊥', latex: '\\perp' },
+      { label: 'Song song', symbol: '∥', latex: '\\parallel' },
+      { label: 'Chia hết', symbol: '⋮', latex: '\\vdots' },
+      { label: 'Tồn tại', symbol: '∃', latex: '\\exists' },
+      { label: 'Với mọi', symbol: '∀', latex: '\\forall' },
       { label: 'Khác', symbol: '≠', latex: '\\neq' },
       { label: 'Xấp xỉ', symbol: '≈', latex: '\\approx' },
       { label: 'Lớn hơn hoặc bằng', symbol: '≥', latex: '\\geq' },

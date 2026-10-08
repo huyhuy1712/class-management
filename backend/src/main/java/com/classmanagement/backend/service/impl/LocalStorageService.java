@@ -44,10 +44,9 @@ public class LocalStorageService implements StorageService {
                         "Đường dẫn file không hợp lệ");
             }
 
-            Files.copy(
-                    file.getInputStream(),
-                    target,
-                    StandardCopyOption.REPLACE_EXISTING);
+            try (var input = file.getInputStream()) {
+                Files.copy(input, target, StandardCopyOption.REPLACE_EXISTING);
+            }
 
             return folder + "/" + fileName;
 

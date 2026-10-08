@@ -25,4 +25,8 @@ public class StudentAnswerOption {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "option_id", nullable = false)
     private AnswerOption option;
+
+    // TRUE_FALSE: the student's explicit response; choice selections use null.
+    @Column(name = "boolean_value")
+    private Boolean booleanValue;
 }

@@ -3,6 +3,9 @@ package com.classmanagement.backend.service.impl;
 import com.classmanagement.backend.dto.exam.ExamListResponse;
 import com.classmanagement.backend.dto.exam.ExamUpdateResponse;
 import com.classmanagement.backend.dto.exam.UpdateExamRequest;
+import com.classmanagement.backend.dto.exam.CreateCompleteExamRequest;
+import com.classmanagement.backend.dto.exam.CreateExamResponse;
+import com.classmanagement.backend.service.exam.ExamCreationService;
 import com.classmanagement.backend.entity.Exam;
 import com.classmanagement.backend.entity.ExamAssignment;
 import com.classmanagement.backend.entity.ExamAssignmentClass;
@@ -14,6 +17,7 @@ import com.classmanagement.backend.repository.exam.ExamAssignmentClassRepository
 import com.classmanagement.backend.repository.exam.ExamAssignmentRepository;
 import com.classmanagement.backend.repository.exam.ExamAttemptRepository;
 import com.classmanagement.backend.repository.exam.ExamRepository;
+import com.classmanagement.backend.repository.exam.ExamMediaRepository;
 import com.classmanagement.backend.repository.SubjectRepository;
 import com.classmanagement.backend.service.ExamService;
 import lombok.RequiredArgsConstructor;
@@ -25,16 +29,25 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
 public class ExamServiceImpl implements ExamService {
+
+    private final ExamCreationService examCreationService;
+
+    @Override
+    public CreateExamResponse createCompleteExam(String username, CreateCompleteExamRequest request) {
+        return examCreationService.create(username, request);
+    }
 
     private final ExamRepository examRepository;
     private final ExamAssignmentRepository examAssignmentRepository;
     private final ExamAssignmentClassRepository examAssignmentClassRepository;
     private final ExamAttemptRepository examAttemptRepository;
     private final SubjectRepository subjectRepository;
+    private final ExamMediaRepository examMediaRepository;
 
 @Override
 @Transactional(readOnly = true)
@@ -190,7 +203,7 @@ public void deleteExam(
                     String username,
                     boolean force) {
             Exam exam = examRepository
-                            .findByIdAndTeacher_Username(examId, username)
+                            .findLockedByIdAndTeacher_Username(examId, username)
                             .orElseThrow(() -> new IllegalArgumentException(
                                             "Không tìm thấy đề thi."));
 
@@ -206,7 +219,11 @@ public void deleteExam(
                     }
             }
 
+            // Keep file paths/retries until storage deletion succeeds. This bulk
+            // update and the cascade delete commit or roll back together.
+            examMediaRepository.queueCleanupByExamId(examId, LocalDateTime.now());
             examRepository.delete(exam);
+            examRepository.flush();
     }
 
 

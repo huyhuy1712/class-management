@@ -6,11 +6,15 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.UriUtils;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.net.http.HttpClient;
+import java.time.Duration;
 
 @Service
 @ConditionalOnProperty(name = "app.storage.type", havingValue = "supabase")
@@ -31,7 +35,10 @@ public class SupabaseStorageService implements StorageService {
         this.secretKey = secretKey;
         this.bucket = bucket;
 
-        this.restClient = RestClient.create();
+        var requestFactory = new JdkClientHttpRequestFactory(HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(5)).build());
+        requestFactory.setReadTimeout(Duration.ofSeconds(20));
+        this.restClient = RestClient.builder().requestFactory(requestFactory).build();
     }
 
     // =====================================================
@@ -111,10 +118,10 @@ public class SupabaseStorageService implements StorageService {
                     .retrieve()
                     .toBodilessEntity();
 
+        } catch (HttpClientErrorException.NotFound e) {
+            // Retry-safe: an already deleted object is a successful cleanup.
         } catch (Exception e) {
-
-            throw new IllegalStateException(
-                    "Không thể xóa file khỏi Supabase Storage");
+            throw new IllegalStateException("Không thể xóa file khỏi Supabase Storage");
         }
     }
 

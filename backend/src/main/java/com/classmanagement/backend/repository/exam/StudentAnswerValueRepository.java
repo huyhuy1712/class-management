@@ -5,10 +5,14 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
 
 public interface StudentAnswerValueRepository
         extends JpaRepository<StudentAnswerValue, Long> {
+
+    List<StudentAnswerValue> findAllByStudentAnswer_IdInOrderByStudentAnswer_IdAscIdAsc(
+            Collection<Long> studentAnswerIds);
 
     @EntityGraph(attributePaths = {
             "answer"

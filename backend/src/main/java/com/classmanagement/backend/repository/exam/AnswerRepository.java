@@ -10,6 +10,9 @@ import java.util.Optional;
 
 public interface AnswerRepository extends JpaRepository<Answer, Long> {
 
+        List<Answer> findAllByQuestion_IdInOrderByQuestion_IdAscOrderIndexAsc(
+                        Collection<Long> questionIds);
+
         List<Answer> findAllByQuestion_IdOrderByOrderIndexAsc(
                         Long questionId);
 

@@ -16,6 +16,49 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler({org.springframework.http.converter.HttpMessageNotReadableException.class,
+            ExamPayloadTooLargeException.class})
+    public ResponseEntity<ErrorResponse> handleUnreadableBody(Exception ex, HttpServletRequest request) {
+        boolean tooLarge = false;
+        for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
+            if (cause instanceof ExamPayloadTooLargeException) { tooLarge = true; break; }
+        }
+        int status = tooLarge ? 413 : 400;
+        return ResponseEntity.status(status).body(ErrorResponse.builder()
+                .timestamp(LocalDateTime.now()).status(status).error("Yêu cầu không hợp lệ")
+                .message(tooLarge ? "Request đề thi vượt quá dung lượng cho phép" : "JSON hoặc kiểu dữ liệu không hợp lệ")
+                .path(request.getRequestURI()).build());
+    }
+
+    @ExceptionHandler(ExamValidationException.class)
+    public ResponseEntity<ErrorResponse> handleExamValidation(
+            ExamValidationException ex, HttpServletRequest request) {
+        return ResponseEntity.badRequest().body(ErrorResponse.builder()
+                .timestamp(LocalDateTime.now()).status(400).error("Yêu cầu không hợp lệ")
+                .message(ex.getMessage()).validationErrors(ex.getValidationErrors())
+                .path(request.getRequestURI()).build());
+    }
+
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleUploadSize(HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(ErrorResponse.builder()
+                .timestamp(LocalDateTime.now()).status(413).error("Tệp quá lớn")
+                .message("Tệp hoặc request vượt quá dung lượng upload cho phép")
+                .path(request.getRequestURI()).build());
+    }
+
+    @ExceptionHandler(ExamMediaException.class)
+    public ResponseEntity<ErrorResponse> handleExamMedia(
+            ExamMediaException ex, HttpServletRequest request) {
+        return ResponseEntity.status(ex.getStatus()).body(ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(ex.getStatus().value())
+                .error(ex.getStatus().getReasonPhrase())
+                .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .build());
+    }
+
     // Các lỗi nghiệp vụ hiện tại:
     // username tồn tại, email tồn tại, signup ADMIN...
     @ExceptionHandler(IllegalArgumentException.class)

@@ -3,7 +3,7 @@
 
 **Base URL local:** `http://localhost:8080`
 
-**Xác thực:** Chỉ `POST /api/auth/signup` và `POST /api/auth/login` không cần JWT. Các API còn lại dùng header `Authorization: Bearer <accessToken>`.
+**Xác thực hiện tại:** Đăng nhập qua `POST /api/auth/login` để nhận cookie HttpOnly `access_token`. Browser/Postman phải gửi lại cookie khi gọi API; dùng cURL có thể truyền `--cookie "access_token=<token>"`. Filter hiện đọc JWT từ cookie, không đọc header Bearer. Các ví dụ Bearer cũ bên dưới cần thay bằng cookie khi thử trên code hiện tại. Signup/login/logout được cấu hình public.
 
 ## Danh sách API
 
@@ -41,12 +41,14 @@
 | 30 | GET | `/api/users/{userId}` | Lấy người dùng theo ID |
 | 31 | GET | `/api/users/my-students` | Lấy học sinh của giáo viên hiện tại |
 | 32 | GET | `/api/exams` | Lấy danh sách đề thi của giáo viên hiện tại |
-| 33 | DELETE | `/api/exams/{examId}?force=false` | Xóa đề thi |
-| 34 | PUT | `/api/exams/{examId}` | Cập nhật đề thi |
-| 35 | PUT | `/api/users/me` | Cập nhật hồ sơ hiện tại |
-| 36 | PUT | `/api/users/me/password` | Đổi mật khẩu hiện tại |
-| 37 | POST | `/api/users/me/avatar` | Tải avatar |
-| 38 | DELETE | `/api/users/me/avatar` | Xóa avatar |
+| 33 | PUT | `/api/users/me` | Cập nhật hồ sơ hiện tại |
+| 34 | PUT | `/api/users/me/password` | Đổi mật khẩu hiện tại |
+| 35 | POST | `/api/users/me/avatar` | Tải avatar |
+| 36 | DELETE | `/api/users/me/avatar` | Xóa avatar |
+| 37 | POST | `/api/exam-media` | Upload ảnh/audio tạm cho bản nháp đề thi |
+| 38 | DELETE | `/api/exam-media/{mediaId}` | Đưa media tạm vào hàng đợi xóa |
+| 39 | POST | `/api/exams` | Lưu đề thi hoàn chỉnh trong một transaction |
+| 40 | DELETE | `/api/exams/{examId}?force=false` | Xóa đề, dữ liệu con và lên lịch dọn toàn bộ media |
 
 ## Xác thực
 
@@ -1770,3 +1772,229 @@ Gọi API khi chưa có avatar vẫn trả về `204 No Content`.
 
 - `400 Bad Request`: Không tìm thấy người dùng hiện tại.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+
+## Media đề thi
+
+### 37. POST `/api/exam-media` | Upload ảnh/audio tạm
+
+**Điều kiện:** Đã đăng nhập bằng cookie `access_token`; user có role TEACHER và status ACTIVE. DB đã chạy V48. API dùng lại StorageService, chưa tạo record Exam khi upload.
+
+**Request:** `multipart/form-data`. Khi dùng Postman/cURL, để công cụ tự tạo Content-Type kèm boundary.
+
+| Field | Kiểu | Bắt buộc | Ý nghĩa |
+|---|---|---|---|
+| `draftToken` | Text, UUID | Có | FE tạo một lần cho bản nháp, giữ cùng token khi upload các file của bản nháp đó |
+| `type` | Text | Có | `IMAGE` hoặc `AUDIO` |
+| `file` | File | Có | Một file ảnh hoặc MP3 |
+
+**Giới hạn mặc định:**
+
+- IMAGE: JPEG (`.jpg`/`.jpeg`, `image/jpeg`), PNG (`.png`, `image/png`), WebP (`.webp`, `image/webp`); tối đa 5 MiB và 16 triệu pixel. Không nhận WebP động.
+- AUDIO: MP3 (`.mp3`, `audio/mpeg`), tối đa 8 MiB. M4A/AAC/WAV chưa hỗ trợ.
+- File phải có extension/MIME/nội dung phù hợp; không nhận file rỗng, Base64, URL hay storage path do client chọn.
+- Framework hiện giới hạn toàn request 10MB. Giới hạn media cấu hình qua `EXAM_MEDIA_MAX_IMAGE_BYTES`, `EXAM_MEDIA_MAX_AUDIO_BYTES`, `EXAM_MEDIA_MAX_IMAGE_PIXELS`.
+
+**Thử bằng Swagger/Postman:**
+
+1. Gọi login bằng tài khoản giáo viên và giữ cookie nhận được. Trên Swagger cùng origin, cookie được browser tự gửi lại.
+2. Chọn POST exam-media, nhập UUID, chọn IMAGE và một file PNG/JPEG.
+3. Gửi request, kiểm tra 201 và mở `url` để xem preview.
+4. Dùng lại draftToken để upload các file khác; thử AUDIO với MP3.
+
+**Ví dụ cURL trên Windows:** thay đường dẫn bằng file có thật. Dùng `curl.exe` để tránh alias PowerShell.
+
+```powershell
+curl.exe --request POST "http://localhost:8080/api/exam-media" --cookie "access_token=<token>" --form "draftToken=550e8400-e29b-41d4-a716-446655440001" --form "type=IMAGE" --form "file=@D:/class-management/sample.png;type=image/png"
+```
+
+**Response `201 Created`:**
+
+```json
+{
+  "mediaId": "550e8400-e29b-41d4-a716-446655440000",
+  "draftToken": "550e8400-e29b-41d4-a716-446655440001",
+  "path": "exam-media/gv_14/550e8400-e29b-41d4-a716-446655440001/550e8400-e29b-41d4-a716-446655440000.png",
+  "url": "http://localhost:8080/uploads/exam-media/gv_14/550e8400-e29b-41d4-a716-446655440001/550e8400-e29b-41d4-a716-446655440000.png",
+  "type": "IMAGE",
+  "contentType": "image/png",
+  "sizeBytes": 1024,
+  "expiresAt": "2026-10-09T10:00:00"
+}
+```
+
+FE giữ mediaId/path/url, không lưu binary trong localStorage. Filename do BE sinh UUID. TEMP mặc định hết hạn sau 24h (`EXAM_MEDIA_TEMP_TTL_HOURS`); expiresAt hiện theo timezone server. API lưu complete Exam sẽ dùng mediaId để xác minh owner/draft và gắn file trong transaction, không di chuyển path; API lưu đề đã triển khai tại mục 39: POST /api/exams.
+
+**Lỗi:** 400 khi UUID/type/file sai; 403 khi user không phải giáo viên ACTIVE; 413 khi vượt giới hạn file/request; 502 khi upload storage hoặc hoàn tất registry thất bại. Thiếu cookie hợp lệ bị Spring Security từ chối; mã chưa xác thực phụ thuộc entry point hiện tại, không mặc định khẳng định 401.
+
+### 38. DELETE `/api/exam-media/{mediaId}` | Xóa media tạm
+
+**Điều kiện:** Giáo viên ACTIVE, media thuộc giáo viên hiện tại. Không cần truyền path/draftToken trong body.
+
+```powershell
+curl.exe --request DELETE "http://localhost:8080/api/exam-media/550e8400-e29b-41d4-a716-446655440000" --cookie "access_token=<token>"
+```
+
+**Response `202 Accepted`, không có body:** Yêu cầu xóa đã được lưu vào registry. File chưa chắc bị xóa ngay. Worker mặc định chạy mỗi 60 giây (`EXAM_MEDIA_CLEANUP_DELAY_MS`), tối đa 10 file mỗi lượt; lỗi storage được retry, lịch retry vẫn còn sau restart.
+
+**Thử:** upload thành công -> DELETE bằng mediaId -> chờ ít nhất một lượt worker -> kiểm tra file local/storage đã bị xóa. Không dùng cache trình duyệt để kết luận file còn tồn tại. Local tự tạo folder khi upload; Supabase dùng bucket đang cấu hình, API không tự tạo bucket.
+
+**Lỗi và gọi lại:**
+
+- 400: mediaId không phải UUID.
+- 403: user không phải giáo viên ACTIVE.
+- 404: media không tồn tại hoặc thuộc giáo viên khác; cũng xảy ra khi worker đã xóa registry.
+- 409: media đang UPLOADING hoặc đã ATTACHED vào đề.
+- DELETE lại khi còn DELETE_PENDING vẫn trả 202, không reset lịch retry.
+
+Ảnh/audio preview hiện dùng URL public của storage implementation. Private bucket/signed URL chưa triển khai. Chi tiết kỹ thuật và giới hạn kiểm tra định dạng ở [EXAM_MEDIA_API.md](EXAM_MEDIA_API.md).
+
+### 39. POST `/api/exams` | Lưu đề thi hoàn chỉnh
+
+**Điều kiện:** Đăng nhập bằng cookie access_token; giáo viên TEACHER/ACTIVE. Reuse các API môn học, lớp của giáo viên, học sinh của giáo viên và upload media để chuẩn bị dữ liệu. Không cần migration mới ngoài V46–V48 đã có.
+
+**Headers:** `Content-Type: application/json`. Cookie được gửi như hướng dẫn xác thực đầu tài liệu. Không truyền teacherId hoặc status; BE tự xác định và tạo Exam/Assignment ở DRAFT.
+
+**Request mẫu:** đổi subjectId thành môn có thật. Không truyền code: BE tự sinh `EX-<TeacherID>-<6 chữ cái A–Z>`, ví dụ `EX-14-ABCDEF`. Một question có hai nhóm độc lập, tổng 3 điểm.
+
+```json
+{
+  "basicInfo": {
+    "title": "Đề kiểm tra thử",
+    "subjectId": 1,
+    "gradeLevel": "Cấp 3",
+    "description": "Đề thử lưu toàn bộ cấu trúc",
+    "purpose": "Kiểm tra",
+    "timeLimit": 60,
+    "maxAttempts": 0
+  },
+  "assignment": {
+    "assignmentType": "ALL",
+    "classIds": [],
+    "studentIds": [],
+    "scoreVisibility": "AFTER_SUBMIT",
+    "answerVisibility": "AFTER_SUBMIT",
+    "hideCorrectAnswerOnWrong": false
+  },
+  "sections": [
+    {
+      "title": "Phần 1",
+      "questions": [
+        {
+          "content": "Trả lời phần lựa chọn và các ý đúng/sai dưới đây.",
+          "points": 3,
+          "answers": [
+            {
+              "answerType": "SINGLE_CHOICE",
+              "content": "Hà Nội là thủ đô của nước nào?",
+              "points": 1,
+              "scoringType": "PER_ANSWER",
+              "options": [
+                { "content": "Việt Nam", "isCorrect": true },
+                { "content": "Thái Lan", "isCorrect": false }
+              ]
+            },
+            {
+              "answerType": "TRUE_FALSE",
+              "content": "Xác định Đúng/Sai cho từng ý",
+              "points": 2,
+              "scoringType": "CORRECT_COUNT",
+              "options": [
+                { "content": "2 + 2 = 4", "isCorrect": true },
+                { "content": "3 là số chẵn", "isCorrect": false },
+                { "content": "5 > 2", "isCorrect": true },
+                { "content": "10 < 1", "isCorrect": false }
+              ],
+              "scoringRules": [
+                { "correctCount": 0, "score": 0 },
+                { "correctCount": 1, "score": 0.25 },
+                { "correctCount": 2, "score": 0.75 },
+                { "correctCount": 3, "score": 1.25 },
+                { "correctCount": 4, "score": 2 }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Các field và quy tắc:**
+
+- basicInfo: title/subjectId/gradeLevel/timeLimit/maxAttempts bắt buộc; title tối đa 255, gradeLevel 30, purpose 50 ký tự. timeLimit nguyên >=1, maxAttempts nguyên >=0; 0 không giới hạn. BE sinh code bằng SecureRandom, kiểm tra UNIQUE theo teacher trước insert và sinh lại nếu trùng (tối đa 10 lần). Constraint UNIQUE(teacher_id, code) của V44 vẫn bảo vệ khi concurrent. Không nhận code hoặc maxScore làm nguồn dữ liệu từ FE.
+- assignment: type ALL/CLASS/STUDENT; ALL nhận targets rỗng và áp dụng phạm vi các lớp giáo viên phụ trách khi triển khai thi. CLASS nhận classIds của lớp ACTIVE thuộc giáo viên; STUDENT nhận studentIds của học sinh ACTIVE thuộc lớp ACTIVE giáo viên phụ trách. Không nhận targets trùng hoặc lẫn hai loại. Assignment timeLimit/maxAttempts để NULL kế thừa Exam.
+- scoreVisibility: NEVER/AFTER_SUBMIT/AFTER_EXAM. answerVisibility thêm AFTER_SCORE; chế độ này bắt buộc answerVisibilityScore từ 0 đến tổng điểm đề. Chế độ khác không nhận threshold. openTime/closeTime tùy chọn, nếu cùng có thì closeTime phải sau openTime; thời gian hiện theo timezone server. AFTER_EXAM nghĩa là khi tất cả học sinh trong phạm vi giao đề đã thi xong; không dùng closeTime làm điều kiện thay thế. Việc kiểm tra hoàn thành sẽ được triển khai cùng luồng làm/nộp bài.
+- section: title và questions không rỗng. question: content/points/answers bắt buộc; points phải dương và bằng tổng Answer.points. Section.points và Exam.maxScore được BE tính. Điểm dùng decimal tối đa 2 chữ số thập phân; tổng không vượt 9999.99.
+- Mỗi Answer là một nhóm độc lập. SINGLE_CHOICE cần ít nhất hai options và đúng một option đúng; MULTIPLE_CHOICE cần ít nhất hai options và ít nhất một option đúng; quy tắc chấm tương lai là chọn đủ đúng và không chọn sai mới nhận điểm nhóm, không cộng điểm từng phương án. Trắc nghiệm dùng PER_ANSWER, không nhận scoringRules.
+- TRUE_FALSE: mỗi option là một ý; isCorrect=true nghĩa đáp án chuẩn là Đúng, false nghĩa Sai. Cho phép toàn bộ ý có đáp án Sai. PER_ANSWER yêu cầu points từng option và tổng khớp Answer.points. CORRECT_COUNT không nhận điểm option dương; rules phải đủ count 0..N, không trùng, score tăng không giảm, score tại 0 là 0 và tại N bằng điểm nhóm.
+- SHORT_ANSWER/FILL_BLANK: dùng PER_ANSWER, correctAnswerText bắt buộc, caseSensitive tùy chọn, không nhận options/rules. Bản đầu một đáp án chuẩn mỗi Answer; nhiều ô trống biểu diễn bằng nhiều Answer.
+- ESSAY: PER_ANSWER, điểm tối đa của nhóm, không có đáp án chuẩn/caseSensitive/options/rules; chấm tay sau này. content có thể chứa mô tả yêu cầu.
+- Description/content/correctAnswerText tối đa 20000 ký tự. Danh sách không nhận phần tử null. Thứ tự lấy từ thứ tự array và lưu 1..N trong từng parent; FE phải sắp xếp array trước khi gửi, không gửi orderIndex cạnh tranh.
+- Giới hạn: 50 sections, 100 questions/section; toàn đề 500 questions, 2000 Answer groups, 10000 options, 500 media khác nhau. Mỗi question tối đa 20 groups, mỗi group 50 options và 51 rules. Request JSON tối đa 2 MiB, kể cả khi không có Content-Length; cấu hình EXAM_MAX_REQUEST_BYTES.
+
+**Media:** section/question/answer/option đều có thể nhận imageMediaId/audioMediaId từ API upload. Nếu có media phải gửi draftToken ở root. BE batch-lock và kiểm tra owner/draft/TEMP/hạn dùng/loại file; không nhận path/URL tùy ý. Media chỉ chuyển ATTACHED khi transaction lưu đề commit, path không đổi. Một media được reuse ở nhiều vị trí cùng đề nhưng không vừa là IMAGE vừa AUDIO.
+
+**Mapping FE khi nối sau này:** answerGroups -> answers; items CHOICE/TRUE_FALSE -> options; CHOICE SINGLE/MULTIPLE -> SINGLE_CHOICE/MULTIPLE_CHOICE; TEXT -> ESSAY; SHORT_ANSWER.content làm correctAnswerText; hideWrongAnswers -> hideCorrectAnswerOnWrong. FE và BE dùng thống nhất AFTER_EXAM cho lựa chọn khi tất cả thi xong. FE đã tích hợp POST này từ builder: kiểm tra điểm câu/nhóm, sắp xếp array, upload media bằng cùng draftToken rồi dựng payload. ALL gửi hai targets rỗng; CLASS chỉ gửi classIds; STUDENT chỉ gửi studentIds (ID user, không phải studentCode). Không gửi nguyên local draft. Lỗi validation được map về ID câu/nhóm; lỗi cấu hình được giữ để hiển thị khi quay lại form. Khi kết quả POST chưa rõ, FE giữ pendingSave và chặn gửi lại cho đến khi người dùng kiểm tra danh sách và xác nhận. Code lấy từ response sau lưu thành công.
+
+**Response `201 Created`:**
+
+```json
+{
+  "id": 105,
+  "code": "EX-14-ABCDEF",
+  "status": "DRAFT",
+  "maxScore": 3.00,
+  "assignmentId": 12,
+  "updatedAt": "2026-10-08T10:00:00"
+}
+```
+
+Response nhỏ, không đọc lại toàn bộ cây. GET complete detail sẽ được triển khai ở checkpoint tiếp theo; hiện có thể reuse GET /api/exams để xem đề vừa lưu.
+
+**Lỗi:** 400 cho JSON/validation/targets/media sai loại; field nghiệp vụ có validationErrors, ví dụ sections[0].questions[0].points. 403 cho user không phải giáo viên ACTIVE; 404 khi media thiếu/không thuộc owner/draft; 409 khi code trùng, media hết hạn/đã dùng hoặc dữ liệu liên kết thay đổi; 413 khi JSON quá lớn. Mọi lỗi phát sinh trong transaction đều rollback Exam, Assignment, targets, cây và claim media; file upload trước đó vẫn là TEMP để thử lại hoặc cleanup.
+
+**Checklist test thủ công trên DB development:**
+
+1. Restart BE, gửi request mẫu với subjectId đúng -> 201/DRAFT/maxScore=3. Kiểm tra các bảng chứa đầy đủ cây và GET /api/exams thấy đề.
+2. Gửi lại request không media -> tạo đề mới với mã tự sinh khác. API chưa có idempotency: không gửi lại nếu lần trước đã thành công chỉ để kiểm tra trùng.
+3. Sửa points câu từ 3 thành 4 -> 400, không có đề mới.
+4. CLASS dùng lớp giáo viên khác hoặc STUDENT dùng người ngoài phạm vi -> 400, không lưu đề.
+5. Upload MP3 bằng draftToken riêng. Gửi đề có title riêng dễ nhận biết, cùng draftToken nhưng dùng mediaId MP3 ở imageMediaId -> 400. Trường hợp này phát hiện sau insert parent/claim trong transaction: kiểm tra không có exam/assignment/cây của lần tạo lỗi và media vẫn TEMP. Sau đó đổi sang audioMediaId, gửi lại -> phải lưu được và trả mã tự sinh.
+6. Đề TRUE_FALSE tất cả isCorrect=false, điểm/rules hợp lệ -> phải lưu được.
+
+Unit tests kiểm tra validation, số lần gọi repository và Spring transaction interception. Chưa chạy PostgreSQL rollback/SQL statistics hoặc HTTP integration tự động trong workspace; checklist trên do người dùng thực hiện. INSERT tăng theo số record là bình thường; batch SELECT validation không tăng theo số câu, và persist targets có khóa ghép tránh merge-read từng target.
+
+Nếu hai request concurrent hiếm khi sinh cùng mã sau existence check, DB từ chối một request: trả 409 và rollback toàn bộ. Gửi lại request lỗi sẽ sinh mã mới. Không sinh lại ngay trong transaction PostgreSQL đã lỗi. Mã chỉ được lưu cùng đề khi transaction commit, không sinh mã sau commit.
+
+### 40. DELETE `/api/exams/{examId}` | Xóa đề và toàn bộ media liên quan
+
+Reuse endpoint DELETE hiện tại, không tạo API mới. Đăng nhập bằng cookie access_token, chỉ được xóa đề thuộc user hiện tại. examId là ID số của đề, không phải chuỗi code EX-...; lấy ID từ response POST hoặc GET /api/exams.
+
+| Tham số | Vị trí | Ý nghĩa |
+|---|---|---|
+| examId | Path | ID đề cần xóa |
+| force | Query, mặc định false | true để xác nhận xóa cả bài làm/kết quả khi đề có attempts |
+
+```powershell
+curl.exe --request DELETE "http://localhost:8080/api/exams/105" --cookie "access_token=<token>"
+```
+
+**Response 204 No Content:** transaction xóa đề và lên lịch cleanup đã commit. DB cascade xóa Assignment/targets, Sections, Questions, Answers, Options, ScoringRules, Attempts/Events, StudentAnswers/Values/Options và SectionScores liên quan. Không xóa user, môn học hoặc lớp học.
+
+Trong cùng transaction, một bulk update chuyển toàn bộ exam_media có exam_id của đề sang DELETE_PENDING, bỏ exam reference và đặt lịch cleanup ngay. Registry còn giữ path để worker xóa file sau commit. Không tải cây đề hay gọi storage từng file trong DELETE request. Không xóa cả folder draft vì folder có thể có media TEMP chưa được dùng trong đề.
+
+Worker xử lý ảnh/audio thuộc mọi vị trí của đề, xóa file ở storage local/Supabase rồi xóa record exam_media. Nếu lỗi storage, record vẫn còn để retry qua restart. Vì vậy 204 không hứa file và registry đã biến mất ngay; mặc định worker chạy mỗi phút, tối đa 10 file/lượt, đề nhiều media cần nhiều lượt. Media không thuộc đề không bị xóa.
+
+**Lỗi:** không tìm thấy đề/khác chủ sở hữu trả 400 theo convention hiện tại. Có attempts và force=false trả 409, không xóa dữ liệu hoặc queue media. Khi đồng ý xóa cả bài làm, gọi lại với `?force=true`. Lỗi DB rollback cả việc queue media và xóa đề, file storage không bị xóa trước commit.
+
+**Cách test:**
+
+1. Tạo đề có ảnh ở section và audio ở question, ghi lại examId và mediaIds.
+2. DELETE theo examId -> 204; GET /api/exams không còn đề, dữ liệu con liên quan không còn trong DB.
+3. exam_media của các mediaIds chuyển DELETE_PENDING, exam_id=NULL. Nếu worker đã chạy thì registry có thể đã bị xóa.
+4. Chờ các lượt cleanup cần thiết, kiểm tra file thật biến mất và query exam_media theo các mediaIds trả 0 dòng; không dựa vào preview cache trình duyệt.
+5. Kiểm tra ảnh/audio của đề khác và avatar vẫn còn.
+6. Nếu có dữ liệu attempts để thử: force=false phải 409 và giữ nguyên media; force=true mới xóa cả bài làm.
+
+Tests đơn vị kiểm tra thứ tự queue/delete, ownership và attempts/force; chưa tự chạy cascade/rollback hoặc storage integration trên DB triển khai.

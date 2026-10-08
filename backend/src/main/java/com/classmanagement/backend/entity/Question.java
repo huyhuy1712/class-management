@@ -1,6 +1,5 @@
 package com.classmanagement.backend.entity;
 
-import com.classmanagement.backend.entity.enums.ScoringType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -41,9 +40,6 @@ public class Question {
     @Column(nullable = false, precision = 6, scale = 2)
     private BigDecimal points;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "scoring_type", nullable = false, length = 30)
-    private ScoringType scoringType;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -65,9 +61,6 @@ public class Question {
             points = BigDecimal.ZERO;
         }
 
-        if (scoringType == null) {
-            scoringType = ScoringType.PER_ANSWER;
-        }
     }
 
     @PreUpdate
