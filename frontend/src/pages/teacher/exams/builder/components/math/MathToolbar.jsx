@@ -1,5 +1,6 @@
 import { getMathTemplateHint } from './mathShortcuts'
 import { useState } from 'react'
+import MathTemplateSymbol from './MathTemplateSymbol'
 import { MATH_TEMPLATE_GROUPS } from './mathTemplates'
 
 function MathToolbar({ onInsert }) {
@@ -18,7 +19,7 @@ function MathToolbar({ onInsert }) {
       <div className="flex min-h-[54px] flex-wrap gap-1.5 bg-white/70 p-2">
         {group.items.map((item) => (
           <button key={item.label} type="button" title={getMathTemplateHint(item)} aria-label={item.label} onClick={() => onInsert(item.latex)} className="min-w-9 cursor-pointer rounded-lg border border-indigo-100 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700">
-            {item.symbol}
+            <MathTemplateSymbol item={item} />
           </button>
         ))}
       </div>
