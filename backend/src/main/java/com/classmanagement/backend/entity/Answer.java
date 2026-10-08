@@ -1,6 +1,7 @@
 package com.classmanagement.backend.entity;
 
 import com.classmanagement.backend.entity.enums.AnswerType;
+import com.classmanagement.backend.entity.enums.ScoringType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -45,6 +46,10 @@ public class Answer {
     @Column(nullable = false, precision = 6, scale = 2)
     private BigDecimal points;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "scoring_type", nullable = false, length = 30)
+    private ScoringType scoringType;
+
     @Column(name = "correct_answer_text", columnDefinition = "TEXT")
     private String correctAnswerText;
 
@@ -72,6 +77,10 @@ public class Answer {
 
         if (points == null) {
             points = BigDecimal.ZERO;
+        }
+
+        if (scoringType == null) {
+            scoringType = ScoringType.PER_ANSWER;
         }
 
         if (caseSensitive == null) {

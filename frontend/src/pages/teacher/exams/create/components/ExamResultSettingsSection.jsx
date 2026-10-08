@@ -14,7 +14,7 @@ const RadioOption = ({ name, value, checked, onChange, label }) => (
   </label>
 )
 
-function ExamResultSettingsSection({ form, onChange }) {
+function ExamResultSettingsSection({ form, errors = {}, onChange }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
       <div className="mb-6 flex items-center gap-3 border-b border-slate-100 pb-5">
@@ -39,6 +39,7 @@ function ExamResultSettingsSection({ form, onChange }) {
             <RadioOption name="scoreVisibility" value="NEVER" checked={form.scoreVisibility === 'NEVER'} onChange={onChange} label="Không" />
             <RadioOption name="scoreVisibility" value="AFTER_SUBMIT" checked={form.scoreVisibility === 'AFTER_SUBMIT'} onChange={onChange} label="Khi làm bài xong" />
             <RadioOption name="scoreVisibility" value="AFTER_EXAM" checked={form.scoreVisibility === 'AFTER_EXAM'} onChange={onChange} label="Khi tất cả thi xong" />
+            {errors.scoreVisibility && <p role="alert" className="w-full text-xs font-medium text-red-500">{errors.scoreVisibility}</p>}
           </div>
         </div>
 
@@ -53,7 +54,7 @@ function ExamResultSettingsSection({ form, onChange }) {
             <RadioOption name="answerVisibility" value="NEVER" checked={form.answerVisibility === 'NEVER'} onChange={onChange} label="Không" />
             <RadioOption name="answerVisibility" value="AFTER_SUBMIT" checked={form.answerVisibility === 'AFTER_SUBMIT'} onChange={onChange} label="Khi làm bài xong" />
             <RadioOption name="answerVisibility" value="AFTER_EXAM" checked={form.answerVisibility === 'AFTER_EXAM'} onChange={onChange} label="Khi tất cả thi xong" />
-            <RadioOption name="answerVisibility" value="AFTER_SCORE" checked={form.answerVisibility === 'AFTER_SCORE'} onChange={onChange} label="Khi đạt đến số điểm nhất định" />
+            {errors.answerVisibility && <p role="alert" className="w-full text-xs font-medium text-red-500">{errors.answerVisibility}</p>}
           </div>
         </div>
 
@@ -77,12 +78,13 @@ function ExamResultSettingsSection({ form, onChange }) {
                 className="peer sr-only"
               />
               <span className="relative h-7 w-12 rounded-full bg-slate-200 transition peer-checked:bg-emerald-600">
-                <span className="absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5" />
+                <span className={`absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${form.hideWrongAnswers ? 'translate-x-5' : 'translate-x-0'}`} />
               </span>
               <span className="text-sm font-medium text-slate-600">
                 {form.hideWrongAnswers ? 'Đang bật' : 'Đang tắt'}
               </span>
             </label>
+            {errors.hideWrongAnswers && <p role="alert" className="mt-2 text-xs font-medium text-red-500">{errors.hideWrongAnswers}</p>}
           </div>
         </div>
 

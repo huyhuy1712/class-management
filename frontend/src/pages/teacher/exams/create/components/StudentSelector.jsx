@@ -2,7 +2,6 @@ import {
   ArrowLeft,
   BookOpen,
   ChevronRight,
-  UserRound,
 } from 'lucide-react'
 
 import defaultAvatar from '../../../../../assets/images/avatar_default.png'

@@ -14,7 +14,6 @@ export const createQuestion = (index) => ({
   id: crypto.randomUUID(), content: '', imageFile: null, audioFile: null, point: 1,
   orderIndex: index + 1, scoringType: 'PER_QUESTION', answerGroups: [],
 })
-//g
 export const createAnswer = (type, index) => ({
   id: crypto.randomUUID(),
   answerType: type,
@@ -28,7 +27,7 @@ export const createAnswer = (type, index) => ({
 
 export const createAnswerGroup = (index) => ({
   id: crypto.randomUUID(), answerType: null, choiceMode: 'SINGLE',
-  orderIndex: index + 1, answers: [], scoreByCorrectCount: false, scoringRules: [],
+  orderIndex: index + 1, point: 0, answers: [], scoreByCorrectCount: false, scoringRules: [],
 })
 
 export const createScoringRule = () => ({

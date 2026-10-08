@@ -30,8 +30,10 @@ export const saveExamDraft = (changes) => {
       ...sanitizeForStorage(changes),
       updatedAt: new Date().toISOString(),
     }))
+    return true
   } catch (error) {
     console.warn('Could not save exam draft:', error)
+    return false
   }
 }
 

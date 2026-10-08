@@ -9,7 +9,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom'
 
 import { signup } from '../../services/authService'
-import logo from '../../assets/logos/logo.png'
+import AuthLayout from './components/AuthLayout'
 
 function SignupPage() {
   const navigate = useNavigate()
@@ -194,56 +194,13 @@ function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col overflow-x-hidden bg-[#F5FAF4] lg:flex-row">
-      <section className="hidden w-1/2 flex-col justify-between bg-[#123524] p-12 lg:flex">
-        <div className="flex items-center gap-3">
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl">
-            <img src={logo} alt="Class Management" className="h-14 w-14 object-contain" />
-          </div>
-
-          <div>
-            <h1 className="font-bold text-white">FrogH</h1>
-            <p className="text-sm text-green-200">Education System</p>
-          </div>
-        </div>
-
-        <div className="max-w-lg">
-          <h2 className="text-4xl font-bold leading-tight text-white">
-            Bắt đầu hành trình
-            <span className="text-lime-400"> học tập của bạn.</span>
-          </h2>
-
-          <p className="mt-5 leading-7 text-green-100/70">
-            Tạo tài khoản để tham gia lớp học hoặc quản lý lớp với vai trò
-            giáo viên.
-          </p>
-        </div>
-
-        <p className="text-sm text-green-200/50">
-          Made by FrogH
-        </p>
-      </section>
-
-      <section className="flex w-full min-w-0 flex-1 items-center justify-center px-4 py-8 sm:px-6 sm:py-10">
-        <div className="w-full min-w-0 max-w-md">
-          <div className="mb-7">
-            <h1 className="text-3xl font-bold text-[#18301D]">
-                Đăng ký tài khoản
-            </h1>
-            <p className="mt-2 text-gray-500">
-              Điền thông tin để đăng ký tài khoản mới.
-            </p>
-          </div>
-
-          <div className="mb-6 grid grid-cols-2 rounded-xl bg-green-50 p-1.5">
+    <AuthLayout variant="signup" title="Đăng ký tài khoản" description="Điền thông tin để đăng ký tài khoản mới.">
+          <div className="auth-roles">
             <button
               type="button"
               onClick={() => setRole('STUDENT')}
-              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition ${
-                role === 'STUDENT'
-                  ? 'bg-white text-green-700 shadow-sm'
-                  : 'text-gray-500'
-              }`}
+              className="auth-role"
+              aria-pressed={role === 'STUDENT'}
             >
               <GraduationCap size={18} />
               Học sinh
@@ -252,11 +209,8 @@ function SignupPage() {
             <button
               type="button"
               onClick={() => setRole('TEACHER')}
-              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition ${
-                role === 'TEACHER'
-                  ? 'bg-white text-green-700 shadow-sm'
-                  : 'text-gray-500'
-              }`}
+              className="auth-role"
+              aria-pressed={role === 'TEACHER'}
             >
               <School size={18} />
               Giáo viên
@@ -267,14 +221,13 @@ function SignupPage() {
             <input
               ref={fullNameInputRef}
               name="fullName"
+                aria-label="Họ và tên"
+                autoComplete="name"
+                aria-invalid={Boolean(fieldErrors.fullName)}
               value={form.fullName}
               onChange={handleChange}
               placeholder="Họ và tên *"
-              className={`w-full rounded-xl border bg-white px-4 py-3 outline-none focus:ring-4 focus:ring-green-100 ${
-                fieldErrors.fullName
-                  ? 'border-red-400 focus:border-red-500 focus:ring-red-100'
-                  : 'border-green-100 focus:border-green-500'
-              }`}
+              className={`auth-input ${fieldErrors.fullName ? 'auth-input--error' : ''}`}
             />
             {fieldErrors.fullName && (
               <p className="mt-1 text-sm text-red-600">{fieldErrors.fullName}</p>
@@ -283,14 +236,13 @@ function SignupPage() {
             <input
               ref={usernameInputRef}
               name="username"
+                aria-label="Tên đăng nhập"
+                autoComplete="username"
+                aria-invalid={Boolean(fieldErrors.username)}
               value={form.username}
               onChange={handleChange}
               placeholder="Tên đăng nhập *"
-              className={`w-full rounded-xl border bg-white px-4 py-3 outline-none focus:ring-4 focus:ring-green-100 ${
-                fieldErrors.username
-                  ? 'border-red-400 focus:border-red-500 focus:ring-red-100'
-                  : 'border-green-100 focus:border-green-500'
-              }`}
+              className={`auth-input ${fieldErrors.username ? 'auth-input--error' : ''}`}
             />
             {fieldErrors.username && (
               <p className="mt-1 text-sm text-red-600">{fieldErrors.username}</p>
@@ -299,15 +251,14 @@ function SignupPage() {
             <input
               ref={emailInputRef}
               name="email"
+                aria-label="Email"
+                autoComplete="email"
+                aria-invalid={Boolean(fieldErrors.email)}
               type="email"
               value={form.email}
               onChange={handleChange}
               placeholder="Email *"
-              className={`w-full rounded-xl border bg-white px-4 py-3 outline-none focus:ring-4 focus:ring-green-100 ${
-                fieldErrors.email
-                  ? 'border-red-400 focus:border-red-500 focus:ring-red-100'
-                  : 'border-green-100 focus:border-green-500'
-              }`}
+              className={`auth-input ${fieldErrors.email ? 'auth-input--error' : ''}`}
             />
             {fieldErrors.email && (
               <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p>
@@ -316,17 +267,16 @@ function SignupPage() {
             <input
               ref={phoneInputRef}
               name="phone"
+                aria-label="Số điện thoại"
+                autoComplete="tel"
+                aria-invalid={Boolean(fieldErrors.phone)}
               type="tel"
               inputMode="numeric"
               maxLength={10}
               value={form.phone}
               onChange={handleChange}
               placeholder="Số điện thoại"
-              className={`w-full rounded-xl border bg-white px-4 py-3 outline-none focus:ring-4 focus:ring-green-100 ${
-                fieldErrors.phone
-                  ? 'border-red-400 focus:border-red-500 focus:ring-red-100'
-                  : 'border-green-100 focus:border-green-500'
-              }`}
+              className={`auth-input ${fieldErrors.phone ? 'auth-input--error' : ''}`}
             />
             {fieldErrors.phone && (
               <p className="mt-1 text-sm text-red-600">{fieldErrors.phone}</p>
@@ -336,20 +286,21 @@ function SignupPage() {
               <input
                 ref={passwordInputRef}
                 name="password"
+                aria-label="Mật khẩu"
+                autoComplete="new-password"
+                aria-invalid={Boolean(fieldErrors.password)}
                 type={showPassword ? 'text' : 'password'}
                 value={form.password}
                 onChange={handleChange}
                 placeholder="Mật khẩu *"
-                className={`w-full rounded-xl border bg-white px-4 py-3 pr-12 outline-none focus:ring-4 focus:ring-green-100 ${
-                  fieldErrors.password
-                    ? 'border-red-400 focus:border-red-500 focus:ring-red-100'
-                    : 'border-green-100 focus:border-green-500'
-                }`}
+                className={`auth-input auth-input--password ${fieldErrors.password ? 'auth-input--error' : ''}`}
               />
 
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                  aria-pressed={showPassword}
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-green-700"
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -367,7 +318,7 @@ function SignupPage() {
 
             <button
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3.5 font-semibold text-white transition hover:bg-green-700 disabled:opacity-60"
+              className="auth-submit"
             >
               {loading && <LoaderCircle size={18} className="animate-spin" />}
               {loading ? 'Đang đăng ký...' : 'Đăng ký'}
@@ -383,9 +334,7 @@ function SignupPage() {
               Đăng nhập
             </Link>
           </p>
-        </div>
-      </section>
-    </div>
+    </AuthLayout>
   )
 }
 

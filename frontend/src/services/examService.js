@@ -1,6 +1,10 @@
 import api from './api'
 
 const examService = {
+  createExam: async (payload) => {
+    const response = await api.post('/exams', payload)
+    return response.data
+  },
   getMyExams: async () => {
     const response = await api.get('/exams')
     return response.data

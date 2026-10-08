@@ -11,6 +11,7 @@ import ClassSelector from './ClassSelector'
 import StudentSelector from './StudentSelector'
 
 function ExamAccessSection({
+  error,
   accessType,
   onAccessChange,
 
@@ -29,7 +30,7 @@ function ExamAccessSection({
   onStudentClassChange,
 }) {
   return (
-<section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_2px_12px_rgba(15,23,42,0.05)]">      <h2 className="font-bold text-[#18301D]">
+<section id="exam-access" className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_2px_12px_rgba(15,23,42,0.05)]">      <h2 className="font-bold text-[#18301D]">
         Ai được phép làm?
       </h2>
 
@@ -38,6 +39,7 @@ function ExamAccessSection({
         đề thi.
       </p>
 
+      {error && <p role="alert" className="mt-3 text-sm font-medium text-red-500">{error}</p>}
       <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
         <AccessOption
           selected={

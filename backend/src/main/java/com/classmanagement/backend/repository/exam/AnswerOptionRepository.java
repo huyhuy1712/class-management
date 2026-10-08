@@ -11,6 +11,9 @@ import java.util.Optional;
 public interface AnswerOptionRepository
                 extends JpaRepository<AnswerOption, Long> {
 
+        List<AnswerOption> findAllByAnswer_IdInOrderByAnswer_IdAscOrderIndexAsc(
+                        Collection<Long> answerIds);
+
         List<AnswerOption> findAllByAnswer_IdOrderByOrderIndexAsc(
                         Long answerId);
 

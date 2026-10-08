@@ -3,6 +3,7 @@ package com.classmanagement.backend.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -36,6 +37,9 @@ public class AnswerOption {
     @Column(name = "is_correct", nullable = false)
     private Boolean correct;
 
+    @Column(nullable = false, precision = 6, scale = 2)
+    private BigDecimal points;
+
     @Column(name = "order_index", nullable = false)
     private Integer orderIndex;
 
@@ -57,6 +61,10 @@ public class AnswerOption {
 
         if (correct == null) {
             correct = false;
+        }
+
+        if (points == null) {
+            points = BigDecimal.ZERO;
         }
     }
 

@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "question_scoring_rules", uniqueConstraints = {
-        @UniqueConstraint(name = "uq_question_scoring_rules_count", columnNames = { "question_id", "correct_count" })
+        @UniqueConstraint(name = "uq_answer_scoring_rules_count", columnNames = { "answer_id", "correct_count" })
 })
 @Getter
 @Setter
@@ -22,8 +22,8 @@ public class QuestionScoringRule {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "question_id", nullable = false)
-    private Question question;
+    @JoinColumn(name = "answer_id", nullable = false)
+    private Answer answer;
 
     @Column(name = "correct_count", nullable = false)
     private Integer correctCount;

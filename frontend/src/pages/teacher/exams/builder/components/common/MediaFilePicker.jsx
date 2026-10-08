@@ -2,12 +2,12 @@ import { Headphones, ImagePlus, X } from 'lucide-react'
 
 const config = {
   image: {
-    accept: 'image/*',
+    accept: '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp',
     icon: ImagePlus,
     empty: 'Chọn ảnh',
   },
   audio: {
-    accept: 'audio/*',
+    accept: '.mp3,audio/mpeg',
     icon: Headphones,
     empty: 'Chọn audio',
   },
@@ -40,7 +40,11 @@ function MediaFilePicker({ type, file, onChange }) {
         type="file"
         accept={accept}
         className="hidden"
-        onChange={(event) => onChange(event.target.files?.[0] ?? null)}
+        onChange={(event) => {
+          const selected = event.target.files?.[0]
+          if (selected) onChange(selected)
+          event.target.value = ''
+        }}
       />
     </label>
   )

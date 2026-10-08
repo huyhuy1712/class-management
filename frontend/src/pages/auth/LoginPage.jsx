@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { login } from '../../services/authService'
 import useAuthStore from '../../stores/authStore'
-import logo from '../../assets/logos/logo.png'
+import AuthLayout from './components/AuthLayout'
 
 function LoginPage() {
   const navigate = useNavigate()
@@ -130,62 +130,7 @@ function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col overflow-x-hidden bg-[#F5FAF4] lg:flex-row">
-      <section className="hidden w-1/2 flex-col justify-between bg-[#123524] p-12 lg:flex">
-        <div className="flex items-center gap-3">
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl">
-            <img src={logo} alt="Class Management" className="h-14 w-14 object-contain" />
-          </div>
-
-          <div>
-            <h1 className="font-bold text-white">FrogH</h1>
-            <p className="text-sm text-green-200">Education System</p>
-          </div>
-        </div>
-
-        <div className="max-w-lg">
-          <span className="mb-5 inline-block rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-green-100">
-            Quản lý lớp học thông minh
-          </span>
-
-          <h2 className="text-4xl font-bold leading-tight text-white">
-            Học tập và giảng dạy
-            <span className="text-lime-400"> hiệu quả hơn.</span>
-          </h2>
-
-          <p className="mt-5 leading-7 text-green-100/70">
-            Hãy nạp lần đầu đi
-          </p>
-        </div>
-
-        <p className="text-sm text-green-200/50">
-          Made by FrogH
-        </p>
-      </section>
-
-      <section className="flex w-full min-w-0 flex-1 items-center justify-center px-4 py-8 sm:px-6 sm:py-12">
-        <div className="w-full min-w-0 max-w-md">
-          <div className="mb-9 lg:hidden">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl">
-                <img src={logo} alt="Class Management" className="h-12 w-12 object-contain" />
-              </div>
-              <span className="font-bold text-[#18301D]">
-                FrogH
-              </span>
-            </div>
-          </div>
-
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-[#18301D]">
-              Đăng nhập
-            </h1>
-
-            <p className="mt-2 text-gray-500">
-              Đăng nhập để tiếp tục sử dụng hệ thống.
-            </p>
-          </div>
-
+    <AuthLayout title="Đăng nhập" description="Đăng nhập để tiếp tục sử dụng hệ thống.">
           {signupResult && (
             <div role="status" className="mb-5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
               <p className="font-semibold">
@@ -211,14 +156,13 @@ function LoginPage() {
               <input
                 ref={usernameInputRef}
                 name="username"
+                aria-label="Tên đăng nhập"
+                autoComplete="username"
+                aria-invalid={Boolean(fieldErrors.username)}
                 value={form.username}
                 onChange={handleChange}
                 placeholder="Nhập tên đăng nhập"
-                className={`w-full rounded-xl border bg-white px-4 py-3.5 outline-none transition focus:ring-4 ${
-                  fieldErrors.username
-                    ? 'border-red-400 focus:border-red-500 focus:ring-red-100'
-                    : 'border-green-100 focus:border-green-500 focus:ring-green-100'
-                }`}
+                className={`auth-input ${fieldErrors.username ? 'auth-input--error' : ''}`}
               />
 
               {fieldErrors.username && (
@@ -237,20 +181,21 @@ function LoginPage() {
                 <input
                   ref={passwordInputRef}
                   name="password"
+                aria-label="Mật khẩu"
+                autoComplete="current-password"
+                aria-invalid={Boolean(fieldErrors.password)}
                   type={showPassword ? 'text' : 'password'}
                   value={form.password}
                   onChange={handleChange}
                   placeholder="Nhập mật khẩu"
-                  className={`w-full rounded-xl border bg-white px-4 py-3.5 pr-12 outline-none transition focus:ring-4 ${
-                    fieldErrors.password
-                      ? 'border-red-400 focus:border-red-500 focus:ring-red-100'
-                      : 'border-green-100 focus:border-green-500 focus:ring-green-100'
-                  }`}
+                  className={`auth-input auth-input--password ${fieldErrors.password ? 'auth-input--error' : ''}`}
                 />
 
                 <button
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                  aria-pressed={showPassword}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-green-700"
                 >
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -273,13 +218,9 @@ function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3.5 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="auth-submit"
             >
-              <LoaderCircle
-                size={18}
-                className={loading ? 'animate-spin' : 'invisible'}
-                aria-hidden="true"
-              />
+              {loading && <LoaderCircle size={18} className="animate-spin" aria-hidden="true" />}
               {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </button>
           </form>
@@ -293,9 +234,7 @@ function LoginPage() {
               Đăng ký
             </Link>
           </p>
-        </div>
-      </section>
-    </div>
+    </AuthLayout>
   )
 }
 

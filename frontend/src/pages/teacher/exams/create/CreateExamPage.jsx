@@ -68,8 +68,9 @@ function CreateExamPage() {
     ])
       .then(([classData, studentData]) => {
         if (!cancelled) {
-          const teacherClasses = Array.isArray(classData) ? classData : []
-          const teacherStudents = Array.isArray(studentData) ? studentData : []
+          const teacherClasses = (Array.isArray(classData) ? classData : []).filter((item) => item.status === 'ACTIVE')
+          const activeClassIds = new Set(teacherClasses.map((item) => item.id))
+          const teacherStudents = (Array.isArray(studentData) ? studentData : []).filter((item) => item.status === 'ACTIVE' && item.classes?.some((classroom) => activeClassIds.has(classroom.id)))
           const studentCountByClass = teacherStudents.reduce((counts, student) => {
             student.classes?.forEach((classroom) => {
               counts[classroom.id] = (counts[classroom.id] ?? 0) + 1
@@ -110,7 +111,6 @@ function CreateExamPage() {
     studentSearch,
 
     filteredClasses,
-    filteredStudents,
     studentsInSelectedClass,
 
     handleChange,
@@ -196,7 +196,7 @@ function CreateExamPage() {
         <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {[
             ['01', 'Thông tin chung', 'Tên, môn học và mục đích'],
-            ['02', 'Thiết lập bài thi', 'Thời gian và thang điểm'],
+            ['02', 'Thiết lập bài thi', 'Thời gian và số lần làm'],
             ['03', 'Đối tượng làm bài', 'Lớp hoặc học sinh cụ thể'],
           ].map(([number, title, description]) => (
             <div
@@ -237,11 +237,13 @@ function CreateExamPage() {
           {/* ĐIỂM VÀ ĐÁP ÁN */}
           <ExamResultSettingsSection
             form={form}
+            errors={errors}
             onChange={handleChange}
           />
 
           {/* AI ĐƯỢC PHÉP LÀM */}
           <ExamAccessSection
+            error={errors.accessType}
             accessType={accessType}
             onAccessChange={handleAccessChange}
 

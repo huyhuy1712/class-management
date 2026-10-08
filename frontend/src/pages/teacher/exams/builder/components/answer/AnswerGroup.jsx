@@ -25,6 +25,10 @@ function AnswerGroup({ group, index, actions, error }) {
         <div className="flex items-center gap-2"><button type="button" onClick={() => actions.setType(null)} className="cursor-pointer text-xs font-semibold text-slate-500 hover:text-emerald-700">Đổi kiểu</button><button type="button" onClick={actions.remove} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500"><Trash2 size={15}/></button></div>
       </div>
 
+      <label className="block max-w-[180px] space-y-1">
+        <span className="text-xs font-semibold text-slate-600">Điểm tối đa của nhóm</span>
+        <input type="number" min="0" max="9999.99" step="0.01" value={group.point ?? ''} onChange={(event) => actions.updateGroup({ point: event.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+      </label>
       {hasMultipleItems && (
         <div className={`grid gap-3 rounded-xl border border-sky-100 bg-sky-50/60 p-3 ${isChoice ? 'lg:grid-cols-[160px_1fr]' : ''}`}>
           <label><span className="mb-1 block text-xs font-bold text-slate-600">Số lượng</span><input type="number" min="1" max="50" value={group.answers.length || ''} onChange={(e)=>actions.setChoiceCount(e.target.value)} placeholder="Số lượng" className="w-full rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm outline-none"/></label>
@@ -34,7 +38,7 @@ function AnswerGroup({ group, index, actions, error }) {
 
       {isTrueFalse && <TrueFalseScoringRules enabled={Boolean(group.scoreByCorrectCount)} rules={group.scoringRules ?? []} onToggle={()=>actions.updateGroup({ scoreByCorrectCount: !group.scoreByCorrectCount })} onAdd={actions.addScoringRule} onChange={actions.updateScoringRule} onRemove={actions.removeScoringRule} />}
 
-      {group.answers.map((answer) => <AnswerEditor key={answer.id} answer={answer} selectable={hasMultipleItems} onChange={(changes)=>actions.updateAnswer(answer.id, changes)} onRemove={()=>actions.removeAnswer(answer.id)} />)}
+      {group.answers.map((answer) => <AnswerEditor key={answer.id} answer={answer} selectable={hasMultipleItems} trueFalse={isTrueFalse} showPoint={isTrueFalse && !group.scoreByCorrectCount} onChange={(changes)=>actions.updateAnswer(answer.id, changes)} onRemove={hasMultipleItems ? ()=>actions.removeAnswer(answer.id) : undefined} />)}
       {hasMultipleItems && <button type="button" onClick={actions.addChoice} className="w-full cursor-pointer rounded-xl border border-dashed border-sky-300 py-2 text-xs font-bold text-sky-700 hover:bg-sky-50">+ {isTrueFalse ? 'Thêm câu đúng / sai' : 'Thêm phương án'}</button>}
     </div>
   )

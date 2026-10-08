@@ -1,4 +1,12 @@
+import { MATH_BRACKETS } from './mathBrackets.js'
+
 export const MATH_TEMPLATE_GROUPS = [
+  {
+    id: 'brackets', label: 'Ngoặc', items: [
+      { label: 'Hệ ngoặc nhọn', symbol: '{', latex: MATH_BRACKETS['{'] },
+      { label: 'Hệ ngoặc vuông', symbol: '[', latex: MATH_BRACKETS['['] },
+    ],
+  },
   {
     id: 'basic', label: 'Cơ bản', items: [
       { label: 'Phân số', symbol: 'a/b', latex: '\\frac{}{}' },

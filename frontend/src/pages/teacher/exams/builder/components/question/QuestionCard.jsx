@@ -10,9 +10,9 @@ function QuestionCard({ question, index, onChange, onRemove, answerActions, vali
       {validationErrors[`question-${question.id}`] && <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">{validationErrors[`question-${question.id}`]}</p>}
       <MathContentInput value={question.content} onChange={(content) => onChange({ content })} placeholder="Nhập nội dung câu hỏi..." />
       <div className="mt-3 flex flex-wrap items-end gap-2">
-        <div className="w-[140px]"><MediaFilePicker type="image" file={question.imageFile} onChange={(file) => onChange({ imageFile: file })}/></div>
-        <div className="w-[140px]"><MediaFilePicker type="audio" file={question.audioFile} onChange={(file) => onChange({ audioFile: file })}/></div>
-        <label className="w-[90px] space-y-1"><span className="text-[10px] font-semibold text-slate-500">Điểm</span><input type="number" min="0" value={question.point} onChange={(e) => onChange({ point: e.target.value })} className="w-full rounded-lg border border-slate-200 px-2.5 py-2 text-sm outline-none focus:border-emerald-400"/></label>
+        <div className="w-[140px]"><MediaFilePicker type="image" file={question.imageFile ?? question.imageMedia} onChange={(file) => onChange({ imageFile: file })}/></div>
+        <div className="w-[140px]"><MediaFilePicker type="audio" file={question.audioFile ?? question.audioMedia} onChange={(file) => onChange({ audioFile: file })}/></div>
+        <label className="w-[90px] space-y-1"><span className="text-[10px] font-semibold text-slate-500">Điểm</span><input type="number" min="0.01" max="9999.99" step="0.01" value={question.point} onChange={(e) => onChange({ point: e.target.value })} className="w-full rounded-lg border border-slate-200 px-2.5 py-2 text-sm outline-none focus:border-emerald-400"/></label>
         <label className="w-[90px] space-y-1"><span className="text-[10px] font-semibold text-slate-500">Thứ tự</span><input type="number" min="1" value={question.orderIndex} onChange={(e) => onChange({ orderIndex: e.target.value })} className="w-full rounded-lg border border-slate-200 px-2.5 py-2 text-sm outline-none focus:border-emerald-400"/></label>
       </div>
       <div className="mt-5 space-y-3 border-t border-slate-200 pt-4">

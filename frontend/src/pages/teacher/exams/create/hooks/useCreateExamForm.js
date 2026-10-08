@@ -3,26 +3,20 @@ import { loadExamDraft, saveExamDraft } from '../../draft/examDraftStorage'
 
 import {
   EXAM_ACCESS_TYPE,
-  INITIAL_EXAM_FORM,
 } from '../helpers/examFormConstants'
+import { normalizeExamForm, validateExamForm } from '../helpers/examFormValidation'
 
 function useCreateExamForm({ classes = [], students = [] } = {}) {
   const savedDraft = useMemo(() => loadExamDraft(), [])
   const generalDraft = savedDraft?.general
-  const [form, setForm] = useState(() => ({ ...INITIAL_EXAM_FORM, ...(generalDraft?.form ?? {}) }))
-  const [errors, setErrors] = useState({})
+  const [form, setForm] = useState(() => normalizeExamForm(generalDraft?.form))
+  const [errors, setErrors] = useState(savedDraft?.configErrors ?? {})
   const [accessType, setAccessType] = useState(generalDraft?.accessType ?? EXAM_ACCESS_TYPE.ALL)
   const [selectedClasses, setSelectedClasses] = useState(generalDraft?.selectedClasses ?? [])
   const [selectedStudents, setSelectedStudents] = useState(generalDraft?.selectedStudents ?? [])
   const [selectedStudentClassId, setSelectedStudentClassId] = useState(generalDraft?.selectedStudentClassId ?? null)
   const [classSearch, setClassSearch] = useState('')
   const [studentSearch, setStudentSearch] = useState('')
-
-  useEffect(() => {
-    saveExamDraft({
-      general: { form, accessType, selectedClasses, selectedStudents, selectedStudentClassId },
-    })
-  }, [form, accessType, selectedClasses, selectedStudents, selectedStudentClassId])
 
   useEffect(() => {
     saveExamDraft({
@@ -45,6 +39,7 @@ function useCreateExamForm({ classes = [], students = [] } = {}) {
   }
 
   const handleAccessChange = (type) => {
+    setErrors((current) => ({ ...current, accessType: undefined }))
     setAccessType(type)
     if (type !== EXAM_ACCESS_TYPE.CLASS) setSelectedClasses([])
     if (type !== EXAM_ACCESS_TYPE.STUDENT) {
@@ -54,6 +49,7 @@ function useCreateExamForm({ classes = [], students = [] } = {}) {
   }
 
   const toggleClass = (classId) => {
+    setErrors((current) => ({ ...current, accessType: undefined }))
     setSelectedClasses((current) =>
       current.includes(classId)
         ? current.filter((id) => id !== classId)
@@ -62,6 +58,7 @@ function useCreateExamForm({ classes = [], students = [] } = {}) {
   }
 
   const toggleStudent = (studentId) => {
+    setErrors((current) => ({ ...current, accessType: undefined }))
     setSelectedStudents((current) =>
       current.includes(studentId)
         ? current.filter((id) => id !== studentId)
@@ -97,19 +94,20 @@ function useCreateExamForm({ classes = [], students = [] } = {}) {
   )
 
   const validate = () => {
-    const nextErrors = {}
-    if (!form.title.trim()) nextErrors.title = 'Vui lòng nhập tên đề thi.'
-    if (!form.subjectId) nextErrors.subjectId = 'Vui lòng chọn môn học.'
-    if (!form.gradeLevel) nextErrors.gradeLevel = 'Vui lòng chọn khối / cấp độ.'
-    if (Number(form.timeLimit) < 1) nextErrors.timeLimit = 'Thời gian làm bài phải từ 1 phút trở lên.'
-    if (Number(form.maxAttempts) < 0) nextErrors.maxAttempts = 'Số lần làm tối đa phải từ 1 trở lên, hoặc nhập 0 để không giới hạn.'
-    if (Number(form.maxAttempts) > 0 && Number(form.maxAttempts) < 1) nextErrors.maxAttempts = 'Số lần làm tối đa phải từ 1 trở lên, hoặc nhập 0 để không giới hạn.'
-    if (Number(form.maxScore) < 1) nextErrors.maxScore = 'Điểm tối đa phải từ 1 trở lên.'
+    const nextErrors = validateExamForm(form, accessType, selectedClasses, selectedStudents)
+    if (accessType === EXAM_ACCESS_TYPE.CLASS && selectedClasses.some((id) => !classes.some((item) => item.id === Number(id) && item.status === 'ACTIVE'))) nextErrors.accessType = 'Một lớp đã chọn không còn hoạt động hoặc không thuộc phạm vi của bạn. Vui lòng chọn lại.'
+    if (accessType === EXAM_ACCESS_TYPE.STUDENT && selectedStudents.some((id) => !students.some((item) => item.id === Number(id) && item.status === 'ACTIVE' && item.classes?.some((classroom) => classroom.status === 'ACTIVE')))) nextErrors.accessType = 'Một học sinh đã chọn không còn đủ điều kiện làm bài. Vui lòng chọn lại.'
 
     setErrors(nextErrors)
     const firstError = Object.keys(nextErrors)[0]
     if (firstError) {
       requestAnimationFrame(() => {
+        if (firstError === 'accessType') {
+          const section = document.getElementById('exam-access')
+          section?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          section?.querySelector('button, input')?.focus()
+          return
+        }
         document.querySelector(`[name="${firstError}"]`)?.focus()
         document.querySelector(`[name="${firstError}"]`)?.scrollIntoView({
           behavior: 'smooth',
@@ -125,7 +123,6 @@ function useCreateExamForm({ classes = [], students = [] } = {}) {
     subjectId: Number(form.subjectId),
     timeLimit: Number(form.timeLimit),
     maxAttempts: Number(form.maxAttempts),
-    maxScore: Number(form.maxScore),
     accessType,
     classIds: accessType === EXAM_ACCESS_TYPE.CLASS ? selectedClasses : [],
     studentIds: accessType === EXAM_ACCESS_TYPE.STUDENT ? selectedStudents : [],
