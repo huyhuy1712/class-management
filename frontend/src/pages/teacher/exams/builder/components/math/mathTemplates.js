@@ -2,6 +2,15 @@ import { MATH_BRACKETS } from './mathBrackets.js'
 
 export const MATH_TEMPLATE_GROUPS = [
   {
+    id: 'accents', label: 'Dấu trên/dưới', items: [
+      { label: 'Gạch chân chữ', symbol: 'a̲', latex: '\\underline{\\text{\\placeholder{}}}' },
+      { label: 'Gạch chân biểu thức', symbol: 'x̲', latex: '\\underline{\\placeholder{}}' },
+      { label: 'Gạch trên', symbol: 'x̅', latex: '\\overline{\\placeholder{}}' },
+      { label: 'Vectơ nhiều ký tự', symbol: 'AB⃗', latex: '\\overrightarrow{\\placeholder{}}' },
+      { label: 'Dấu góc', symbol: 'Â', latex: '\\widehat{\\placeholder{}}' },
+    ],
+  },
+  {
     id: 'brackets', label: 'Ngoặc', items: [
       { label: 'Hệ ngoặc nhọn', symbol: '{', latex: MATH_BRACKETS['{'] },
       { label: 'Hệ ngoặc vuông', symbol: '[', latex: MATH_BRACKETS['['] },
