@@ -52,6 +52,7 @@
 | 41 | GET | `/api/exams/{examId}/configuration` | Lấy cấu hình đề và các lần giao của giáo viên hiện tại |
 | 42 | GET | `/api/exams/{examId}` | Lấy cấu hình và toàn bộ nội dung đề của giáo viên hiện tại |
 | 43 | PUT | `/api/exams/{examId}` | Cập nhật đầy đủ cấu hình chính và một lần giao của đề |
+| 44 | PUT | `/api/exams/{examId}/content` | Cập nhật toàn bộ cây nội dung, điểm và media của đề |
 
 ## Xác thực
 
@@ -2231,7 +2232,7 @@ Cookie `access_token` của giáo viên ACTIVE sở hữu đề. Đề và assig
 
 **200 OK:** cấu trúc đầy đủ giống GET configuration mục 41, gồm basicInfo và toàn bộ assignments sau cập nhật. Không trả cây nội dung; FE dùng response cập nhật modal, không cần GET lại.
 
-**Ghi dữ liệu:** khóa đề rồi assignment trong cùng transaction; validate trước khi ghi; target ID không đổi được giữ, target bỏ chọn xóa bằng bulk query, target mới persist trực tiếp để tránh merge SELECT từng dòng. Flush trước khi trả response. Mọi thao tác rollback khi có lỗi. Không gọi storage hoặc đọc cây câu hỏi. updatedAt của đề được cập nhật cả khi chỉ thay đổi cấu hình assignment. Hai request hợp lệ đồng thời được tuần tự hóa bằng khóa; chưa có revision/If-Match chống ghi đè từ form cũ.
+**Ghi dữ liệu:** khóa đề rồi assignment trong cùng transaction; validate trước khi ghi; target ID không đổi được giữ, target bỏ chọn xóa bằng bulk query, target mới persist trực tiếp để tránh merge SELECT từng dòng. Flush trước khi trả response. Mọi thao tác rollback khi có lỗi. Không gọi storage hoặc đọc cây câu hỏi. updatedAt của đề được cập nhật cả khi chỉ thay đổi cấu hình assignment. Hai request được tuần tự hóa bằng khóa. PUT configuration có revision tùy chọn để chặn form cũ; xem cập nhật revision ở mục 44.
 
 **Lỗi:**
 
@@ -2252,3 +2253,152 @@ Cookie `access_token` của giáo viên ACTIVE sở hữu đề. Đề và assig
 8. Kiểm tra title trắng/timeLimit=0/maxAttempts=-1, ID mục tiêu trùng, thiếu basicInfo/assignment: 400.
 
 Unit test đã kiểm tra Spring gọi rollback khi persist target thất bại; rollback thực tế PostgreSQL khi lỗi ghi vẫn cần kiểm tra integration trên môi trường test. FE hiện chưa nối nút Lưu cấu hình; phần này chỉ đổi BE và tài liệu.
+
+## 44. Cập nhật toàn bộ cây nội dung đề thi
+
+**PUT** `/api/exams/{examId}/content` — endpoint mới cho nút Lưu chỉnh sửa trong builder. Reuse GET detail, POST upload media, validator nội dung của POST và worker cleanup. PUT `/api/exams/{examId}` vẫn chỉ sửa cấu hình; không gửi lại basicInfo/assignment trong request content.
+
+Cookie `access_token` của giáo viên ACTIVE sở hữu đề. Chỉ đề DRAFT chưa có bất kỳ lượt làm nào được sửa. GET detail trước để lấy cây và `revision` mới nhất. Không có chức năng sửa đề PUBLISHED/ARCHIVED hoặc tự chuyển chúng về DRAFT.
+
+**Đây là thay thế đầy đủ cây:** phần tử cũ không xuất hiện trong request sẽ bị xóa cùng phần con. Phải giữ tất cả phần tử còn muốn dùng; không dùng một section trích từ cây đầy đủ làm body PUT. Không cho lưu cây rỗng hoặc chưa tải thành công. Giữ maxScore/code/status/configuration/assignment ngoài payload.
+
+Ví dụ đề có một section, một câu cũ và thêm một câu mới (thay ID bằng ID thật; ví dụ này không đại diện toàn bộ cây đề của bạn):
+
+```http
+PUT /api/exams/123/content
+Content-Type: application/json
+Cookie: access_token=<token>
+```
+
+```json
+{
+  "revision": 0,
+  "draftToken": null,
+  "sections": [
+    {
+      "id": 1,
+      "title": "Phần tự luận",
+      "description": null,
+      "imageMediaId": null,
+      "audioMediaId": null,
+      "questions": [
+        {
+          "id": 2,
+          "content": "Nội dung đã chỉnh",
+          "points": 1,
+          "imageMediaId": null,
+          "audioMediaId": null,
+          "answers": [
+            {
+              "id": 3,
+              "answerType": "ESSAY",
+              "content": null,
+              "points": 1,
+              "scoringType": "PER_ANSWER",
+              "correctAnswerText": null,
+              "caseSensitive": false,
+              "imageMediaId": null,
+              "audioMediaId": null,
+              "options": [],
+              "scoringRules": []
+            }
+          ]
+        },
+        {
+          "clientId": "q-new-1",
+          "content": "Câu hỏi mới",
+          "points": 2,
+          "answers": [
+            {
+              "clientId": "answer-new-1",
+              "answerType": "ESSAY",
+              "points": 2,
+              "scoringType": "PER_ANSWER",
+              "caseSensitive": false,
+              "options": [],
+              "scoringRules": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+**200 OK**, ví dụ:
+
+```json
+{
+  "id": 123,
+  "code": "EX-11-EHAGXE",
+  "status": "DRAFT",
+  "maxScore": 3.00,
+  "revision": 1,
+  "updatedAt": "2026-10-09T17:00:00",
+  "idMappings": {
+    "sections": [],
+    "questions": [{"clientId": "q-new-1", "id": 202}],
+    "answers": [{"clientId": "answer-new-1", "id": 303}],
+    "options": [],
+    "scoringRules": []
+  }
+}
+```
+
+**Identity và thứ tự:**
+
+- Existing section/question/answer/option/rule phải gửi ID thật từ GET detail. Giữ nguyên ID; không chuyển một ID cũ sang cha khác. Muốn chuyển nội dung sang cha khác, tạo phần tử mới không ID và bỏ phần tử cũ.
+- Phần tử mới bỏ id hoặc gửi null; bắt buộc clientId không trắng, tối đa 100 ký tự, duy nhất trong toàn bộ cây cho cùng loại phần tử. ID dương; ID/clientId trùng hoặc ID không thuộc đúng đề/cha bị từ chối trước khi ghi cây.
+- clientId là khóa tạm của FE, không lưu DB; idMappings chỉ chứa phần tử mới. FE gắn ID nhận được vào state trước lần lưu tiếp theo. Gửi lại phần tử mới không ID bằng revision mới sẽ tạo phần tử mới khác.
+- Thứ tự mảng sections/questions/answers/options xác định orderIndex 1..N. Rule dùng correctCount làm khóa thứ tự; body có id/clientId/correctCount/score.
+- Không nhận orderIndex để điều khiển thứ tự. Các phần tử đổi thứ tự được đưa sang vị trí tạm lớn hơn cả vị trí cũ và vị trí cuối trong một flush, rồi ghi thứ tự cuối; xử lý cả unique orderIndex và unique correctCount.
+
+**Validation, giới hạn, điểm:**
+
+- Nội dung/đáp án/rules/media/điểm dùng cùng validator với POST (mục 39), không có bộ quy tắc chấm điểm khác.
+- 50 section, 100 câu/section, tổng 500 câu, 2000 nhóm đáp án, 10000 option, 500 media; tối đa 20 nhóm/câu, 50 option/nhóm, 51 rule/nhóm. Sections/questions/answers bắt buộc có phần tử. Optional options/scoringRules thiếu/null được coi là [] nên sẽ bỏ phần cũ nếu có.
+- Tổng điểm question phải bằng tổng điểm answers. BE tính lại section.points và exam.maxScore; không tin tổng điểm root từ FE. Tổng điểm tối đa 9999.99, mỗi câu > 0.
+- Tổng điểm mới không được thấp hơn threshold đang lưu của bất kỳ assignment nào. Nếu vi phạm, sửa cấu hình trước; endpoint content không tự sửa assignment.
+- JSON bị giới hạn 2 MiB theo app.exam.max-request-bytes, kể cả request không có Content-Length; trả 413 nếu vượt. ID/clientId cũng nằm trong giới hạn body.
+
+**Revision và tương thích:**
+
+- Migration mới V52 thêm exams.revision, mặc định 0, dùng @Version. GET configuration và GET detail thêm trường revision ở root.
+- PUT content bắt buộc gửi revision đúng với revision hiện tại. Đề đã được cập nhật bởi tab khác hoặc PUT configuration thì trả 409; tải lại trước khi lưu. Thành công trả revision mới.
+- PUT configuration (mục 43) bổ sung revision tùy chọn để giữ tương thích body đang dùng. Nên gửi revision từ GET để chặn form cấu hình cũ; bỏ revision vẫn được chấp nhận nhưng không chặn ghi đè từ form cấu hình cũ. Mọi cập nhật cấu hình vẫn tăng revision của đề, nên form content cũ bị từ chối.
+- Không tự retry PUT với revision mới khi chưa tải/đối chiếu thay đổi. Nếu request mất response, GET detail để xác nhận trạng thái trước khi quyết định retry.
+
+**Media:**
+
+- Ở mỗi vị trí gửi imageMediaId/audioMediaId; không gửi URL. Bỏ trường hoặc null nghĩa là bỏ media tại vị trí đó.
+- Media cũ phải ATTACHED của chính đề này và đúng giáo viên/loại. Có thể reuse một file ở nhiều vị trí trong cùng đề.
+- Media mới upload qua POST /api/exam-media, phải TEMP còn hạn, đúng giáo viên và draftToken của request. Chỉ cần draftToken khi có media mới; nội dung dùng toàn media ATTACHED không cần token.
+- Claim media mới và ghi cây trong cùng transaction; lỗi thì media mới vẫn TEMP. Không gọi HTTP tới local/Supabase trong request content.
+- Chỉ media ATTACHED của đề không còn xuất hiện ở bất kỳ vị trí nào trong cây mới được chuyển DELETE_PENDING. Ảnh dùng ở section và question: bỏ khỏi section nhưng giữ ở question thì file không bị xóa.
+- Worker hiện có xóa file sau commit rồi xóa registry; lỗi storage được retry. File TEMP không dùng không bị xóa theo đề, được TTL cleanup như trước. 200 không hứa file media bị bỏ đã biến mất ngay.
+
+**DB và response:**
+
+- Khóa dòng đề, kiểm tra quyền/revision/trạng thái/lượt làm; đọc assignment và từng nhóm section/question/answer/option/rule/media theo lô. Không query từng câu/option.
+- Cây đầy đủ dùng tối đa 9 lượt đọc repository nếu không có media được tham chiếu, thêm 1 batch lock nếu có media. Số lượt đọc không tăng theo số câu. Có thể có một lượt lazy load teacher, không tăng theo phần tử cây. Đây là giới hạn thiết kế/kiểm tra unit, chưa phải đo SQL thật trên Supabase.
+- Xóa phần bỏ chọn bằng bulk ID tối đa một query mỗi nhóm; persist trực tiếp phần tử mới, giữ entity hiện có để dirty checking chỉ update phần thay đổi. IDENTITY vẫn INSERT từng record mới; không tuyên bố đã batch INSERT.
+- Có flush trung gian nếu đổi thứ tự và khi queue media; tất cả nằm trong một transaction. Flush cuối cập nhật revision và thời gian. Lỗi ở bất kỳ bước ghi nào rollback cây/điểm/claim/queue.
+- Response không đọc lại toàn bộ cây hoặc dựng URL media: FE giữ state đã gửi, cập nhật ID/revision/maxScore từ response. State sau lưu nên chuẩn hóa thứ tự, trim nội dung và default null/false giống BE; có thể dùng GET detail khi cần xác nhận dữ liệu chuẩn hóa.
+
+**Lỗi:** 400 cho validation/ID cha-con/media sai loại; 403 cho chủ đề không còn TEACHER ACTIVE; 404 cho đề khác chủ/không tồn tại hoặc media không hợp lệ về quyền/đề/token; 409 cho đề không DRAFT, đã có lượt làm, revision cũ hoặc media hết hạn/trạng thái không dùng được; 413 cho body vượt giới hạn. Validation có đường dẫn sections/...; identity errors hiện theo tên nhóm phần tử. Các lỗi runtime ở bước ghi không trả success và rollback; chưa có ánh xạ mọi lỗi constraint bất thường thành 409.
+
+**Test sau khi restart BE:**
+
+1. Restart để Flyway áp dụng V52. GET detail của đề DRAFT; kiểm tra revision và giữ nguyên toàn bộ cây còn muốn dùng. Đây là bước thay đổi schema thông qua migration khi BE khởi động, agent chưa chạy DB.
+2. Tạo body từ cây thực tế: media object -> mediaId; giữ ID của mọi phần tử cũ (kể cả rule), bỏ trường chỉ đọc/metadata. Chỉnh một câu, gửi revision vừa lấy -> 200. GET lại: ID cũ giữ nguyên, nội dung mới đúng; config/code/status giữ nguyên.
+3. Thêm câu/answer/option/rule mới với clientId -> 200, kiểm tra idMappings và gắn ID vào state. Lần lưu tiếp dùng các ID này và revision mới.
+4. Bỏ một câu khỏi body -> 200; GET lại không có câu/answer/option/rule của nó. Media chỉ dùng trong câu bị bỏ được queue và worker dọn sau commit.
+5. Hoán đổi hai section/câu/answer/option -> 200, ID giữ nguyên và thứ tự mới đúng. Với rule, giữ bộ correctCount hợp lệ và test thay đổi liên quan; không có lỗi unique khi swap.
+6. Một ảnh dùng nhiều vị trí: bỏ một vị trí vẫn còn file; bỏ vị trí cuối thì file vào cleanup. Upload media mới và dùng cùng draftToken -> attach; dùng sai token/media của đề khác -> lỗi, cây/điểm giữ nguyên.
+7. Gửi lại revision cũ -> 409, không ghi. GET lấy revision mới sau khi cập nhật configuration ở tab khác, content với revision cũ cũng phải 409.
+8. Gửi ID từ đề khác, ID trùng, ID dưới sai cha hoặc phần tử mới thiếu clientId -> 400; GET xác nhận cây giữ nguyên.
+9. Gửi tổng điểm question không khớp, threshold assignment lớn hơn tổng mới hoặc thiếu đáp án đúng -> 400; không lưu một phần.
+10. Đề PUBLISHED/ARCHIVED hoặc có attempt -> 409. Body lớn hơn giới hạn -> 413.
+
+Unit tests kiểm tra luồng, số lượt đọc 1/100 câu, identity, parking thứ tự, mapping, media và Spring rollback interception. Chưa chạy integration PostgreSQL để xác nhận SQL thực tế/cascade/unique/rollback hoặc đo Railway+Supabase. FE chưa nối nút lưu content trong bước này.

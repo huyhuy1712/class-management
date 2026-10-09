@@ -75,7 +75,7 @@ public class ExamDetailService {
                                 questionResponse(q, answersByQuestion, optionsByAnswer, rulesByAnswer, media))
                                 .toList())).toList();
         return new ExamDetailResponse(config.id(), config.code(), config.status(), config.maxScore(),
-                config.updatedAt(), config.basicInfo(), config.assignments(), sectionResponses);
+                config.updatedAt(), config.basicInfo(), config.assignments(), sectionResponses, config.revision());
     }
 
     private static ExamDetailResponse.Question questionResponse(Question question,

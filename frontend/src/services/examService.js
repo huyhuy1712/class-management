@@ -22,6 +22,10 @@ const examService = {
     const response = await api.put(`/exams/${examId}`, payload)
     return response.data
   },
+  updateExamContent: async (examId, payload) => {
+    const response = await api.put(`/exams/${examId}/content`, payload)
+    return response.data
+  },
   deleteExam: async (examId, force = false) => {
     await api.delete(`/exams/${examId}`, {
       params: force ? { force: true } : undefined,

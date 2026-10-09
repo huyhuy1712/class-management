@@ -1,6 +1,7 @@
 package com.classmanagement.backend.service.exam;
 
 import com.classmanagement.backend.dto.exam.CreateCompleteExamRequest;
+import com.classmanagement.backend.dto.exam.CreateCompleteExamRequest.Section;
 import com.classmanagement.backend.entity.enums.*;
 import com.classmanagement.backend.exception.ExamValidationException;
 import jakarta.validation.Validator;
@@ -22,11 +23,28 @@ public class ExamStructureValidator {
                 "Giá trị thiếu hoặc không hợp lệ: " + v.getMessage()));
         if (!errors.isEmpty()) throw new ExamValidationException(errors);
         validateAssignment(request.assignment());
+        Summary summary = calculateContent(request.sections());
+        if (!summary.mediaTypes().isEmpty() && request.draftToken() == null) fail("draftToken", "Đề có media phải có draft token");
+        var assignment = request.assignment();
+        if (assignment.answerVisibilityScore() != null && assignment.answerVisibilityScore().compareTo(summary.totalScore()) > 0) {
+            fail("assignment.answerVisibilityScore", "Điểm ngưỡng không được vượt quá tổng điểm đề");
+        }
+        return summary;
+    }
+
+    public Summary validateContent(List<CreateCompleteExamRequest.Section> sections) {
+        Map<String, String> errors = new LinkedHashMap<>();
+        validator.validate(new Content(sections)).forEach(v -> errors.put(v.getPropertyPath().toString(), v.getMessage()));
+        if (!errors.isEmpty()) throw new ExamValidationException(errors);
+        return calculateContent(sections);
+    }
+
+    private Summary calculateContent(List<CreateCompleteExamRequest.Section> sections) {
         Map<UUID, ExamMediaType> media = new LinkedHashMap<>();
         BigDecimal total = BigDecimal.ZERO;
         int questions = 0, answers = 0, options = 0;
-        for (int si = 0; si < request.sections().size(); si++) {
-            var section = request.sections().get(si);
+        for (int si = 0; si < sections.size(); si++) {
+            var section = sections.get(si);
             String sp = "sections[" + si + "]";
             collect(media, section.imageMediaId(), section.audioMediaId(), sp);
             for (int qi = 0; qi < section.questions().size(); qi++) {
@@ -61,13 +79,11 @@ public class ExamStructureValidator {
             }
         }
         if (media.size() > 500) fail("sections", "Đề không được vượt quá 500 media");
-        if (!media.isEmpty() && request.draftToken() == null) fail("draftToken", "Đề có media phải có draft token");
-        var assignment = request.assignment();
-        if (assignment.answerVisibilityScore() != null && assignment.answerVisibilityScore().compareTo(total) > 0) {
-            fail("assignment.answerVisibilityScore", "Điểm ngưỡng không được vượt quá tổng điểm đề");
-        }
         return new Summary(total.setScale(2), Map.copyOf(media));
     }
+
+    private record Content(@jakarta.validation.constraints.NotEmpty @jakarta.validation.constraints.Size(max = 50)
+            List<@jakarta.validation.constraints.NotNull @jakarta.validation.Valid Section> sections) {}
 
     public void validateAssignment(CreateCompleteExamRequest.Assignment a) {
         var classes = list(a.classIds());

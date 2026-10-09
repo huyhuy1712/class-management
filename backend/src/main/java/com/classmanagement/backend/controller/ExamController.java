@@ -4,6 +4,9 @@ import com.classmanagement.backend.dto.exam.ExamListResponse;
 import com.classmanagement.backend.dto.exam.ExamConfigurationResponse;
 import com.classmanagement.backend.service.exam.ExamConfigurationService;
 import com.classmanagement.backend.service.exam.ExamDetailService;
+import com.classmanagement.backend.service.exam.ExamContentUpdateService;
+import com.classmanagement.backend.dto.exam.UpdateExamContentRequest;
+import com.classmanagement.backend.dto.exam.UpdateExamContentResponse;
 import com.classmanagement.backend.dto.exam.ExamDetailResponse;
 import com.classmanagement.backend.service.exam.ExamConfigurationUpdateService;
 import com.classmanagement.backend.dto.exam.UpdateExamRequest;
@@ -37,6 +40,13 @@ public class ExamController {
     private final ExamConfigurationService configurationService;
     private final ExamDetailService detailService;
     private final ExamConfigurationUpdateService configurationUpdateService;
+    private final ExamContentUpdateService contentUpdateService;
+
+    @PutMapping("/{examId}/content")
+    public ResponseEntity<UpdateExamContentResponse> updateContent(@PathVariable Long examId,
+            @Valid @RequestBody UpdateExamContentRequest request, Authentication authentication) {
+        return ResponseEntity.ok(contentUpdateService.update(examId, authentication.getName(), request));
+    }
 
     @GetMapping("/{examId}")
     public ResponseEntity<ExamDetailResponse> getDetail(

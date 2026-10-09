@@ -64,8 +64,14 @@ class ExamConfigurationUpdateServiceTest {
         assertFalse(calls.contains("response"));
     }
     @Test void missingBasicInfoFailsBeforeQuery() {
-        assertThrows(ExamValidationException.class, () -> service().update(7L, "teacher", new UpdateExamRequest(null, null)));
+        assertThrows(ExamValidationException.class, () -> service().update(7L, "teacher", new UpdateExamRequest(null, null, null)));
         assertTrue(calls.isEmpty());
+    }
+    @Test void optionalRevisionRejectsStaleConfigurationForm() {
+        var initial = request(AnswerVisibility.NEVER, null);
+        var stale = new UpdateExamRequest(initial.basicInfo(), initial.assignment(), 99L);
+        assertThrows(ConflictException.class, () -> service().update(7L, "teacher", stale));
+        assertEquals("old", exam.getTitle());
     }
     @Test void targetFailureInvokesSpringTransactionRollback() {
         persistFailure = true;
@@ -87,7 +93,7 @@ class ExamConfigurationUpdateServiceTest {
     private UpdateExamRequest request(AnswerVisibility visibility, BigDecimal threshold) {
         return new UpdateExamRequest(new CreateCompleteExamRequest.BasicInfo(" new title ", 1L, "10", null, null, 60, 0),
                 new UpdateExamRequest.Assignment(8L, ExamAssignmentType.CLASS, List.of(12L, 13L), List.of(),
-                        ScoreVisibility.AFTER_SUBMIT, visibility, threshold, false, null, null));
+                        ScoreVisibility.AFTER_SUBMIT, visibility, threshold, false, null, null), null);
     }
     private ExamConfigurationUpdateService service() {
         var targets = new ExamTargetValidator(null, null, null) {

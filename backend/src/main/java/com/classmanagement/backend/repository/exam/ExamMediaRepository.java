@@ -22,6 +22,16 @@ public interface ExamMediaRepository extends JpaRepository<ExamMedia, UUID> {
         """)
     int queueCleanupByExamId(@Param("examId") Long examId, @Param("now") LocalDateTime now);
 
+    @Modifying(flushAutomatically = true)
+    @Query("""
+        update ExamMedia m
+        set m.status = com.classmanagement.backend.entity.enums.ExamMediaStatus.DELETE_PENDING,
+            m.exam = null, m.nextCleanupAt = :now
+        where m.exam.id = :examId and m.id in :ids
+        """)
+    int queueUnusedByExamId(@Param("examId") Long examId, @Param("ids") Collection<UUID> ids,
+            @Param("now") LocalDateTime now);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select m from ExamMedia m where m.id = :id")
     Optional<ExamMedia> findLockedById(@Param("id") UUID id);
