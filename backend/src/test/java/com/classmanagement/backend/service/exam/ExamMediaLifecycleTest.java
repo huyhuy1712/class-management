@@ -12,6 +12,34 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ExamMediaLifecycleTest {
+    @Test void contentCanKeepExistingAttachmentWithoutDraftToken() {
+        var exam = Exam.builder().id(7L).build();
+        media.setMediaType(ExamMediaType.IMAGE); media.setStatus(ExamMediaStatus.ATTACHED); media.setExam(exam);
+        var result = lifecycle.claimForContent(Map.of(media.getId(), ExamMediaType.IMAGE), 1L, null, exam);
+        assertSame(media, result.get(media.getId()));
+    }
+
+    @Test void contentCannotReuseAttachmentFromAnotherExam() {
+        media.setMediaType(ExamMediaType.IMAGE); media.setStatus(ExamMediaStatus.ATTACHED);
+        media.setExam(Exam.builder().id(8L).build());
+        assertThrows(ExamMediaException.class, () -> lifecycle.claimForContent(
+                Map.of(media.getId(), ExamMediaType.IMAGE), 1L, null, Exam.builder().id(7L).build()));
+        assertEquals(8L, media.getExam().getId());
+    }
+
+    @Test void contentClaimsNewTemporaryMediaWithCorrectDraftToken() {
+        media.setMediaType(ExamMediaType.AUDIO);
+        var exam = Exam.builder().id(7L).build();
+        lifecycle.claimForContent(Map.of(media.getId(), ExamMediaType.AUDIO), 1L, media.getDraftToken(), exam);
+        assertEquals(ExamMediaStatus.ATTACHED, media.getStatus()); assertSame(exam, media.getExam());
+    }
+
+    @Test void contentCannotClaimTemporaryMediaWithoutDraftToken() {
+        media.setMediaType(ExamMediaType.IMAGE);
+        assertThrows(ExamMediaException.class, () -> lifecycle.claimForContent(
+                Map.of(media.getId(), ExamMediaType.IMAGE), 1L, null, Exam.builder().id(7L).build()));
+        assertEquals(ExamMediaStatus.TEMP, media.getStatus());
+    }
     private boolean registryDeleted;
     private final User teacher = User.builder().id(1L).role(UserRole.TEACHER).status(UserStatus.ACTIVE).build();
     private final ExamMedia media = ExamMedia.builder().id(UUID.randomUUID()).teacher(teacher)

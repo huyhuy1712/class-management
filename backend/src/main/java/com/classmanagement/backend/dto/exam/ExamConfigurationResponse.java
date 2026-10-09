@@ -11,7 +11,7 @@ import java.util.List;
 
 public record ExamConfigurationResponse(
         Long id, String code, ExamStatus status, BigDecimal maxScore,
-        LocalDateTime updatedAt, BasicInfo basicInfo, List<Assignment> assignments) {
+        LocalDateTime updatedAt, BasicInfo basicInfo, List<Assignment> assignments, Long revision) {
 
     public record BasicInfo(String title, Long subjectId, String subjectName,
             String gradeLevel, String purpose, String description,

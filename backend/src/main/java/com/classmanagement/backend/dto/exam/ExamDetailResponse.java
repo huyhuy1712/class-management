@@ -10,7 +10,7 @@ import java.util.UUID;
 
 public record ExamDetailResponse(Long id, String code, ExamStatus status, BigDecimal maxScore,
         LocalDateTime updatedAt, ExamConfigurationResponse.BasicInfo basicInfo,
-        List<ExamConfigurationResponse.Assignment> assignments, List<Section> sections) {
+        List<ExamConfigurationResponse.Assignment> assignments, List<Section> sections, Long revision) {
 
     public record Media(UUID mediaId, String url) {}
 

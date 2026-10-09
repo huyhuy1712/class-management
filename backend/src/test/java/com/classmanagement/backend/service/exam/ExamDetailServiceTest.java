@@ -121,7 +121,7 @@ class ExamDetailServiceTest {
                 if (wrongOwner) throw new ResourceNotFoundException("Not found");
                 assertEquals(7L, id); assertEquals("teacher", username);
                 return new ExamConfigurationResponse(id, "EX-11-ABCDEF", ExamStatus.DRAFT,
-                        BigDecimal.TEN, null, null, List.of());
+                        BigDecimal.TEN, null, null, List.of(), 0L);
             }
         };
         return new ExamDetailService(configuration, repository(ExamSectionRepository.class),

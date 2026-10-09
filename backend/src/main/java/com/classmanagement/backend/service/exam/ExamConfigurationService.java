@@ -55,7 +55,7 @@ public class ExamConfigurationService {
                                 a.getTimeLimit(), a.getMaxAttempts(), a.getScoreVisibility(),
                                 a.getAnswerVisibility(), a.getAnswerVisibilityScore(),
                                 a.getHideCorrectAnswerOnWrong(), a.getOpenTime(), a.getCloseTime(),
-                                a.getUpdatedAt())).toList());
+                                a.getUpdatedAt())).toList(), exam.getRevision());
     }
 
     private static List<Long> sortedIds(List<Long> ids) {

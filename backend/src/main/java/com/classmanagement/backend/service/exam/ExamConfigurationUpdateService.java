@@ -42,6 +42,9 @@ public class ExamConfigurationUpdateService {
         var exam = examRepository.findLockedByIdAndTeacher_Username(examId, username)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đề thi."));
         if (exam.getStatus() != ExamStatus.DRAFT) throw new ConflictException("Chỉ đề thi DRAFT được sửa cấu hình.");
+        if (request.revision() != null && !request.revision().equals(exam.getRevision())) {
+            throw new ConflictException("Đề thi đã thay đổi, vui lòng tải lại trước khi lưu.");
+        }
         var source = request.assignment();
         var assignment = assignmentRepository.findLockedByIdAndExam_Id(source.id(), examId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy lần giao của đề thi."));

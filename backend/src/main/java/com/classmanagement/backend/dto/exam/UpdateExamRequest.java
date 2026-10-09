@@ -9,7 +9,7 @@ import java.util.List;
 
 public record UpdateExamRequest(
         @NotNull @Valid CreateCompleteExamRequest.BasicInfo basicInfo,
-        @NotNull @Valid Assignment assignment) {
+        @NotNull @Valid Assignment assignment, @Min(0) Long revision) {
     public record Assignment(
             @NotNull @Positive Long id,
             @NotNull ExamAssignmentType assignmentType,

@@ -109,6 +109,32 @@ public class ExamMediaLifecycle {
         return media.getObjectPath();
     }
 
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Map<UUID, ExamMedia> claimForContent(Map<UUID, ExamMediaType> types,
+            Long teacherId, UUID draftToken, Exam exam) {
+        if (types.isEmpty()) return Map.of();
+        var files = mediaRepository.findAllLockedByIds(types.keySet());
+        if (files.size() != types.size()) throw notFound();
+        Map<UUID, ExamMedia> result = new HashMap<>();
+        LocalDateTime now = LocalDateTime.now();
+        for (var file : files) {
+            if (!file.getTeacher().getId().equals(teacherId)) throw notFound();
+            if (file.getMediaType() != types.get(file.getId())) {
+                throw new ExamMediaException(HttpStatus.BAD_REQUEST, "Loại media không đúng vị trí ảnh/audio");
+            }
+            if (file.getStatus() == ExamMediaStatus.ATTACHED) {
+                if (file.getExam() == null || !file.getExam().getId().equals(exam.getId())) throw notFound();
+            } else if (file.getStatus() == ExamMediaStatus.TEMP) {
+                if (draftToken == null || !draftToken.equals(file.getDraftToken())) throw notFound();
+                if (!file.getExpiresAt().isAfter(now)) throw new ConflictException("Media đã hết hạn, vui lòng upload lại");
+            } else throw new ConflictException("Media không còn khả dụng để lưu nội dung");
+            result.put(file.getId(), file);
+        }
+        // Validate every file before claiming any of them.
+        result.values().forEach(file -> { file.setStatus(ExamMediaStatus.ATTACHED); file.setExam(exam); });
+        return result;
+    }
+
     @Transactional
     public void cleanupSucceeded(UUID id) {
         mediaRepository.findLockedById(id).ifPresent(media -> {
