@@ -12,6 +12,9 @@ import java.util.Optional;
 public interface ExamAssignmentRepository
                 extends JpaRepository<ExamAssignment, Long> {
 
+        @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+        Optional<ExamAssignment> findLockedByIdAndExam_Id(Long id, Long examId);
+
         @EntityGraph(attributePaths = {
                         "exam"
         })

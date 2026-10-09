@@ -14,6 +14,10 @@ export function normalizeExamForm(savedForm = {}) {
 
 export function validateExamForm(form, accessType, classIds, studentIds) {
   const errors = {}
+  for (const key of ['openTime', 'closeTime']) {
+    if (form[key] && !Number.isFinite(new Date(form[key]).getTime())) errors[key] = 'Vui lòng nhập thời gian hợp lệ.'
+  }
+  if (form.openTime && form.closeTime && !errors.openTime && !errors.closeTime && new Date(form.closeTime) <= new Date(form.openTime)) errors.closeTime = 'Thời gian đóng phải sau thời gian mở.'
   const title = String(form.title ?? '').trim()
   if (!title) errors.title = 'Vui lòng nhập tên đề thi.'
   else if (title.length > 255) errors.title = 'Tên đề thi tối đa 255 ký tự.'

@@ -56,6 +56,8 @@ export function buildExamPayload(config, sections, draftToken) {
     },
     assignment: {
       assignmentType,
+      openTime: config.openTime || null,
+      closeTime: config.closeTime || null,
       classIds: assignmentType === 'CLASS' ? ids(config.classIds) : [],
       studentIds: assignmentType === 'STUDENT' ? ids(config.studentIds) : [],
       scoreVisibility: config.scoreVisibility, answerVisibility: config.answerVisibility,

@@ -69,7 +69,7 @@ public class ExamStructureValidator {
         return new Summary(total.setScale(2), Map.copyOf(media));
     }
 
-    private void validateAssignment(CreateCompleteExamRequest.Assignment a) {
+    public void validateAssignment(CreateCompleteExamRequest.Assignment a) {
         var classes = list(a.classIds());
         var students = list(a.studentIds());
         if (new HashSet<>(classes).size() != classes.size()) fail("assignment.classIds", "ID lớp bị trùng");

@@ -50,7 +50,7 @@ class ExamDeletionServiceTest {
 
     private ExamServiceImpl service() {
         return new ExamServiceImpl(null, repository(ExamRepository.class, "exam"), null, null,
-                repository(ExamAttemptRepository.class, "attempt"), null,
+                repository(ExamAttemptRepository.class, "attempt"),
                 repository(ExamMediaRepository.class, "media"));
     }
 

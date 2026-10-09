@@ -5,6 +5,8 @@ export const EXAM_ACCESS_TYPE = {
 }
 
 export const INITIAL_EXAM_FORM = {
+  openTime: '',
+  closeTime: '',
   title: '',
   subjectId: '',
   description: '',

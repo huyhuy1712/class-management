@@ -9,12 +9,12 @@ import { validateExamBuilder } from '../helpers/examBuilderValidation.js'
 import { focusExamError, isUncertainExamSave, mapExamApiErrors } from '../helpers/examApiErrors.js'
 import { uploadExamMedia, validateExamMedia } from '../helpers/examMediaUpload.js'
 
-export default function useSaveExam({ builder, routeConfig, onValidationErrors }) {
+export default function useSaveExam({ builder, routeConfig, onValidationErrors, enabled = true }) {
   const navigate = useNavigate()
   const lock = useRef(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
-  const [uncertain, setUncertain] = useState(() => Boolean(loadExamDraft()?.pendingSave))
+  const [uncertain, setUncertain] = useState(() => enabled && Boolean(loadExamDraft()?.pendingSave))
   useEffect(() => {
     if (!saving) return
     const preventClose = (event) => { event.preventDefault(); event.returnValue = '' }
@@ -27,7 +27,7 @@ export default function useSaveExam({ builder, routeConfig, onValidationErrors }
   }
 
   const save = async () => {
-    if (lock.current || uncertain || loadExamDraft()?.pendingSave) return
+    if (!enabled || lock.current || uncertain || loadExamDraft()?.pendingSave) return
     lock.current = true
     setSaving(true)
     setMessage('')

@@ -1,18 +1,28 @@
 package com.classmanagement.backend.dto.exam;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import com.classmanagement.backend.entity.enums.*;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.*;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
 
 public record UpdateExamRequest(
-
-        @NotBlank(message = "Tên đề thi không được để trống") @Size(max = 255, message = "Tên đề thi không được vượt quá 255 ký tự") String title,
-
-        String description,
-
-        @Size(max = 30, message = "Khối/lớp không được vượt quá 30 ký tự") String gradeLevel,
-
-        @Size(max = 50, message = "Mục đích không được vượt quá 50 ký tự") String purpose,
-
-        @NotNull(message = "Môn học không được để trống") Long subjectId) {
+        @NotNull @Valid CreateCompleteExamRequest.BasicInfo basicInfo,
+        @NotNull @Valid Assignment assignment) {
+    public record Assignment(
+            @NotNull @Positive Long id,
+            @NotNull ExamAssignmentType assignmentType,
+            @NotNull @Size(max = 500) List<@NotNull @Positive Long> classIds,
+            @NotNull @Size(max = 2000) List<@NotNull @Positive Long> studentIds,
+            @NotNull ScoreVisibility scoreVisibility,
+            @NotNull AnswerVisibility answerVisibility,
+            @DecimalMin("0") @Digits(integer = 4, fraction = 2) BigDecimal threshold,
+            @NotNull Boolean hideCorrectAnswerOnWrong,
+            LocalDateTime openTime, LocalDateTime closeTime) {
+        public CreateCompleteExamRequest.Assignment toCreateAssignment() {
+            return new CreateCompleteExamRequest.Assignment(assignmentType, classIds, studentIds,
+                    scoreVisibility, answerVisibility, threshold, hideCorrectAnswerOnWrong, openTime, closeTime);
+        }
+    }
 }

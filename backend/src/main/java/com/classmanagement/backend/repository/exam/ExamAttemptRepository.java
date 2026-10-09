@@ -50,4 +50,6 @@ public interface ExamAttemptRepository
                         Collection<ExamAttemptStatus> statuses);
 
         boolean existsByAssignment_Exam_Id(Long examId);
+
+        boolean existsByAssignment_Id(Long assignmentId);
 }
