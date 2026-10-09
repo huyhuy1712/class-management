@@ -1,12 +1,23 @@
 import { Sigma, X } from 'lucide-react'
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import MathEditor from './MathEditor'
 import MathRenderer from './MathRenderer'
 import { normalizePastedText } from '../../helpers/normalizePastedText'
 
 function MathContentInput({ value = '', onChange, placeholder = 'Nhập nội dung...', rows = 3 }) {
+  const inputRef = useRef(null)
+  const [expanded, setExpanded] = useState(false)
   const [open, setOpen] = useState(false)
   const [formula, setFormula] = useState('')
+
+  useLayoutEffect(() => {
+    const input = inputRef.current
+    if (!input) return
+    if (!expanded) { input.style.height = ''; return }
+    input.style.height = 'auto'
+    const limit = Math.min(440, window.innerHeight * 0.5)
+    input.style.height = `${Math.min(limit, Math.max(220, input.scrollHeight))}px`
+  }, [expanded, value])
 
   const handlePaste = (event) => {
     const text = event.clipboardData.getData('text/plain')
@@ -31,8 +42,8 @@ function MathContentInput({ value = '', onChange, placeholder = 'Nhập nội du
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white transition focus-within:border-emerald-400">
-      <textarea onPaste={handlePaste} value={value} onChange={(e) => onChange(e.target.value)} rows={rows} placeholder={placeholder} className="w-full resize-none bg-transparent px-3 py-2.5 text-base font-medium leading-7 outline-none" />
+    <div onFocus={() => setExpanded(true)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setExpanded(false) }} className="overflow-hidden rounded-xl border border-slate-200 bg-white transition focus-within:border-emerald-400">
+      <textarea ref={inputRef} onPaste={handlePaste} value={value} onChange={(e) => onChange(e.target.value)} rows={rows} placeholder={placeholder} className="block max-h-[50dvh] w-full resize-none overflow-y-auto bg-transparent px-3 py-2.5 text-base font-medium leading-7 outline-none" />
       {/\$[^$]+\$/.test(value) && <div className="border-t border-slate-100 px-3 py-2"><p className="mb-1 text-xs font-medium text-slate-500">Xem trước</p><MathRenderer content={value} className="whitespace-pre-wrap text-base font-normal leading-7" /></div>}
       <div className="flex items-center border-t border-slate-100 bg-slate-50/80 px-2 py-1.5">
         <button type="button" onClick={() => setOpen((current) => !current)} className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-bold transition ${open ? 'bg-indigo-100 text-indigo-700' : 'text-slate-700 hover:bg-indigo-50 hover:text-indigo-700'}`}>
