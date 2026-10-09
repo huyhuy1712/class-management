@@ -4,7 +4,11 @@ import {
   Search,
 } from 'lucide-react'
 
+import ResumeExamDraftModal from './components/ResumeExamDraftModal'
+import { hasExamDraftContent } from './draft/hasExamDraftContent'
+import { loadExamDraft, clearExamDraft } from './draft/examDraftStorage'
 import useExams from './hooks/useExams'
+import useExamUiSession from './hooks/useExamUiSession'
 import ExamTable from './components/ExamTable'
 import useExamFilters from './hooks/useExamFilters'
 import DashboardLayout from '../../../layouts/DashboardLayout'
@@ -26,9 +30,13 @@ function ExamManagementPage() {
 
   const navigate = useNavigate()
   const { state } = useLocation()
+  const [resumeDraftOpen, setResumeDraftOpen] = useState(false)
   const [editingExam, setEditingExam] = useState(null)
   const [deletingExam, setDeletingExam] = useState(null)
-  const [saving, setSaving] = useState(false)
+  const [uiMessage, setUiMessage] = useState('')
+  const uiExams = useExamUiSession((state) => state.exams)
+  const clearExamPreview = useExamUiSession((state) => state.clearExamPreview)
+  const updateUiExam = useExamUiSession((state) => state.updateExam)
   const [deleting, setDeleting] = useState(false)
   const [actionError, setActionError] = useState('')
   const [forceDelete, setForceDelete] = useState(false)
@@ -44,14 +52,30 @@ function ExamManagementPage() {
     setSortOrder,
 
     filteredExams,
-  } = useExamFilters(exams)
+  } = useExamFilters(exams.map((exam) => ({ ...exam, ...uiExams[exam.id] })))
 
   const handleCreate = () => {
-  navigate('/teacher/exams/create')
+    const draft = loadExamDraft()
+    if (hasExamDraftContent(draft)) {
+      setResumeDraftOpen(true)
+      return
+    }
+    navigate('/teacher/exams/create')
+  }
+
+  const handleRestartDraft = () => {
+    try {
+      clearExamDraft()
+      setResumeDraftOpen(false)
+      navigate('/teacher/exams/create')
+    } catch {
+      setUiMessage('Không thể xóa bản nháp trên trình duyệt. Vui lòng thử lại.')
+      setResumeDraftOpen(false)
+    }
   }
 
   const handleView = (exam) => {
-  navigate(`/teacher/exams/${exam.id}`)
+  navigate(`/teacher/exams/${exam.id}`, { state: { exam } })
 }
 
   const handleEdit = (exam) => {
@@ -59,21 +83,10 @@ function ExamManagementPage() {
     setEditingExam(exam)
   }
 
-  const handleSaveEdit = async (payload) => {
-    try {
-      setSaving(true)
-      setActionError('')
-      await examService.updateExam(editingExam.id, payload)
-      setEditingExam(null)
-      await refetch()
-    } catch (updateError) {
-      setActionError(
-        updateError.response?.data?.message ||
-          'Không thể cập nhật đề thi. Vui lòng thử lại.',
-      )
-    } finally {
-      setSaving(false)
-    }
+  const handleTogglePublish = (exam) => {
+    const status = exam.status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED'
+    updateUiExam(exam, { status })
+    setUiMessage(`Đã chuyển sang ${status === 'PUBLISHED' ? 'xuất bản' : 'bản nháp'} trên giao diện. Chưa cập nhật lên máy chủ.`)
   }
 
   const handleDelete = (exam) => {
@@ -109,6 +122,7 @@ function ExamManagementPage() {
     <DashboardLayout>
       <div className="mx-auto max-w-[1500px] pb-4 sm:pb-6 lg:pb-8">
         {state?.createdExam && <p role="status" className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">Đã lưu đề {state.createdExam.code} ở trạng thái nháp. Tổng điểm: {state.createdExam.maxScore}.</p>}
+        {uiMessage && <p role="status" className="mb-4 text-sm text-slate-600">{uiMessage}</p>}
         {/* HEADER */}
         <div className="mb-7 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -252,19 +266,19 @@ function ExamManagementPage() {
             <ExamTable
               exams={filteredExams}
               onView={handleView}
+              onTogglePublish={handleTogglePublish}
               onEdit={handleEdit}
               onDelete={handleDelete}
             />
           )}
       </div>
 
+      <ResumeExamDraftModal open={resumeDraftOpen} onClose={() => setResumeDraftOpen(false)} onContinue={() => { setResumeDraftOpen(false); navigate('/teacher/exams/create/online') }} onRestart={handleRestartDraft} />
       <EditExamModal
         exam={editingExam}
         open={Boolean(editingExam)}
-        saving={saving}
-        error={editingExam ? actionError : ''}
-        onClose={() => { if (!saving) { setEditingExam(null); setActionError('') } }}
-        onSave={handleSaveEdit}
+        onClose={() => { setEditingExam(null); setActionError('') }}
+        onSaved={(result) => { clearExamPreview(result.id); setEditingExam(null); setUiMessage('Đã lưu cấu hình đề thi.'); refetch() }}
       />
 
       <DeleteExamModal

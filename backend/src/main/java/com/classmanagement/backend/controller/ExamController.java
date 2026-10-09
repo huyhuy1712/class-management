@@ -1,7 +1,14 @@
 package com.classmanagement.backend.controller;
 
 import com.classmanagement.backend.dto.exam.ExamListResponse;
-import com.classmanagement.backend.dto.exam.ExamUpdateResponse;
+import com.classmanagement.backend.dto.exam.ExamConfigurationResponse;
+import com.classmanagement.backend.service.exam.ExamConfigurationService;
+import com.classmanagement.backend.service.exam.ExamDetailService;
+import com.classmanagement.backend.service.exam.ExamContentUpdateService;
+import com.classmanagement.backend.dto.exam.UpdateExamContentRequest;
+import com.classmanagement.backend.dto.exam.UpdateExamContentResponse;
+import com.classmanagement.backend.dto.exam.ExamDetailResponse;
+import com.classmanagement.backend.service.exam.ExamConfigurationUpdateService;
 import com.classmanagement.backend.dto.exam.UpdateExamRequest;
 import com.classmanagement.backend.service.ExamService;
 
@@ -30,6 +37,28 @@ import java.util.List;
 public class ExamController {
 
     private final ExamService examService;
+    private final ExamConfigurationService configurationService;
+    private final ExamDetailService detailService;
+    private final ExamConfigurationUpdateService configurationUpdateService;
+    private final ExamContentUpdateService contentUpdateService;
+
+    @PutMapping("/{examId}/content")
+    public ResponseEntity<UpdateExamContentResponse> updateContent(@PathVariable Long examId,
+            @Valid @RequestBody UpdateExamContentRequest request, Authentication authentication) {
+        return ResponseEntity.ok(contentUpdateService.update(examId, authentication.getName(), request));
+    }
+
+    @GetMapping("/{examId}")
+    public ResponseEntity<ExamDetailResponse> getDetail(
+            @PathVariable Long examId, Authentication authentication) {
+        return ResponseEntity.ok(detailService.get(examId, authentication.getName()));
+    }
+
+    @GetMapping("/{examId}/configuration")
+    public ResponseEntity<ExamConfigurationResponse> getConfiguration(
+            @PathVariable Long examId, Authentication authentication) {
+        return ResponseEntity.ok(configurationService.get(examId, authentication.getName()));
+    }
 
     @PostMapping
     public ResponseEntity<CreateExamResponse> createCompleteExam(
@@ -61,13 +90,13 @@ public ResponseEntity<Void> deleteExam(
 }
 
 @PutMapping("/{examId}")
-public ResponseEntity<ExamUpdateResponse> updateExam(
+public ResponseEntity<ExamConfigurationResponse> updateExam(
         @PathVariable Long examId,
         @Valid @RequestBody UpdateExamRequest request,
         Authentication authentication
 ) {
     return ResponseEntity.ok(
-            examService.updateExam(
+            configurationUpdateService.update(
                     examId,
                     authentication.getName(),
                     request

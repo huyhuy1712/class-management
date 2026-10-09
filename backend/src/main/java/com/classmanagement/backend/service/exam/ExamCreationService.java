@@ -17,6 +17,7 @@ import java.math.BigDecimal;
 import java.security.SecureRandom;
 import java.util.*;
 import static com.classmanagement.backend.service.exam.ExamStructureValidator.*;
+import com.classmanagement.backend.service.exam.ExamTargetValidator.Targets;
 
 @Service
 @RequiredArgsConstructor
@@ -49,7 +50,7 @@ public class ExamCreationService {
         var basic = request.basicInfo();
         Subject subject = subjectRepository.findById(basic.subjectId()).orElse(null);
         if (subject == null) fail("basicInfo.subjectId", "Không tìm thấy môn học");
-        Targets targets = validateTargets(teacher.getId(), request.assignment());
+        Targets targets = new ExamTargetValidator(classroomRepository, classStudentRepository, userRepository).validate(teacher.getId(), request.assignment());
         String code = generateCode(teacher.getId());
         try {
             Exam exam = examRepository.save(Exam.builder().teacher(teacher).subject(subject)
@@ -93,26 +94,6 @@ public class ExamCreationService {
         throw new ConflictException("Chưa thể sinh mã đề duy nhất, vui lòng thử lại");
     }
 
-    private Targets validateTargets(Long teacherId, CreateCompleteExamRequest.Assignment assignment) {
-        List<Classroom> classes = List.of();
-        List<User> students = List.of();
-        if (assignment.assignmentType() == ExamAssignmentType.CLASS) {
-            classes = classroomRepository.findAllById(assignment.classIds());
-            if (classes.size() != assignment.classIds().size() || classes.stream().anyMatch(c ->
-                    !c.getTeacher().getId().equals(teacherId) || c.getStatus() != ClassroomStatus.ACTIVE)) {
-                fail("assignment.classIds", "Lớp không tồn tại, đã lưu trữ hoặc không thuộc giáo viên");
-            }
-        } else if (assignment.assignmentType() == ExamAssignmentType.STUDENT) {
-            students = userRepository.findAllById(assignment.studentIds());
-            Set<Long> allowed = new HashSet<>(classStudentRepository.findAssignableStudentIds(teacherId, assignment.studentIds()));
-            if (students.size() != assignment.studentIds().size() || students.stream().anyMatch(s ->
-                    s.getRole() != UserRole.STUDENT || s.getStatus() != UserStatus.ACTIVE || !allowed.contains(s.getId()))) {
-                fail("assignment.studentIds", "Học sinh không hoạt động hoặc không thuộc lớp đang phụ trách");
-            }
-        }
-        return new Targets(classes, students);
-    }
-
     private ExamAssignment persistAssignment(Exam exam, CreateCompleteExamRequest.Assignment source, Targets targets) {
         ExamAssignment assignment = assignmentRepository.save(ExamAssignment.builder().exam(exam)
                 .assignmentType(source.assignmentType()).status(ExamAssignmentStatus.DRAFT)
@@ -142,7 +123,7 @@ public class ExamCreationService {
             BigDecimal points = source.questions().stream().map(CreateCompleteExamRequest.Question::points)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             sectionNodes.add(new SectionNode(source, ExamSection.builder().exam(exam).title(source.title().trim())
-                    .description(trim(source.description())).orderIndex(index + 1).points(points)
+                    .paragraph(trim(source.paragraph())).orderIndex(index + 1).points(points)
                     .imageUrl(path(media, source.imageMediaId())).audioUrl(path(media, source.audioMediaId())).build()));
         }
         sectionRepository.saveAll(sectionNodes.stream().map(SectionNode::entity).toList());
@@ -189,7 +170,7 @@ public class ExamCreationService {
 
     private static String path(Map<UUID, ExamMedia> media, UUID id) { return id == null ? null : media.get(id).getObjectPath(); }
     private static String trim(String value) { return value == null || value.isBlank() ? null : value.trim(); }
-    private record Targets(List<Classroom> classes, List<User> students) {}
+
     private record SectionNode(CreateCompleteExamRequest.Section source, ExamSection entity) {}
     private record QuestionNode(CreateCompleteExamRequest.Question source, Question entity) {}
     private record AnswerNode(CreateCompleteExamRequest.Answer source, Answer entity) {}

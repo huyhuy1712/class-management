@@ -24,7 +24,7 @@ import DeleteAttendanceModal from './attendance/modals/DeleteAttendanceModal'
 import EditAttendanceModal from './attendance/modals/EditAttendanceModal'
 import useAttendanceActions from './attendance/useAttendanceActions'
 import ExportAttendanceModal from './attendance/modals/ExportAttendanceModal'
-import ConfirmModal from '../../../../components/classroom/ConfirmModal'
+import ConfirmModal from '../modals/ConfirmModal'
 
 function formatAttendanceTime(createdAt) {
   const match = String(createdAt ?? '').match(/T(\d{2}):(\d{2})/)

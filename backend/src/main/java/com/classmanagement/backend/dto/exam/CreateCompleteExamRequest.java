@@ -36,7 +36,7 @@ public record CreateCompleteExamRequest(
 
     public record Section(
             @NotBlank @Size(max = 255) String title,
-            @Size(max = 20000) String description,
+            @Size(max = 20000) String paragraph,
             UUID imageMediaId, UUID audioMediaId,
             @NotEmpty @Size(max = 100) List<@NotNull @Valid Question> questions) {}
 

@@ -1,6 +1,14 @@
 import { MATH_BRACKETS } from './mathBrackets.js'
 
+const numberedList = (labels) => `\\begin{array}{ll}${labels.map((label) => `\\text{${label}.}&\\text{\\placeholder{}}`).join('\\\\')}\\end{array}`
+
 export const MATH_TEMPLATE_GROUPS = [
+  { id: 'formatting', label: 'Định dạng', items: [
+    {"label": "In nghiêng", "symbol": "𝑰", "latex": "\\textit{\\placeholder{}}", "format": "italic"},
+    {"label": "In đậm", "symbol": "𝐁", "latex": "\\textbf{\\placeholder{}}", "format": "bold"},
+    { label: 'Danh sách theo số', symbol: '1. 2. 3.', latex: numberedList(['1', '2', '3']) },
+    { label: 'Danh sách theo chữ', symbol: 'a. b. c.', latex: numberedList(['a', 'b', 'c']) },
+  ] },
   {
     id: 'accents', label: 'Dấu trên/dưới', items: [
       { label: 'Gạch chân chữ', symbol: 'a̲', latex: '\\underline{\\text{\\placeholder{}}}' },
@@ -12,6 +20,10 @@ export const MATH_TEMPLATE_GROUPS = [
   },
   {
     id: 'brackets', label: 'Ngoặc', items: [
+      {"label": "Ngoặc tròn", "symbol": "( )", "latex": "\\left(\\placeholder{}\\right)"},
+      {"label": "Ngoặc tròn mở", "symbol": "(", "latex": "("},
+      {"label": "Ngoặc tròn đóng", "symbol": ")", "latex": ")"},
+
       { label: 'Hệ ngoặc nhọn', symbol: '{', latex: MATH_BRACKETS['{'] },
       { label: 'Hệ ngoặc vuông', symbol: '[', latex: MATH_BRACKETS['['] },
     ],

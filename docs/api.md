@@ -49,6 +49,10 @@
 | 38 | DELETE | `/api/exam-media/{mediaId}` | Đưa media tạm vào hàng đợi xóa |
 | 39 | POST | `/api/exams` | Lưu đề thi hoàn chỉnh trong một transaction |
 | 40 | DELETE | `/api/exams/{examId}?force=false` | Xóa đề, dữ liệu con và lên lịch dọn toàn bộ media |
+| 41 | GET | `/api/exams/{examId}/configuration` | Lấy cấu hình đề và các lần giao của giáo viên hiện tại |
+| 42 | GET | `/api/exams/{examId}` | Lấy cấu hình và toàn bộ nội dung đề của giáo viên hiện tại |
+| 43 | PUT | `/api/exams/{examId}` | Cập nhật đầy đủ cấu hình chính và một lần giao của đề |
+| 44 | PUT | `/api/exams/{examId}/content` | Cập nhật toàn bộ cây nội dung, điểm và media của đề |
 
 ## Xác thực
 
@@ -203,8 +207,13 @@ curl -X GET http://localhost:8080/api/exams \
 [
 	{
 		"id": 1,
+		"subjectId": 2,
+		"subjectName": "Lập trình Java",
 		"title": "Kiểm tra giữa kỳ Java",
 		"code": "JAVA-MIDTERM-2026",
+		"description": "Đề kiểm tra kiến thức Java cơ bản",
+		"gradeLevel": "K21",
+		"purpose": "Giữa kỳ",
 		"submittedCount": 18,
 		"status": "PUBLISHED",
 		"assignedClassCount": 2,
@@ -216,8 +225,13 @@ curl -X GET http://localhost:8080/api/exams \
 Trong đó:
 
 - `id`: ID đề thi.
+- `subjectId`: ID môn học.
+- `subjectName`: Tên môn học.
 - `title`: Tên đề thi.
 - `code`: Mã đề thi.
+- `description`: Mô tả đề thi.
+- `gradeLevel`: Khối/lớp.
+- `purpose`: Mục đích đề thi.
 - `submittedCount`: Số lượt làm bài đã ở trạng thái `SUBMITTED` hoặc `GRADED`.
 - `status`: Trạng thái đề thi, nhận một trong `DRAFT`, `PUBLISHED` hoặc `CLOSED`.
 - `assignedClassCount`: Số lớp được giao đề; mỗi lớp chỉ được tính một lần.
@@ -231,6 +245,115 @@ Nếu giáo viên chưa có đề thi, API trả về `200 OK` với danh sách 
 
 **Một số trường hợp lỗi:**
 
+- `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
+
+### 33. DELETE `/api/exams/{examId}` | Xóa đề thi
+
+Xóa đề thi do giáo viên hiện tại tạo. API mặc định không cho xóa đề thi đã có học sinh làm bài để tránh mất dữ liệu bài làm và kết quả. Có thể dùng `force=true` khi đã xác nhận muốn xóa cả dữ liệu liên quan.
+
+**Headers:**
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+**Query parameters:**
+
+- `force`: Không bắt buộc, mặc định là `false`.
+  - `false`: Từ chối xóa nếu đề thi đã có bài làm.
+  - `true`: Cho phép xóa đề thi dù đã có bài làm; toàn bộ bài làm và kết quả liên quan sẽ bị xóa theo.
+
+**Cách test bằng cURL khi đề thi chưa có bài làm:**
+
+```bash
+curl -X DELETE "http://localhost:8080/api/exams/1" \
+	-H "Authorization: Bearer <accessToken>"
+```
+
+**Cách test bằng cURL khi đã xác nhận xóa cả bài làm:**
+
+```bash
+curl -X DELETE "http://localhost:8080/api/exams/1?force=true" \
+	-H "Authorization: Bearer <accessToken>"
+```
+
+**Response thành công `204 No Content`:**
+
+API không trả về response body. Đề thi và các dữ liệu liên quan được xóa thành công.
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Không tìm thấy đề thi hoặc đề thi không thuộc giáo viên đang đăng nhập.
+- `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
+- `409 Conflict`: Đề thi đã có học sinh làm bài và `force=false`. Gọi lại với `force=true` chỉ sau khi đã xác nhận muốn xóa toàn bộ bài làm và kết quả liên quan.
+
+### 34. PUT `/api/exams/{examId}` | Cập nhật đề thi
+
+Cập nhật môn học và thông tin mô tả của đề thi do giáo viên hiện tại tạo. API này chỉ cho phép sửa `subjectId`, `title`, `description`, `gradeLevel` và `purpose`; mã đề, thời gian làm bài và số lần làm bài không bị thay đổi.
+
+**Headers:**
+
+```http
+Content-Type: application/json
+Authorization: Bearer <accessToken>
+```
+
+**Request body mẫu:**
+
+```json
+{
+	"subjectId": 2,
+	"title": "Kiểm tra giữa kỳ Java - Cập nhật",
+	"description": "Đề kiểm tra kiến thức Java cơ bản",
+	"gradeLevel": "K21",
+	"purpose": "Giữa kỳ"
+}
+```
+
+Trong đó:
+
+- `subjectId`: ID môn học, bắt buộc. Môn học phải tồn tại.
+- `title`: Tên đề thi, bắt buộc, tối đa 255 ký tự.
+- `description`: Mô tả đề thi, không bắt buộc. Chuỗi rỗng sau khi trim được lưu thành `null`.
+- `gradeLevel`: Khối/lớp, không bắt buộc, tối đa 30 ký tự.
+- `purpose`: Mục đích đề thi, không bắt buộc, tối đa 50 ký tự.
+
+Trạng thái `status` không được cập nhật qua API này; hệ thống giữ nguyên trạng thái hiện tại của đề thi.
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X PUT http://localhost:8080/api/exams/1 \
+	-H "Content-Type: application/json" \
+	-H "Authorization: Bearer <accessToken>" \
+	-d '{
+		"subjectId": 2,
+		"title": "Kiểm tra giữa kỳ Java - Cập nhật",
+		"description": "Đề kiểm tra kiến thức Java cơ bản",
+		"gradeLevel": "K21",
+		"purpose": "Giữa kỳ"
+	}'
+```
+
+**Response thành công `200 OK`:**
+
+```json
+{
+	"id": 1,
+	"subjectId": 2,
+	"subjectName": "Lập trình Java",
+	"title": "Kiểm tra giữa kỳ Java - Cập nhật",
+	"description": "Đề kiểm tra kiến thức Java cơ bản",
+	"gradeLevel": "K21",
+	"purpose": "Giữa kỳ",
+	"status": "PUBLISHED"
+}
+```
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Thiếu `subjectId` hoặc `title`, giá trị vượt quá giới hạn ký tự, môn học không tồn tại, hoặc dữ liệu không hợp lệ.
+- `400 Bad Request`: Không tìm thấy đề thi với `examId` đã cung cấp hoặc đề thi không thuộc giáo viên đang đăng nhập.
 - `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
 
 ## Lớp học
@@ -1481,7 +1604,7 @@ curl -X GET http://localhost:8080/api/users/5 \
 - `400 Bad Request`: Không tìm thấy người dùng với `userId` đã cung cấp.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
-### 33. PUT `/api/users/me` | Cập nhật hồ sơ hiện tại
+### 35. PUT `/api/users/me` | Cập nhật hồ sơ hiện tại
 
 API tự xác định người dùng cần cập nhật từ JWT trong header, không cần truyền `userId`.
 
@@ -1546,7 +1669,7 @@ curl -X PUT http://localhost:8080/api/users/me \
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 - `400 Bad Request`: Không tìm thấy người dùng hiện tại.
 
-### 34. PUT `/api/users/me/password` | Đổi mật khẩu
+### 36. PUT `/api/users/me/password` | Đổi mật khẩu
 
 API xác định tài khoản hiện tại từ JWT. Mật khẩu mới phải dài từ 8 đến 100 ký tự và không được trùng mật khẩu hiện tại.
 
@@ -1587,7 +1710,7 @@ curl -X PUT http://localhost:8080/api/users/me/password \
 
 ## Avatar
 
-### 35. POST `/api/users/me/avatar` | Tải avatar
+### 37. POST `/api/users/me/avatar` | Tải avatar
 
 API tự xác định người dùng hiện tại từ JWT, không cần truyền `userId`. Ảnh tải lên sẽ thay avatar hiện tại.
 
@@ -1628,7 +1751,7 @@ Trường `avatar` trong response là URL của ảnh vừa tải lên và đư�
 - File vượt quá giới hạn 2 MB sẽ bị server từ chối.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
-### 36. DELETE `/api/users/me/avatar` | Xóa avatar
+### 38. DELETE `/api/users/me/avatar` | Xóa avatar
 
 API tự xác định người dùng hiện tại từ JWT, xóa file ảnh đại diện đang lưu và đặt trường `avatar` của hồ sơ thành `null`.
 
@@ -1879,3 +2002,430 @@ Worker xử lý ảnh/audio thuộc mọi vị trí của đề, xóa file ở s
 6. Nếu có dữ liệu attempts để thử: force=false phải 409 và giữ nguyên media; force=true mới xóa cả bài làm.
 
 Tests đơn vị kiểm tra thứ tự queue/delete, ownership và attempts/force; chưa tự chạy cascade/rollback hoặc storage integration trên DB triển khai.
+
+## 41. Lấy cấu hình đề thi
+
+**GET** `/api/exams/{examId}/configuration`
+
+Đăng nhập bằng cookie `access_token` của giáo viên sở hữu đề. Reuse GET danh sách để lấy `id`; endpoint nhận ID số trong DB, không nhận mã `EX-...`. Không có request body.
+
+```http
+GET /api/exams/123/configuration
+Cookie: access_token=<token>
+```
+
+**200 OK**, ví dụ:
+
+```json
+{
+  "id": 123,
+  "code": "EX-11-EHAGXE",
+  "status": "DRAFT",
+  "maxScore": 10.00,
+  "updatedAt": "2026-10-09T17:00:00",
+  "basicInfo": {
+    "title": "Đề số 3",
+    "subjectId": 1,
+    "subjectName": "Toán",
+    "gradeLevel": "10",
+    "purpose": "Ôn tập giữa kì 1",
+    "description": "Đề của Lam Sơn",
+    "timeLimit": 45,
+    "maxAttempts": 0
+  },
+  "assignments": [
+    {
+      "id": 456,
+      "status": "DRAFT",
+      "assignmentType": "CLASS",
+      "classIds": [12, 13],
+      "studentIds": [],
+      "timeLimit": null,
+      "maxAttempts": null,
+      "scoreVisibility": "AFTER_SUBMIT",
+      "answerVisibility": "AFTER_SCORE",
+      "threshold": 8.00,
+      "hideCorrectAnswerOnWrong": true,
+      "openTime": null,
+      "closeTime": null,
+      "updatedAt": "2026-10-09T17:00:00"
+    }
+  ]
+}
+```
+
+- `assignments` trả toàn bộ lần giao, sắp theo ID tăng dần; chưa giao thì `[]`. UI không tự chọn lần giao khi có nhiều phần tử. Luồng POST hiện tại tạo một assignment.
+- ID lớp/học sinh được sắp tăng dần; danh sách rỗng trả `[]`. `ALL` không liệt kê động toàn bộ học sinh/lớp. Reuse API môn học, lớp, học sinh hiện có để lấy danh mục chọn.
+- Giữ cấu hình đã lưu cả khi lớp/học sinh đã ngừng hoạt động, không tự loại ID và làm mất cấu hình cũ.
+- `basicInfo.maxAttempts = 0` là không giới hạn. Assignment có `timeLimit`/`maxAttempts = null` thì kế thừa từ đề; `maxAttempts = 0` là không giới hạn. Không thay null bằng giá trị mặc định.
+- `threshold` lấy từ `answer_visibility_score`. Có thể null. Các ngày giờ là LocalDateTime không có hậu tố Z; BE hiện chưa lưu timezone.
+- Có thể đọc đề DRAFT/PUBLISHED/ARCHIVED; GET không thay đổi trạng thái hay cho phép chỉnh sửa đề đã xuất bản.
+- Không trả section/câu hỏi/đáp án/media. Không gọi storage. Tối đa 4 lượt gọi repository cho đề có assignment, không truy vấn riêng cho từng assignment/target.
+
+**Lỗi:** 400 nếu ID không phải số nguyên dương hoặc sai kiểu; chưa xác thực bị security hiện tại từ chối (401/403 tùy entry point, endpoint không thay đổi cấu hình security); 404 nếu đề không tồn tại hoặc không thuộc tài khoản hiện tại (cùng thông báo để không lộ đề của người khác).
+
+Ví dụ 404 theo ErrorResponse hiện có:
+
+```json
+{
+  "timestamp": "2026-10-09T17:00:00",
+  "status": 404,
+  "error": "Không tìm thấy",
+  "message": "Không tìm thấy đề thi.",
+  "path": "/api/exams/123/configuration"
+}
+```
+
+**Test sau khi restart BE:**
+
+1. Đăng nhập giáo viên đã tạo đề; lấy ID bằng GET `/api/exams` hoặc response POST.
+2. Gọi GET configuration; mong đợi 200. Đối chiếu basicInfo, assignment, classIds/studentIds với request tạo đề đã lưu.
+3. Kiểm tra null kế thừa, maxAttempts = 0 và threshold không bị biến thành mặc định khác.
+4. Đăng nhập giáo viên khác và gọi cùng ID: mong đợi 404. ID không tồn tại cũng 404; ID 0 hoặc âm trả 400.
+5. Đề không có assignment trả `assignments: []`; đề nhiều assignment trả đủ và ổn định thứ tự.
+
+API này chỉ phục vụ đọc cấu hình. PUT cập nhật đầy đủ configuration được hướng dẫn ở mục 43.
+
+## 42. Lấy toàn bộ chi tiết đề thi cho giáo viên
+
+**GET** `/api/exams/{examId}`
+
+Đăng nhập bằng cookie `access_token` của giáo viên sở hữu đề. Không có body. `examId` là ID số trong DB lấy từ response POST hoặc GET danh sách, không phải mã `EX-...`.
+
+```http
+GET /api/exams/123
+Cookie: access_token=<token>
+```
+
+**200 OK:** trả nguyên các trường `id`, `code`, `status`, `maxScore`, `updatedAt`, `basicInfo`, `assignments` như mục 41, đồng thời thêm `sections`. Builder chỉ cần gọi API này một lần; không cần gọi configuration lần nữa.
+
+Ví dụ trường `sections` (các trường cấu hình ở root dùng đúng contract mục 41):
+
+```json
+{
+  "sections": [
+    {
+      "id": 1,
+      "orderIndex": 1,
+      "title": "Phần đúng/sai",
+      "paragraph": null,
+      "points": 1.00,
+      "imageMedia": {"mediaId": "550e8400-e29b-41d4-a716-446655440001", "url": "http://localhost:8080/uploads/exam-media/gv_11/draft/image.png"},
+      "audioMedia": null,
+      "questions": [
+        {
+          "id": 2,
+          "orderIndex": 1,
+          "content": "Xác định tính đúng/sai của phát biểu",
+          "points": 1.00,
+          "imageMedia": null,
+          "audioMedia": null,
+          "answers": [
+            {
+              "id": 3,
+              "orderIndex": 1,
+              "answerType": "TRUE_FALSE",
+              "content": null,
+              "points": 1.00,
+              "scoringType": "CORRECT_COUNT",
+              "correctAnswerText": null,
+              "correctBoolean": null,
+              "caseSensitive": false,
+              "imageMedia": null,
+              "audioMedia": null,
+              "options": [
+                {
+                  "id": 4,
+                  "orderIndex": 1,
+                  "content": "2 + 2 = 4",
+                  "isCorrect": true,
+                  "points": 0.00,
+                  "imageMedia": null,
+                  "audioMedia": null
+                }
+              ],
+              "scoringRules": [
+                {"id": 5, "correctCount": 0, "score": 0.00},
+                {"id": 6, "correctCount": 1, "score": 1.00}
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Quy ước dữ liệu:**
+
+- `sections -> questions -> answers -> options` là cấu trúc BE, nhất quán POST. FE chuyển `answers` của câu hỏi thành `answerGroups`, và `options` thành các lựa chọn của nhóm. Không dùng trực tiếp JSON này làm state builder nếu chưa chuyển đổi enum/tên trường.
+- Tất cả ID là ID thật trong DB. Các mảng nội dung sắp theo `orderIndex` tăng dần; `scoringRules` theo `correctCount` tăng dần. Các mảng không có phần tử trả `[]`.
+- `Answer` có `correctAnswerText`, `correctBoolean`, `caseSensitive`, `scoringType`. `Option` trả `isCorrect` (không phải tên field entity `correct`). Các giá trị null được giữ nguyên; không suy luận/chỉnh lại điểm hay rule khi đọc.
+- Section, question, answer và option đều có `imageMedia` và `audioMedia`: không có file thì null; có thì `{mediaId, url}`. Không trả dữ liệu binary, draftToken hoặc thông tin cleanup. FE dùng URL để hiện ảnh/phát audio; tải media khi cần.
+- Media được lấy theo examId và trạng thái ATTACHED; đường dẫn trong nội dung phải khớp registry và loại IMAGE/AUDIO. Cùng file dùng nhiều vị trí giữ cùng mediaId/url. Không gọi upload/delete hoặc HTTP kiểm tra storage. URL được dựng một lần cho mỗi đường dẫn khác nhau trong request.
+- Các dữ liệu cũ có đường dẫn media nhưng chưa có registry ATTACHED hợp lệ trả 409; cần kiểm tra dữ liệu trước khi tích hợp. API không tự sửa DB và không bỏ media âm thầm.
+- Reuse service cấu hình, repository đọc cây theo lô và StorageService.getUrl. Tối đa 10 lượt gọi repository cho cây có dữ liệu + assignment; số lượt không tăng theo số câu/option. Nhóm cha rỗng thì bỏ qua query con. Không join tất cả collection làm nhân bản hàng.
+- Cấu hình, nội dung, registry được đọc trong cùng transaction read-only REPEATABLE_READ để giữ cùng snapshot. Không đổi trạng thái đề khi đọc.
+- API chỉ dành cho giáo viên sở hữu đề: response có đáp án đúng và rule chấm điểm, không dùng làm API học sinh thi. Có thể đọc DRAFT/PUBLISHED/ARCHIVED.
+
+**Lỗi:**
+
+- 400: ID không phải số nguyên dương hoặc sai kiểu.
+- 404: đề không tồn tại hoặc không thuộc tài khoản đang đăng nhập, theo ErrorResponse mục 41.
+- 409: tham chiếu media không khớp registry ATTACHED của đề hoặc sai loại; response `{ "message": "Media của đề thi không khớp dữ liệu đã lưu. Cần kiểm tra lại dữ liệu." }`.
+- Chưa xác thực: bị cơ chế security hiện tại từ chối; API không thay đổi entry point.
+
+**Test sau khi restart BE:**
+
+1. Đăng nhập giáo viên sở hữu đề đã tạo; gọi GET `/api/exams/<id>`; mong đợi 200.
+2. Đối chiếu cấu hình với GET configuration: cùng basicInfo, assignments, code, status, maxScore khi dữ liệu không thay đổi.
+3. Đối chiếu số section/câu hỏi/nhóm đáp án/option với request POST; kiểm tra thứ tự, điểm, correctAnswerText/isCorrect và scoringRules.
+4. Với đề có ảnh/audio, kiểm tra media đúng vị trí và mediaId khớp response upload. Mở URL ảnh/phát audio; kiểm tra cùng file ở nhiều vị trí có cùng ID/URL. Request GET không tạo/xóa file.
+5. Đề không có media phải trả imageMedia/audioMedia null. Nếu có nhóm rỗng do dữ liệu cũ, trả mảng [] tương ứng.
+6. Giáo viên khác hoặc ID không tồn tại: 404. ID 0/âm: 400.
+
+Chưa nối FE và chưa thêm chức năng lưu thay đổi cây nội dung trong bước này.
+
+## 43. Cập nhật toàn bộ cấu hình chính của đề thi
+
+**PUT** `/api/exams/{examId}` — mở rộng endpoint PUT đã có, thay contract metadata dạng phẳng cũ.
+
+Cookie `access_token` của giáo viên ACTIVE sở hữu đề. Đề và assignment đang sửa phải DRAFT; assignment chưa có lượt làm. Lấy `examId` và `assignment.id` từ GET configuration (mục 41). Nếu có nhiều assignment, phải chọn đúng lần giao, không tự lấy phần tử đầu.
+
+```json
+{
+  "basicInfo": {
+    "title": "Đề số 3 - đã chỉnh",
+    "subjectId": 1,
+    "gradeLevel": "10",
+    "purpose": "Ôn tập giữa kì 1",
+    "description": "Mô tả đã chỉnh",
+    "timeLimit": 60,
+    "maxAttempts": 0
+  },
+  "assignment": {
+    "id": 456,
+    "assignmentType": "CLASS",
+    "classIds": [12],
+    "studentIds": [],
+    "scoreVisibility": "AFTER_SUBMIT",
+    "answerVisibility": "AFTER_SUBMIT",
+    "threshold": null,
+    "hideCorrectAnswerOnWrong": false,
+    "openTime": null,
+    "closeTime": null
+  }
+}
+```
+
+**Request:** `Content-Type: application/json`. basicInfo và assignment bắt buộc; contract cũ `{title,subjectId,...}` không còn dùng được. Không gửi section/media/draftToken. Không cập nhật code/status/maxScore qua endpoint này.
+
+- basicInfo dùng cùng validation với POST: title không trắng, tối đa 255 ký tự; subjectId dương và môn tồn tại; gradeLevel không trắng tối đa 30; description tối đa 20000; purpose tối đa 50; timeLimit >= 1; maxAttempts >= 0, 0 là không giới hạn.
+- assignment.id phải thuộc đề trong URL. classIds và studentIds đều phải là mảng, gửi [] cho danh sách không dùng. CLASS: ít nhất một lớp của giáo viên đang ACTIVE, studentIds rỗng. STUDENT: ít nhất một học sinh ACTIVE thuộc lớp ACTIVE giáo viên phụ trách, classIds rỗng. ALL: cả hai mảng rỗng, cùng ý nghĩa với POST.
+- Không trùng ID; tối đa 500 lớp/2000 học sinh. Validation và việc kiểm tra quyền mục tiêu dùng chung với POST.
+- scoreVisibility: NEVER/AFTER_SUBMIT/AFTER_EXAM. answerVisibility: NEVER/AFTER_SUBMIT/AFTER_EXAM/AFTER_SCORE. AFTER_EXAM giữ quy ước đã chốt ở mục 39: khi tất cả học sinh trong phạm vi đã thi xong, không thay bằng closeTime.
+- AFTER_SCORE bắt buộc threshold >= 0, tối đa 2 chữ số thập phân, không lớn hơn maxScore đang lưu. Chế độ khác phải threshold null. PUT dùng tên threshold như GET configuration; POST hiện vẫn dùng answerVisibilityScore.
+- hideCorrectAnswerOnWrong bắt buộc boolean. openTime/closeTime có thể null, khi có cả hai thì closeTime > openTime. LocalDateTime theo cơ chế hiện tại, không gửi hậu tố Z.
+- Optional field gửi null hoặc bỏ qua sẽ xóa giá trị cũ; purpose/description trắng chuẩn hóa null. Các field bắt buộc phải gửi đầy đủ.
+- Bộ thời gian/lượt làm trong UI cập nhật giới hạn của đề; **assignment được chọn được đặt timeLimit/maxAttempts = null để kế thừa**. UI cần cho thấy thay đổi này nếu assignment trước đó có override. Những assignment khác giữ nguyên override/cấu hình/mục tiêu; giới hạn kế thừa của chúng sẽ theo giới hạn chung mới của đề.
+
+**200 OK:** cấu trúc đầy đủ giống GET configuration mục 41, gồm basicInfo và toàn bộ assignments sau cập nhật. Không trả cây nội dung; FE dùng response cập nhật modal, không cần GET lại.
+
+**Ghi dữ liệu:** khóa đề rồi assignment trong cùng transaction; validate trước khi ghi; target ID không đổi được giữ, target bỏ chọn xóa bằng bulk query, target mới persist trực tiếp để tránh merge SELECT từng dòng. Flush trước khi trả response. Mọi thao tác rollback khi có lỗi. Không gọi storage hoặc đọc cây câu hỏi. updatedAt của đề được cập nhật cả khi chỉ thay đổi cấu hình assignment. Hai request được tuần tự hóa bằng khóa. PUT configuration có revision tùy chọn để chặn form cũ; xem cập nhật revision ở mục 44.
+
+**Lỗi:**
+
+- 400: thiếu/sai dữ liệu, với validationErrors theo đường dẫn basicInfo/assignment; ID URL <= 0 hoặc sai kiểu. threshold sai báo assignment.threshold.
+- 404: đề không tồn tại/khác chủ; assignment không thuộc đề hoặc không tồn tại.
+- 409: đề không DRAFT, assignment không DRAFT hoặc đã có lượt làm.
+- 403: chủ đề không còn là giáo viên ACTIVE. Chưa login bị security hiện tại từ chối.
+
+**Test từng bước:**
+
+1. Restart BE, đăng nhập giáo viên; GET `/api/exams/<id>/configuration`, giữ lại response ban đầu và lấy ID assignment.
+2. Gửi PUT cùng URL `/api/exams/<id>` với body ví dụ, thay subjectId/classIds/assignment.id bằng ID thực tế. Mong đợi 200, basicInfo và assignment khớp request; code/status/maxScore và ID assignment giữ nguyên.
+3. GET configuration để xác nhận dữ liệu đã lưu. GET detail xác nhận sections/questions/answers/options/media không bị thay đổi.
+4. Đổi mục tiêu CLASS sang STUDENT hoặc ALL; gửi mảng đúng quy tắc, kiểm tra target cũ được bỏ, target mới đúng và không trùng. Gửi lại cùng body không sinh assignment/target trùng.
+5. Gửi AFTER_SCORE với threshold hợp lệ: 200. Gửi threshold vượt maxScore hoặc closeTime trước openTime: 400; GET lại phải giữ cấu hình hợp lệ trước đó.
+6. Test request lỗi đồng thời đổi title thành `KHONG_DUOC_LUU` và thêm ID lớp không tồn tại: mong đợi 400; GET lại title/mục tiêu không thay đổi. Đây là kiểm tra không lưu một phần khi validation thất bại.
+7. Dùng assignment.id của đề khác hoặc tài khoản giáo viên khác: 404. Đề PUBLISHED/ARCHIVED, assignment đã hoạt động/có lượt làm: 409, không ghi.
+8. Kiểm tra title trắng/timeLimit=0/maxAttempts=-1, ID mục tiêu trùng, thiếu basicInfo/assignment: 400.
+
+Unit test đã kiểm tra Spring gọi rollback khi persist target thất bại; rollback thực tế PostgreSQL khi lỗi ghi vẫn cần kiểm tra integration trên môi trường test. FE hiện chưa nối nút Lưu cấu hình; phần này chỉ đổi BE và tài liệu.
+
+## 44. Cập nhật toàn bộ cây nội dung đề thi
+
+**PUT** `/api/exams/{examId}/content` — endpoint mới cho nút Lưu chỉnh sửa trong builder. Reuse GET detail, POST upload media, validator nội dung của POST và worker cleanup. PUT `/api/exams/{examId}` vẫn chỉ sửa cấu hình; không gửi lại basicInfo/assignment trong request content.
+
+Cookie `access_token` của giáo viên ACTIVE sở hữu đề. Chỉ đề DRAFT chưa có bất kỳ lượt làm nào được sửa. GET detail trước để lấy cây và `revision` mới nhất. Không có chức năng sửa đề PUBLISHED/ARCHIVED hoặc tự chuyển chúng về DRAFT.
+
+**Đây là thay thế đầy đủ cây:** phần tử cũ không xuất hiện trong request sẽ bị xóa cùng phần con. Phải giữ tất cả phần tử còn muốn dùng; không dùng một section trích từ cây đầy đủ làm body PUT. Không cho lưu cây rỗng hoặc chưa tải thành công. Giữ maxScore/code/status/configuration/assignment ngoài payload.
+
+Ví dụ đề có một section, một câu cũ và thêm một câu mới (thay ID bằng ID thật; ví dụ này không đại diện toàn bộ cây đề của bạn):
+
+```http
+PUT /api/exams/123/content
+Content-Type: application/json
+Cookie: access_token=<token>
+```
+
+```json
+{
+  "revision": 0,
+  "draftToken": null,
+  "sections": [
+    {
+      "id": 1,
+      "title": "Phần tự luận",
+      "paragraph": null,
+      "imageMediaId": null,
+      "audioMediaId": null,
+      "questions": [
+        {
+          "id": 2,
+          "content": "Nội dung đã chỉnh",
+          "points": 1,
+          "imageMediaId": null,
+          "audioMediaId": null,
+          "answers": [
+            {
+              "id": 3,
+              "answerType": "ESSAY",
+              "content": null,
+              "points": 1,
+              "scoringType": "PER_ANSWER",
+              "correctAnswerText": null,
+              "caseSensitive": false,
+              "imageMediaId": null,
+              "audioMediaId": null,
+              "options": [],
+              "scoringRules": []
+            }
+          ]
+        },
+        {
+          "clientId": "q-new-1",
+          "content": "Câu hỏi mới",
+          "points": 2,
+          "answers": [
+            {
+              "clientId": "answer-new-1",
+              "answerType": "ESSAY",
+              "points": 2,
+              "scoringType": "PER_ANSWER",
+              "caseSensitive": false,
+              "options": [],
+              "scoringRules": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+**200 OK**, ví dụ:
+
+```json
+{
+  "id": 123,
+  "code": "EX-11-EHAGXE",
+  "status": "DRAFT",
+  "maxScore": 3.00,
+  "revision": 1,
+  "updatedAt": "2026-10-09T17:00:00",
+  "idMappings": {
+    "sections": [],
+    "questions": [{"clientId": "q-new-1", "id": 202}],
+    "answers": [{"clientId": "answer-new-1", "id": 303}],
+    "options": [],
+    "scoringRules": []
+  }
+}
+```
+
+**Identity và thứ tự:**
+
+- Existing section/question/answer/option/rule phải gửi ID thật từ GET detail. Giữ nguyên ID; không chuyển một ID cũ sang cha khác. Muốn chuyển nội dung sang cha khác, tạo phần tử mới không ID và bỏ phần tử cũ.
+- Phần tử mới bỏ id hoặc gửi null; bắt buộc clientId không trắng, tối đa 100 ký tự, duy nhất trong toàn bộ cây cho cùng loại phần tử. ID dương; ID/clientId trùng hoặc ID không thuộc đúng đề/cha bị từ chối trước khi ghi cây.
+- clientId là khóa tạm của FE, không lưu DB; idMappings chỉ chứa phần tử mới. FE gắn ID nhận được vào state trước lần lưu tiếp theo. Gửi lại phần tử mới không ID bằng revision mới sẽ tạo phần tử mới khác.
+- Thứ tự mảng sections/questions/answers/options xác định orderIndex 1..N. Rule dùng correctCount làm khóa thứ tự; body có id/clientId/correctCount/score.
+- Không nhận orderIndex để điều khiển thứ tự. Các phần tử đổi thứ tự được đưa sang vị trí tạm lớn hơn cả vị trí cũ và vị trí cuối trong một flush, rồi ghi thứ tự cuối; xử lý cả unique orderIndex và unique correctCount.
+
+**Validation, giới hạn, điểm:**
+
+- Nội dung/đáp án/rules/media/điểm dùng cùng validator với POST (mục 39), không có bộ quy tắc chấm điểm khác.
+- 50 section, 100 câu/section, tổng 500 câu, 2000 nhóm đáp án, 10000 option, 500 media; tối đa 20 nhóm/câu, 50 option/nhóm, 51 rule/nhóm. Sections/questions/answers bắt buộc có phần tử. Optional options/scoringRules thiếu/null được coi là [] nên sẽ bỏ phần cũ nếu có.
+- Tổng điểm question phải bằng tổng điểm answers. BE tính lại section.points và exam.maxScore; không tin tổng điểm root từ FE. Tổng điểm tối đa 9999.99, mỗi câu > 0.
+- Tổng điểm mới không được thấp hơn threshold đang lưu của bất kỳ assignment nào. Nếu vi phạm, sửa cấu hình trước; endpoint content không tự sửa assignment.
+- JSON bị giới hạn 2 MiB theo app.exam.max-request-bytes, kể cả request không có Content-Length; trả 413 nếu vượt. ID/clientId cũng nằm trong giới hạn body.
+
+**Revision và tương thích:**
+
+- Migration mới V52 thêm exams.revision, mặc định 0, dùng @Version. GET configuration và GET detail thêm trường revision ở root.
+- PUT content bắt buộc gửi revision đúng với revision hiện tại. Đề đã được cập nhật bởi tab khác hoặc PUT configuration thì trả 409; tải lại trước khi lưu. Thành công trả revision mới.
+- PUT configuration (mục 43) bổ sung revision tùy chọn để giữ tương thích body đang dùng. Nên gửi revision từ GET để chặn form cấu hình cũ; bỏ revision vẫn được chấp nhận nhưng không chặn ghi đè từ form cấu hình cũ. Mọi cập nhật cấu hình vẫn tăng revision của đề, nên form content cũ bị từ chối.
+- Không tự retry PUT với revision mới khi chưa tải/đối chiếu thay đổi. Nếu request mất response, GET detail để xác nhận trạng thái trước khi quyết định retry.
+
+**Media:**
+
+- Ở mỗi vị trí gửi imageMediaId/audioMediaId; không gửi URL. Bỏ trường hoặc null nghĩa là bỏ media tại vị trí đó.
+- Media cũ phải ATTACHED của chính đề này và đúng giáo viên/loại. Có thể reuse một file ở nhiều vị trí trong cùng đề.
+- Media mới upload qua POST /api/exam-media, phải TEMP còn hạn, đúng giáo viên và draftToken của request. Chỉ cần draftToken khi có media mới; nội dung dùng toàn media ATTACHED không cần token.
+- Claim media mới và ghi cây trong cùng transaction; lỗi thì media mới vẫn TEMP. Không gọi HTTP tới local/Supabase trong request content.
+- Chỉ media ATTACHED của đề không còn xuất hiện ở bất kỳ vị trí nào trong cây mới được chuyển DELETE_PENDING. Ảnh dùng ở section và question: bỏ khỏi section nhưng giữ ở question thì file không bị xóa.
+- Worker hiện có xóa file sau commit rồi xóa registry; lỗi storage được retry. File TEMP không dùng không bị xóa theo đề, được TTL cleanup như trước. 200 không hứa file media bị bỏ đã biến mất ngay.
+
+**DB và response:**
+
+- Khóa dòng đề, kiểm tra quyền/revision/trạng thái/lượt làm; đọc assignment và từng nhóm section/question/answer/option/rule/media theo lô. Không query từng câu/option.
+- Cây đầy đủ dùng tối đa 9 lượt đọc repository nếu không có media được tham chiếu, thêm 1 batch lock nếu có media. Số lượt đọc không tăng theo số câu. Có thể có một lượt lazy load teacher, không tăng theo phần tử cây. Đây là giới hạn thiết kế/kiểm tra unit, chưa phải đo SQL thật trên Supabase.
+- Xóa phần bỏ chọn bằng bulk ID tối đa một query mỗi nhóm; persist trực tiếp phần tử mới, giữ entity hiện có để dirty checking chỉ update phần thay đổi. IDENTITY vẫn INSERT từng record mới; không tuyên bố đã batch INSERT.
+- Có flush trung gian nếu đổi thứ tự và khi queue media; tất cả nằm trong một transaction. Flush cuối cập nhật revision và thời gian. Lỗi ở bất kỳ bước ghi nào rollback cây/điểm/claim/queue.
+- Response không đọc lại toàn bộ cây hoặc dựng URL media: FE giữ state đã gửi, cập nhật ID/revision/maxScore từ response. State sau lưu nên chuẩn hóa thứ tự, trim nội dung và default null/false giống BE; có thể dùng GET detail khi cần xác nhận dữ liệu chuẩn hóa.
+
+**Lỗi:** 400 cho validation/ID cha-con/media sai loại; 403 cho chủ đề không còn TEACHER ACTIVE; 404 cho đề khác chủ/không tồn tại hoặc media không hợp lệ về quyền/đề/token; 409 cho đề không DRAFT, đã có lượt làm, revision cũ hoặc media hết hạn/trạng thái không dùng được; 413 cho body vượt giới hạn. Validation có đường dẫn sections/...; identity errors hiện theo tên nhóm phần tử. Các lỗi runtime ở bước ghi không trả success và rollback; chưa có ánh xạ mọi lỗi constraint bất thường thành 409.
+
+**Test sau khi restart BE:**
+
+1. Restart để Flyway áp dụng V52. GET detail của đề DRAFT; kiểm tra revision và giữ nguyên toàn bộ cây còn muốn dùng. Đây là bước thay đổi schema thông qua migration khi BE khởi động, agent chưa chạy DB.
+2. Tạo body từ cây thực tế: media object -> mediaId; giữ ID của mọi phần tử cũ (kể cả rule), bỏ trường chỉ đọc/metadata. Chỉnh một câu, gửi revision vừa lấy -> 200. GET lại: ID cũ giữ nguyên, nội dung mới đúng; config/code/status giữ nguyên.
+3. Thêm câu/answer/option/rule mới với clientId -> 200, kiểm tra idMappings và gắn ID vào state. Lần lưu tiếp dùng các ID này và revision mới.
+4. Bỏ một câu khỏi body -> 200; GET lại không có câu/answer/option/rule của nó. Media chỉ dùng trong câu bị bỏ được queue và worker dọn sau commit.
+5. Hoán đổi hai section/câu/answer/option -> 200, ID giữ nguyên và thứ tự mới đúng. Với rule, giữ bộ correctCount hợp lệ và test thay đổi liên quan; không có lỗi unique khi swap.
+6. Một ảnh dùng nhiều vị trí: bỏ một vị trí vẫn còn file; bỏ vị trí cuối thì file vào cleanup. Upload media mới và dùng cùng draftToken -> attach; dùng sai token/media của đề khác -> lỗi, cây/điểm giữ nguyên.
+7. Gửi lại revision cũ -> 409, không ghi. GET lấy revision mới sau khi cập nhật configuration ở tab khác, content với revision cũ cũng phải 409.
+8. Gửi ID từ đề khác, ID trùng, ID dưới sai cha hoặc phần tử mới thiếu clientId -> 400; GET xác nhận cây giữ nguyên.
+9. Gửi tổng điểm question không khớp, threshold assignment lớn hơn tổng mới hoặc thiếu đáp án đúng -> 400; không lưu một phần.
+10. Đề PUBLISHED/ARCHIVED hoặc có attempt -> 409. Body lớn hơn giới hạn -> 413.
+
+Unit tests kiểm tra luồng, số lượt đọc 1/100 câu, identity, parking thứ tự, mapping, media và Spring rollback interception. Chưa chạy integration PostgreSQL để xác nhận SQL thực tế/cascade/unique/rollback hoặc đo Railway+Supabase. FE chưa nối nút lưu content trong bước này.
+
+## 45. Đổi nội dung chung của section sang paragraph
+
+Không tạo endpoint mới. Từ migration V53, `exam_sections.description` được đổi tên thành `paragraph` (TEXT, nullable), giữ toàn bộ dữ liệu cũ bằng RENAME COLUMN. Không sửa migration V30 đã chạy. `exams.description` và basicInfo.description giữ nguyên.
+
+POST `/api/exams`, GET `/api/exams/{examId}` và PUT `/api/exams/{examId}/content` dùng thống nhất `sections[].paragraph`. Đây là đổi tên contract của section: FE phải chuyển field section cũ sang paragraph trước khi lưu. BE không giữ alias description ở section. Không gửi field section description cũ: field này không còn được map và có thể bị bỏ qua theo cấu hình JSON hiện tại.
+
+```json
+{
+  "title": "Đọc hiểu - câu 6 đến 13",
+  "paragraph": "First paragraph of the passage.\n\nSecond paragraph of the passage.",
+  "imageMediaId": null,
+  "audioMediaId": null,
+  "questions": []
+}
+```
+
+Ví dụ trên chỉ minh họa field section; khi POST/PUT thực tế phải có questions/answers hợp lệ và gửi toàn bộ cây theo contract mục 39/44. GET trả paragraph ở section cùng các field đang có.
+
+- paragraph tùy chọn, tối đa 20000 ký tự, chuỗi trắng trim thành null; thiếu/null ở PUT content sẽ xóa đoạn cũ.
+- Trim chỉ hai đầu; giữ xuống dòng và dòng trống bên trong. Lưu văn bản như gửi lên, không tự diễn giải Markdown/HTML. FE cần render văn bản/định dạng theo quy ước của ứng dụng.
+- Paragraph thuộc section, được hiển thị dùng chung cho các câu trong section. Không thêm bảng, FK, API hoặc query riêng; không thay đổi scoring/media/cleanup.
+- Section không còn field description riêng làm hướng dẫn. Có thể dùng title hoặc phần đầu paragraph nếu cần hướng dẫn chung; không tự thêm passage/description khác trong bước này.
+
+**Test:** Restart BE để Flyway áp dụng V53; GET detail đề có section description cũ phải thấy nội dung đó ở paragraph. POST một đề có paragraph nhiều dòng, GET xác nhận giữ xuống dòng. PUT content với revision hiện tại thay paragraph, GET lại xác nhận ID section/điểm/media giữ nguyên; revision tăng. paragraph null/chuỗi trắng xóa đoạn cũ. Dài hơn 20000 trả 400 với validationErrors.sections[0].paragraph và không ghi. basicInfo.description vẫn giữ nguyên tên và chức năng.
+
+Đã cập nhật BE và tài liệu; chưa sửa FE và chưa chạy migration/DB thật. FE cũ cần đổi mapping từ description sang paragraph trước khi dùng POST/PUT mới.

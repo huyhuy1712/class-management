@@ -12,6 +12,7 @@ export function validateExamBuilder(sections) {
   sections.forEach((section, sectionIndex) => {
     const sectionId = `section-${section.id}`
     if (!hasText(section.title) || section.title.length > 255) add(sectionId, `Phần ${sectionIndex + 1} cần tiêu đề từ 1 đến 255 ký tự.`)
+    if (String(section.paragraph ?? '').length > 20000) add(sectionId, 'Đoạn văn của phần tối đa 20000 ký tự.')
     if (!section.questions.length || section.questions.length > 100) add(sectionId, 'Mỗi phần phải có từ 1 đến 100 câu hỏi.')
     section.questions.forEach((question, questionIndex) => {
       questionCount++

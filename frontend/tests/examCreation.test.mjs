@@ -16,7 +16,7 @@ const sections = () => [{ id: 's', title: 'Phần 1', orderIndex: 1, questions: 
 
 test('ALL never sends class or student targets', () => {
   assert.deepEqual(buildExamPayload(config, sections()).assignment, {
-    assignmentType: 'ALL', classIds: [], studentIds: [], scoreVisibility: 'AFTER_EXAM', answerVisibility: 'AFTER_SUBMIT', hideCorrectAnswerOnWrong: true,
+    assignmentType: 'ALL', openTime: null, closeTime: null, classIds: [], studentIds: [], scoreVisibility: 'AFTER_EXAM', answerVisibility: 'AFTER_SUBMIT', hideCorrectAnswerOnWrong: true,
   })
 })
 
@@ -273,4 +273,11 @@ test('SINGLE choice rejects multiple correct options while MULTIPLE accepts them
   answer.choiceMode = 'MULTIPLE'
   answer.answers[1].isCorrect = true
   assert.equal(validateExamBuilder(tree).isValid, true)
+})
+
+test('optional section paragraph is included in create payload', () => {
+  const content = sections()
+  assert.equal(buildExamPayload(config, content).sections[0].paragraph, null)
+  content[0].paragraph = ' Đoạn đọc chung\nDòng thứ hai '
+  assert.equal(buildExamPayload(config, content).sections[0].paragraph, 'Đoạn đọc chung\nDòng thứ hai')
 })

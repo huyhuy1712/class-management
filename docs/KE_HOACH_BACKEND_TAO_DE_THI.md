@@ -59,7 +59,7 @@ Upload trả `mediaId`, `path`, `url`, loại và kích thước. Create/update 
 
 ## 5. DTO và validation
 
-CreateCompleteExamRequest gồm basicInfo, assignment, draftToken và sections. BasicInfo có title, subjectId, gradeLevel, description, purpose, timeLimit, maxAttempts. Code do BE tự sinh EX-<TeacherID>-<6 chữ cái A–Z>, không lấy từ FE. Assignment có type, targets, visibility, threshold và thời gian nếu UI hỗ trợ. Sections chứa questions; mỗi question chứa answers/options/scoringRules.
+CreateCompleteExamRequest gồm basicInfo, assignment, draftToken và sections. BasicInfo có title, subjectId, gradeLevel, description, purpose, timeLimit, maxAttempts. Code do BE tự sinh EX-<TeacherID>-<6 chữ cái A–Z>, không lấy từ FE. Assignment có type, targets, visibility, threshold và thời gian nếu UI hỗ trợ. Sections dùng paragraph (TEXT nullable, tối đa 20000 ký tự) cho đoạn đọc chung thay description và chứa questions; mỗi question chứa answers/options/scoringRules.
 
 DTO phải biểu diễn đầy đủ dữ liệu: Answer.points/scoringType, correctAnswerText, caseSensitive; Option.isCorrect/points và nội dung; ScoringRule.correctCount/score. Mỗi answerGroup FE map thành một Answer; items của CHOICE/TRUE_FALSE map thành AnswerOption. SHORT_ANSWER/FILL_BLANK/ESSAY giữ nội dung đáp án ở Answer. Không flatten nhiều nhóm thành một nhóm và không thêm bảng answer_groups. Cột correct_boolean cũ tạm giữ để không xóa dữ liệu ngoài phạm vi; TRUE_FALSE theo nhóm dùng answer_options.is_correct làm giá trị đáp án Đúng/Sai từng ý.
 

@@ -6,7 +6,7 @@ export const ANSWER_TYPES = [
 ]
 
 export const createSection = (index) => ({
-  id: crypto.randomUUID(), title: `Phần ${index + 1}`, imageFile: null, audioFile: null,
+  id: crypto.randomUUID(), title: `Phần ${index + 1}`, paragraph: '', imageFile: null, audioFile: null,
   orderIndex: index + 1, questions: [],
 })
 

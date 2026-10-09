@@ -1,4 +1,6 @@
 import { convertLatexToMarkup } from 'mathlive'
+import 'mathlive/fonts.css'
+import 'mathlive/static.css'
 
 function MathRenderer({ content = '', className = '' }) {
   const parts = String(content).split(/(\$[^$]+\$)/g)

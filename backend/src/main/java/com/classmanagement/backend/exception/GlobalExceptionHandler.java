@@ -16,6 +16,21 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler({org.springframework.orm.ObjectOptimisticLockingFailureException.class,
+            jakarta.persistence.OptimisticLockException.class})
+    public ResponseEntity<?> handleExamRevisionConflict() {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("message", "Đề thi đã thay đổi, vui lòng tải lại trước khi lưu."));
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNotFound(
+            ResourceNotFoundException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse.builder()
+                .timestamp(LocalDateTime.now()).status(404).error("Không tìm thấy")
+                .message(ex.getMessage()).path(request.getRequestURI()).build());
+    }
+
     @ExceptionHandler({org.springframework.http.converter.HttpMessageNotReadableException.class,
             ExamPayloadTooLargeException.class})
     public ResponseEntity<ErrorResponse> handleUnreadableBody(Exception ex, HttpServletRequest request) {

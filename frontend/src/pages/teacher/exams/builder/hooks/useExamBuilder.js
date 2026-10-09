@@ -10,9 +10,9 @@ const withMediaChanges = (changes) => ({
   ...('audioFile' in changes ? { audioMedia: null } : {}),
 })
 
-function useExamBuilder() {
-  const [sections, setSections] = useState(() => migrateDraftScores(loadExamDraft()?.builder?.sections ?? []))
-  useEffect(() => { saveExamDraft({ builder: { sections } }) }, [sections])
+function useExamBuilder({ initialSections, persistDraft = true } = {}) {
+  const [sections, setSections] = useState(() => migrateDraftScores(initialSections ?? (persistDraft ? loadExamDraft()?.builder?.sections ?? [] : [])))
+  useEffect(() => { if (persistDraft) saveExamDraft({ builder: { sections } }) }, [sections, persistDraft])
   const totalScore = useMemo(() => getExamScore(sections), [sections])
   const mapQuestion = (sectionId, questionId, updater) => setSections((current) => current.map((section) => section.id !== sectionId ? section : ({ ...section, questions: section.questions.map((q) => q.id === questionId ? updater(q) : q) })))
   const mapGroup = (sectionId, questionId, groupId, updater) => mapQuestion(sectionId, questionId, (q) => ({ ...q, answerGroups: q.answerGroups.map((g) => g.id === groupId ? updater(g) : g) }))

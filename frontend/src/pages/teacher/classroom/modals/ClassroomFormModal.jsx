@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 
-import subjectService from '../../services/subjectService'
-import useAuthStore from '../../stores/authStore'
+import subjectService from '../../../../services/subjectService'
+import useAuthStore from '../../../../stores/authStore'
 
 function generateClassCode(userId, subjectCode, renderedClasses, currentClassId) {
   const existingCodes = new Set(

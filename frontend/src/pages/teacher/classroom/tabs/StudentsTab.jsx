@@ -15,7 +15,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
 
-import ConfirmModal from '../../../../components/classroom/ConfirmModal'
+import ConfirmModal from '../modals/ConfirmModal'
 import classroomService from '../../../../services/classroomService'
 import defaultAvatar from '../../../../assets/images/avatar_default.png'
 import AddStudentModal from './students/modals/AddStudentModal'

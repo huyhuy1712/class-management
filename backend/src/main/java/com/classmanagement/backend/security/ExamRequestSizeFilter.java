@@ -20,8 +20,9 @@ public class ExamRequestSizeFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !request.getMethod().equals("POST")
-                || !request.getRequestURI().equals(request.getContextPath() + "/api/exams");
+        String path = request.getRequestURI().substring(request.getContextPath().length());
+        return !(request.getMethod().equals("POST") && path.equals("/api/exams"))
+                && !(request.getMethod().equals("PUT") && path.matches("/api/exams/[^/]+/content"));
     }
 
     @Override

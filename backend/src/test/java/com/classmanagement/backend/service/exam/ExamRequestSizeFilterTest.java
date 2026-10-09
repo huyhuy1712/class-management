@@ -6,6 +6,23 @@ import org.springframework.mock.web.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ExamRequestSizeFilterTest {
+    @Test void boundsContentPutWithoutContentLength() throws Exception {
+        var request = new MockHttpServletRequest("PUT", "/api/exams/7/content") {
+            public long getContentLengthLong() { return -1; }
+        };
+        request.setContent(new byte[11]);
+        var response = new MockHttpServletResponse();
+        new ExamRequestSizeFilter(10).doFilter(request, response, (req, res) -> req.getInputStream().readAllBytes());
+        assertEquals(413, response.getStatus());
+    }
+
+    @Test void rejectsContentPutAdvertisedSize() throws Exception {
+        var request = new MockHttpServletRequest("PUT", "/api/exams/7/content");
+        request.setContent(new byte[11]);
+        var response = new MockHttpServletResponse();
+        new ExamRequestSizeFilter(10).doFilter(request, response, (req, res) -> fail("Must not reach controller"));
+        assertEquals(413, response.getStatus());
+    }
     @Test void rejectsAdvertisedOversizedPayload() throws Exception {
         var request = new MockHttpServletRequest("POST", "/api/exams");
         request.setContent(new byte[11]);
