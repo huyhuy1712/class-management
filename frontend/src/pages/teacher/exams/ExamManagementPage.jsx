@@ -4,6 +4,8 @@ import {
   Search,
 } from 'lucide-react'
 
+import ResumeExamDraftModal from './components/ResumeExamDraftModal'
+import { loadExamDraft, clearExamDraft } from './draft/examDraftStorage'
 import useExams from './hooks/useExams'
 import useExamUiSession from './hooks/useExamUiSession'
 import ExamTable from './components/ExamTable'
@@ -27,6 +29,7 @@ function ExamManagementPage() {
 
   const navigate = useNavigate()
   const { state } = useLocation()
+  const [resumeDraftOpen, setResumeDraftOpen] = useState(false)
   const [editingExam, setEditingExam] = useState(null)
   const [deletingExam, setDeletingExam] = useState(null)
   const [uiMessage, setUiMessage] = useState('')
@@ -51,7 +54,23 @@ function ExamManagementPage() {
   } = useExamFilters(exams.map((exam) => ({ ...exam, ...uiExams[exam.id] })))
 
   const handleCreate = () => {
-  navigate('/teacher/exams/create')
+    const draft = loadExamDraft()
+    if (draft?.general || draft?.builder?.sections?.length || draft?.pendingSave) {
+      setResumeDraftOpen(true)
+      return
+    }
+    navigate('/teacher/exams/create')
+  }
+
+  const handleRestartDraft = () => {
+    try {
+      clearExamDraft()
+      setResumeDraftOpen(false)
+      navigate('/teacher/exams/create')
+    } catch {
+      setUiMessage('Không thể xóa bản nháp trên trình duyệt. Vui lòng thử lại.')
+      setResumeDraftOpen(false)
+    }
   }
 
   const handleView = (exam) => {
@@ -253,6 +272,7 @@ function ExamManagementPage() {
           )}
       </div>
 
+      <ResumeExamDraftModal open={resumeDraftOpen} onClose={() => setResumeDraftOpen(false)} onContinue={() => { setResumeDraftOpen(false); navigate('/teacher/exams/create/online') }} onRestart={handleRestartDraft} />
       <EditExamModal
         exam={editingExam}
         open={Boolean(editingExam)}
