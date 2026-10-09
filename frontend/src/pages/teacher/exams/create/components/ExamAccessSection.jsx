@@ -7,11 +7,15 @@ import {
 
 import { EXAM_ACCESS_TYPE } from '../helpers/examFormConstants'
 import AccessOption from './ui/AccessOption'
+import ExamAssignmentSchedule from './ExamAssignmentSchedule'
 import ClassSelector from './ClassSelector'
 import StudentSelector from './StudentSelector'
 
 function ExamAccessSection({
   error,
+  form,
+  errors,
+  onChange,
   accessType,
   onAccessChange,
 
@@ -139,6 +143,7 @@ function ExamAccessSection({
           onToggle={onToggleStudent}
         />
       )}
+      {form && <ExamAssignmentSchedule form={form} errors={errors} onChange={onChange} />}
     </section>
   )
 }

@@ -3,7 +3,7 @@ export function mapExamApiErrors(fieldErrors = {}, sections = []) {
   const configErrors = {}
   for (const [path, message] of Object.entries(fieldErrors)) {
     if (path.startsWith('basicInfo.') || path.startsWith('assignment')) {
-      const assignmentFields = { scoreVisibility: 'scoreVisibility', answerVisibility: 'answerVisibility', hideCorrectAnswerOnWrong: 'hideWrongAnswers' }
+      const assignmentFields = { openTime: 'openTime', closeTime: 'closeTime', scoreVisibility: 'scoreVisibility', answerVisibility: 'answerVisibility', hideCorrectAnswerOnWrong: 'hideWrongAnswers' }
       const key = path.startsWith('basicInfo.') ? path.slice(10) : assignmentFields[path.split('.')[1]] ?? 'accessType'
       configErrors[key] = message
       continue

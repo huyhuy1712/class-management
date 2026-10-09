@@ -6,9 +6,9 @@ import {
 } from '../helpers/examFormConstants'
 import { normalizeExamForm, validateExamForm } from '../helpers/examFormValidation'
 
-function useCreateExamForm({ classes = [], students = [] } = {}) {
-  const savedDraft = useMemo(() => loadExamDraft(), [])
-  const generalDraft = savedDraft?.general
+function useCreateExamForm({ classes = [], students = [], initialConfig, persistDraft = true } = {}) {
+  const savedDraft = useMemo(() => persistDraft ? loadExamDraft() : null, [persistDraft])
+  const generalDraft = initialConfig ? { form: initialConfig, accessType: initialConfig.accessType, selectedClasses: initialConfig.classIds, selectedStudents: initialConfig.studentIds } : savedDraft?.general
   const [form, setForm] = useState(() => normalizeExamForm(generalDraft?.form))
   const [errors, setErrors] = useState(savedDraft?.configErrors ?? {})
   const [accessType, setAccessType] = useState(generalDraft?.accessType ?? EXAM_ACCESS_TYPE.ALL)
@@ -19,10 +19,11 @@ function useCreateExamForm({ classes = [], students = [] } = {}) {
   const [studentSearch, setStudentSearch] = useState('')
 
   useEffect(() => {
+    if (!persistDraft) return
     saveExamDraft({
       general: { form, accessType, selectedClasses, selectedStudents, selectedStudentClassId },
     })
-  }, [form, accessType, selectedClasses, selectedStudents, selectedStudentClassId])
+  }, [form, accessType, selectedClasses, selectedStudents, selectedStudentClassId, persistDraft])
 
   const handleChange = (event) => {
     const { name, value, type, checked } = event.target
@@ -136,7 +137,7 @@ function useCreateExamForm({ classes = [], students = [] } = {}) {
     handleChange, handleAccessChange,
     toggleClass, toggleStudent, setSelectedStudentClassId,
     setClassSearch, setStudentSearch,
-    validate, buildExamData,
+    validate, buildExamData, setErrors,
   }
 }
 

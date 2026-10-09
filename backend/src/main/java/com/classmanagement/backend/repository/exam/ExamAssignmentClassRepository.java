@@ -26,4 +26,9 @@ public interface ExamAssignmentClassRepository
 
         void deleteAllByAssignment_Id(
                         Long assignmentId);
+
+        @org.springframework.data.jpa.repository.Modifying
+        @org.springframework.data.jpa.repository.Query("delete from ExamAssignmentClass c where c.id.assignmentId = :assignmentId and c.id.classId in :ids")
+        int deleteTargets(@org.springframework.data.repository.query.Param("assignmentId") Long assignmentId,
+                        @org.springframework.data.repository.query.Param("ids") Collection<Long> ids);
 }

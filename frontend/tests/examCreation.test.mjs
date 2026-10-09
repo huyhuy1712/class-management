@@ -16,7 +16,7 @@ const sections = () => [{ id: 's', title: 'Phần 1', orderIndex: 1, questions: 
 
 test('ALL never sends class or student targets', () => {
   assert.deepEqual(buildExamPayload(config, sections()).assignment, {
-    assignmentType: 'ALL', classIds: [], studentIds: [], scoreVisibility: 'AFTER_EXAM', answerVisibility: 'AFTER_SUBMIT', hideCorrectAnswerOnWrong: true,
+    assignmentType: 'ALL', openTime: null, closeTime: null, classIds: [], studentIds: [], scoreVisibility: 'AFTER_EXAM', answerVisibility: 'AFTER_SUBMIT', hideCorrectAnswerOnWrong: true,
   })
 })
 

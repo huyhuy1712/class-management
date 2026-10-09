@@ -10,6 +10,9 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 public interface ExamMediaRepository extends JpaRepository<ExamMedia, UUID> {
+    List<ExamMedia> findAllByExam_IdAndStatus(Long examId,
+            com.classmanagement.backend.entity.enums.ExamMediaStatus status);
+
     @Modifying(flushAutomatically = true)
     @Query("""
         update ExamMedia m

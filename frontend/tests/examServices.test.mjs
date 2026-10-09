@@ -5,7 +5,7 @@ import { runInNewContext } from 'node:vm'
 
 let api, examService, mediaService
 before(async () => {
-  api = { post: (...args) => api.handler(...args) }
+  api = { put: (...args) => api.handler(...args), get: (...args) => api.handler(...args), post: (...args) => api.handler(...args) }
   // Evaluate the real service modules with an isolated HTTP transport.
   // The shared Axios client remains unchanged; no network or credentials are used.
   const loadService = async (name) => {
@@ -44,4 +44,23 @@ test('media service posts file with the same draftToken and does not retry error
   api.handler = async () => { calls++; throw new Error('Response lost') }
   await assert.rejects(examService.createExam({}), /Response lost/)
   assert.equal(calls, 1)
+})
+
+test('exam reads use the detail and configuration routes and return server data', async () => {
+  for (const [method, path] of [['getExamDetail', '/exams/42'], ['getExamConfiguration', '/exams/42/configuration']]) {
+    const response = { id: 42, basicInfo: { title: 'Đề thật' }, assignments: [] }
+    api.handler = async (url) => { assert.equal(url, path); return { data: response } }
+    assert.deepEqual(await examService[method](42), response)
+  }
+})
+
+test('configuration PUT sends the new nested contract and returns server configuration', async () => {
+  const payload = { basicInfo: { title: 'Tên mới' }, assignment: { id: 7, openTime: null, closeTime: null } }
+  const response = { id: 42, basicInfo: payload.basicInfo, assignments: [payload.assignment] }
+  api.handler = async (url, sent) => {
+    assert.equal(url, '/exams/42')
+    assert.deepEqual(sent, payload)
+    return { data: response }
+  }
+  assert.deepEqual(await examService.updateExamConfiguration(42, payload), response)
 })

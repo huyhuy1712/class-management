@@ -243,6 +243,7 @@ function CreateExamPage() {
 
           {/* AI ĐƯỢC PHÉP LÀM */}
           <ExamAccessSection
+            form={form} errors={errors} onChange={handleChange}
             error={errors.accessType}
             accessType={accessType}
             onAccessChange={handleAccessChange}
