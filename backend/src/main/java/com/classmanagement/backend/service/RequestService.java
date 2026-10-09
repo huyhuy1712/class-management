@@ -6,6 +6,8 @@ import java.util.List;
 
 public interface RequestService {
 
+    void createJoinClassRequest(Long classroomId, String username, String message);
+
     List<JoinClassRequestResponse> getPendingJoinClassRequests(String username);
 
     void rejectJoinClassRequest(Long requestId, String username);

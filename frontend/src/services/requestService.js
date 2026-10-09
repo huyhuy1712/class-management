@@ -1,6 +1,10 @@
 import api from './api'
 
 const requestService = {
+  createJoinClassRequest: async (classroomId, message) => {
+    await api.post(`/requests/join-class/${classroomId}`, { message })
+  },
+
   getReceivedJoinClassRequests: async () => {
     const response = await api.get('/requests/join-class/received')
     return response.data

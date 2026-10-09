@@ -5,11 +5,15 @@ import com.classmanagement.backend.entity.ClassJoinRequestDetail;
 import com.classmanagement.backend.entity.Classroom;
 import com.classmanagement.backend.entity.Request;
 import com.classmanagement.backend.entity.User;
+import com.classmanagement.backend.entity.enums.ClassroomStatus;
 import com.classmanagement.backend.entity.enums.RequestStatus;
 import com.classmanagement.backend.entity.enums.RequestType;
+import com.classmanagement.backend.entity.enums.UserRole;
 import com.classmanagement.backend.repository.classroom.ClassStudentRepository;
+import com.classmanagement.backend.repository.classroom.ClassroomRepository;
 import com.classmanagement.backend.repository.request.ClassJoinRequestDetailRepository;
 import com.classmanagement.backend.repository.request.RequestRepository;
+import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.service.RequestService;
 import com.classmanagement.backend.service.StorageService;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +33,64 @@ public class RequestServiceImpl implements RequestService {
     private final StorageService storageService;
     private final RequestRepository requestRepository;
     private final ClassStudentRepository classStudentRepository;
+    private final ClassroomRepository classroomRepository;
+    private final UserRepository userRepository;
+
+@Override
+@Transactional
+public void createJoinClassRequest(
+            Long classroomId,
+            String username,
+            String message) {
+
+        User student = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Không tìm thấy người dùng"));
+
+        if (student.getRole() != UserRole.STUDENT) {
+            throw new IllegalStateException(
+                    "Chỉ học sinh mới có thể gửi yêu cầu tham gia lớp");
+        }
+
+        Classroom classroom = classroomRepository.findById(classroomId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Không tìm thấy lớp học"));
+
+        if (classroom.getStatus() != ClassroomStatus.ACTIVE) {
+            throw new IllegalArgumentException(
+                    "Lớp học không nhận yêu cầu tham gia");
+        }
+
+        if (classStudentRepository.existsByClassroomIdAndStudentId(
+                classroomId,
+                student.getId())) {
+            throw new IllegalArgumentException(
+                    "Bạn đã tham gia lớp học này");
+        }
+
+        if (classJoinRequestDetailRepository
+                .existsByClassroom_IdAndRequest_Sender_IdAndRequest_Status(
+                        classroomId,
+                        student.getId(),
+                        RequestStatus.PENDING)) {
+            throw new IllegalArgumentException(
+                    "Bạn đã gửi yêu cầu tham gia lớp này");
+        }
+
+        Request request = requestRepository.save(Request.builder()
+                .sender(student)
+                .receiver(classroom.getTeacher())
+                .type(RequestType.JOIN_CLASS)
+                .status(RequestStatus.PENDING)
+                .title("Yêu cầu tham gia lớp " + classroom.getName())
+                .message(message)
+                .build());
+
+        classJoinRequestDetailRepository.save(ClassJoinRequestDetail.builder()
+                .request(request)
+                .classroom(classroom)
+                .build());
+}
 
 @Override
 @Transactional(readOnly = true)

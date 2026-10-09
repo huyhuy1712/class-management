@@ -16,6 +16,7 @@ import org.springframework.http.MediaType;
 import com.classmanagement.backend.dto.attendance.AttendanceExportRow.AttendanceExportResult;
 import com.classmanagement.backend.dto.attendance.AttendanceResponse;
 import com.classmanagement.backend.dto.attendance.CreateAttendanceRequest;
+import com.classmanagement.backend.dto.attendance.StudentAttendanceResponse;
 import com.classmanagement.backend.dto.attendance.UpdateAttendanceRequest;
 import com.classmanagement.backend.service.AttendanceService;
 

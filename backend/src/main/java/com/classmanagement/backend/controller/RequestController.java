@@ -1,8 +1,11 @@
 package com.classmanagement.backend.controller;
 
+import com.classmanagement.backend.dto.classroom.CreateClassJoinRequestRequest;
 import com.classmanagement.backend.dto.request.JoinClassRequestResponse;
 import com.classmanagement.backend.service.RequestService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +18,19 @@ import java.util.List;
 public class RequestController {
 
     private final RequestService requestService;
+
+    @PostMapping("/join-class/{classroomId}")
+    public ResponseEntity<Void> createJoinClassRequest(
+            @PathVariable Long classroomId,
+            Authentication authentication,
+            @Valid @RequestBody CreateClassJoinRequestRequest request) {
+        requestService.createJoinClassRequest(
+                classroomId,
+                authentication.getName(),
+                request.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
 
     @GetMapping("/join-class/received")
     public ResponseEntity<List<JoinClassRequestResponse>> getPendingJoinClassRequests(

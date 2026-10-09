@@ -1,6 +1,7 @@
 package com.classmanagement.backend.service;
 
 import com.classmanagement.backend.dto.user.ChangePasswordRequest;
+import com.classmanagement.backend.dto.user.StudentDashboardResponse;
 import com.classmanagement.backend.dto.user.TeacherStudentResponse;
 import com.classmanagement.backend.dto.user.UpdateProfileRequest;
 import com.classmanagement.backend.dto.user.UserResponse;
@@ -20,6 +21,8 @@ public interface UserService {
     UserResponse getUserById(Long userId);
 
     List<TeacherStudentResponse> getMyStudents(String username);
+
+    StudentDashboardResponse getMyStudentDashboard(String username);
 
     void changePassword( String username, ChangePasswordRequest request );
 

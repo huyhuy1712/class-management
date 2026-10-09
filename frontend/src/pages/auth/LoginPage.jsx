@@ -74,6 +74,7 @@ function LoginPage() {
         password: form.password,
       })
 
+      const normalizedRole = String(data?.role ?? '').trim().toUpperCase()
       const user = {
         id: data.id,
         username: data.username,
@@ -83,17 +84,17 @@ function LoginPage() {
         avatar: data.avatar,
         studentCode: data.studentCode,
         teacherCode: data.teacherCode,
-        role: data.role,
+        role: normalizedRole,
         status: data.status,
       }
 
       setAuth(user)
 
-      if (data.role === 'TEACHER') {
+      if (normalizedRole === 'TEACHER') {
         navigate('/teacher')
-      } else if (data.role === 'STUDENT') {
+      } else if (normalizedRole === 'STUDENT') {
         navigate('/student')
-      } else if (data.role === 'ADMIN') {
+      } else if (normalizedRole === 'ADMIN') {
         navigate('/admin')
       } else {
         navigate('/')

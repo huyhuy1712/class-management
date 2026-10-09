@@ -30,6 +30,11 @@ public interface ClassJoinRequestDetailRepository
         })
         Optional<ClassJoinRequestDetail> findByRequest_Id(Long requestId);
 
+        boolean existsByClassroom_IdAndRequest_Sender_IdAndRequest_Status(
+                        Long classroomId,
+                        Long studentId,
+                        RequestStatus status);
+
         List<ClassJoinRequestDetail> findAllByClassroomId(Long classroomId);
 
 }

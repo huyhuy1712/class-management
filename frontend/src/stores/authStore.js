@@ -1,9 +1,29 @@
 import { create } from 'zustand'
 
+const normalizeRole = (value) => {
+  if (!value) return ''
+  if (typeof value === 'string') return value.trim().toUpperCase()
+  if (typeof value === 'object' && value?.name) return String(value.name).trim().toUpperCase()
+  return String(value).trim().toUpperCase()
+}
+
 const getStoredUser = () => {
   const user = localStorage.getItem('user')
 
-  return user ? JSON.parse(user) : null
+  if (!user) return null
+
+  try {
+    const parsedUser = JSON.parse(user)
+
+    if (!parsedUser) return null
+
+    return {
+      ...parsedUser,
+      role: normalizeRole(parsedUser.role),
+    }
+  } catch {
+    return null
+  }
 }
 
 const useAuthStore = create((set, get) => ({
@@ -11,11 +31,16 @@ const useAuthStore = create((set, get) => ({
   token: null,
 
   setAuth: (user) => {
+    const normalizedUser = {
+      ...user,
+      role: normalizeRole(user?.role),
+    }
+
     localStorage.removeItem('accessToken')
-    localStorage.setItem('user', JSON.stringify(user))
+    localStorage.setItem('user', JSON.stringify(normalizedUser))
 
     set({
-      user,
+      user: normalizedUser,
       token: null,
     })
   },

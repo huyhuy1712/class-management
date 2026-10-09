@@ -29,6 +29,9 @@ public interface ClassStudentRepository
 
     void deleteAllByClassroomId(Long classroomId);
 
+    @EntityGraph(attributePaths = {"classroom"})
+    List<ClassStudent> findAllByStudent_Id(Long studentId);
+
     @EntityGraph(attributePaths = {"student", "classroom"})
     List<ClassStudent> findAllByClassroom_Teacher_Id(Long teacherId);
 }

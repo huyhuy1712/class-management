@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.classmanagement.backend.entity.Attendance;
+import com.classmanagement.backend.entity.enums.AttendanceStatus;
 
 public interface AttendanceRepository
         extends JpaRepository<Attendance, Long> {
@@ -37,4 +38,10 @@ boolean existsByClassroom_IdAndStudent_IdAndDateAndIdNot(
 List<Attendance> findAllByClassroomIdAndDate(
                 Long classroomId,
                 LocalDate date);
+
+List<Attendance> findAllByStudent_Id(Long studentId);
+
+long countByStudent_IdAndStatusIn(
+        Long studentId,
+        List<AttendanceStatus> statuses);
 }
