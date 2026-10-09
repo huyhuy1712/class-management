@@ -123,7 +123,7 @@ public class ExamCreationService {
             BigDecimal points = source.questions().stream().map(CreateCompleteExamRequest.Question::points)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             sectionNodes.add(new SectionNode(source, ExamSection.builder().exam(exam).title(source.title().trim())
-                    .description(trim(source.description())).orderIndex(index + 1).points(points)
+                    .paragraph(trim(source.paragraph())).orderIndex(index + 1).points(points)
                     .imageUrl(path(media, source.imageMediaId())).audioUrl(path(media, source.audioMediaId())).build()));
         }
         sectionRepository.saveAll(sectionNodes.stream().map(SectionNode::entity).toList());

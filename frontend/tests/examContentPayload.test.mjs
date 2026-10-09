@@ -1,13 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { buildExamContentPayload, applyContentIdMappings } from '../src/pages/teacher/exams/builder/helpers/examContentPayload.js'
-const sections = [{ id: 1, title: 'Phần', description: 'Mô tả', questions: [{ id: 'new-question', content: 'Câu hỏi', answerGroups: [{ id: 'new-answer', answerType: 'CHOICE', choiceMode: 'SINGLE', answers: [{ id: 'new-option', content: 'A', point: 1, isCorrect: true, imageMedia: { mediaId: 'media' } }], scoringRules: [] }] }] }]
+const sections = [{ id: 1, title: 'Phần', paragraph: 'Đoạn văn', questions: [{ id: 'new-question', content: 'Câu hỏi', answerGroups: [{ id: 'new-answer', answerType: 'CHOICE', choiceMode: 'SINGLE', answers: [{ id: 'new-option', content: 'A', point: 1, isCorrect: true, imageMedia: { mediaId: 'media' } }], scoringRules: [] }] }] }]
 test('content PUT preserves server IDs and sends client IDs for new nodes', () => {
   const payload = buildExamContentPayload(sections, 4, 'token')
   assert.equal(payload.revision, 4)
   assert.equal(payload.draftToken, 'token')
   assert.equal(payload.sections[0].id, 1)
-  assert.equal(payload.sections[0].description, 'Mô tả')
+  assert.equal(payload.sections[0].paragraph, 'Đoạn văn')
   const question = payload.sections[0].questions[0]
   assert.equal(question.clientId, 'new-question')
   assert.equal(question.answers[0].clientId, 'new-answer')

@@ -28,8 +28,8 @@ public class ExamSection {
     @Column(nullable = false, length = 255)
     private String title;
 
-    @Column(columnDefinition = "TEXT")
-    private String description;
+    @Column(name = "paragraph", columnDefinition = "TEXT")
+    private String paragraph;
 
     @Column(name = "image_url", columnDefinition = "TEXT")
     private String imageUrl;

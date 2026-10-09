@@ -12,6 +12,16 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ExamStructureValidatorTest {
+    @Test void acceptsParagraphAtLimitAndRejectsOverflowWithNewFieldPath() {
+        var original = request(List.of(choice()), "1", assignment());
+        var s = original.sections().getFirst();
+        var atLimit = new Section(s.title(), "x".repeat(20000), null, null, s.questions());
+        assertDoesNotThrow(() -> validator.validateContent(List.of(atLimit)));
+        var invalid = new CreateCompleteExamRequest(original.basicInfo(), original.assignment(), null,
+                List.of(new Section(s.title(), "x".repeat(20001), null, null, s.questions())));
+        var error = assertThrows(ExamValidationException.class, () -> validator.validate(invalid));
+        assertTrue(error.getValidationErrors().containsKey("sections[0].paragraph"));
+    }
     private static final jakarta.validation.ValidatorFactory FACTORY = Validation.byDefaultProvider()
             .configure().messageInterpolator(new ParameterMessageInterpolator()).buildValidatorFactory();
     private final ExamStructureValidator validator = new ExamStructureValidator(FACTORY.getValidator());

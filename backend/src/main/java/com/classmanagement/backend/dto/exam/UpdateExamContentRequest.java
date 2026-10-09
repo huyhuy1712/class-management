@@ -14,10 +14,10 @@ public record UpdateExamContentRequest(@NotNull @Min(0) Long revision, UUID draf
     private static <T> List<T> list(List<T> items) { return items == null ? List.of() : items; }
     public interface Node { Long id(); String clientId(); }
     public record Section(@Positive Long id, @Size(max = 100) String clientId,
-            String title, String description, UUID imageMediaId, UUID audioMediaId,
+            String title, String paragraph, UUID imageMediaId, UUID audioMediaId,
             @NotEmpty @Size(max = 100) List<@NotNull @Valid Question> questions) implements Node {
         public CreateCompleteExamRequest.Section toCreate() {
-            return new CreateCompleteExamRequest.Section(title, description, imageMediaId, audioMediaId,
+            return new CreateCompleteExamRequest.Section(title, paragraph, imageMediaId, audioMediaId,
                     questions.stream().map(Question::toCreate).toList());
         }
     }
@@ -53,4 +53,3 @@ public record UpdateExamContentRequest(@NotNull @Min(0) Long revision, UUID draf
         }
     }
 }
-

@@ -6,7 +6,7 @@ export function buildExamContentPayload(sections, revision, draftToken) {
   return {
     revision, draftToken,
     sections: content.map((section, i) => ({
-      ...section, ...identity(sections[i]), description: sections[i].description,
+      ...section, ...identity(sections[i]),
       questions: section.questions.map((question, j) => ({
         ...question, ...identity(sections[i].questions[j]),
         answers: question.answers.map((answer, k) => {

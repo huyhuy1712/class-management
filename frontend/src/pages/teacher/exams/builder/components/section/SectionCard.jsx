@@ -1,6 +1,7 @@
 import { Plus, Trash2 } from 'lucide-react'
 
 import { getSectionScore } from '../../helpers/examScoreUtils'
+import MathContentInput from '../math/MathContentInput'
 import QuestionCard from '../question/QuestionCard'
 import MediaFilePicker from '../common/MediaFilePicker'
 
@@ -26,6 +27,11 @@ function SectionCard({ section, index, actions, validationErrors = {} }) {
           <MediaFilePicker type="image" file={section.imageFile ?? section.imageMedia} onChange={(file) => actions.updateSection(section.id, { imageFile: file })} />
           <MediaFilePicker type="audio" file={section.audioFile ?? section.audioMedia} onChange={(file) => actions.updateSection(section.id, { audioFile: file })} />
           <input type="number" min="1" value={section.orderIndex} onChange={(e) => actions.updateSection(section.id, { orderIndex: e.target.value })} placeholder="Thứ tự" className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none" />
+        </div>
+        <div className="mt-5">
+          <h3 className="mb-1 text-base font-semibold text-slate-800">Đoạn văn của phần <span className="text-sm font-normal text-slate-500">(không bắt buộc)</span></h3>
+          <p className="mb-3 text-sm text-slate-600">Nhập đoạn đọc, hướng dẫn hoặc nội dung chung cho các câu hỏi trong phần này.</p>
+          <MathContentInput value={section.paragraph ?? ''} onChange={(paragraph) => actions.updateSection(section.id, { paragraph })} rows={5} placeholder="Nhập đoạn văn chung cho phần này... Bấm vào để mở rộng vùng viết." />
         </div>
       </div>
 

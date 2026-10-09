@@ -1,3 +1,4 @@
+import useTeacherExamCount from './hooks/useTeacherExamCount'
 import {
   ArrowLeft,
   BookOpen,
@@ -80,8 +81,7 @@ useEffect(() => {
   }
 }, [])
 
-// Mock tạm thời, sau này lấy từ API
-const examCount = 12
+const examCount = useTeacherExamCount()
 
 const avatarInputRef = useRef(null)
 const fullNameInputRef = useRef(null)

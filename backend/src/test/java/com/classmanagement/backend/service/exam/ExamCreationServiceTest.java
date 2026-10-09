@@ -32,6 +32,17 @@ class ExamCreationServiceTest {
     private List<Classroom> classes = List.of();
     private List<User> students = List.of();
     private List<Long> allowedStudents = List.of();
+    private List<ExamSection> savedSections = new ArrayList<>();
+
+    @Test void storesParagraphWithInternalLineBreaks() {
+        var initial = request(List.of(choice()), "1", assignment());
+        var source = initial.sections().getFirst();
+        var updated = new CreateCompleteExamRequest(initial.basicInfo(), initial.assignment(), null,
+                List.of(new CreateCompleteExamRequest.Section(source.title(), "  First paragraph.\n\nSecond paragraph.  ",
+                        null, null, source.questions())));
+        service().create("teacher", updated);
+        assertEquals("First paragraph.\n\nSecond paragraph.", savedSections.getFirst().getParagraph());
+    }
 
     @Test void happyPathCommitsAndReturnsDraft() {
         var response = service().create("teacher", request(List.of(choice(), trueFalse()), "3", assignment()));
@@ -156,6 +167,7 @@ class ExamCreationServiceTest {
             if (name.equals("findAssignableStudentIds")) return allowedStudents;
             if (name.equals("save")) { assignId(args[0]); return args[0]; }
             if (name.equals("saveAll")) {
+                if (label.equals("sections")) savedSections = ((List<?>) args[0]).stream().map(ExamSection.class::cast).toList();
                 if (label.equals("questions") && failQuestionInsert) throw new IllegalStateException("Simulated child insert failure");
                 for (Object entity : (Iterable<?>) args[0]) assignId(entity);
                 return args[0];

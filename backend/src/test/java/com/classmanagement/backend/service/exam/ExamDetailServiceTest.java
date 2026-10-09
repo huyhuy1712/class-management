@@ -42,6 +42,7 @@ class ExamDetailServiceTest {
         var response = service().get(7L, "teacher");
         var section = response.sections().getFirst();
         assertEquals(1L, section.id());
+        assertEquals("First paragraph.\n\nSecond paragraph.", section.paragraph());
         var question = section.questions().getFirst();
         assertEquals(2L, question.id());
         var answer = question.answers().getFirst();
@@ -102,7 +103,8 @@ class ExamDetailServiceTest {
     }
 
     private void tree() {
-        var section = ExamSection.builder().id(1L).orderIndex(1).imageUrl("image.png").build();
+        var section = ExamSection.builder().id(1L).orderIndex(1).imageUrl("image.png")
+                .paragraph("First paragraph.\n\nSecond paragraph.").build();
         var question = Question.builder().id(2L).section(section).orderIndex(1).imageUrl("image.png").build();
         var answer = Answer.builder().id(3L).question(question).orderIndex(1).imageUrl("image.png")
                 .correctAnswerText("correct text").caseSensitive(true).build();

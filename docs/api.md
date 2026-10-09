@@ -2108,7 +2108,7 @@ Ví dụ trường `sections` (các trường cấu hình ở root dùng đúng 
       "id": 1,
       "orderIndex": 1,
       "title": "Phần đúng/sai",
-      "description": null,
+      "paragraph": null,
       "points": 1.00,
       "imageMedia": {"mediaId": "550e8400-e29b-41d4-a716-446655440001", "url": "http://localhost:8080/uploads/exam-media/gv_11/draft/image.png"},
       "audioMedia": null,
@@ -2278,7 +2278,7 @@ Cookie: access_token=<token>
     {
       "id": 1,
       "title": "Phần tự luận",
-      "description": null,
+      "paragraph": null,
       "imageMediaId": null,
       "audioMediaId": null,
       "questions": [
@@ -2402,3 +2402,30 @@ Cookie: access_token=<token>
 10. Đề PUBLISHED/ARCHIVED hoặc có attempt -> 409. Body lớn hơn giới hạn -> 413.
 
 Unit tests kiểm tra luồng, số lượt đọc 1/100 câu, identity, parking thứ tự, mapping, media và Spring rollback interception. Chưa chạy integration PostgreSQL để xác nhận SQL thực tế/cascade/unique/rollback hoặc đo Railway+Supabase. FE chưa nối nút lưu content trong bước này.
+
+## 45. Đổi nội dung chung của section sang paragraph
+
+Không tạo endpoint mới. Từ migration V53, `exam_sections.description` được đổi tên thành `paragraph` (TEXT, nullable), giữ toàn bộ dữ liệu cũ bằng RENAME COLUMN. Không sửa migration V30 đã chạy. `exams.description` và basicInfo.description giữ nguyên.
+
+POST `/api/exams`, GET `/api/exams/{examId}` và PUT `/api/exams/{examId}/content` dùng thống nhất `sections[].paragraph`. Đây là đổi tên contract của section: FE phải chuyển field section cũ sang paragraph trước khi lưu. BE không giữ alias description ở section. Không gửi field section description cũ: field này không còn được map và có thể bị bỏ qua theo cấu hình JSON hiện tại.
+
+```json
+{
+  "title": "Đọc hiểu - câu 6 đến 13",
+  "paragraph": "First paragraph of the passage.\n\nSecond paragraph of the passage.",
+  "imageMediaId": null,
+  "audioMediaId": null,
+  "questions": []
+}
+```
+
+Ví dụ trên chỉ minh họa field section; khi POST/PUT thực tế phải có questions/answers hợp lệ và gửi toàn bộ cây theo contract mục 39/44. GET trả paragraph ở section cùng các field đang có.
+
+- paragraph tùy chọn, tối đa 20000 ký tự, chuỗi trắng trim thành null; thiếu/null ở PUT content sẽ xóa đoạn cũ.
+- Trim chỉ hai đầu; giữ xuống dòng và dòng trống bên trong. Lưu văn bản như gửi lên, không tự diễn giải Markdown/HTML. FE cần render văn bản/định dạng theo quy ước của ứng dụng.
+- Paragraph thuộc section, được hiển thị dùng chung cho các câu trong section. Không thêm bảng, FK, API hoặc query riêng; không thay đổi scoring/media/cleanup.
+- Section không còn field description riêng làm hướng dẫn. Có thể dùng title hoặc phần đầu paragraph nếu cần hướng dẫn chung; không tự thêm passage/description khác trong bước này.
+
+**Test:** Restart BE để Flyway áp dụng V53; GET detail đề có section description cũ phải thấy nội dung đó ở paragraph. POST một đề có paragraph nhiều dòng, GET xác nhận giữ xuống dòng. PUT content với revision hiện tại thay paragraph, GET lại xác nhận ID section/điểm/media giữ nguyên; revision tăng. paragraph null/chuỗi trắng xóa đoạn cũ. Dài hơn 20000 trả 400 với validationErrors.sections[0].paragraph và không ghi. basicInfo.description vẫn giữ nguyên tên và chức năng.
+
+Đã cập nhật BE và tài liệu; chưa sửa FE và chưa chạy migration/DB thật. FE cũ cần đổi mapping từ description sang paragraph trước khi dùng POST/PUT mới.

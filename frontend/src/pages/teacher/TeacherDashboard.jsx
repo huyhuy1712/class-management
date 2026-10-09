@@ -1,3 +1,4 @@
+import useTeacherExamCount from './hooks/useTeacherExamCount'
 import {
   BookOpen,
   ChartNoAxesColumnIncreasing,
@@ -50,6 +51,7 @@ const features = [
 ]
 function TeacherDashboard() {
   const user = useAuthStore((state) => state.user)
+  const examCount = useTeacherExamCount()
   const [classCount, setClassCount] = useState(0)
   const [studentCount, setStudentCount] = useState(0)
 
@@ -82,9 +84,9 @@ function TeacherDashboard() {
   }, [])
 
   const statistics = [
-    { title: 'Lớp đang dạy', value: classCount, icon: School },
-    { title: 'Tổng học sinh', value: studentCount, icon: GraduationCap },
-    { title: 'Đề thi', value: '12', icon: FileText },
+    { title: 'Lớp đang dạy', value: classCount, icon: School, color: 'border-emerald-100 bg-emerald-50', iconColor: 'text-emerald-600' },
+    { title: 'Tổng học sinh', value: studentCount, icon: GraduationCap, color: 'border-green-100 bg-green-50', iconColor: 'text-green-600' },
+    { title: 'Đề thi', value: examCount, icon: FileText, color: 'border-lime-100 bg-lime-50', iconColor: 'text-lime-600' },
   ]
     
     const today = new Intl.DateTimeFormat('vi-VN', {
@@ -134,9 +136,9 @@ function TeacherDashboard() {
             return (
               <div
                 key={item.title}
-                className="flex items-center gap-3 rounded-2xl border border-green-100 bg-white p-4 shadow-sm sm:gap-4 sm:p-5"
+                className={`flex items-center gap-3 rounded-2xl border p-4 shadow-sm sm:gap-4 sm:p-5 ${item.color}`}
               >
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-50 text-green-700 sm:h-12 sm:w-12">
+                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white sm:h-12 sm:w-12 ${item.iconColor}`}>
                   <Icon size={22} strokeWidth={1.8} />
                 </div>
 

@@ -69,7 +69,7 @@ public class ExamDetailService {
                 Comparator.comparing(Question::getOrderIndex));
 
         var sectionResponses = sections.stream().sorted(Comparator.comparing(s -> s.getOrderIndex())).map(s ->
-                new ExamDetailResponse.Section(s.getId(), s.getOrderIndex(), s.getTitle(), s.getDescription(),
+                new ExamDetailResponse.Section(s.getId(), s.getOrderIndex(), s.getTitle(), s.getParagraph(),
                         s.getPoints(), media.image(s.getImageUrl()), media.audio(s.getAudioUrl()),
                         questionsBySection.getOrDefault(s.getId(), List.of()).stream().map(q ->
                                 questionResponse(q, answersByQuestion, optionsByAnswer, rulesByAnswer, media))

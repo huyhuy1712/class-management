@@ -46,11 +46,36 @@ class ExamContentUpdateServiceTest {
                 "Section", null, image, null, items)));
     }
     @Test void retainsExistingIdsAndReadsNineGroups() {
+        section.setParagraph("Old passage");
         var response = service().update(7L, "teacher", request(0L, List.of(input(2L, 3L)), null));
+        assertNull(section.getParagraph());
         assertEquals(1L, response.revision()); assertEquals(BigDecimal.ONE.setScale(2), response.maxScore());
         assertTrue(response.idMappings().questions().isEmpty());
         assertFalse(calls.contains("persist")); assertFalse(calls.contains("deleteAllByIdInBatch"));
         assertEquals(9, calls.stream().filter(c -> c.startsWith("find") || c.startsWith("exists")).count());
+    }
+
+    @Test void updatesParagraphWithoutChangingIdentityOrReadCount() {
+        var original = request(0L, List.of(input(2L, 3L)), null);
+        var s = original.sections().getFirst();
+        var updated = new UpdateExamContentRequest(0L, null, List.of(new UpdateExamContentRequest.Section(
+                s.id(), s.clientId(), s.title(), "  First paragraph.\n\nSecond paragraph.  ",
+                s.imageMediaId(), s.audioMediaId(), s.questions())));
+        service().update(7L, "teacher", updated);
+        assertEquals("First paragraph.\n\nSecond paragraph.", section.getParagraph());
+        assertEquals(1L, section.getId());
+        assertFalse(calls.contains("persist"));
+        assertEquals(9, calls.stream().filter(c -> c.startsWith("find") || c.startsWith("exists")).count());
+    }
+
+    @Test void oversizedParagraphRejectsBeforeReadingOrMutatingExam() {
+        var original = request(0L, List.of(input(2L, 3L)), null);
+        var s = original.sections().getFirst();
+        var invalid = new UpdateExamContentRequest(0L, null, List.of(new UpdateExamContentRequest.Section(
+                s.id(), null, s.title(), "x".repeat(20001), null, null, s.questions())));
+        var error = assertThrows(ExamValidationException.class, () -> service().update(7L, "teacher", invalid));
+        assertTrue(error.getValidationErrors().containsKey("sections[0].paragraph"));
+        assertTrue(calls.isEmpty());
     }
     @Test void oneHundredQuestionsUseSameReadCount() {
         questions.clear(); answers.clear();

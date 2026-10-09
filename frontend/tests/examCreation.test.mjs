@@ -274,3 +274,10 @@ test('SINGLE choice rejects multiple correct options while MULTIPLE accepts them
   answer.answers[1].isCorrect = true
   assert.equal(validateExamBuilder(tree).isValid, true)
 })
+
+test('optional section paragraph is included in create payload', () => {
+  const content = sections()
+  assert.equal(buildExamPayload(config, content).sections[0].paragraph, null)
+  content[0].paragraph = ' Đoạn đọc chung\nDòng thứ hai '
+  assert.equal(buildExamPayload(config, content).sections[0].paragraph, 'Đoạn đọc chung\nDòng thứ hai')
+})

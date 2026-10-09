@@ -35,7 +35,7 @@ public class ExamContentWriter {
         for (var entry : plan.sections.entries) {
             var source = entry.input();
             var section = plan.sections.upsert(entry, ExamSection::new, e -> {
-                e.setExam(exam); e.setTitle(source.title().trim()); e.setDescription(trim(source.description()));
+                e.setExam(exam); e.setTitle(source.title().trim()); e.setParagraph(trim(source.paragraph()));
                 e.setPoints(source.questions().stream().map(q -> q.points()).reduce(BigDecimal.ZERO, BigDecimal::add));
                 e.setImageUrl(path(media, source.imageMediaId())); e.setAudioUrl(path(media, source.audioMediaId()));
             }, entityManager::persist);

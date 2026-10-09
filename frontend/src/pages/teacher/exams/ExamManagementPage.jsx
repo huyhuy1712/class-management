@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 
 import ResumeExamDraftModal from './components/ResumeExamDraftModal'
+import { hasExamDraftContent } from './draft/hasExamDraftContent'
 import { loadExamDraft, clearExamDraft } from './draft/examDraftStorage'
 import useExams from './hooks/useExams'
 import useExamUiSession from './hooks/useExamUiSession'
@@ -55,7 +56,7 @@ function ExamManagementPage() {
 
   const handleCreate = () => {
     const draft = loadExamDraft()
-    if (draft?.general || draft?.builder?.sections?.length || draft?.pendingSave) {
+    if (hasExamDraftContent(draft)) {
       setResumeDraftOpen(true)
       return
     }
