@@ -64,3 +64,9 @@ test('configuration PUT sends the new nested contract and returns server configu
   }
   assert.deepEqual(await examService.updateExamConfiguration(42, payload), response)
 })
+
+test('content update uses its dedicated PUT route', async () => {
+  const payload = { revision: 2, sections: [] }
+  api.handler = async (url, sent) => { assert.equal(url, '/exams/42/content'); assert.deepEqual(sent, payload); return { data: { revision: 3 } } }
+  assert.equal((await examService.updateExamContent(42, payload)).revision, 3)
+})
