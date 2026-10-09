@@ -45,6 +45,15 @@ function MathEditor({ value = '', onChange, placeholder = 'Nhập công thức..
     }
   }, [onChange])
 
+  const format = (kind) => {
+    const field = ref.current
+    if (!field) return
+    field.focus()
+    if (field.selectionIsCollapsed) field.executeCommand(['switchMode', 'text'])
+    field.applyStyle(kind === 'bold' ? { fontSeries: 'b', variantStyle: 'bold' } : { fontShape: 'it', variantStyle: 'italic' }, { operation: 'toggle' })
+    onChange?.(field.value)
+  }
+
   const insert = (latex) => {
     ref.current?.focus()
     ref.current?.insert(latex, { selectionMode: 'placeholder' })
@@ -54,7 +63,7 @@ function MathEditor({ value = '', onChange, placeholder = 'Nhập công thức..
 
   return (
     <div className="overflow-hidden rounded-xl border border-indigo-100 bg-white transition focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-50">
-      <MathToolbar onInsert={insert} />
+      <MathToolbar onInsert={insert} onFormat={format} />
       <p className="border-b border-indigo-100 bg-indigo-50/30 px-3 py-2 text-xs text-slate-700">Gõ {'{'} hoặc [ để tạo hệ. Nhấn Enter để thêm dòng, dùng phím ↑ ↓ để chuyển dòng.</p>
       <math-field ref={ref} placeholder={placeholder} class="block min-h-[64px] w-full bg-white px-3 py-3 text-lg outline-none" />
     </div>
