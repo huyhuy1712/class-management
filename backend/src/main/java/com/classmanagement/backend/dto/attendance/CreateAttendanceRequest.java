@@ -13,6 +13,8 @@ import lombok.Setter;
 @Getter
 @Setter
 public class CreateAttendanceRequest {
+    private String attendanceCode;
+    private String note;
 
     @NotNull(message = "Ngày điểm danh không được để trống")
     private LocalDate date;

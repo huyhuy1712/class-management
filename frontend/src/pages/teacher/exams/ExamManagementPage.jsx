@@ -208,6 +208,7 @@ function ExamManagementPage() {
                 }
                 className="w-full appearance-none rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-sm font-medium text-slate-600 outline-none transition focus:border-green-400 focus:ring-4 focus:ring-green-50"
               >
+                <option value="A_Z">Tên đề A → Z</option>
                 <option value="NEWEST">
                   Mới nhất
                 </option>

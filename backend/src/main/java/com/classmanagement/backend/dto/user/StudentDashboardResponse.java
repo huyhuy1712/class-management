@@ -11,6 +11,7 @@ public class StudentDashboardResponse {
 
     private String fullName;
     private List<StudentClassResponse> classes;
+    private long pendingJoinClassCount;
     private long attendanceCount;
     private long attendedCount;
     private double attendanceRate;

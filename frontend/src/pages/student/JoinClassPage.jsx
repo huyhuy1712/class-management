@@ -1,3 +1,4 @@
+import { sortByText } from '../../utils/sortByText'
 import useStudentClassList from './hooks/useStudentClassList';
 import TeacherSearchCard from './components/TeacherSearchCard';
 import StudentClassSearch from './components/StudentClassSearch';
@@ -55,7 +56,7 @@ function JoinClassPage() {
   const [selectedTeacher, setSelectedTeacher] = useState(null);
   const [teachersLoading, setTeachersLoading] = useState(false);
   const [teachersError, setTeachersError] = useState("");
-  const { classes, joinedClassIds, classesError, dashboardError, loading } = useStudentClassList(showTeacherSearch);
+  const { classes, joinedClassIds, classesError, dashboardError, pendingCount, pendingError, loading } = useStudentClassList(showTeacherSearch);
 
   const [selectedClass, setSelectedClass] = useState(null);
   const [requestMessage, setRequestMessage] = useState("");
@@ -110,7 +111,7 @@ function JoinClassPage() {
   });
   const selectedTeacherClasses = selectedTeacher
     ? classes.filter(
-        (classroom) => String(classroom.teacherId) === String(selectedTeacher.id),
+        (classroom) => classroom.status === "ACTIVE" && String(classroom.teacherId) === String(selectedTeacher.id),
       )
     : [];
 
@@ -141,6 +142,11 @@ function JoinClassPage() {
   };
 
   const handleSelectClass = (classroom) => {
+    if (classroom.status !== 'ACTIVE') return;
+    if (joinedClassIds.includes(String(classroom.id))) {
+      navigate(`/student/classes/${classroom.id}`);
+      return;
+    }
     setSelectedClass(classroom);
     setRequestMessage("");
     setRequestSent(false);
@@ -172,7 +178,7 @@ function JoinClassPage() {
 
   return (
     <StudentDashboardLayout>
-      <main className="min-h-screen bg-[#f7fbf8] px-4 pb-12 pt-5 sm:px-8 sm:pt-8">
+      <main className="min-h-screen bg-[#F4F6F8] px-4 pb-12 pt-5 sm:px-8 sm:pt-8">
         {showTeacherSearch ? (
           <>
             <button
@@ -254,7 +260,7 @@ function JoinClassPage() {
               {!teachersLoading && teacherSearchTerm.trim() && (
                 <div className="relative mt-5 max-w-2xl space-y-2">
                   {matchingTeachers.length ? (
-                    matchingTeachers.map((teacher) => (
+                    sortByText(matchingTeachers, (item) => item.fullName).map((teacher) => (
                       <TeacherSearchCard
                         key={teacher.id}
                         teacher={teacher}
@@ -294,7 +300,7 @@ function JoinClassPage() {
                   <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Đang tải lớp học...</p>
                 ) : selectedTeacherClasses.length ? (
                   <div className="grid gap-3 sm:grid-cols-2">
-                    {selectedTeacherClasses.map((classroom) => (
+                    {sortByText(selectedTeacherClasses, (item) => item.name).map((classroom) => (
                       <button
                         key={classroom.id}
                         type="button"
@@ -335,6 +341,7 @@ function JoinClassPage() {
                 </p>
                 </div>
               </div>
+              <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={handleOpenTeacherSearch}
@@ -343,9 +350,10 @@ function JoinClassPage() {
                 <Search size={17} />
                 Tìm giáo viên
               </button>
+              </div>
             </div>
 
-            <StudentClassStats joinedCount={new Set(joinedClassIds).size} loading={loading} error={dashboardError} />
+            <StudentClassStats joinedCount={new Set(joinedClassIds).size} pendingCount={pendingCount} pendingError={pendingError} loading={loading} error={dashboardError} />
 
             <StudentClassSearch value={searchTerm} onChange={handleSearchChange} />
 
@@ -384,7 +392,7 @@ function JoinClassPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {visibleClasses.map((classroom) => (
+              {sortByText(visibleClasses, (item) => item.name).map((classroom) => (
                 <StudentClassCard
                   key={classroom.id}
                   classroom={classroom}

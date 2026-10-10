@@ -31,7 +31,7 @@ export default function StudentClassCard({ classroom, isJoined, onView }) {
         </div>
       </div>
 
-      <button type="button" onClick={() => onView(classroom)} className="mt-auto w-full rounded-xl bg-[#14532D] py-2.5 text-sm font-semibold text-white transition hover:bg-[#166534]">
+      <button type="button" disabled={classroom.status !== 'ACTIVE'} onClick={() => onView(classroom)} className="mt-auto w-full rounded-xl bg-[#14532D] py-2.5 text-sm font-semibold text-white transition hover:bg-[#166534] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400">
         Vào lớp học
       </button>
     </article>

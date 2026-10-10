@@ -1,6 +1,10 @@
 import api from './api'
 
 const attendanceService = {
+  attendAsStudent: async (classroomId, attendanceCode, note) => {
+    const response = await api.post(`/classes/${classroomId}/attendances`, { attendanceCode, note })
+    return response.data
+  },
   getByClass: async (classroomId) => {
     const response = await api.get(
       `/classes/${classroomId}/attendances`

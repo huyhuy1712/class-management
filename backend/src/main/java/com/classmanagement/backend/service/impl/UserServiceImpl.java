@@ -15,6 +15,9 @@ import com.classmanagement.backend.entity.Classroom;
 import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.entity.enums.AttendanceStatus;
 import com.classmanagement.backend.entity.enums.UserRole;
+import com.classmanagement.backend.entity.enums.RequestType;
+import com.classmanagement.backend.entity.enums.RequestStatus;
+import com.classmanagement.backend.repository.request.RequestRepository;
 import com.classmanagement.backend.repository.AttendanceRepository;
 import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.repository.classroom.ClassStudentRepository;
@@ -41,6 +44,7 @@ public class UserServiceImpl implements UserService {
     private final AttendanceRepository attendanceRepository;
     private final StorageService storageService;
     private final PasswordEncoder passwordEncoder;
+    private final RequestRepository requestRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -274,6 +278,8 @@ public StudentDashboardResponse getMyStudentDashboard(String username) {
     return StudentDashboardResponse.builder()
             .fullName(student.getFullName())
             .classes(classes)
+            .pendingJoinClassCount(requestRepository.countBySender_IdAndTypeAndStatus(
+                    student.getId(), RequestType.JOIN_CLASS, RequestStatus.PENDING))
             .attendanceCount(attendanceCount)
             .attendedCount(attendedCount)
             .attendanceRate(attendanceRate)

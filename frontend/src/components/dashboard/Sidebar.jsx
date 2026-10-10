@@ -9,7 +9,7 @@ import {
   LogOut 
 } from 'lucide-react'
 import { useState } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
 import useAuthStore from '../../stores/authStore'
 import { logout as logoutRequest } from '../../services/authService'
 import logo from '../../assets/logos/logo.png'
@@ -57,7 +57,7 @@ function Sidebar({ isOpen, onClose }) {
       >
       
       {/* Logo */}
-      <div className="flex h-24 items-center gap-3 border-b border-white/10 px-5">
+      <Link to="/teacher" onClick={onClose} aria-label="Về trang chủ" className="flex h-24 items-center gap-3 border-b border-white/10 px-5">
         <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl shadow-lg shadow-black/10">
           <img src={logo} alt="Class Management" className="h-14 w-14 object-contain" />
         </div>
@@ -70,7 +70,7 @@ function Sidebar({ isOpen, onClose }) {
             Education System
           </p>
         </div>
-      </div>
+      </Link>
 
       {/* Menu title */}
       <div className="px-5 pb-2 pt-6">

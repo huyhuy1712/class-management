@@ -290,17 +290,13 @@ function CreateAttendanceSessionModal({
             {/* TIME */}
               <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
                 {/* START */}
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-[#18301D]">
+                <div className="min-w-0">
+                  <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#18301D]">
+                    <Clock3 size={16} className="shrink-0 text-green-600" />
                     Bắt đầu
                   </label>
 
                   <div className="relative">
-                    <Clock3
-                      size={18}
-                      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-green-600"
-                    />
-
                     <input
                       type="time"
                       value={startTime}
@@ -309,23 +305,19 @@ function CreateAttendanceSessionModal({
                         setStartTime(event.target.value)
                         setValidationError('')
                       }}
-                      className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-2 text-sm font-medium text-slate-700 outline-none transition focus:border-green-400 focus:ring-4 focus:ring-green-50"
+                      className="min-w-0 w-full rounded-xl border border-slate-200 bg-white h-12 px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-green-400 focus:ring-4 focus:ring-green-50"
                     />
                   </div>
                 </div>
 
                 {/* LATE */}
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-[#18301D]">
+                <div className="min-w-0">
+                  <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#18301D]">
+                    <Clock3 size={16} className="shrink-0 text-amber-500" />
                     Tính đi trễ
                   </label>
 
                   <div className="relative">
-                    <Clock3
-                      size={18}
-                      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-amber-500"
-                    />
-
                     <input
                       type="time"
                       value={lateTime}
@@ -334,23 +326,19 @@ function CreateAttendanceSessionModal({
                         setLateTime(event.target.value)
                         setValidationError('')
                       }}
-                      className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-2 text-sm font-medium text-slate-700 outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-50"
+                      className="min-w-0 w-full rounded-xl border border-slate-200 bg-white h-12 px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-50"
                     />
                   </div>
                 </div>
 
                 {/* END */}
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-[#18301D]">
+                <div className="min-w-0">
+                  <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#18301D]">
+                    <Clock3 size={16} className="shrink-0 text-red-400" />
                     Kết thúc
                   </label>
 
                   <div className="relative">
-                    <Clock3
-                      size={18}
-                      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-red-400"
-                    />
-
                     <input
                       type="time"
                       value={endTime}
@@ -359,7 +347,7 @@ function CreateAttendanceSessionModal({
                         setEndTime(event.target.value)
                         setValidationError('')
                       }}
-                      className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-2 text-sm font-medium text-slate-700 outline-none transition focus:border-red-400 focus:ring-4 focus:ring-red-50"
+                      className="min-w-0 w-full rounded-xl border border-slate-200 bg-white h-12 px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-red-400 focus:ring-4 focus:ring-red-50"
                     />
                   </div>
                 </div>

@@ -1,3 +1,4 @@
+import { sortByText } from '../../../../utils/sortByText'
 import { LoaderCircle, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -122,7 +123,7 @@ function EditExamModal({
               <option value="">
                 {subjectsLoading ? 'Đang tải môn học...' : 'Chọn môn học'}
               </option>
-              {subjects.map((subject) => (
+              {sortByText(subjects, (item) => item.name).map((subject) => (
                 <option key={subject.id} value={subject.id}>
                   {subject.name}
                 </option>

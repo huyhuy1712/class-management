@@ -359,6 +359,16 @@ public ClassroomStudentResponse addStudent(
 
         classStudentRepository.save(classStudent);
 
+        notificationRepository.save(Notification.builder()
+                .user(student)
+                .type(NotificationType.CLASS_ADDED)
+                .title("Bạn đã được giáo viên thêm vào lớp")
+                .message("Bạn đã được giáo viên thêm vào lớp " + classroom.getName())
+                .referenceType("CLASS")
+                .referenceId(classroom.getId())
+                .read(false)
+                .build());
+
         return ClassroomStudentResponse.builder()
                 .id(student.getId())
                 .studentCode(student.getStudentCode())
@@ -436,15 +446,19 @@ public void removeStudentFromClassroom(
 
 @Transactional
 @Override
-public void removeAllStudentsFromClassroom(Long classroomId) {
-
-        if (!classroomRepository.existsById(classroomId)) {
-                throw new IllegalArgumentException(
-                        "Không tìm thấy lớp học"
-                );
+public void removeAllStudentsFromClassroom(Long classroomId, String username) {
+        if (classroomId == null || classroomId <= 0) {
+                throw new IllegalArgumentException("classroomId phải lớn hơn 0");
         }
-
-        classStudentRepository.deleteAllByClassroomId(classroomId);
+        Classroom classroom = classroomRepository.findByIdForUpdate(classroomId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy lớp học"));
+        User teacher = classroom.getTeacher();
+        if (teacher.getRole() != UserRole.TEACHER || !teacher.getUsername().equals(username)) {
+                throw new IllegalStateException("Chỉ giáo viên sở hữu lớp mới được xóa học sinh");
+        }
+        // DELETE RETURNING identifies exactly which students need a notification.
+        classStudentRepository.removeAllAndNotify(classroomId,
+                "Bạn đã bị xóa khỏi lớp " + classroom.getName());
 }
 
 @Override

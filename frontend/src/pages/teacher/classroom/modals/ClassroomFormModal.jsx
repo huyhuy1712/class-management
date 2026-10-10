@@ -1,3 +1,4 @@
+import { sortByText } from '../../../../utils/sortByText'
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 
@@ -285,7 +286,7 @@ function ClassFormModal({
                     : 'Chọn môn học'}
                 </option>
 
-                {subjects.map((subject) => (
+                {sortByText(subjects, (item) => item.name).map((subject) => (
                   <option
                     key={subject.id}
                     value={subject.id}

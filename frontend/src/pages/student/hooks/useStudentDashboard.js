@@ -6,6 +6,8 @@ export default function useStudentDashboard() {
   const user = useAuthStore((state) => state.user)
   const updateUser = useAuthStore((state) => state.updateUser)
   const [dashboard, setDashboard] = useState(null)
+  const [classes, setClasses] = useState([])
+  const [classError, setClassError] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [completedExamCount, setCompletedExamCount] = useState(null)
@@ -22,6 +24,10 @@ export default function useStudentDashboard() {
         updateUser({ fullName: data.fullName })
       })
       .catch(() => { if (active) setError('Không thể tải dữ liệu học tập.') })
+
+    userService.getMyClasses()
+      .then((data) => { setClasses(data) })
+      .catch(() => { if (active) setClassError(true) })
       .finally(() => { if (active) setLoading(false) })
 
     userService.getMyCompletedExamCount()
@@ -34,7 +40,8 @@ export default function useStudentDashboard() {
 
   return {
     studentName: dashboard?.fullName || user?.fullName || 'Học sinh',
-    activeClasses: (dashboard?.classes ?? []).filter((item) => item.status === 'ACTIVE'),
+    classCount: classes.length,
+    classError,
     loading,
     error,
     completedExamCount,

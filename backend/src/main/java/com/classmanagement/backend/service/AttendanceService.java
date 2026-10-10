@@ -9,6 +9,7 @@ import com.classmanagement.backend.dto.attendance.CreateAttendanceRequest;
 import com.classmanagement.backend.dto.attendance.UpdateAttendanceRequest;
 
 public interface AttendanceService {
+    List<AttendanceResponse> attendAsStudent(Long classroomId, String username, String code, String note);
 
 List<AttendanceResponse> createAttendance(
             Long classroomId,

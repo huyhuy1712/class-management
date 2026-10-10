@@ -46,7 +46,7 @@ class UserStudentClassesTest {
         assertEquals(1, calls.size());
     }
     private UserServiceImpl service() {
-        return new UserServiceImpl(repo(UserRepository.class), repo(ClassStudentRepository.class), null, null, null);
+        return new UserServiceImpl(repo(UserRepository.class), repo(ClassStudentRepository.class), null, null, null, null);
     }
     private <T> T repo(Class<T> type) {
         return type.cast(Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (proxy, method, args) -> {

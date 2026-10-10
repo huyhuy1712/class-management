@@ -1,9 +1,8 @@
+import { sortByText } from '../../utils/sortByText'
 import { Bell, X, Users, MessageSquare, LoaderCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import requestService from '../../services/requestService'
-import notificationService from '../../services/notificationService'
 import defaultAvatar from '../../assets/images/avatar_default.png'
-import classroomService from '../../services/classroomService'
 
 function formatRequestDate(createdAt) {
   const dateParts = /^(\d{4})-(\d{2})-(\d{2})/.exec(createdAt ?? '')
@@ -127,48 +126,13 @@ const handleApprove = async (request) => {
     setApprovingId(requestId)
     setActionError('')
 
-    // 1. Approve request
+    // BE adds membership, creates notification and deletes the request atomically.
     await requestService.approveJoinClassRequest(requestId)
 
-    // A successful PATCH means this request is no longer pending.
+    // A successful PATCH means membership is saved and request/detail are deleted.
     setRequests((current) =>
       current.filter((item) => item.requestId !== requestId)
     )
-
-    // 2. Thêm học sinh vào lớp
-    try {
-      await classroomService.addStudent(
-        request.classroomId,
-        request.studentId
-      )
-    } catch (addStudentError) {
-      const status = addStudentError.response?.status
-
-      // 403 theo API hiện tại = học sinh đã có trong lớp
-      if (status !== 403) {
-        throw addStudentError
-      }
-
-      console.log(
-        'Student already exists in classroom, skip add student.'
-      )
-    }
-
-    // 3. Tạo notification APPROVED
-    try {
-      await notificationService.createRequestApprovedNotification(
-        requestId
-      )
-    } catch (notificationError) {
-      console.error(
-        'Create approved notification error:',
-        notificationError
-      )
-
-      setActionError(
-        'Yêu cầu đã được chấp nhận nhưng không thể gửi thông báo cho học sinh.'
-      )
-    }
 
   } catch (error) {
     console.error(
@@ -344,7 +308,7 @@ const handleApprove = async (request) => {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {requests.map((request) => (
+                  {sortByText(requests, (item) => item.fullName).map((request) => (
                     <div
                       key={request.requestId}
                       className="rounded-2xl border border-slate-100 p-4 transition hover:border-green-100 hover:bg-green-50/20"

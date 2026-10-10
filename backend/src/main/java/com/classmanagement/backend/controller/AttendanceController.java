@@ -29,11 +29,26 @@ import lombok.RequiredArgsConstructor;
 public class AttendanceController {
 
 private final AttendanceService attendanceService;
+private final jakarta.validation.Validator validator;
 
 @PostMapping("/{classroomId}/attendances")
-public ResponseEntity<List<AttendanceResponse>> createAttendance(
+public ResponseEntity<?> createAttendance(
             @PathVariable Long classroomId,
-            @Valid @RequestBody CreateAttendanceRequest request) {
+            @RequestBody CreateAttendanceRequest request,
+            org.springframework.security.core.Authentication authentication) {
+        boolean student = authentication.getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals("ROLE_STUDENT") || authority.getAuthority().equals("STUDENT"));
+        if (student) {
+            try {
+                return ResponseEntity.status(HttpStatus.CREATED).body(attendanceService.attendAsStudent(
+                        classroomId, authentication.getName(), request.getAttendanceCode(), request.getNote()));
+            } catch (com.classmanagement.backend.exception.LateAttendanceReasonRequiredException exception) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(java.util.Map.of(
+                        "code", "LATE_REASON_REQUIRED", "message", exception.getMessage()));
+            }
+        }
+        var violations = validator.validate(request);
+        if (!violations.isEmpty()) throw new IllegalArgumentException(violations.iterator().next().getMessage());
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body( attendanceService.createAttendance( classroomId, request));

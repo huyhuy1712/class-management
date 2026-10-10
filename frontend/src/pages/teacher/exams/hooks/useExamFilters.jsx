@@ -1,11 +1,12 @@
+import { sortByText } from '../../../../utils/sortByText'
 import { useMemo, useState } from 'react'
 
 function useExamFilters(exams = []) {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('ALL')
 
-  // NEWEST | OLDEST
-  const [sortOrder, setSortOrder] = useState('NEWEST')
+  // A_Z | NEWEST | OLDEST
+  const [sortOrder, setSortOrder] = useState('A_Z')
 
   const filteredExams = useMemo(() => {
     const keyword = search.trim().toLowerCase()
@@ -26,6 +27,8 @@ function useExamFilters(exams = []) {
 
       return matchSearch && matchStatus
     })
+
+    if (sortOrder === 'A_Z') return sortByText(result, (exam) => exam.title)
 
     // Không sort trực tiếp exams để tránh mutate state
     return [...result].sort((a, b) => {

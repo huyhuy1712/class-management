@@ -1,3 +1,4 @@
+import { sortByText } from '../../../../../utils/sortByText'
 import { BookOpen, GraduationCap, Settings2 } from 'lucide-react'
 
 import { GRADE_OPTIONS } from '../helpers/examFormConstants'
@@ -55,7 +56,7 @@ function ExamBasicInfoSection({
               className={`${fieldClass(errors.subjectId)} pl-11`}
             >
               <option value="">{subjectsLoading ? 'Đang tải môn học...' : 'Chọn môn học'}</option>
-              {subjects.map((subject) => (
+              {sortByText(subjects, (item) => item.name).map((subject) => (
                 <option key={subject.id} value={subject.id}>{subject.name}</option>
               ))}
             </select>

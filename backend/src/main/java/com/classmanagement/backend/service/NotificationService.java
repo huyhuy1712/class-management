@@ -8,8 +8,6 @@ public interface NotificationService {
     void deleteMyNotification(Long notificationId, String username);
     void updateMyNotificationReadStatus(Long notificationId, String username, boolean read);
 
-void createJoinClassApprovedNotification(
-            Long requestId,
-            String username);
+
             
 }

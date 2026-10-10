@@ -35,7 +35,7 @@ class NotificationReadTest {
                     queries[0]++;
                     return expected;
                 });
-        var result = new NotificationServiceImpl(null, repository).getMyNotifications("current-user");
+        var result = new NotificationServiceImpl(repository).getMyNotifications("current-user");
         assertSame(expected, result);
         assertEquals(1, queries[0]);
     }

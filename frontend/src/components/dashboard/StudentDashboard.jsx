@@ -38,7 +38,7 @@ const features = [
 ];
 
 function StudentDashboard() {
-  const { studentName, activeClasses, loading, error, completedExamCount, examCountLoading, examCountError } = useStudentDashboard();
+  const { studentName, classCount, loading, classError, error, completedExamCount, examCountLoading, examCountError } = useStudentDashboard();
   const today = new Intl.DateTimeFormat("vi-VN", {
     weekday: "long",
     day: "numeric",
@@ -47,7 +47,7 @@ function StudentDashboard() {
   }).format(new Date());
 
   return (
-    <main className="min-h-screen bg-[#f7fbf8] px-8 pb-12 pt-8">
+    <main className="min-h-screen bg-[#F4F6F8] px-8 pb-12 pt-8">
 
       {/* Welcome Banner */}
       <section className="relative mb-8 overflow-hidden rounded-[25px] bg-gradient-to-r from-[#126b3c] to-[#20a84e] px-9 py-8 text-white shadow-sm">
@@ -92,7 +92,7 @@ function StudentDashboard() {
 
             <div>
               <p className="text-2xl font-bold text-[#102d22]">
-                {loading ? "..." : activeClasses.length}
+                {loading ? "..." : classError ? "--" : classCount}
               </p>
 
               <p className="text-sm text-gray-400">
@@ -194,9 +194,9 @@ function StudentDashboard() {
 
       </section>
 
-      {(error || examCountError) && (
+      {(error || classError || examCountError) && (
         <p role="alert" className="mt-8 text-sm text-red-600">
-          {error || "Không thể tải số bài kiểm tra đã nộp."}
+          {error || (classError ? "Không thể tải số lớp đang tham gia." : "Không thể tải số bài kiểm tra đã nộp.")}
         </p>
       )}
 

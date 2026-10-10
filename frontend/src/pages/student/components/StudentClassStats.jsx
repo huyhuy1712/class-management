@@ -1,9 +1,9 @@
 import { Clock3, School } from 'lucide-react'
 
-export default function StudentClassStats({ joinedCount, loading, error }) {
+export default function StudentClassStats({ joinedCount, pendingCount, pendingError, loading, error }) {
   const cards = [
     { label: 'Lớp đã tham gia', value: loading ? '...' : error ? '--' : joinedCount, Icon: School },
-    { label: 'Lớp đang chờ duyệt', value: '--', Icon: Clock3, note: 'Chưa có dữ liệu' },
+    { label: 'Lớp đang chờ duyệt', value: loading ? '...' : pendingError ? '--' : pendingCount, Icon: Clock3, note: !loading && pendingError ? 'Không thể tải số lớp chờ duyệt' : null },
   ]
 
   return (

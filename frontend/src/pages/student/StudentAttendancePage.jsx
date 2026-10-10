@@ -1,3 +1,4 @@
+import { sortByText } from '../../utils/sortByText'
 import { useEffect, useState } from "react";
 import {
   BookOpen,
@@ -74,7 +75,7 @@ function StudentAttendancePage() {
 
   return (
     <StudentDashboardLayout>
-      <main className="min-h-screen bg-[#f7fbf8] px-4 pb-12 pt-5 sm:px-8 sm:pt-8">
+      <main className="min-h-screen bg-[#F4F6F8] px-4 pb-12 pt-5 sm:px-8 sm:pt-8">
         <div className="mb-7">
           <h1 className="text-2xl font-bold text-[#102d22]">Điểm danh</h1>
           <p className="mt-1 text-sm text-gray-500">
@@ -122,7 +123,7 @@ function StudentAttendancePage() {
               <p className="text-sm text-gray-500">Bạn chưa tham gia lớp học nào.</p>
             ) : (
               <div className="space-y-2">
-                {classes.map((classroom) => {
+                {sortByText(classes, (item) => item.name).map((classroom) => {
                   const isSelected = classroom.id === selectedClassId;
                   const classRecordCount = records.filter(
                     (record) => record.classroomId === classroom.id,
@@ -185,7 +186,7 @@ function StudentAttendancePage() {
                   </div>
                 ) : (
                   <div className="divide-y divide-[#edf3ef]">
-                    {selectedRecords.map((record) => {
+                    {sortByText(selectedRecords, (item) => item.fullName).map((record) => {
                       const isAbsent = record.status === "ABSENT";
                       const StatusIcon = isAbsent ? XCircle : CheckCircle2;
 

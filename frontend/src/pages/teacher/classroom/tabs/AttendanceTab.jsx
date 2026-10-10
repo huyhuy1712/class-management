@@ -1,3 +1,5 @@
+import AttendanceSessionButton from './attendance/AttendanceSessionButton'
+import { sortByText } from '../../../../utils/sortByText'
 import { useMemo, useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import {
@@ -313,6 +315,7 @@ const handleExportAttendance = async () => {
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row">
+              <AttendanceSessionButton classroomId={classId} />
               <button
                 type="button"
                 onClick={() => {
@@ -509,7 +512,7 @@ const handleExportAttendance = async () => {
               </thead>
 
               <tbody className="divide-y divide-slate-100">
-                {filteredAttendances.map((attendance) => (
+                {sortByText(filteredAttendances, (item) => item.fullName).map((attendance) => (
                   <tr
                     key={attendance.id}
                     className="transition hover:bg-slate-50"

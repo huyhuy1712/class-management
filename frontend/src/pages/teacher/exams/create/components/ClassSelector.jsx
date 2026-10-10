@@ -1,3 +1,4 @@
+import { sortByText } from '../../../../../utils/sortByText'
 import Checkbox from './ui/Checkbox'
 import SearchBox from './ui/SearchBox'
 
@@ -31,7 +32,7 @@ function ClassSelector({
       </div>
 
       <div className="grid max-h-[360px] grid-cols-1 gap-3 overflow-y-auto p-4 lg:grid-cols-2">
-        {classes.map((classroom) => {
+        {sortByText(classes, (item) => item.name).map((classroom) => {
           const checked = selectedClasses.includes(classroom.id)
           const active = classroom.status === 'ACTIVE'
 

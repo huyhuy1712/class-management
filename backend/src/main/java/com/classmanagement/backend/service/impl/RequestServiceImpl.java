@@ -23,7 +23,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -163,9 +162,7 @@ public void rejectJoinClassRequest(Long requestId, String username) {
             .read(false)
             .build());
 
-    // The database FK cascades deletion to class_join_request_details.
-    requestRepository.delete(request);
-    requestRepository.flush();
+    deleteJoinRequest(detail);
 }
 
 @Override
@@ -175,14 +172,34 @@ public void approveJoinClassRequest(Long requestId, String username) {
     ClassJoinRequestDetail detail = loadPendingJoinRequest(requestId, username);
     Request request = detail.getRequest();
 
-    request.setStatus(RequestStatus.APPROVED);
-    request.setResponseMessage(
-            "Yêu cầu tham gia lớp đã được chấp nhận");
-    request.setRespondedAt(LocalDateTime.now());
-
-    requestRepository.save(request);
+    Classroom classroom = detail.getClassroom();
+    if (classroom.getStatus() != ClassroomStatus.ACTIVE) {
+        throw new IllegalArgumentException("Lớp học không nhận học sinh");
+    }
+    if (request.getSender().getRole() != UserRole.STUDENT) {
+        throw new IllegalArgumentException("Người gửi yêu cầu phải là học sinh");
+    }
+    classStudentRepository.insertMembershipIfAbsent(classroom.getId(), request.getSender().getId());
+    notificationRepository.save(Notification.builder()
+            .user(request.getSender())
+            .type(NotificationType.REQUEST_APPROVED)
+            .title("Yêu cầu tham gia lớp được chấp nhận")
+            .message("Yêu cầu vào lớp " + classroom.getName() + " của bạn đã được chấp nhận")
+            .referenceType("CLASS")
+            .referenceId(classroom.getId())
+            .read(false)
+            .build());
+    deleteJoinRequest(detail);
 }
 
+    private void deleteJoinRequest(ClassJoinRequestDetail detail) {
+        // Remove the managed child first: database cascade alone leaves it
+        // referencing a removed Request in Hibernate's persistence context.
+        classJoinRequestDetailRepository.delete(detail);
+        classJoinRequestDetailRepository.flush();
+        requestRepository.delete(detail.getRequest());
+        requestRepository.flush();
+    }
 
     private ClassJoinRequestDetail loadPendingJoinRequest(Long requestId, String username) {
         Request request = requestRepository.findByIdForUpdate(requestId)

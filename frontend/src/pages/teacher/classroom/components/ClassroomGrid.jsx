@@ -1,3 +1,4 @@
+import { sortByText } from '../../../../utils/sortByText'
 import { School } from 'lucide-react'
 
 import ClassroomCard from './ClassroomCard'
@@ -44,7 +45,7 @@ function ClassroomGrid({
 
   return (
     <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-      {classrooms.map((classroom) => (
+      {sortByText(classrooms, (item) => item.name).map((classroom) => (
         <ClassroomCard
           key={classroom.id}
           classroom={classroom}

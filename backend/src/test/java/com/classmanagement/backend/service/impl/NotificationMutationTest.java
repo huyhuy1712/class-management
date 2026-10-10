@@ -58,6 +58,6 @@ class NotificationMutationTest {
         var repository = (NotificationRepository) Proxy.newProxyInstance(
                 NotificationRepository.class.getClassLoader(), new Class<?>[]{NotificationRepository.class},
                 (p, m, a) -> { calls.add(m.getName()); arguments = a; return affected; });
-        return new NotificationServiceImpl(null, repository);
+        return new NotificationServiceImpl(repository);
     }
 }

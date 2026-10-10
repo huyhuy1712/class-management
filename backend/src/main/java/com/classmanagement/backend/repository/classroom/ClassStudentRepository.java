@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Optional;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -17,6 +18,13 @@ import com.classmanagement.backend.entity.compositeID.ClassStudentId;
 
 public interface ClassStudentRepository
         extends JpaRepository<ClassStudent, ClassStudentId> {
+    @Modifying
+    @Query(value = """
+            insert into class_students (class_id, student_id, joined_at)
+            values (:classroomId, :studentId, CURRENT_TIMESTAMP)
+            on conflict (class_id, student_id) do nothing
+            """, nativeQuery = true)
+    int insertMembershipIfAbsent(@Param("classroomId") Long classroomId, @Param("studentId") Long studentId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
@@ -55,10 +63,21 @@ public interface ClassStudentRepository
                                       @Param("studentIds") Collection<Long> studentIds);
 
     boolean existsByClassroomIdAndStudentId(Long classroomId, Long studentId);
+    boolean existsByClassroom_IdAndStudent_Username(Long classroomId, String username);
 
     List<ClassStudent> findAllByClassroomId(Long classroomId);
 
-    void deleteAllByClassroomId(Long classroomId);
+    @Modifying
+    @Query(value = """
+            with removed as (
+                delete from class_students where class_id = :classroomId returning student_id
+            )
+            insert into notifications (user_id, type, title, message, reference_type, reference_id, is_read, created_at)
+            select student_id, 'CLASS_REMOVED', 'Bạn đã bị xóa khỏi lớp',
+                   :message, 'CLASS', :classroomId, false, CURRENT_TIMESTAMP
+            from removed
+            """, nativeQuery = true)
+    int removeAllAndNotify(@Param("classroomId") Long classroomId, @Param("message") String message);
 
     @EntityGraph(attributePaths = {"classroom"})
     List<ClassStudent> findAllByStudent_Id(Long studentId);

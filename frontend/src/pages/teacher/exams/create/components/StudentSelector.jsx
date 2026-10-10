@@ -1,3 +1,4 @@
+import { sortByText } from '../../../../../utils/sortByText'
 import {
   ArrowLeft,
   BookOpen,
@@ -36,7 +37,7 @@ function StudentSelector({
         </div>
 
         <div className="grid max-h-[360px] grid-cols-1 gap-3 overflow-y-auto p-4 lg:grid-cols-2">
-          {classes.map((classroom) => {
+          {sortByText(classes, (item) => item.name).map((classroom) => {
             const active = classroom.status === 'ACTIVE'
 
             return (
@@ -108,7 +109,7 @@ function StudentSelector({
 
       <div className="max-h-[400px] divide-y divide-slate-100 overflow-y-auto">
         {students.length ? (
-          students.map((student) => {
+          sortByText(students, (item) => item.fullName).map((student) => {
             const checked = selectedStudents.includes(student.id)
 
             return (

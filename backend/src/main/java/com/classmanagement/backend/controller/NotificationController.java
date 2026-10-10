@@ -35,18 +35,4 @@ public class NotificationController {
         notificationService.updateMyNotificationReadStatus(notificationId, authentication.getName(), request.read());
         return ResponseEntity.noContent().build();
     }
-
-    @PostMapping("/request-approved/{requestId}")
-    public ResponseEntity<Void> createJoinClassApprovedNotification(
-            @PathVariable Long requestId,
-            Authentication authentication) {
-
-        notificationService.createJoinClassApprovedNotification(
-                requestId,
-                authentication.getName());
-
-        return ResponseEntity.noContent().build();
-    }
-
-    
 }

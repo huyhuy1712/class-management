@@ -36,7 +36,7 @@ public interface ClassroomService {
             Long studentId,
             String username);
 
-    void removeAllStudentsFromClassroom(Long classroomId);
+    void removeAllStudentsFromClassroom(Long classroomId, String username);
     
     List<ClassroomResponse> getMyClassrooms(String username);
 

@@ -28,7 +28,6 @@
 | 17 | GET | `/api/requests/join-class/received` | Lấy yêu cầu tham gia lớp đang chờ |
 | 18 | PATCH | `/api/requests/{requestId}/approve` | Chấp nhận yêu cầu tham gia lớp |
 | 19 | PATCH | `/api/requests/{requestId}/reject` | Từ chối yêu cầu tham gia lớp |
-| 20 | POST | `/api/notifications/request-approved/{requestId}` | Tạo thông báo yêu cầu được chấp nhận |
 | 22 | DELETE | `/api/classes/{classroomId}/students/{studentId}` | Xóa học sinh khỏi lớp |
 | 23 | POST | `/api/classes/{classroomId}/attendances` | Tạo điểm danh |
 | 24 | GET | `/api/classes/{classroomId}/attendances` | Lấy lịch sử điểm danh của lớp |
@@ -589,6 +588,9 @@ Trong đó:
 - Học sinh không hợp lệ: Người dùng được chọn không có role `STUDENT` hoặc tài khoản không ở status `ACTIVE`.
 - `403 Forbidden`: Học sinh đã có trong lớp học này.
 
+**Thông báo khi thêm học sinh:** POST `/api/classes/{classroomId}/students` tự lưu notification cho học sinh sau khi thêm membership thành công, cùng transaction. Nội dung: `Bạn đã được giáo viên thêm vào lớp <tên lớp>`, type `CLASS_ADDED`, referenceType `CLASS`, referenceId classroomId, is_read=false (GET trả read=false). FE không gọi thêm API notification; request/response hiện có giữ nguyên. Học sinh đã có trong lớp (409) hoặc validation thất bại không tạo thông báo. Lỗi lưu notification làm rollback thao tác thêm. Import Excel dùng chung service nên từng học sinh import thành công cũng nhận thông báo này. Không cần migration hoặc query đọc thêm.
+
+**Test:** thêm một học sinh hợp lệ; đăng nhập học sinh gọi GET `/api/notifications` xác nhận CLASS_ADDED/read=false và đúng tên lớp. Thêm lại cùng học sinh nhận 409, không có notification mới.
 ### 12. POST `/api/classes/{classroomId}/students/import` | Import học sinh từ file Excel
 
 Thêm nhiều học sinh vào lớp bằng danh sách mã học sinh trong file Excel. Các tài khoản học sinh phải tồn tại trong hệ thống; thao tác thêm mỗi học sinh áp dụng cùng quy tắc như API thêm một học sinh.
@@ -747,7 +749,7 @@ Nếu tài khoản hiện tại không có yêu cầu đang chờ, API trả v�
 
 ### 18. PATCH `/api/requests/{requestId}/approve` | Chấp nhận yêu cầu tham gia lớp
 
-Chấp nhận yêu cầu tham gia lớp đang ở trạng thái `PENDING` và được gửi đến tài khoản hiện tại. `{requestId}` là ID lấy từ response của `GET /api/requests/join-class/received`. API không cần request body. Sau khi PATCH thành công, gọi `POST /api/notifications/request-approved/{requestId}` để tạo thông báo cho học sinh gửi yêu cầu.
+Chấp nhận yêu cầu tham gia lớp đang ở trạng thái `PENDING` và được gửi đến tài khoản hiện tại. `{requestId}` là ID lấy từ response của `GET /api/requests/join-class/received`. API không cần request body. BE thêm học sinh vào lớp nếu chưa có, tạo thông báo REQUEST_APPROVED (referenceType CLASS, referenceId classroomId, is_read=false), rồi xóa/flush detail trước và xóa request sau trong cùng transaction. FE chỉ gọi PATCH này; không gọi API thêm học sinh hoặc POST tạo thông báo sau đó. Lỗi DB rollback toàn bộ. Request không được giữ ở trạng thái APPROVED.
 
 **Headers:**
 
@@ -770,34 +772,12 @@ curl -X PATCH http://localhost:8080/api/requests/12/approve \
 - `403 Forbidden`: Yêu cầu không được gửi đến tài khoản đang đăng nhập.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
-### 20. POST `/api/notifications/request-approved/{requestId}` | Tạo thông báo yêu cầu được chấp nhận
+**Test accept:** giáo viên gọi PATCH, nhận 204; class_students có membership, requests và class_join_request_details không còn requestId, notifications có một REQUEST_APPROVED/read=false. Gọi lại cùng requestId: 400, không thêm thông báo. Học sinh đã có trong lớp: không tạo membership trùng. Lớp ARCHIVED: 400, không xóa request. Người không phải giáo viên nhận request: 403. Khóa request dùng chung với reject để tránh xử lý đồng thời. Không cần migration.
 
-Tạo thông báo cho học sinh đã gửi yêu cầu tham gia lớp vừa được chấp nhận. Chỉ người nhận yêu cầu (giáo viên) mới được tạo thông báo. API không cần request body; chỉ gọi sau khi `PATCH /api/requests/{requestId}/approve` thành công.
-
-**Headers:**
-
-```http
-Authorization: Bearer <accessToken>
-```
-
-**Cách test bằng cURL:**
-
-```bash
-curl -X POST http://localhost:8080/api/notifications/request-approved/12 \
-	-H "Authorization: Bearer <accessToken>"
-```
-
-**Response thành công `204 No Content`:** Không có response body.
-
-**Một số trường hợp lỗi:**
-
-- `400 Bad Request`: Không tìm thấy yêu cầu, yêu cầu không phải yêu cầu tham gia lớp hoặc chưa được chấp nhận. Mỗi lần gọi thành công tạo một notification mới.
-- `403 Forbidden`: Tài khoản hiện tại không phải người nhận yêu cầu.
-- `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
-
+Endpoint cũ POST `/api/notifications/request-approved/{requestId}` đã được bỏ.
 ### 19. PATCH `/api/requests/{requestId}/reject` | Từ chối yêu cầu tham gia lớp
 
-Từ chối yêu cầu đang ở trạng thái `PENDING` và được gửi đến tài khoản hiện tại. `{requestId}` là ID lấy từ response của `GET /api/requests/join-class/received`. API không cần request body. BE tự tạo một thông báo cho học sinh rồi xóa request và detail trong cùng transaction. FE chỉ gọi PATCH này; không gọi API tạo thông báo riêng. Thông báo có `referenceType = CLASS`, `referenceId = classroomId`. Lỗi DB sẽ rollback cả thông báo và thao tác xóa. Request không được giữ ở trạng thái REJECTED.
+Từ chối yêu cầu đang ở trạng thái `PENDING` và được gửi đến tài khoản hiện tại. `{requestId}` là ID lấy từ response của `GET /api/requests/join-class/received`. API không cần request body. BE tự tạo một thông báo cho học sinh rồi xóa/flush detail trước, rồi xóa request trong cùng transaction. FE chỉ gọi PATCH này; không gọi API tạo thông báo riêng. Thông báo có `referenceType = CLASS`, `referenceId = classroomId`. Lỗi DB sẽ rollback cả thông báo và thao tác xóa. Request không được giữ ở trạng thái REJECTED.
 
 **Headers:**
 
@@ -856,7 +836,7 @@ Học sinh bị gỡ khỏi lớp; tài khoản vẫn tồn tại. BE đồng th
 - `403 Forbidden`: Không phải giáo viên sở hữu lớp.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
-**Test:** giáo viên sở hữu lớp gọi DELETE và nhận 204; học sinh gọi GET /api/notifications thấy một thông báo CLASS_REMOVED/read=false với đúng tên lớp. Gọi DELETE lại nhận 404, không tạo thêm thông báo. Giáo viên khác gọi nhận 403, membership không đổi. Không cần migration; luồng này áp dụng xóa một học sinh, không thay đổi API xóa tất cả học sinh.
+**Test:** giáo viên sở hữu lớp gọi DELETE và nhận 204; học sinh gọi GET /api/notifications thấy một thông báo CLASS_REMOVED/read=false với đúng tên lớp. Gọi DELETE lại nhận 404, không tạo thêm thông báo. Giáo viên khác gọi nhận 403, membership không đổi. Không cần migration. API xóa toàn bộ bên dưới cũng tạo thông báo tương tự cho từng học sinh bị gỡ.
 
 ### 14. POST `/api/classes/{classroomId}/lessons` | Tạo buổi học
 
@@ -934,7 +914,7 @@ curl -X POST http://localhost:8080/api/classes/1/lessons \
 
 ### 15. GET `/api/classes/{classroomId}/lessons?date=YYYY-MM-DD` | Lấy buổi học theo ngày
 
-Lấy danh sách buổi học thuộc lớp và ngày được chỉ định. Chỉ giáo viên phụ trách lớp mới được xem danh sách. Kết quả được sắp xếp theo `startTime` tăng dần.
+Lấy danh sách buổi học thuộc lớp và ngày được chỉ định. Giáo viên phụ trách lớp và học sinh hiện đang tham gia lớp được xem. Học sinh nhận attendanceCode=null để không lộ mã điểm danh; giáo viên vẫn nhận mã như trước. Học sinh ngoài lớp/đã bị gỡ nhận 403. Kết quả được sắp xếp theo `startTime` tăng dần. POST/PUT lesson vẫn chỉ dành cho giáo viên sở hữu lớp.
 
 **Headers:**
 
@@ -2537,3 +2517,52 @@ Thành công: `204 No Content`, không có response body. Gửi lại cùng tr�
 **Lỗi chung hai API:** `401` nếu chưa đăng nhập/token không hợp lệ; `400` nếu notificationId không phải số nguyên dương; `404` nếu ID không tồn tại hoặc thuộc người khác. PATCH trả `400` nếu thiếu/null read, body thiếu hoặc sai định dạng. Truy vấn kiểm tra chủ sở hữu và mutation trong một câu lệnh DB, không có N+1 hoặc query đọc trước khi ghi.
 
 **Test:** đăng nhập chủ thông báo, PATCH true rồi GET xác nhận read=true; PATCH false rồi GET xác nhận false; DELETE rồi GET xác nhận không còn. Tài khoản khác thử PATCH/DELETE cùng ID phải nhận 404 và dữ liệu không đổi. Thử PATCH `{}`/`{"read":null}` nhận 400. Không cần migration.
+
+### GET `/api/users/me/student-dashboard` | Count lớp đang chờ duyệt
+
+Response hiện có bổ sung field `pendingJoinClassCount` (số nguyên, không null). BE đếm requests với sender_id là học sinh đang đăng nhập, type JOIN_CLASS và status PENDING bằng một query COUNT; không tải danh sách request, không có N+1. APPROVED và request của học sinh khác không được tính; không có request phù hợp trả 0. Field này đếm số yêu cầu tham gia đang chờ, dựa trên quy tắc hiện tại mỗi học sinh chỉ có một yêu cầu PENDING cho một lớp.
+
+Ví dụ response tài khoản chưa có dữ liệu khác:
+
+```json
+{
+  "fullName": "Student",
+  "classes": [],
+  "pendingJoinClassCount": 2,
+  "attendanceCount": 0,
+  "attendedCount": 0,
+  "attendanceRate": 0.0
+}
+```
+
+```bash
+curl http://localhost:8080/api/users/me/student-dashboard --cookie "access_token=<token>"
+```
+
+FE đọc response.pendingJoinClassCount để hiển thị Lớp đang chờ duyệt. API dashboard vẫn chỉ cho STUDENT; thiếu xác thực 401, sai role 403. Sau khi gửi yêu cầu/duyệt/từ chối cần tải lại dashboard để nhận count hiện tại. Không thêm endpoint hoặc migration. Phần bổ sung count không thay đổi logic thống kê điểm danh hiện có.
+
+Test: học sinh có JOIN_CLASS/PENDING nhận count đúng; chuyển APPROVED hoặc reject xóa request thì count giảm; đăng nhập học sinh khác không tính request tài khoản trước; không có yêu cầu nhận 0.
+
+### DELETE `/api/classes/{classroomId}/students` | Xóa toàn bộ học sinh và gửi thông báo
+
+Nút Xóa toàn bộ ở StudentsTab đang gọi API này; giữ nguyên URL, method và không cần request body. Chỉ giáo viên sở hữu lớp được thực hiện. Thành công trả 204 No Content.
+
+```bash
+curl -X DELETE http://localhost:8080/api/classes/3/students --cookie "access_token=<token>"
+```
+
+BE xóa membership trong class_students, tạo một notification cho mỗi học sinh thực sự bị gỡ: type CLASS_REMOVED, title `Bạn đã bị xóa khỏi lớp`, message `Bạn đã bị xóa khỏi lớp <tên lớp>`, referenceType CLASS, referenceId classroomId, is_read=false. Tài khoản học sinh và lớp vẫn tồn tại.
+
+Cùng transaction: lỗi tạo thông báo hoặc lỗi xóa rollback toàn bộ. Một query khóa lớp và tải giáo viên để kiểm tra quyền, một native SQL dùng DELETE RETURNING và INSERT SELECT để xóa và tạo thông báo theo lô; không tải danh sách học sinh và không có N+1. Lớp rỗng/gọi lại sau khi xóa hết vẫn trả 204, không tạo thêm thông báo.
+
+400: classroomId không phải số nguyên dương. 401: chưa đăng nhập. 403: không phải giáo viên sở hữu lớp. 404: lớp không tồn tại. Không cần migration hoặc API notification bổ sung.
+
+Test: lớp có N học sinh, giáo viên nhấn Xóa toàn bộ nhận 204; class_students không còn membership của lớp; có đúng N thông báo CLASS_REMOVED với đúng người nhận, tên lớp, read=false. Gọi lại không tạo thông báo mới. Giáo viên khác gọi 403, dữ liệu không đổi. Xóa một học sinh vẫn tạo một thông báo như trước.
+
+**Lưu ý triển khai accept/reject:** detail đang được Hibernate quản lý phải được delete và flush trước khi delete request. Chỉ dựa vào ON DELETE CASCADE khi detail đã được load có thể gây TransientPropertyValueException. Thứ tự này đã được sửa cho cả PATCH approve/reject; URL, response 204 và transaction không đổi. DB cascade vẫn giữ làm ràng buộc dự phòng; không cần migration.
+
+### Học sinh tự điểm danh qua POST /api/classes/{classroomId}/attendances
+
+Với tài khoản STUDENT, body: {"attendanceCode":"mật khẩu","note":"lý do trễ (nếu cần)"}. BE lấy học sinh từ authentication và ngày/giờ theo Asia/Ho_Chi_Minh; không dùng studentId/status/date do học sinh gửi. Chỉ thành viên lớp ACTIVE được điểm danh, trong startTime–endTime và với mật khẩu đúng. Trước lateTime lưu PRESENT; từ lateTime lưu LATE và bắt buộc lý do tối đa 500 ký tự.
+
+Nếu mật khẩu đúng nhưng trễ và chưa có lý do: 409 {"code":"LATE_REASON_REQUIRED","message":"Bạn đã đi trễ buổi này, hãy nhập lý do trễ."}, chưa lưu điểm danh. Gửi lại cùng POST với note; BE kiểm tra lại toàn bộ điều kiện. Thành công 201 trả danh sách AttendanceResponse để FE cập nhật bảng/count. Điểm danh trùng vẫn bị từ chối. Luồng nhập danh sách điểm danh của giáo viên giữ body date/students cũ.

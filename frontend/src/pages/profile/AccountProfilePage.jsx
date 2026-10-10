@@ -1,3 +1,4 @@
+import { sortByText } from '../../utils/sortByText'
 import useTeacherExamCount from '../teacher/hooks/useTeacherExamCount'
 import {
   ArrowLeft,
@@ -725,7 +726,7 @@ const handleChangePassword = async (event) => {
               </p>
             </div>
           </div>
-          {student && activity.classes.length > 0 && <div className="mt-4"><p className="text-xs font-semibold text-gray-500">Lớp đang học</p><ul className="mt-2 space-y-2">{activity.classes.map((item) => <li key={item.id} className="rounded-lg bg-emerald-50 p-2 text-sm text-emerald-800">{item.name}<span className="ml-2 text-xs text-slate-500">{item.code}</span></li>)}</ul></div>}
+          {student && activity.classes.length > 0 && <div className="mt-4"><p className="text-xs font-semibold text-gray-500">Lớp đang học</p><ul className="mt-2 space-y-2">{sortByText(activity.classes, (item) => item.name).map((item) => <li key={item.id} className="rounded-lg bg-emerald-50 p-2 text-sm text-emerald-800">{item.name}<span className="ml-2 text-xs text-slate-500">{item.code}</span></li>)}</ul></div>}
         </div>
       </section>
 

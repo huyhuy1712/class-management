@@ -77,6 +77,43 @@ private AttendanceResponse toResponse(Attendance attendance) {
                             .build();
     }
 
+@Override
+@Transactional
+public List<AttendanceResponse> attendAsStudent(Long classroomId, String username, String code, String note) {
+    User student = userRepository.findByUsername(username)
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy học sinh"));
+    if (student.getRole() != com.classmanagement.backend.entity.enums.UserRole.STUDENT) {
+        throw new IllegalStateException("Chỉ học sinh được tự điểm danh");
+    }
+    Classroom classroom = classroomRepository.findById(classroomId)
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy lớp học"));
+    if (classroom.getStatus() != com.classmanagement.backend.entity.enums.ClassroomStatus.ACTIVE
+            || !classStudentRepository.existsByClassroomIdAndStudentId(classroomId, student.getId())) {
+        throw new IllegalStateException("Bạn không được điểm danh trong lớp này");
+    }
+    java.time.LocalDateTime now = java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
+    Lesson lesson = requireLessonForAttendance(classroomId, now.toLocalDate());
+    if (now.isBefore(lesson.getStartTime()) || now.isAfter(lesson.getEndTime())) {
+        throw new IllegalArgumentException("Hiện không trong thời gian điểm danh");
+    }
+    if (code == null || !code.equals(lesson.getAttendanceCode())) {
+        throw new IllegalArgumentException("Mật khẩu điểm danh không đúng");
+    }
+    boolean late = !now.isBefore(lesson.getLateTime());
+    if (late && (note == null || note.isBlank())) {
+        throw new com.classmanagement.backend.exception.LateAttendanceReasonRequiredException();
+    }
+    if (note != null && note.length() > 500) throw new IllegalArgumentException("Lý do không được quá 500 ký tự");
+    AttendanceStudentRequest item = new AttendanceStudentRequest();
+    item.setStudentId(student.getId());
+    item.setStatus(late ? AttendanceStatus.LATE : AttendanceStatus.PRESENT);
+    item.setNote(late ? note.trim() : null);
+    CreateAttendanceRequest payload = new CreateAttendanceRequest();
+    payload.setDate(now.toLocalDate());
+    payload.setStudents(List.of(item));
+    return createAttendance(classroomId, payload);
+}
+
 @Transactional
 @Override
 public List<AttendanceResponse> createAttendance(

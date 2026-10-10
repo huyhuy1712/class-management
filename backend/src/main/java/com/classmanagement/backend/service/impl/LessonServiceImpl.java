@@ -4,6 +4,9 @@ import com.classmanagement.backend.dto.lesson.CreateLessonRequest;
 import com.classmanagement.backend.dto.lesson.LessonResponse;
 import com.classmanagement.backend.entity.Classroom;
 import com.classmanagement.backend.entity.Lesson;
+import com.classmanagement.backend.entity.enums.UserRole;
+import com.classmanagement.backend.repository.UserRepository;
+import com.classmanagement.backend.repository.classroom.ClassStudentRepository;
 import com.classmanagement.backend.exception.ConflictException;
 import com.classmanagement.backend.repository.LessonRepository;
 import com.classmanagement.backend.repository.classroom.ClassroomRepository;
@@ -25,6 +28,8 @@ public class LessonServiceImpl implements LessonService {
 
     private final LessonRepository lessonRepository;
     private final ClassroomRepository classroomRepository;
+    private final UserRepository userRepository;
+    private final ClassStudentRepository classStudentRepository;
 
 @Override
 @Transactional
@@ -66,16 +71,22 @@ public List<LessonResponse> getLessonsByClassroomAndDate(
             String username) {
         Classroom classroom = getClassroom(classroomId);
 
-        validateTeacherOwnership(
-                classroom,
-                username);
+        var user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng"));
+        boolean includeAttendanceCode = user.getRole() == UserRole.TEACHER;
+        if (includeAttendanceCode) {
+                validateTeacherOwnership(classroom, username);
+        } else if (user.getRole() != UserRole.STUDENT
+                || !classStudentRepository.existsByClassroom_IdAndStudent_Username(classroomId, username)) {
+                throw new IllegalStateException("Bạn không có quyền xem buổi học của lớp này");
+        }
 
         return lessonRepository
                 .findAllByClassroom_IdAndLessonDateOrderByStartTimeAsc(
                         classroomId,
                         date)
                 .stream()
-                .map(this::toResponse)
+                .map(lesson -> toResponse(lesson, includeAttendanceCode))
                 .toList();
 } 
   
@@ -228,6 +239,10 @@ private Lesson buildLesson(
 
 private LessonResponse toResponse(
             Lesson lesson) {
+        return toResponse(lesson, true);
+    }
+
+private LessonResponse toResponse(Lesson lesson, boolean includeAttendanceCode) {
         return LessonResponse.builder()
                 .id(lesson.getId())
                 .classroomId(
@@ -237,7 +252,7 @@ private LessonResponse toResponse(
                 .title(lesson.getTitle())
                 .lessonDate(lesson.getLessonDate())
                 .attendanceCode(
-                        lesson.getAttendanceCode())
+                        includeAttendanceCode ? lesson.getAttendanceCode() : null)
                 .startTime(lesson.getStartTime())
                 .lateTime(lesson.getLateTime())
                 .endTime(lesson.getEndTime())
