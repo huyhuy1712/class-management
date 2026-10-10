@@ -4,6 +4,8 @@ import com.classmanagement.backend.entity.ExamAttempt;
 import com.classmanagement.backend.entity.enums.ExamAttemptStatus;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.List;
@@ -11,6 +13,10 @@ import java.util.Optional;
 
 public interface ExamAttemptRepository
                 extends JpaRepository<ExamAttempt, Long> {
+
+        @Query("select count(distinct a.assignment.exam.id) from ExamAttempt a where a.student.id = :studentId and a.status in :statuses")
+        long countCompletedExams(@Param("studentId") Long studentId,
+                @Param("statuses") Collection<ExamAttemptStatus> statuses);
 
         @EntityGraph(attributePaths = {
                         "assignment",

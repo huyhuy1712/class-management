@@ -44,7 +44,7 @@ function Header({ onMenuClick }) {
   {/* User profile */}
   <button
     type="button"
-    onClick={() => navigate('/teacher/profile')}
+    onClick={() => navigate(user?.role === 'STUDENT' ? '/student/profile' : '/teacher/profile')}
     className="group flex items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-green-50 sm:px-3"
   >
     <img

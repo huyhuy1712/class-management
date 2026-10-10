@@ -67,6 +67,11 @@ getMyStudentDashboard: async () => {
   return response.data
 },
 
+getMyCompletedExamCount: async () => {
+  const response = await api.get('/users/me/student-exam-count')
+  return response.data
+},
+
 changePassword: async (currentPassword, newPassword) => {
   await api.put('/users/me/password', {
     currentPassword,

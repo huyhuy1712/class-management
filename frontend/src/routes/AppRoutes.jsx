@@ -20,6 +20,7 @@ import ExamBuilderPage from '../pages/teacher/exams/builder/ExamBuilderPage'
 // =============================
 // Student
 // =============================
+import StudentProfilePage from '../pages/student/StudentProfilePage'
 import StudentHome from '../pages/student/StudentHome'
 import StudentAttendancePage from '../pages/student/StudentAttendancePage'
 import JoinClassPage from '../pages/student/JoinClassPage' 
@@ -52,6 +53,7 @@ function AppRoutes() {
       {/* =========================
           Route Student
       ========================= */}
+      <Route path="/student/profile" element={<StudentProfilePage />} />
       <Route path="/student" element={<StudentHome />} />
       <Route path="/student/attendance" element={<StudentAttendancePage />} />
       <Route path="/student/classes" element={<JoinClassPage />} />

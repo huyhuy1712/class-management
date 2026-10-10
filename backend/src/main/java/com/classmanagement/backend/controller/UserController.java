@@ -8,6 +8,8 @@ import com.classmanagement.backend.dto.user.UpdateProfileRequest;
 import com.classmanagement.backend.dto.user.UserResponse;
 import com.classmanagement.backend.entity.enums.UserRole;
 import com.classmanagement.backend.service.UserService;
+import com.classmanagement.backend.service.StudentProfileStatsService;
+import com.classmanagement.backend.dto.user.StudentExamCountResponse;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,13 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final StudentProfileStatsService profileStats;
+
+    @GetMapping("/me/student-exam-count")
+    public ResponseEntity<StudentExamCountResponse> getStudentExamCount(Authentication authentication) {
+        return ResponseEntity.ok(profileStats.getExamCount(authentication.getName()));
+    }
+
 
 @GetMapping
 public ResponseEntity<List<UserResponse>> getAllUsers(

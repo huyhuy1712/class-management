@@ -2429,3 +2429,10 @@ Ví dụ trên chỉ minh họa field section; khi POST/PUT thực tế phải c
 **Test:** Restart BE để Flyway áp dụng V53; GET detail đề có section description cũ phải thấy nội dung đó ở paragraph. POST một đề có paragraph nhiều dòng, GET xác nhận giữ xuống dòng. PUT content với revision hiện tại thay paragraph, GET lại xác nhận ID section/điểm/media giữ nguyên; revision tăng. paragraph null/chuỗi trắng xóa đoạn cũ. Dài hơn 20000 trả 400 với validationErrors.sections[0].paragraph và không ghi. basicInfo.description vẫn giữ nguyên tên và chức năng.
 
 Đã cập nhật BE và tài liệu; chưa sửa FE và chưa chạy migration/DB thật. FE cũ cần đổi mapping từ description sang paragraph trước khi dùng POST/PUT mới.
+
+
+### Student completed exam count
+
+`GET /api/users/me/student-exam-count` uses the authenticated student, with no user ID parameter.
+
+Response: `{ "completedExamCount": 3 }`. Counts distinct exams with attempts in `SUBMITTED` or `GRADED` status; excludes unstarted/in-progress attempts.
