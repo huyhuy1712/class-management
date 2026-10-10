@@ -117,11 +117,13 @@ public ResponseEntity<List<ClassroomStudentResponse>> getStudentsByClassroomId(
 @DeleteMapping("/{classroomId}/students/{studentId}")
 public ResponseEntity<Void> removeStudentFromClassroom(
                 @PathVariable Long classroomId,
-                @PathVariable Long studentId) {
+                @PathVariable Long studentId,
+                Authentication authentication) {
 
         classroomService.removeStudentFromClassroom(
                         classroomId,
-                        studentId);
+                        studentId,
+                        authentication.getName());
 
         return ResponseEntity.noContent().build();
 }

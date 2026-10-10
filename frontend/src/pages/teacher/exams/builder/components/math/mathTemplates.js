@@ -67,7 +67,8 @@ export const MATH_TEMPLATE_GROUPS = [
   },
   {
     id: 'constants', label: 'Hằng số', items: [
-      { label: 'Logarit', symbol: 'log', latex: '\\log_{}({})' },
+      { label: 'Logarit không ghi cơ số', symbol: 'log()', latex: '\\log(\\placeholder{})' },
+      { label: 'Logarit có cơ số', symbol: 'logₐ()', latex: '\\log_{\\placeholder{}}(\\placeholder{})' },
       { label: 'Logarit tự nhiên', symbol: 'ln', latex: '\\ln({})' },
       { label: 'Số e', symbol: 'e', latex: 'e' },
       { label: 'Pi', symbol: 'π', latex: '\\pi' },

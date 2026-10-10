@@ -4,6 +4,9 @@ import com.classmanagement.backend.dto.request.JoinClassRequestResponse;
 import com.classmanagement.backend.entity.ClassJoinRequestDetail;
 import com.classmanagement.backend.entity.Classroom;
 import com.classmanagement.backend.entity.Request;
+import com.classmanagement.backend.entity.Notification;
+import com.classmanagement.backend.entity.enums.NotificationType;
+import com.classmanagement.backend.repository.NotificationRepository;
 import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.entity.enums.ClassroomStatus;
 import com.classmanagement.backend.entity.enums.RequestStatus;
@@ -35,6 +38,7 @@ public class RequestServiceImpl implements RequestService {
     private final ClassStudentRepository classStudentRepository;
     private final ClassroomRepository classroomRepository;
     private final UserRepository userRepository;
+    private final NotificationRepository notificationRepository;
 
 @Override
 @Transactional
@@ -145,60 +149,31 @@ private JoinClassRequestResponse toJoinClassRequestResponse(
 @Transactional
 public void rejectJoinClassRequest(Long requestId, String username) {
 
-    Request request = requestRepository.findById(requestId)
-            .orElseThrow(() ->
-                    new IllegalArgumentException("Không tìm thấy yêu cầu"));
+    ClassJoinRequestDetail detail = loadPendingJoinRequest(requestId, username);
+    Request request = detail.getRequest();
+    Classroom classroom = detail.getClassroom();
 
-    if (request.getType() != RequestType.JOIN_CLASS) {
-        throw new IllegalArgumentException(
-                "Yêu cầu này không phải yêu cầu tham gia lớp"
-        );
-    }
+    notificationRepository.save(Notification.builder()
+            .user(request.getSender())
+            .type(NotificationType.REQUEST_REJECTED)
+            .title("Yêu cầu tham gia lớp bị từ chối")
+            .message("Yêu cầu vào lớp " + classroom.getName() + " của bạn đã bị từ chối")
+            .referenceType("CLASS")
+            .referenceId(classroom.getId())
+            .read(false)
+            .build());
 
-    if (!request.getReceiver().getUsername().equals(username)) {
-        throw new IllegalStateException(
-                "Bạn không có quyền xử lý yêu cầu này"
-        );
-    }
-
-    if (request.getStatus() != RequestStatus.PENDING) {
-        throw new IllegalArgumentException(
-                "Yêu cầu này đã được xử lý"
-        );
-    }
-
-    request.setStatus(RequestStatus.REJECTED);
-    request.setResponseMessage("Yêu cầu tham gia lớp đã bị từ chối");
-    request.setRespondedAt(LocalDateTime.now());
-
-    requestRepository.save(request);
+    // The database FK cascades deletion to class_join_request_details.
+    requestRepository.delete(request);
+    requestRepository.flush();
 }
 
 @Override
 @Transactional
 public void approveJoinClassRequest(Long requestId, String username) {
 
-    ClassJoinRequestDetail detail = classJoinRequestDetailRepository
-            .findByRequest_Id(requestId)
-            .orElseThrow(() -> new IllegalArgumentException(
-                    "Không tìm thấy yêu cầu tham gia lớp"));
-
+    ClassJoinRequestDetail detail = loadPendingJoinRequest(requestId, username);
     Request request = detail.getRequest();
-
-    if (request.getType() != RequestType.JOIN_CLASS) {
-        throw new IllegalArgumentException(
-                "Yêu cầu này không phải yêu cầu tham gia lớp");
-    }
-
-    if (!request.getReceiver().getUsername().equals(username)) {
-        throw new IllegalStateException(
-                "Bạn không có quyền xử lý yêu cầu này");
-    }
-
-    if (request.getStatus() != RequestStatus.PENDING) {
-        throw new IllegalArgumentException(
-                "Yêu cầu này đã được xử lý");
-    }
 
     request.setStatus(RequestStatus.APPROVED);
     request.setResponseMessage(
@@ -209,4 +184,21 @@ public void approveJoinClassRequest(Long requestId, String username) {
 }
 
 
+    private ClassJoinRequestDetail loadPendingJoinRequest(Long requestId, String username) {
+        Request request = requestRepository.findByIdForUpdate(requestId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy yêu cầu"));
+        if (request.getType() != RequestType.JOIN_CLASS) {
+            throw new IllegalArgumentException("Yêu cầu này không phải yêu cầu tham gia lớp");
+        }
+        if (request.getReceiver() == null
+                || !request.getReceiver().getUsername().equals(username)
+                || request.getReceiver().getRole() != UserRole.TEACHER) {
+            throw new IllegalStateException("Bạn không có quyền xử lý yêu cầu này");
+        }
+        if (request.getStatus() != RequestStatus.PENDING) {
+            throw new IllegalArgumentException("Yêu cầu này đã được xử lý");
+        }
+        return classJoinRequestDetailRepository.findByRequest_Id(requestId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy chi tiết yêu cầu tham gia lớp"));
+    }
 }

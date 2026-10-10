@@ -1,10 +1,17 @@
+import useStudentClassList from './hooks/useStudentClassList';
+import TeacherSearchCard from './components/TeacherSearchCard';
+import StudentClassSearch from './components/StudentClassSearch';
+import StudentClassCard from './components/StudentClassCard';
+import StudentClassStats from './components/StudentClassStats';
 import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   BookOpen,
   CalendarDays,
   CheckCircle2,
   ChevronLeft,
   Search,
+  School,
   Send,
   UserRound,
   Users,
@@ -12,7 +19,8 @@ import {
 } from "lucide-react";
 
 import StudentDashboardLayout from "../../layouts/StudentDashboardLayout";
-import classroomService from "../../services/classroomService";
+
+
 import requestService from "../../services/requestService";
 import userService from "../../services/userService";
 
@@ -38,57 +46,22 @@ function getTeacherName(teacher) {
 }
 
 function JoinClassPage() {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const showTeacherSearch = pathname === "/student/teachers";
   const [searchTerm, setSearchTerm] = useState("");
-  const [showTeacherSearch, setShowTeacherSearch] = useState(false);
   const [teacherSearchTerm, setTeacherSearchTerm] = useState("");
   const [teachers, setTeachers] = useState([]);
   const [selectedTeacher, setSelectedTeacher] = useState(null);
   const [teachersLoading, setTeachersLoading] = useState(false);
   const [teachersError, setTeachersError] = useState("");
-  const [classes, setClasses] = useState([]);
-  const [joinedClassIds, setJoinedClassIds] = useState([]);
+  const { classes, joinedClassIds, classesError, dashboardError, loading } = useStudentClassList(showTeacherSearch);
+
   const [selectedClass, setSelectedClass] = useState(null);
   const [requestMessage, setRequestMessage] = useState("");
   const [requestSent, setRequestSent] = useState(false);
   const [sendingRequest, setSendingRequest] = useState(false);
   const [requestError, setRequestError] = useState("");
-  const [classesError, setClassesError] = useState("");
-  const [dashboardError, setDashboardError] = useState("");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    Promise.allSettled([
-      classroomService.getAll(),
-      userService.getMyStudentDashboard(),
-    ]).then(([classesResult, dashboardResult]) => {
-      if (cancelled) return;
-
-      if (classesResult.status === "fulfilled") {
-        setClasses(classesResult.value);
-      } else {
-        setClassesError("Không thể tải danh sách lớp học.");
-      }
-
-      if (dashboardResult.status === "fulfilled") {
-        setJoinedClassIds(
-          (dashboardResult.value.classes || []).map((classroom) =>
-            String(classroom.id),
-          ),
-        );
-      } else {
-        setDashboardError("Không thể kiểm tra các lớp bạn đã tham gia.");
-      }
-
-      setLoading(false);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   useEffect(() => {
     if (!showTeacherSearch || teachers.length > 0) return undefined;
 
@@ -158,11 +131,11 @@ function JoinClassPage() {
     setTeacherSearchTerm("");
     setTeachersLoading(teachers.length === 0);
     setTeachersError("");
-    setShowTeacherSearch(true);
+    navigate("/student/teachers");
   };
 
   const handleBackToClasses = () => {
-    setShowTeacherSearch(false);
+    navigate("/student/classes");
     setSelectedTeacher(null);
     setTeacherSearchTerm("");
   };
@@ -205,20 +178,40 @@ function JoinClassPage() {
             <button
               type="button"
               onClick={handleBackToClasses}
-              className="mb-16 inline-flex items-center gap-2 rounded-lg px-2 py-1 text-sm font-medium text-[#102d22] transition hover:bg-white"
+              className="mb-5 inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-[#102d22] transition hover:bg-white hover:text-[#159447]"
             >
               <ChevronLeft size={19} />
-              Quay lại
+              Quay lại danh sách lớp
             </button>
 
-            <section className="rounded-xl bg-white p-4 shadow-sm sm:p-5">
-              <label
-                htmlFor="teacher-search"
-                className="mb-3 block font-semibold text-[#102d22]"
-              >
-                Xin vào lớp: Nhập email hoặc số điện thoại giáo viên
-              </label>
-              <div className="relative max-w-xl">
+            <section className="relative overflow-hidden rounded-[28px] border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-5 shadow-sm sm:p-8">
+              <div className="pointer-events-none absolute -right-12 -top-16 h-44 w-44 rounded-full bg-emerald-100/60" />
+              <div className="pointer-events-none absolute -bottom-20 right-24 h-40 w-40 rounded-full bg-sky-100/50" />
+              <div className="relative max-w-3xl">
+                <div className="mb-5 flex items-start gap-4">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-600/20">
+                    <UserRound size={27} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">
+                      Tham gia lớp học
+                    </p>
+                    <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-[#102d22] sm:text-3xl">
+                      Tìm giáo viên của bạn
+                    </h1>
+                    <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
+                      Nhập mã giáo viên để xem các lớp đang mở và gửi yêu cầu tham gia.
+                    </p>
+                  </div>
+                </div>
+
+                <label
+                  htmlFor="teacher-search"
+                  className="mb-2 block text-sm font-bold text-[#102d22]"
+                >
+                  Mã giáo viên
+                </label>
+                <div className="relative max-w-2xl">
                 <input
                   id="teacher-search"
                   type="search"
@@ -227,14 +220,25 @@ function JoinClassPage() {
                     setTeacherSearchTerm(event.target.value);
                     setSelectedTeacher(null);
                   }}
-                  placeholder="Email hoặc số điện thoại"
-                  aria-label="Email hoặc số điện thoại giáo viên"
-                  className="w-full rounded-lg border border-[#dce3ee] bg-white py-3 pl-4 pr-12 text-sm text-[#102d22] outline-none transition focus:border-[#159447] focus:ring-2 focus:ring-[#159447]/10"
+                  placeholder="Nhập mã giáo viên..."
+                  aria-label="Mã giáo viên"
+                  className="w-full rounded-2xl border border-emerald-200 bg-white py-3.5 pl-4 pr-12 text-sm text-[#102d22] shadow-sm outline-none transition placeholder:text-slate-400 focus:border-[#159447] focus:ring-4 focus:ring-[#159447]/10"
                 />
                 <Search
                   size={20}
                   className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#102d22]"
                 />
+              </div>
+                <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs font-medium text-slate-500">
+                  <span className="inline-flex items-center gap-1.5">
+                    <CheckCircle2 size={14} className="text-emerald-600" />
+                    Tìm kiếm nhanh theo mã
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <BookOpen size={14} className="text-sky-600" />
+                    Chọn lớp để gửi yêu cầu
+                  </span>
+                </div>
               </div>
 
               {teachersError && (
@@ -248,37 +252,18 @@ function JoinClassPage() {
                 </p>
               )}
               {!teachersLoading && teacherSearchTerm.trim() && (
-                <div className="mt-5 max-w-xl space-y-2">
+                <div className="relative mt-5 max-w-2xl space-y-2">
                   {matchingTeachers.length ? (
                     matchingTeachers.map((teacher) => (
-                      <button
+                      <TeacherSearchCard
                         key={teacher.id}
-                        type="button"
-                        onClick={() => setSelectedTeacher(teacher)}
-                        className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition hover:border-[#9bdab4] ${
-                          selectedTeacher?.id === teacher.id
-                            ? "border-[#159447] bg-[#effbf3]"
-                            : "border-[#e5eaf0] bg-white"
-                        }`}
-                      >
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#effbf3] text-[#159447]">
-                          <UserRound size={20} />
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block font-medium text-[#102d22]">
-                            {getTeacherName(teacher)}
-                          </span>
-                          <span className="block truncate text-sm text-gray-500">
-                            {teacher.email || teacher.phone}
-                            {teacher.email && teacher.phone
-                              ? ` · ${teacher.phone}`
-                              : ""}
-                          </span>
-                        </span>
-                      </button>
+                        teacher={teacher}
+                        selected={selectedTeacher?.id === teacher.id}
+                        onSelect={setSelectedTeacher}
+                      />
                     ))
                   ) : (
-                    <p className="rounded-lg bg-[#f7f9fc] p-4 text-sm text-gray-500">
+                    <p className="rounded-2xl border border-dashed border-slate-200 bg-white/70 p-5 text-sm text-slate-600">
                       Không tìm thấy giáo viên với thông tin này.
                     </p>
                   )}
@@ -287,16 +272,26 @@ function JoinClassPage() {
             </section>
 
             {selectedTeacher && (
-              <section className="mt-6 max-w-4xl">
-                <h2 className="mb-3 font-semibold text-[#102d22]">
-                  Lớp học của {getTeacherName(selectedTeacher)}
-                </h2>
+              <section className="mt-6 max-w-4xl rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
+                    <BookOpen size={20} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                      Lớp học đang phụ trách
+                    </p>
+                    <h2 className="font-bold text-[#102d22]">
+                      {getTeacherName(selectedTeacher)}
+                    </h2>
+                  </div>
+                </div>
                 {classesError ? (
                   <p role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-700">
                     {classesError}
                   </p>
                 ) : loading ? (
-                  <p className="text-sm text-gray-500">Đang tải lớp học...</p>
+                  <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Đang tải lớp học...</p>
                 ) : selectedTeacherClasses.length ? (
                   <div className="grid gap-3 sm:grid-cols-2">
                     {selectedTeacherClasses.map((classroom) => (
@@ -304,7 +299,7 @@ function JoinClassPage() {
                         key={classroom.id}
                         type="button"
                         onClick={() => handleSelectClass(classroom)}
-                        className="flex items-center gap-3 rounded-xl border border-[#dcefe3] bg-white p-4 text-left transition hover:border-[#9bdab4] hover:shadow-sm"
+                        className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-left transition hover:border-[#9bdab4] hover:bg-emerald-50/40 hover:shadow-sm"
                       >
                         <BookOpen size={20} className="shrink-0 text-[#159447]" />
                         <span className="min-w-0">
@@ -319,7 +314,7 @@ function JoinClassPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="rounded-lg bg-white p-4 text-sm text-gray-500">
+                  <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
                     Giáo viên chưa có lớp học.
                   </p>
                 )}
@@ -328,12 +323,17 @@ function JoinClassPage() {
           </>
         ) : (
           <>
-            <div className="mb-7 flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold text-[#102d22]">Vào lớp học</h1>
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-emerald-100 pb-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-800">
+                  <School size={24} />
+                </div>
+                <div>
+                <h1 className="text-2xl font-bold text-[#102d22]">Lớp học</h1>
                 <p className="mt-1 text-sm text-gray-500">
                   Tìm lớp học phù hợp và gửi yêu cầu tham gia.
                 </p>
+                </div>
               </div>
               <button
                 type="button"
@@ -345,34 +345,9 @@ function JoinClassPage() {
               </button>
             </div>
 
-            <section className="mb-8 rounded-2xl border border-[#dcefe3] bg-white p-5 shadow-sm sm:p-6">
-              <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#effbf3]">
-                  <Search size={20} className="text-[#159447]" />
-                </div>
-                <div>
-                  <h2 className="font-semibold text-[#102d22]">Tìm lớp học</h2>
-                  <p className="text-xs text-gray-500">
-                    Tìm theo tên lớp, mã lớp, môn học, năm học hoặc giáo viên
-                  </p>
-                </div>
-              </div>
+            <StudentClassStats joinedCount={new Set(joinedClassIds).size} loading={loading} error={dashboardError} />
 
-              <div className="relative">
-                <Search
-                  size={20}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-                />
-                <input
-                  type="search"
-                  value={searchTerm}
-                  onChange={handleSearchChange}
-                  placeholder="Nhập tên lớp, mã lớp, môn học hoặc giáo viên..."
-                  aria-label="Tìm kiếm lớp học"
-                  className="w-full rounded-xl border border-[#dcefe3] bg-[#f9fdfb] py-3.5 pl-12 pr-4 text-sm text-[#102d22] outline-none transition focus:border-[#159447] focus:ring-2 focus:ring-[#159447]/10"
-                />
-              </div>
-            </section>
+            <StudentClassSearch value={searchTerm} onChange={handleSearchChange} />
 
             <section>
           <div className="mb-4 flex items-end justify-between gap-3">
@@ -381,7 +356,7 @@ function JoinClassPage() {
               <p className="mt-1 text-xs text-gray-500">
                 {loading
                   ? "Đang tải lớp học..."
-                  : `${visibleClasses.length} lớp trong database`}
+                  : <>Hiển thị <span className="font-semibold text-[#18301D]">{visibleClasses.length}</span> / {classes.length} lớp</>}
               </p>
             </div>
             <span className="hidden items-center gap-2 text-xs text-gray-500 sm:flex">
@@ -404,61 +379,19 @@ function JoinClassPage() {
               <p className="mt-3 font-medium text-[#102d22]">
                 {searchTerm.trim()
                   ? "Không tìm thấy lớp học phù hợp."
-                  : "Chưa có lớp học nào trong hệ thống."}
+                  : "Bạn chưa tham gia lớp học nào."}
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {visibleClasses.map((classroom) => {
-                const isJoined = joinedClassIds.includes(String(classroom.id));
-
-                return (
-                  <button
-                    key={classroom.id}
-                    type="button"
-                    onClick={() => handleSelectClass(classroom)}
-                    className="group rounded-2xl border border-[#dcefe3] bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#9bdab4] hover:shadow-md"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#effbf3] text-[#159447]">
-                        <BookOpen size={22} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-medium text-[#159447]">
-                          {classroom.code}
-                        </p>
-                        <h3 className="mt-1 font-semibold text-[#102d22]">
-                          {classroom.name}
-                        </h3>
-                        <p className="mt-2 truncate text-sm text-gray-500">
-                          {classroom.subjectName || "Chưa cập nhật môn học"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-[#edf3ef] pt-4 text-xs">
-                      <span className="text-gray-500">
-                        {classroom.teacherName || "Chưa cập nhật giáo viên"}
-                      </span>
-                      <span
-                        className={
-                          isJoined
-                            ? "font-medium text-[#159447]"
-                            : classroom.status === "ACTIVE"
-                              ? "text-[#159447]"
-                              : "text-gray-400"
-                        }
-                      >
-                        {isJoined
-                          ? "Đã tham gia"
-                          : classroom.status === "ACTIVE"
-                            ? "Đang hoạt động"
-                            : "Đã lưu trữ"}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
+              {visibleClasses.map((classroom) => (
+                <StudentClassCard
+                  key={classroom.id}
+                  classroom={classroom}
+                  isJoined={joinedClassIds.includes(String(classroom.id))}
+                  onView={handleSelectClass}
+                />
+              ))}
             </div>
           )}
             </section>

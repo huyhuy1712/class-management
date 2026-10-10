@@ -29,7 +29,6 @@
 | 18 | PATCH | `/api/requests/{requestId}/approve` | Chấp nhận yêu cầu tham gia lớp |
 | 19 | PATCH | `/api/requests/{requestId}/reject` | Từ chối yêu cầu tham gia lớp |
 | 20 | POST | `/api/notifications/request-approved/{requestId}` | Tạo thông báo yêu cầu được chấp nhận |
-| 21 | POST | `/api/notifications/request-rejected/{requestId}` | Tạo thông báo yêu cầu bị từ chối |
 | 22 | DELETE | `/api/classes/{classroomId}/students/{studentId}` | Xóa học sinh khỏi lớp |
 | 23 | POST | `/api/classes/{classroomId}/attendances` | Tạo điểm danh |
 | 24 | GET | `/api/classes/{classroomId}/attendances` | Lấy lịch sử điểm danh của lớp |
@@ -53,6 +52,10 @@
 | 42 | GET | `/api/exams/{examId}` | Lấy cấu hình và toàn bộ nội dung đề của giáo viên hiện tại |
 | 43 | PUT | `/api/exams/{examId}` | Cập nhật đầy đủ cấu hình chính và một lần giao của đề |
 | 44 | PUT | `/api/exams/{examId}/content` | Cập nhật toàn bộ cây nội dung, điểm và media của đề |
+| 46 | GET | `/api/users/me/classes` | Lấy các lớp học sinh hiện tại đã tham gia |
+| 47 | GET | `/api/notifications` | Lấy toàn bộ thông báo của người dùng hiện tại |
+| 48 | DELETE | `/api/notifications/{notificationId}` | Xóa thông báo của người dùng hiện tại |
+| 49 | PATCH | `/api/notifications/{notificationId}/read` | Đổi trạng thái đã đọc/chưa đọc |
 
 ## Xác thực
 
@@ -794,7 +797,7 @@ curl -X POST http://localhost:8080/api/notifications/request-approved/12 \
 
 ### 19. PATCH `/api/requests/{requestId}/reject` | Từ chối yêu cầu tham gia lớp
 
-Từ chối yêu cầu đang ở trạng thái `PENDING` và được gửi đến tài khoản hiện tại. `{requestId}` là ID lấy từ response của `GET /api/requests/join-class/received`. API không cần request body. Sau khi PATCH thành công, gọi `POST /api/notifications/request-rejected/{requestId}` để tạo thông báo cho học sinh gửi yêu cầu.
+Từ chối yêu cầu đang ở trạng thái `PENDING` và được gửi đến tài khoản hiện tại. `{requestId}` là ID lấy từ response của `GET /api/requests/join-class/received`. API không cần request body. BE tự tạo một thông báo cho học sinh rồi xóa request và detail trong cùng transaction. FE chỉ gọi PATCH này; không gọi API tạo thông báo riêng. Thông báo có `referenceType = CLASS`, `referenceId = classroomId`. Lỗi DB sẽ rollback cả thông báo và thao tác xóa. Request không được giữ ở trạng thái REJECTED.
 
 **Headers:**
 
@@ -817,30 +820,15 @@ curl -X PATCH http://localhost:8080/api/requests/12/reject \
 - `403 Forbidden`: Yêu cầu không được gửi đến tài khoản đang đăng nhập.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
 
-### 21. POST `/api/notifications/request-rejected/{requestId}` | Tạo thông báo yêu cầu bị từ chối
+#### Kiểm tra luồng từ chối yêu cầu
 
-Tạo thông báo cho học sinh đã gửi yêu cầu tham gia lớp vừa bị từ chối. Chỉ người nhận yêu cầu (giáo viên) mới được tạo thông báo. API không cần request body; chỉ gọi sau khi `PATCH /api/requests/{requestId}/reject` thành công.
+1. Học sinh gửi yêu cầu mới, giáo viên lấy `requestId` từ danh sách yêu cầu nhận được.
+2. Giáo viên gọi `PATCH /api/requests/{requestId}/reject`: nhận 204; không gọi POST notification.
+3. Kiểm tra `requests` và `class_join_request_details`: không còn bản ghi requestId đó. `notifications` có một thông báo REQUEST_REJECTED cho học sinh, tham chiếu CLASS/classroomId.
+4. Gọi lại PATCH cùng ID: nhận 400, không tạo thêm thông báo. Giáo viên khác gọi: 403, dữ liệu không thay đổi.
+5. Học sinh có thể gửi yêu cầu mới cho lớp đó. Approve và reject sử dụng chung khóa request để tránh xử lý đồng thời.
 
-**Headers:**
-
-```http
-Authorization: Bearer <accessToken>
-```
-
-**Cách test bằng cURL:**
-
-```bash
-curl -X POST http://localhost:8080/api/notifications/request-rejected/12 \
-	-H "Authorization: Bearer <accessToken>"
-```
-
-**Response thành công `204 No Content`:** Không có response body.
-
-**Một số trường hợp lỗi:**
-
-- `400 Bad Request`: Không tìm thấy yêu cầu, yêu cầu không phải yêu cầu tham gia lớp hoặc chưa bị từ chối. Mỗi lần gọi thành công tạo một notification mới.
-- `403 Forbidden`: Tài khoản hiện tại không phải người nhận yêu cầu.
-- `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+Endpoint cũ `POST /api/notifications/request-rejected/{requestId}` đã được bỏ; client phải chuyển sang PATCH reject duy nhất.
 
 ### 22. DELETE `/api/classes/{classroomId}/students/{studentId}` | Xóa học sinh khỏi lớp
 
@@ -859,13 +847,16 @@ curl -X DELETE http://localhost:8080/api/classes/1/students/5 \
 
 **Response thành công `204 No Content`:**
 
-Học sinh bị gỡ khỏi lớp; tài khoản vẫn tồn tại.
+Học sinh bị gỡ khỏi lớp; tài khoản vẫn tồn tại. BE đồng thời tạo một notification cho học sinh trong cùng transaction: type `CLASS_REMOVED`, title `Bạn đã bị xóa khỏi lớp`, message `Bạn đã bị xóa khỏi lớp <tên lớp>`, referenceType `CLASS`, referenceId là classroomId, `is_read = false` (GET trả `read: false`). FE chỉ gọi DELETE hiện có, không gọi thêm API tạo thông báo. Nếu xóa hoặc tạo notification lỗi, toàn bộ transaction rollback. Khóa membership ngăn hai lượt xóa đồng thời cùng tạo thông báo; một query fetch dữ liệu cần dùng, không có N+1.
 
 **Một số trường hợp lỗi:**
 
-- `400 Bad Request`: Không tìm thấy lớp học hoặc học sinh.
-- `400 Bad Request`: Học sinh không thuộc lớp học này.
+- `400 Bad Request`: classroomId hoặc studentId không phải số nguyên dương.
+- `404 Not Found`: Không tìm thấy học sinh trong lớp (bao gồm đã bị xóa).
+- `403 Forbidden`: Không phải giáo viên sở hữu lớp.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
+
+**Test:** giáo viên sở hữu lớp gọi DELETE và nhận 204; học sinh gọi GET /api/notifications thấy một thông báo CLASS_REMOVED/read=false với đúng tên lớp. Gọi DELETE lại nhận 404, không tạo thêm thông báo. Giáo viên khác gọi nhận 403, membership không đổi. Không cần migration; luồng này áp dụng xóa một học sinh, không thay đổi API xóa tất cả học sinh.
 
 ### 14. POST `/api/classes/{classroomId}/lessons` | Tạo buổi học
 
@@ -1142,8 +1133,9 @@ curl -X POST http://localhost:8080/api/classes/1/attendances \
 **Một số trường hợp lỗi:**
 
 - `400 Bad Request`: Thiếu ngày, danh sách học sinh hoặc trạng thái điểm danh không hợp lệ.
-- `400 Bad Request`: Không tìm thấy lớp học hoặc học sinh.
-- `400 Bad Request`: Học sinh không thuộc lớp học này.
+- `400 Bad Request`: classroomId hoặc studentId không phải số nguyên dương.
+- `404 Not Found`: Không tìm thấy học sinh trong lớp (bao gồm đã bị xóa).
+- `403 Forbidden`: Không phải giáo viên sở hữu lớp.
 - `400 Bad Request`: Học sinh đã được điểm danh trong ngày đã chọn.
 - `400 Bad Request`: Có nhiều buổi học trong lớp cùng ngày nên không thể tự động liên kết điểm danh.
 - `401 Unauthorized`: Thiếu hoặc Bearer token không hợp lệ.
@@ -2436,3 +2428,112 @@ Ví dụ trên chỉ minh họa field section; khi POST/PUT thực tế phải c
 `GET /api/users/me/student-exam-count` uses the authenticated student, with no user ID parameter.
 
 Response: `{ "completedExamCount": 3 }`. Counts distinct exams with attempts in `SUBMITTED` or `GRADED` status; excludes unstarted/in-progress attempts.
+
+## 46. Lấy danh sách lớp học sinh hiện tại đã tham gia
+
+**GET** `/api/users/me/classes`
+
+Endpoint mới trong UserController. Đăng nhập tài khoản STUDENT và gửi cookie HttpOnly `access_token`. Không có request body, không nhận studentId; BE lấy tài khoản từ authentication để truy vấn membership của chính học sinh. TEACHER/ADMIN gọi trả 403. Không thay đổi GET `/api/classes/my` của giáo viên.
+
+```http
+GET /api/users/me/classes
+Cookie: access_token=<token>
+```
+
+**200 OK:** reuse ClassroomResponse, ví dụ:
+
+```json
+[
+  {
+    "id": 12,
+    "name": "Lớp Toán 12A1",
+    "code": "12-MATH-example",
+    "subjectId": 1,
+    "subjectName": "Toán",
+    "teacherId": 11,
+    "teacherName": "Giáo viên A",
+    "academicYear": "2026-2027",
+    "description": "Thông tin lớp học",
+    "status": "ACTIVE",
+    "createdAt": "2026-10-01T08:00:00",
+    "updatedAt": "2026-10-10T08:00:00"
+  }
+]
+```
+
+- Chỉ lớp có membership trong class_students. Join request đang chờ, bị từ chối hoặc membership đã bị xóa không xuất hiện. Không phải API tìm tất cả lớp để đăng ký.
+- Trả cả ACTIVE và ARCHIVED, UI dùng status để hiện lớp lưu trữ/vô hiệu. Việc vào chi tiết/làm bài cần quyền riêng; xuất hiện trong danh sách không đồng nghĩa mọi hành động được phép.
+- Mới tham gia trước: joined_at giảm dần, ID lớp giảm dần để ổn định thứ tự khi cùng thời gian. Chưa có lớp trả [] và 200.
+- Trả danh sách đầy đủ, chưa phân trang, không trả danh sách học sinh hay thống kê từng lớp. UI có thể dùng length để đếm lớp.
+- Reuse DTO/mapper lớp; một query tìm người dùng, một query projection membership+class+subject+teacher. Không lazy traverse entity lớp/môn/giáo viên, không storage/HTTP/API gọi thêm và không tải attendance.
+- Nếu dữ liệu thiếu môn/giáo viên, LEFT JOIN vẫn giữ membership và trả các field tương ứng null.
+
+**Lỗi:** 403 nếu tài khoản không STUDENT, theo ErrorResponse hiện tại; 400 nếu user trong authentication không còn tồn tại; chưa login bị security hiện tại từ chối (entry point hiện có). Endpoint không sửa security chung hoặc kiểm tra status khác với các API đọc học sinh hiện có.
+
+**Test:**
+
+1. Restart BE, đăng nhập học sinh có membership; GET `/api/users/me/classes` -> 200, đúng lớp của học sinh, tên môn/giáo viên/năm học/status khớp DB.
+2. Học sinh chưa tham gia lớp -> []. Học sinh có request tham gia đang chờ nhưng chưa có membership -> không có lớp đó.
+3. Lớp ARCHIVED vẫn xuất hiện với status ARCHIVED; UI hiện trạng thái phù hợp.
+4. Đăng nhập học sinh khác -> chỉ các membership của tài khoản đó. Không gửi studentId để lấy lớp người khác.
+5. Đăng nhập giáo viên/admin -> 403. Không đăng nhập -> bị security từ chối.
+
+Unit tests kiểm tra mapping/quyền/danh sách rỗng và 1/100 lớp cùng hai lượt đọc repository. Chưa chạy SQL/HTTP integration hoặc đo thời gian Railway/Supabase. Không cần migration mới. FE chưa nối API trong bước này.
+
+### 47. GET `/api/notifications` | Lấy toàn bộ thông báo theo user_id hiện tại
+
+Không cần request body, userId hoặc tham số phân trang. BE lấy username từ tài khoản đã xác thực, nối users với notifications qua user_id để chỉ trả thông báo của tài khoản đó. Trả cả đã đọc và chưa đọc, sắp xếp createdAt giảm dần rồi id giảm dần. API không tự đánh dấu đã đọc. Mọi thông báo mới do BE tạo được lưu với `is_read = false` (response `read: false`); entity bảo đảm mặc định này khi insert, không thay đổi trạng thái của thông báo đã tồn tại.
+
+```bash
+curl http://localhost:8080/api/notifications --cookie "access_token=<token>"
+```
+
+**Response `200 OK`:**
+
+```json
+[
+  {
+    "id": 15,
+    "type": "REQUEST_REJECTED",
+    "title": "Yêu cầu tham gia lớp bị từ chối",
+    "message": "Yêu cầu vào lớp Lớp Anh 12A5 của bạn đã bị từ chối",
+    "referenceType": "CLASS",
+    "referenceId": 3,
+    "read": false,
+    "createdAt": "2026-10-10T12:00:00"
+  }
+]
+```
+
+Không có thông báo trả `[]`. Thiếu hoặc cookie access_token không hợp lệ: `401 Unauthorized`. Không hỗ trợ lấy thông báo của tài khoản khác bằng cách truyền userId.
+
+Dữ liệu được chọn thẳng vào DTO bằng một query, không tải entity user hoặc truy vấn từng thông báo; không có N+1. API trả toàn bộ nên kích thước response tăng theo số lượng thông báo.
+
+**Test:** đăng nhập học sinh có thông báo từ chối, gọi GET và kiểm tra nội dung cùng referenceId; đăng nhập tài khoản khác để kiểm tra dữ liệu được tách theo user_id; tài khoản chưa có thông báo nhận [].
+
+### 48. DELETE `/api/notifications/{notificationId}` | Xóa thông báo
+
+Lấy notificationId từ field `id` của GET `/api/notifications`. Chỉ xóa thông báo của tài khoản đang đăng nhập; không xóa request, lớp hoặc dữ liệu tham chiếu. Không cần request body.
+
+```bash
+curl -X DELETE http://localhost:8080/api/notifications/15 --cookie "access_token=<token>"
+```
+
+Thành công: `204 No Content`, không có response body. Sau đó GET không còn thông báo đó. Xóa lại ID đã xóa: `404 Not Found`.
+
+### 49. PATCH `/api/notifications/{notificationId}/read` | Đổi is_read
+
+Request body bắt buộc có boolean `read`: `true` là đã đọc, `false` là chưa đọc. DB lưu vào cột `is_read`. Chỉ cập nhật thông báo của tài khoản đang đăng nhập. Không thay đổi createdAt; không tạo thông báo mới.
+
+```bash
+curl -X PATCH http://localhost:8080/api/notifications/15/read \
+  --cookie "access_token=<token>" \
+  -H "Content-Type: application/json" \
+  -d '{"read":true}'
+```
+
+Thành công: `204 No Content`, không có response body. Gửi lại cùng trạng thái vẫn thành công; đổi thành `{"read":false}` để đánh dấu chưa đọc. GET sẽ phản ánh trạng thái mới.
+
+**Lỗi chung hai API:** `401` nếu chưa đăng nhập/token không hợp lệ; `400` nếu notificationId không phải số nguyên dương; `404` nếu ID không tồn tại hoặc thuộc người khác. PATCH trả `400` nếu thiếu/null read, body thiếu hoặc sai định dạng. Truy vấn kiểm tra chủ sở hữu và mutation trong một câu lệnh DB, không có N+1 hoặc query đọc trước khi ghi.
+
+**Test:** đăng nhập chủ thông báo, PATCH true rồi GET xác nhận read=true; PATCH false rồi GET xác nhận false; DELETE rồi GET xác nhận không còn. Tài khoản khác thử PATCH/DELETE cùng ID phải nhận 404 và dữ liệu không đổi. Thử PATCH `{}`/`{"read":null}` nhận 400. Không cần migration.

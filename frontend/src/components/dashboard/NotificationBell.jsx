@@ -64,7 +64,7 @@ function NotificationBell() {
 
 
 const handleReject = async (request) => {
-  if (!request?.requestId || rejectingId) return
+  if (!request?.requestId || rejectingId !== null || approvingId !== null) return
 
   const requestId = request.requestId
 
@@ -72,10 +72,10 @@ const handleReject = async (request) => {
     setRejectingId(requestId)
     setActionError('')
 
-    // BƯỚC 1: reject
+    // BE creates the notification and deletes the request atomically.
     await requestService.rejectJoinClassRequest(requestId)
 
-    // PATCH thành công => request không còn PENDING
+    // PATCH succeeded: request and detail have been deleted.
     // Xóa khỏi UI ngay
     setRequests((current) =>
       current.filter(
@@ -83,21 +83,6 @@ const handleReject = async (request) => {
       )
     )
 
-    // BƯỚC 2: tạo notification
-    try {
-      await notificationService.createRequestRejectedNotification(
-        requestId
-      )
-    } catch (notificationError) {
-      console.error(
-        'Create rejected notification error:',
-        notificationError
-      )
-
-      setActionError(
-        'Đã từ chối yêu cầu nhưng không thể gửi thông báo cho học sinh.'
-      )
-    }
   } catch (error) {
     console.error(
       'Reject join class request error:',
@@ -134,7 +119,7 @@ const handleReject = async (request) => {
 }
 
 const handleApprove = async (request) => {
-  if (!request?.requestId || approvingId) return
+  if (!request?.requestId || approvingId !== null || rejectingId !== null) return
 
   const requestId = request.requestId
 
@@ -444,7 +429,7 @@ const handleApprove = async (request) => {
 
                           <button
                             type="button"
-                            disabled={rejectingId !== null}
+                            disabled={rejectingId !== null || approvingId !== null}
                             onClick={() => handleReject(request)}
                             className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
                           >

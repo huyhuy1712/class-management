@@ -22,7 +22,6 @@ import ExamBuilderPage from '../pages/teacher/exams/builder/ExamBuilderPage'
 // =============================
 import StudentProfilePage from '../pages/student/StudentProfilePage'
 import StudentHome from '../pages/student/StudentHome'
-import StudentAttendancePage from '../pages/student/StudentAttendancePage'
 import JoinClassPage from '../pages/student/JoinClassPage' 
 
 function AppRoutes() {
@@ -55,8 +54,9 @@ function AppRoutes() {
       ========================= */}
       <Route path="/student/profile" element={<StudentProfilePage />} />
       <Route path="/student" element={<StudentHome />} />
-      <Route path="/student/attendance" element={<StudentAttendancePage />} />
+      <Route path="/student/attendance" element={<Navigate to="/student" replace />} />
       <Route path="/student/classes" element={<JoinClassPage />} />
+      <Route path="/student/teachers" element={<JoinClassPage />} />
 
       {/* Route exam management */}
       <Route path="/teacher/exams" element={<ExamManagementPage />} />

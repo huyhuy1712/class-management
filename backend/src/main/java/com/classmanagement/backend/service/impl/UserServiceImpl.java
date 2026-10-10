@@ -1,4 +1,7 @@
 package com.classmanagement.backend.service.impl;
+import com.classmanagement.backend.service.mapper.ClassroomResponseMapper;
+
+import com.classmanagement.backend.dto.classroom.ClassroomResponse;
 
 import com.classmanagement.backend.dto.user.ChangePasswordRequest;
 import com.classmanagement.backend.dto.user.StudentClassResponse;
@@ -38,6 +41,19 @@ public class UserServiceImpl implements UserService {
     private final AttendanceRepository attendanceRepository;
     private final StorageService storageService;
     private final PasswordEncoder passwordEncoder;
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ClassroomResponse> getMyStudentClasses(String username) {
+        User student = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng"));
+        if (student.getRole() != UserRole.STUDENT) {
+            throw new IllegalStateException("Chỉ học sinh mới được xem các lớp đã tham gia");
+        }
+        return classStudentRepository.findClassSummariesByStudentId(student.getId()).stream()
+                .map(ClassroomResponseMapper::fromSummary)
+                .toList();
+    }
 
     @Override
     public List<UserResponse> getAllUsers(UserRole role) {

@@ -1,6 +1,10 @@
 package com.classmanagement.backend.controller;
 
 import com.classmanagement.backend.service.NotificationService;
+import com.classmanagement.backend.dto.notification.NotificationResponse;
+import com.classmanagement.backend.dto.notification.UpdateNotificationReadRequest;
+import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -13,15 +17,22 @@ public class NotificationController {
 
     private final NotificationService notificationService;
 
-    @PostMapping("/request-rejected/{requestId}")
-    public ResponseEntity<Void> createJoinClassRejectedNotification(
-            @PathVariable Long requestId,
-            Authentication authentication) {
+    @GetMapping
+    public ResponseEntity<List<NotificationResponse>> getMyNotifications(Authentication authentication) {
+        return ResponseEntity.ok(notificationService.getMyNotifications(authentication.getName()));
+    }
 
-        notificationService.createJoinClassRejectedNotification(
-                requestId,
-                authentication.getName());
+    @DeleteMapping("/{notificationId}")
+    public ResponseEntity<Void> deleteMyNotification(@PathVariable Long notificationId,
+                                                    Authentication authentication) {
+        notificationService.deleteMyNotification(notificationId, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
 
+    @PatchMapping("/{notificationId}/read")
+    public ResponseEntity<Void> updateMyNotificationReadStatus(@PathVariable Long notificationId,
+            @Valid @RequestBody UpdateNotificationReadRequest request, Authentication authentication) {
+        notificationService.updateMyNotificationReadStatus(notificationId, authentication.getName(), request.read());
         return ResponseEntity.noContent().build();
     }
 

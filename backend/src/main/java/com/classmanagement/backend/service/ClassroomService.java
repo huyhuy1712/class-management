@@ -33,7 +33,8 @@ public interface ClassroomService {
 
     void removeStudentFromClassroom(
             Long classroomId,
-            Long studentId);
+            Long studentId,
+            String username);
 
     void removeAllStudentsFromClassroom(Long classroomId);
     

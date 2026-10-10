@@ -8,11 +8,14 @@ import com.classmanagement.backend.dto.classroom.ImportStudentErrorResponse;
 import com.classmanagement.backend.dto.classroom.ImportStudentsResponse;
 import com.classmanagement.backend.dto.classroom.UpdateClassroomRequest;
 import com.classmanagement.backend.entity.ClassStudent;
-import com.classmanagement.backend.entity.compositeID.ClassStudentId;
 import com.classmanagement.backend.entity.ClassJoinRequestDetail;
 import com.classmanagement.backend.entity.Classroom;
 import com.classmanagement.backend.entity.Subject;
 import com.classmanagement.backend.entity.User;
+import com.classmanagement.backend.entity.Notification;
+import com.classmanagement.backend.entity.enums.NotificationType;
+import com.classmanagement.backend.repository.NotificationRepository;
+import com.classmanagement.backend.exception.ResourceNotFoundException;
 import com.classmanagement.backend.entity.enums.ClassroomStatus;
 import com.classmanagement.backend.entity.enums.UserRole;
 import com.classmanagement.backend.entity.enums.UserStatus;
@@ -24,6 +27,7 @@ import com.classmanagement.backend.repository.projection.ClassroomSummaryProject
 import com.classmanagement.backend.repository.request.ClassJoinRequestDetailRepository;
 import com.classmanagement.backend.repository.request.RequestRepository;
 import com.classmanagement.backend.service.ClassroomService;
+import com.classmanagement.backend.service.mapper.ClassroomResponseMapper;
 import com.classmanagement.backend.service.StorageService;
 import com.classmanagement.backend.service.excel.StudentExcelReader;
 
@@ -54,6 +58,7 @@ public class ClassroomServiceImpl implements ClassroomService {
     private final RequestRepository requestRepository;
     private final StorageService storageService;
     private final StudentExcelReader studentExcelReader;
+    private final NotificationRepository notificationRepository;
 
 @Override
 @Transactional
@@ -106,20 +111,7 @@ public List<ClassroomResponse> getAllClassrooms() {
     }
 
 private ClassroomResponse toResponse(ClassroomSummaryProjection classroom) {
-        return ClassroomResponse.builder()
-                .id(classroom.getId())
-                .name(classroom.getName())
-                .code(classroom.getCode())
-                .subjectId(classroom.getSubjectId())
-                .subjectName(classroom.getSubjectName())
-                .teacherId(classroom.getTeacherId())
-                .teacherName(classroom.getTeacherName())
-                .academicYear(classroom.getAcademicYear())
-                .description(classroom.getDescription())
-                .status(classroom.getStatus())
-                .createdAt(classroom.getCreatedAt())
-                .updatedAt(classroom.getUpdatedAt())
-                .build();
+        return ClassroomResponseMapper.fromSummary(classroom);
     }
 
 private ClassroomResponse toResponse(Classroom classroom) {
@@ -416,34 +408,30 @@ public List<ClassroomStudentResponse> getStudentsByClassroomId(
 @Override
 public void removeStudentFromClassroom(
                 Long classroomId,
-                Long studentId
+                Long studentId,
+                String username
         ) {
-
-        if (!classroomRepository.existsById(classroomId)) {
-                throw new IllegalArgumentException(
-                        "Không tìm thấy lớp học"
-                );
+        if (classroomId == null || classroomId <= 0 || studentId == null || studentId <= 0) {
+                throw new IllegalArgumentException("classroomId và studentId phải lớn hơn 0");
         }
-
-        if (!userRepository.existsById(studentId)) {
-                throw new IllegalArgumentException(
-                        "Không tìm thấy học sinh"
-                );
+        ClassStudent membership = classStudentRepository.findMembershipForUpdate(classroomId, studentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy học sinh trong lớp"));
+        Classroom classroom = membership.getClassroom();
+        User teacher = classroom.getTeacher();
+        if (teacher.getRole() != UserRole.TEACHER || !teacher.getUsername().equals(username)) {
+                throw new IllegalStateException("Chỉ giáo viên sở hữu lớp mới được xóa học sinh");
         }
-
-        ClassStudentId classStudentId =
-                new ClassStudentId(
-                        classroomId,
-                        studentId
-                );
-
-        if (!classStudentRepository.existsById(classStudentId)) {
-                throw new IllegalArgumentException(
-                        "Học sinh không thuộc lớp học này"
-                );
-        }
-
-        classStudentRepository.deleteById(classStudentId);
+        classStudentRepository.delete(membership);
+        classStudentRepository.flush();
+        notificationRepository.save(Notification.builder()
+                .user(membership.getStudent())
+                .type(NotificationType.CLASS_REMOVED)
+                .title("Bạn đã bị xóa khỏi lớp")
+                .message("Bạn đã bị xóa khỏi lớp " + classroom.getName())
+                .referenceType("CLASS")
+                .referenceId(classroom.getId())
+                .read(false)
+                .build());
 }
 
 @Transactional

@@ -7,6 +7,7 @@ import { handleMathBracketKey, MATH_ROW_KEYBINDINGS } from './mathBrackets'
 function MathEditor({ value = '', onChange, placeholder = 'Nhập công thức...' }) {
   const ref = useRef(null)
   const pendingRoot = useRef(null)
+  const lastInsert = useRef({ latex: '', timestamp: 0 })
 
   useEffect(() => {
     if (ref.current && ref.current.value !== value) ref.current.value = value
@@ -55,10 +56,22 @@ function MathEditor({ value = '', onChange, placeholder = 'Nhập công thức..
   }
 
   const insert = (latex) => {
-    ref.current?.focus()
-    ref.current?.insert(latex, { selectionMode: 'placeholder' })
+    const now = Date.now()
+    if (
+      lastInsert.current.latex === latex &&
+      now - lastInsert.current.timestamp < 150
+    ) {
+      return
+    }
+
+    lastInsert.current = { latex, timestamp: now }
+    const field = ref.current
+    if (!field) return
+
+    field.focus()
+    field.insert(latex, { selectionMode: 'placeholder' })
     pendingRoot.current = latex.startsWith('\\sqrt[') ? 'indexed' : latex.startsWith('\\sqrt{') ? 'square' : null
-    if (ref.current) onChange?.(ref.current.value)
+    onChange?.(field.value)
   }
 
   return (

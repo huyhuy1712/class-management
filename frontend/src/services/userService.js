@@ -1,6 +1,11 @@
 import api from './api'
 
 const userService = {
+  getMyClasses: async () => {
+    const response = await api.get('/users/me/classes')
+    if (!Array.isArray(response.data)) throw new Error('Invalid student classes response format')
+    return response.data
+  },
 getStudents: async () => {
     const response = await api.get('/users', {
       params: {

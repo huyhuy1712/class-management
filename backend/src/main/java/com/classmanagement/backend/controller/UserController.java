@@ -1,5 +1,7 @@
 package com.classmanagement.backend.controller;
 
+import com.classmanagement.backend.dto.classroom.ClassroomResponse;
+
 import com.classmanagement.backend.dto.user.ChangePasswordRequest;
 import com.classmanagement.backend.dto.user.TeacherStudentResponse;
 import com.classmanagement.backend.dto.user.StudentDashboardResponse;
@@ -27,6 +29,12 @@ public class UserController {
 
     private final UserService userService;
     private final StudentProfileStatsService profileStats;
+
+    @GetMapping("/me/classes")
+    public ResponseEntity<List<ClassroomResponse>> getMyStudentClasses(
+            Authentication authentication) {
+        return ResponseEntity.ok(userService.getMyStudentClasses(authentication.getName()));
+    }
 
     @GetMapping("/me/student-exam-count")
     public ResponseEntity<StudentExamCountResponse> getStudentExamCount(Authentication authentication) {

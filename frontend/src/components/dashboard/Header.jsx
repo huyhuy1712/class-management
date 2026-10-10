@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import logo from '../../assets/logos/logo.png'
 import defaultAvatar from '../../assets/images/avatar_default.png'
 import NotificationBell from '../dashboard/NotificationBell'
+import StudentNotificationBell from './StudentNotificationBell'
 
 
 function Header({ onMenuClick }) {
@@ -39,7 +40,7 @@ function Header({ onMenuClick }) {
 {/* Notification + User */}
 <div className="flex shrink-0 items-center gap-2 sm:gap-3">
   {/* Notification */}
-  <NotificationBell />
+        {user?.role === 'STUDENT' ? <StudentNotificationBell /> : <NotificationBell />}
 
   {/* User profile */}
   <button

@@ -1,6 +1,6 @@
+import StudentLogoutModal from './modals/StudentLogoutModal';
 import {
   Home,
-  ClipboardCheck,
   BookOpen,
   BarChart3,
   FileCheck,
@@ -21,12 +21,7 @@ const menuItems = [
     path: "/student",
   },
   {
-    label: "Điểm danh",
-    icon: ClipboardCheck,
-    path: "/student/attendance",
-  },
-  {
-    label: "Vào lớp học",
+    label: "Lớp học",
     icon: BookOpen,
     path: "/student/classes",
   },
@@ -43,7 +38,7 @@ const menuItems = [
 ];
 
 
-function StudentSidebar() {
+function StudentSidebar({ isOpen, onClose }) {
   const navigate = useNavigate();
   const logout = useAuthStore((state) => state.logout);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -51,12 +46,14 @@ function StudentSidebar() {
   const handleLogout = () => {
     logout();
     setShowLogoutModal(false);
+    onClose?.();
     navigate("/login", { replace: true });
   };
 
   return (
     <>
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-[275px] flex-col bg-[#0b3d2e] text-white">
+    <button type="button" aria-label="Đóng menu" onClick={onClose} className={`fixed inset-0 z-30 bg-black/40 transition-opacity lg:hidden ${isOpen ? "visible opacity-100" : "invisible opacity-0"}`} />
+    <aside className={`fixed left-0 top-0 z-40 flex h-dvh w-72 max-w-[calc(100vw-3rem)] flex-col bg-[#0b3d2e] text-white shadow-xl transition-transform duration-300 lg:w-64 lg:translate-x-0 ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
 
       {/* =========================
           LOGO
@@ -108,6 +105,7 @@ function StudentSidebar() {
               <NavLink
                 key={item.path}
                 to={item.path}
+                onClick={onClose}
                 end={item.path === "/student"}
 
                 className={({ isActive }) =>
@@ -174,52 +172,11 @@ function StudentSidebar() {
       </div>
 
     </aside>
-    {showLogoutModal && (
-      <div
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4 backdrop-blur-[2px]"
-        onClick={() => setShowLogoutModal(false)}
-      >
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="student-logout-title"
-          className="w-full max-w-sm rounded-2xl bg-white p-6 text-[#18301D] shadow-2xl"
-          onClick={(event) => event.stopPropagation()}
-        >
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
-            <LogOut size={22} className="text-red-500" />
-          </div>
-          <div className="mt-4 text-center">
-            <h2 id="student-logout-title" className="text-xl font-bold">
-              Xác nhận đăng xuất
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-gray-500">
-              Bạn có chắc chắn muốn đăng xuất khỏi tài khoản hiện tại?
-            </p>
-          </div>
-          <div className="mt-6 flex gap-3">
-            <button
-              type="button"
-              onClick={() => setShowLogoutModal(false)}
-              className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50"
-            >
-              Hủy
-            </button>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-600"
-            >
-              <LogOut size={17} />
-              Đăng xuất
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
+    {showLogoutModal && <StudentLogoutModal onClose={() => setShowLogoutModal(false)} onConfirm={handleLogout} />}
     </>
   );
 }
 
 
 export default StudentSidebar;
+

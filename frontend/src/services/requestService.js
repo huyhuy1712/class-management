@@ -10,7 +10,7 @@ const requestService = {
     return response.data
   },
 
-    rejectJoinClassRequest: async (requestId) => {
+  rejectJoinClassRequest: async (requestId) => {
     await api.patch(`/requests/${requestId}/reject`)
   },
 
