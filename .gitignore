@@ -69,3 +69,5 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+# Al local
+.github/copilot-instructions.md
