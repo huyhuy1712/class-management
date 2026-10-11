@@ -20,7 +20,7 @@ import useCreateExamForm from './hooks/useCreateExamForm'
 
 function CreateExamPage() {
   const navigate = useNavigate()
-  const { subjects, subjectsLoading, subjectsError, classes, students, loading: targetsLoading, error: targetsError } = useExamTargetOptions()
+  const { subjects, subjectsLoading, subjectsError, retrySubjects, classes, classesLoading, classesError, students, loading: targetsLoading, error: targetsError } = useExamTargetOptions()
   const {
     form,
     errors,
@@ -64,6 +64,7 @@ function CreateExamPage() {
   }
 
   const handleImportFile = () => {
+    if (targetsLoading || targetsError || !validate()) return
     const data = buildExamData()
 
     console.log(
@@ -148,6 +149,7 @@ function CreateExamPage() {
             subjects={subjects}
             subjectsLoading={subjectsLoading}
             subjectsError={subjectsError}
+            onRetrySubjects={retrySubjects}
           />
 
           {/* THIẾT LẬP BÀI THI */}
@@ -173,6 +175,9 @@ function CreateExamPage() {
             onAccessChange={handleAccessChange}
 
             classes={filteredClasses}
+            classCount={classes.length}
+            classesLoading={classesLoading}
+            classesError={classesError}
             selectedClasses={selectedClasses}
             classSearch={classSearch}
             onClassSearchChange={setClassSearch}
@@ -189,6 +194,7 @@ function CreateExamPage() {
 
           {/* CÁCH TẠO ĐỀ */}
           <CreateMethodSection
+            disabled={targetsLoading || Boolean(targetsError) || (accessType === 'ALL' && classes.length === 0)}
             onCreateOnline={handleCreateOnline}
             onImportFile={handleImportFile}
           />

@@ -8,11 +8,23 @@ import { validateExamBuilder } from '../src/pages/teacher/exams/builder/helpers/
 import { isUncertainExamSave, mapExamApiErrors } from '../src/pages/teacher/exams/builder/helpers/examApiErrors.js'
 import { uploadExamMedia, validateExamMedia } from '../src/pages/teacher/exams/builder/helpers/examMediaUpload.js'
 import { clearExamDraft, loadExamDraft, saveExamDraft } from '../src/pages/teacher/exams/draft/examDraftStorage.js'
+import { validateAllExamClasses } from '../src/pages/teacher/exams/create/helpers/examFormValidation.js'
 
 const config = { title: 'Đề thử', subjectId: '1', gradeLevel: '10', timeLimit: '60', maxAttempts: '0', scoreVisibility: 'AFTER_EXAM', answerVisibility: 'AFTER_SUBMIT', hideWrongAnswers: true, accessType: 'ALL', classIds: [1], studentIds: [10] }
 const item = (id, correct = false) => ({ id, content: `Ý ${id}`, isCorrect: correct, point: 0.5, orderIndex: 1 })
 const group = (id = 'g') => ({ id, answerType: 'TRUE_FALSE', point: 1, orderIndex: 1, answers: [item('a'), item('b')], scoringRules: [] })
 const sections = () => [{ id: 's', title: 'Phần 1', orderIndex: 1, questions: [{ id: 'q', content: 'Câu hỏi', point: 1, orderIndex: 1, answerGroups: [group()] }] }]
+
+test('ALL requires a current active classroom even when a draft has old target IDs', () => {
+  assert.match(validateAllExamClasses(config.accessType, []), /Chưa có lớp nào/)
+  assert.match(validateAllExamClasses('ALL', [{ id: 1, status: 'ARCHIVED' }]), /Chưa có lớp nào/)
+  assert.equal(validateAllExamClasses('ALL', [{ id: 2, status: 'ACTIVE' }, { id: 1, status: 'ARCHIVED' }]), '')
+})
+
+test('ALL classroom check leaves CLASS and STUDENT to their own target validation', () => {
+  assert.equal(validateAllExamClasses('CLASS', []), '')
+  assert.equal(validateAllExamClasses('STUDENT', []), '')
+})
 
 test('student creation preserves classroom context through draft and payload', () => {
   const restored = getExamConfig({ general: { form: config, accessType: 'STUDENT', selectedStudents: [10], studentAssignmentClassId: '21', selectedStudentClassId: null } })

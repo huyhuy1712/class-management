@@ -18,6 +18,7 @@ function ExamBasicInfoSection({
   subjects = [],
   subjectsLoading = false,
   subjectsError = '',
+  onRetrySubjects,
 }) {
   return (
     <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_2px_12px_rgba(15,23,42,0.05)]">
@@ -52,16 +53,22 @@ function ExamBasicInfoSection({
               name="subjectId"
               value={form.subjectId}
               onChange={onChange}
-              disabled={subjectsLoading}
+              disabled={subjectsLoading || Boolean(subjectsError) || subjects.length === 0}
               className={`${fieldClass(errors.subjectId)} pl-11`}
             >
-              <option value="">{subjectsLoading ? 'Đang tải môn học...' : 'Chọn môn học'}</option>
+              <option value="">{subjectsLoading ? 'Đang tải môn học...' : subjectsError ? 'Không thể tải môn học' : subjects.length === 0 ? 'Chưa có môn học' : 'Chọn môn học'}</option>
               {sortByText(subjects, (item) => item.name).map((subject) => (
                 <option key={subject.id} value={subject.id}>{subject.name}</option>
               ))}
             </select>
           </div>
           <ErrorText>{errors.subjectId || subjectsError}</ErrorText>
+          {!subjectsLoading && (subjectsError || subjects.length === 0) && (
+            <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+              {!subjectsError && <span>Chưa có môn học trong hệ thống.</span>}
+              <button type="button" onClick={onRetrySubjects} className="font-semibold text-emerald-700 hover:underline">Tải lại môn học</button>
+            </div>
+          )}
         </div>
 
         <div>

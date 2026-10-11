@@ -4,7 +4,7 @@ import { loadExamDraft, saveExamDraft } from '../../draft/examDraftStorage'
 import {
   EXAM_ACCESS_TYPE,
 } from '../helpers/examFormConstants'
-import { normalizeExamForm, validateExamForm } from '../helpers/examFormValidation'
+import { normalizeExamForm, validateExamForm, validateAllExamClasses } from '../helpers/examFormValidation'
 
 function useCreateExamForm({ classes = [], students = [], initialConfig, persistDraft = true } = {}) {
   const savedDraft = useMemo(() => persistDraft ? loadExamDraft() : null, [persistDraft])
@@ -109,6 +109,8 @@ function useCreateExamForm({ classes = [], students = [], initialConfig, persist
 
   const validate = () => {
     const nextErrors = validateExamForm(form, accessType, selectedClasses, selectedStudents)
+    const allClassesError = validateAllExamClasses(accessType, classes)
+    if (allClassesError) nextErrors.accessType = allClassesError
     if (accessType === EXAM_ACCESS_TYPE.CLASS && selectedClasses.some((id) => !classes.some((item) => item.id === Number(id) && item.status === 'ACTIVE'))) nextErrors.accessType = 'Một lớp đã chọn không còn hoạt động hoặc không thuộc phạm vi của bạn. Vui lòng chọn lại.'
     if (accessType === EXAM_ACCESS_TYPE.STUDENT && selectedStudents.some((id) => !students.some((item) => item.id === Number(id) && item.status === 'ACTIVE' && item.classes?.some((classroom) => classroom.status === 'ACTIVE')))) nextErrors.accessType = 'Một học sinh đã chọn không còn đủ điều kiện làm bài. Vui lòng chọn lại.'
 

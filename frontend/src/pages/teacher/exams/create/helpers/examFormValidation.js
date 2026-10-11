@@ -2,6 +2,12 @@ import { EXAM_ACCESS_TYPE, INITIAL_EXAM_FORM } from './examFormConstants.js'
 
 const visibilityOptions = ['NEVER', 'AFTER_SUBMIT', 'AFTER_EXAM']
 
+export function validateAllExamClasses(accessType, classes = []) {
+  return accessType === EXAM_ACCESS_TYPE.ALL && !classes.some((classroom) => classroom.status === 'ACTIVE')
+    ? 'Chưa có lớp nào. Vui lòng tạo hoặc kích hoạt lớp trước khi giao đề cho tất cả học sinh.'
+    : ''
+}
+
 export function normalizeExamForm(savedForm = {}) {
   const form = Object.fromEntries(Object.keys(INITIAL_EXAM_FORM).map((key) => [
     key, savedForm[key] ?? INITIAL_EXAM_FORM[key],

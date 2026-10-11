@@ -20,6 +20,9 @@ function ExamAccessSection({
   onAccessChange,
 
   classes,
+  classCount,
+  classesLoading = false,
+  classesError = '',
   selectedClasses,
   classSearch,
   onClassSearchChange,
@@ -91,7 +94,11 @@ function ExamAccessSection({
         />
       </div>
 
-      {accessType === EXAM_ACCESS_TYPE.ALL && (
+      {accessType === EXAM_ACCESS_TYPE.ALL && (classesLoading || classesError || classCount === 0) ? (
+        <div role={classesError ? 'alert' : 'status'} className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+          {classesLoading ? 'Đang tải danh sách lớp...' : classesError || 'Chưa có lớp nào.'}
+        </div>
+      ) : accessType === EXAM_ACCESS_TYPE.ALL && (
         <div className="mt-5 rounded-xl border border-green-100 bg-green-50/60 p-4">
           <div className="flex gap-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-600">

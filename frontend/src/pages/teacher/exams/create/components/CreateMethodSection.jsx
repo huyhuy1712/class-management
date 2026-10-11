@@ -8,6 +8,7 @@ import {
 function CreateMethodSection({
   onCreateOnline,
   onImportFile,
+  disabled = false,
 }) {
   return (
 <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_2px_12px_rgba(15,23,42,0.05)]">      <h2 className="font-bold text-[#18301D]">
@@ -22,7 +23,8 @@ function CreateMethodSection({
         <button
           type="button"
           onClick={onCreateOnline}
-          className="group flex cursor-pointer items-center gap-4 rounded-2xl border-2 border-slate-200 p-5 text-left transition hover:border-green-400 hover:bg-green-50/40"
+          disabled={disabled}
+          className="group flex cursor-pointer items-center gap-4 rounded-2xl border-2 border-slate-200 p-5 text-left transition hover:border-green-400 hover:bg-green-50/40 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-green-100 text-green-600">
             <FileText size={23} />
@@ -47,7 +49,8 @@ function CreateMethodSection({
         <button
           type="button"
           onClick={onImportFile}
-          className="group flex cursor-pointer items-center gap-4 rounded-2xl border-2 border-slate-200 p-5 text-left transition hover:border-blue-300 hover:bg-blue-50/40"
+          disabled={disabled}
+          className="group flex cursor-pointer items-center gap-4 rounded-2xl border-2 border-slate-200 p-5 text-left transition hover:border-blue-300 hover:bg-blue-50/40 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
             <FileSpreadsheet size={23} />

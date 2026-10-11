@@ -164,3 +164,23 @@ Rà các handler, lời gọi service và state loading/data trong toàn bộ `f
 
 Kiểm tra: build thành công, 58 unit tests pass (bỏ 1 test của store preview đã xóa), lint không lỗi, còn 8 cảnh báo. Danh sách đề học sinh vẫn là UI mock theo yêu cầu trước; tab/chức năng chưa nối API không được tuyên bố đã tích hợp.
 
+# Chặn giao ALL khi chưa có lớp ngày 11/10/2026
+
+Chọn ALL khi không có lớp ACTIVE hiện "Chưa có lớp nào", khóa tạo/lưu và kiểm tra lại danh sách lớp qua TanStack Query trước POST/PUT. Không dùng kết quả tìm kiếm để xác định số lớp. Chỉ sửa FE; các assignment đã có trong DB không được chỉnh sửa/xóa. ALL vẫn gửi classIds rỗng theo hợp đồng API hiện tại.
+
+| File và vị trí | Thay đổi |
+| --- | --- |
+| [ExamAccessSection.jsx:97](/D:/class-management/frontend/src/pages/teacher/exams/create/components/ExamAccessSection.jsx:97) | Hiển thị loading, lỗi hoặc chưa có lớp cho ALL. |
+| [useExamTargetOptions.js:14](/D:/class-management/frontend/src/pages/teacher/exams/hooks/useExamTargetOptions.js:14) | Truyền trạng thái query lớp. |
+| [CreateExamPage.jsx:177](/D:/class-management/frontend/src/pages/teacher/exams/create/CreateExamPage.jsx:177) | Tổng lớp chưa lọc, khóa tạo và chặn handler nhập file. |
+| [CreateMethodSection.jsx:26](/D:/class-management/frontend/src/pages/teacher/exams/create/components/CreateMethodSection.jsx:26) | Disabled hai nút tạo. |
+| [EditExamModal.jsx:31](/D:/class-management/frontend/src/pages/teacher/exams/components/EditExamModal.jsx:31) | Cùng trạng thái ALL và khóa lưu cấu hình. |
+| [examFormValidation.js:5](/D:/class-management/frontend/src/pages/teacher/exams/create/helpers/examFormValidation.js:5) | Helper kiểm tra ALL có lớp ACTIVE. |
+| [useCreateExamForm.js:112](/D:/class-management/frontend/src/pages/teacher/exams/create/hooks/useCreateExamForm.js:112) | Áp dụng validation chung create/edit. |
+| [useSaveExam.js:44](/D:/class-management/frontend/src/pages/teacher/exams/builder/hooks/useSaveExam.js:44) | Đọc lại query trước lưu đề, chặn bản nháp cũ. |
+| [useSaveExamConfiguration.js:13](/D:/class-management/frontend/src/pages/teacher/exams/hooks/useSaveExamConfiguration.js:13) | Đọc lại query trước PUT cấu hình. |
+| [examCreation.test.mjs:18](/D:/class-management/frontend/tests/examCreation.test.mjs:18) | Kiểm tra rỗng, archived, active, và phạm vi CLASS/STUDENT. |
+| [AGENTS.md:3](/D:/class-management/frontend/AGENTS.md:3) | Ghi quy ước TanStack Query, server/client state và code theo hooks/helpers/modals. |
+
+Kiểm tra: 60 tests pass, build thành công, lint không lỗi (8 cảnh báo còn có), git diff --check sạch. Chưa thử tạo/lưu với BE thực tế.
+

@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import examService from '../../../../../services/examService'
 import examMediaService from '../../../../../services/examMediaService'
 import { clearExamDraft, loadExamDraft, saveExamDraft } from '../../draft/examDraftStorage'
-import { validateExamForm } from '../../create/helpers/examFormValidation.js'
+import { validateExamForm, validateAllExamClasses } from '../../create/helpers/examFormValidation.js'
+import useResourceQuery from '../../../../../query/useResourceQuery'
 import { buildExamPayload, getExamConfig, orderExamSections } from '../helpers/examPayload.js'
 import { validateExamBuilder } from '../helpers/examBuilderValidation.js'
 import { focusExamError, isUncertainExamSave, mapExamApiErrors } from '../helpers/examApiErrors.js'
@@ -12,6 +13,7 @@ import { uploadExamMedia, validateExamMedia } from '../helpers/examMediaUpload.j
 
 export default function useSaveExam({ builder, routeConfig, onValidationErrors, enabled = true }) {
   const navigate = useNavigate()
+  const classesQuery = useResourceQuery('teacherClasses', [], { enabled: false })
   const lock = useRef(false)
   const saveMutation = useMutation({ mutationFn: performSave })
   const saving = saveMutation.isPending
@@ -38,6 +40,11 @@ export default function useSaveExam({ builder, routeConfig, onValidationErrors, 
       const draft = loadExamDraft()
       const config = getExamConfig(draft, routeConfig)
       const configErrors = validateExamForm(config, config.accessType, config.classIds ?? [], config.studentIds ?? [])
+      if (config.accessType === 'ALL') {
+        const { data: classes } = await classesQuery.refetch({ throwOnError: true })
+        const allClassesError = validateAllExamClasses(config.accessType, classes)
+        if (allClassesError) configErrors.accessType = allClassesError
+      }
       if (config.accessType === 'STUDENT' && (!Number.isSafeInteger(Number(config.classId)) || Number(config.classId) <= 0)) configErrors.accessType = 'Vui lòng chọn lại lớp và học sinh trước khi giao riêng đề.'
       const validation = validateExamBuilder(sections)
       onValidationErrors(validation.errors)
