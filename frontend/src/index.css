@@ -35,3 +35,65 @@ button:not(:disabled) {
 button:disabled {
   cursor: not-allowed;
 }
+
+.login-scene {
+  background-image: radial-gradient(ellipse at 12% 30%, #dcfce7 0, transparent 48%);
+}
+
+.login-card {
+  box-shadow: 0 24px 70px -24px rgb(18 53 36 / 22%);
+}
+
+.login-canopy {
+  position: absolute;
+  background: #123524;
+  opacity: 0.07;
+  border-radius: 45% 55% 70% 30% / 55% 40% 60% 45%;
+}
+
+.login-canopy-top {
+  width: 650px;
+  height: 850px;
+  right: -230px;
+  top: -280px;
+  transform: rotate(-25deg);
+}
+
+.login-canopy-bottom {
+  width: 600px;
+  height: 400px;
+  left: -250px;
+  bottom: -230px;
+  transform: rotate(20deg);
+}
+
+.login-float {
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  color: #15803d;
+  opacity: 0.14;
+  animation: login-drift 10s ease-in-out infinite;
+}
+
+.login-leaf-one { left: 7%; top: 23%; width: 80px; height: 80px; animation-delay: -3s; }
+.login-sprout { left: 43%; top: 12%; animation-duration: 12s; animation-delay: -7s; }
+.login-trees { left: 37%; bottom: 8%; width: 100px; height: 100px; animation-duration: 14s; animation-delay: -5s; }
+.login-book { right: 5%; top: 13%; animation-duration: 11s; animation-delay: -2s; }
+.login-cap { right: 39%; top: 45%; width: 52px; height: 52px; animation-duration: 13s; animation-delay: -8s; }
+.login-leaf-two { right: 7%; bottom: 9%; width: 86px; height: 86px; animation-duration: 9s; animation-delay: -4s; }
+
+@keyframes login-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(-8deg); }
+  50% { transform: translate3d(8px, -22px, 0) rotate(8deg); }
+}
+
+@media (max-width: 1023px) {
+  .login-canopy-top { right: -420px; }
+  .login-cap { right: 4%; top: 42%; }
+  .login-trees { left: 2%; bottom: 5%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-float { animation: none; }
+}

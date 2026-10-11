@@ -6,6 +6,10 @@ import {
   GraduationCap,
   LoaderCircle,
   School,
+  Leaf,
+  Sprout,
+  Trees,
+  BookOpen,
 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 
@@ -194,43 +198,50 @@ function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col overflow-x-hidden bg-[#F5FAF4] lg:flex-row">
-      <section className="hidden w-1/2 flex-col justify-between bg-[#123524] p-12 lg:flex">
-        <div className="flex items-center gap-3">
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl">
-            <img src={logo} alt="Class Management" className="h-14 w-14 object-contain" />
-          </div>
-
-          <div>
-            <h1 className="font-bold text-white">FrogH</h1>
-            <p className="text-sm text-green-200">Education System</p>
-          </div>
+    <div className="login-scene relative isolate flex min-h-screen w-full flex-col overflow-hidden bg-[#F5FAF4]">
+      <div aria-hidden="true" className="login-nature pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="login-canopy login-canopy-top" />
+        <div className="login-canopy login-canopy-bottom" />
+        <Leaf className="login-float login-leaf-one" strokeWidth={1.3} />
+        <Sprout className="login-float login-sprout" strokeWidth={1.3} />
+        <Trees className="login-float login-trees" strokeWidth={1.2} />
+        <BookOpen className="login-float login-book" strokeWidth={1.3} />
+        <GraduationCap className="login-float login-cap" strokeWidth={1.3} />
+        <Leaf className="login-float login-leaf-two" strokeWidth={1.3} />
+      </div>
+      <header className="relative z-10 mx-auto flex w-full max-w-7xl items-center gap-3 px-6 pt-6 sm:px-10 sm:pt-9">
+        <img src={logo} alt="Class Management" className="h-14 w-14 object-contain sm:h-16 sm:w-16" />
+        <div>
+          <p className="text-xl font-bold text-[#18301D]">FrogH</p>
+          <p className="text-sm text-green-700">Education System</p>
         </div>
-
-        <div className="max-w-lg">
-          <h2 className="text-4xl font-bold leading-tight text-white">
+      </header>
+      <div className="relative z-10 mx-auto grid w-full max-w-7xl flex-1 items-center gap-10 px-5 py-10 sm:px-10 lg:grid-cols-[1fr_420px] lg:gap-16 lg:py-14">
+      <section className="flex min-w-0 flex-col justify-center text-center lg:text-left">
+        <div className="mx-auto max-w-xl lg:mx-0">
+          <h2 className="text-3xl font-bold leading-tight tracking-tight text-[#123524] sm:text-4xl lg:text-5xl lg:leading-[1.2]">
             Bắt đầu hành trình
-            <span className="text-lime-400"> học tập của bạn.</span>
+            <span className="text-green-600"> học tập của bạn.</span>
           </h2>
 
-          <p className="mt-5 leading-7 text-green-100/70">
+          <p className="mt-5 leading-7 text-gray-500">
             Tạo tài khoản để tham gia lớp học hoặc quản lý lớp với vai trò
             giáo viên.
           </p>
         </div>
 
-        <p className="text-sm text-green-200/50">
+        <p className="mt-8 hidden text-sm text-green-700 lg:block">
           Made by FrogH
         </p>
       </section>
 
-      <section className="flex w-full min-w-0 flex-1 items-center justify-center px-4 py-8 sm:px-6 sm:py-10">
-        <div className="w-full min-w-0 max-w-md">
-          <div className="mb-7">
+      <section className="flex w-full min-w-0 items-center justify-center">
+        <div className="login-card w-full min-w-0 max-w-[420px] rounded-[28px] border border-green-100 bg-white px-6 py-8 sm:px-9 sm:py-10">
+          <div className="mb-7 text-center">
             <h1 className="text-3xl font-bold text-[#18301D]">
                 Đăng ký tài khoản
             </h1>
-            <p className="mt-2 text-gray-500">
+            <p className="mt-2 text-sm leading-6 text-gray-500">
               Điền thông tin để đăng ký tài khoản mới.
             </p>
           </div>
@@ -385,6 +396,7 @@ function SignupPage() {
           </p>
         </div>
       </section>
+      </div>
     </div>
   )
 }

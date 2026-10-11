@@ -146,7 +146,7 @@ const handleApprove = async (request) => {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-green-100 bg-white text-slate-600 transition hover:bg-green-50 hover:text-green-700"
+        className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-green-100 bg-white text-slate-600 transition hover:bg-green-50 hover:text-green-700"
         aria-label="Thông báo"
       >
         <Bell size={20} />

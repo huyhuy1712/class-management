@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { Eye, EyeOff, LoaderCircle } from 'lucide-react'
+import { Eye, EyeOff, LoaderCircle, Leaf, Sprout, Trees, BookOpen, GraduationCap } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { login } from '../../services/authService'
@@ -131,58 +131,54 @@ function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col overflow-x-hidden bg-[#F5FAF4] lg:flex-row">
-      <section className="hidden w-1/2 flex-col justify-between bg-[#123524] p-12 lg:flex">
-        <div className="flex items-center gap-3">
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl">
-            <img src={logo} alt="Class Management" className="h-14 w-14 object-contain" />
-          </div>
-
-          <div>
-            <h1 className="font-bold text-white">FrogH</h1>
-            <p className="text-sm text-green-200">Education System</p>
-          </div>
+    <div className="login-scene relative isolate flex min-h-screen w-full flex-col overflow-hidden bg-[#F5FAF4]">
+      <div aria-hidden="true" className="login-nature pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="login-canopy login-canopy-top" />
+        <div className="login-canopy login-canopy-bottom" />
+        <Leaf className="login-float login-leaf-one" strokeWidth={1.3} />
+        <Sprout className="login-float login-sprout" strokeWidth={1.3} />
+        <Trees className="login-float login-trees" strokeWidth={1.2} />
+        <BookOpen className="login-float login-book" strokeWidth={1.3} />
+        <GraduationCap className="login-float login-cap" strokeWidth={1.3} />
+        <Leaf className="login-float login-leaf-two" strokeWidth={1.3} />
+      </div>
+      <header className="relative z-10 mx-auto flex w-full max-w-7xl items-center gap-3 px-6 pt-6 sm:px-10 sm:pt-9">
+        <img src={logo} alt="Class Management" className="h-14 w-14 object-contain sm:h-16 sm:w-16" />
+        <div>
+          <p className="text-xl font-bold text-[#18301D]">FrogH</p>
+          <p className="text-sm text-green-700">Education System</p>
         </div>
-
-        <div className="max-w-lg">
-          <span className="mb-5 inline-block rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-green-100">
+      </header>
+      <div className="relative z-10 mx-auto grid w-full max-w-7xl flex-1 items-center gap-10 px-5 py-10 sm:px-10 lg:grid-cols-[1fr_420px] lg:gap-16 lg:py-14">
+      <section className="flex min-w-0 flex-col justify-center text-center lg:text-left">
+        <div className="mx-auto max-w-xl lg:mx-0">
+          <span className="mb-5 inline-block rounded-full border border-green-100 bg-white/70 px-4 py-2 text-sm font-medium text-green-700">
             Quản lý lớp học thông minh
           </span>
 
-          <h2 className="text-4xl font-bold leading-tight text-white">
+          <h2 className="text-3xl font-bold leading-tight tracking-tight text-[#123524] sm:text-4xl lg:text-5xl lg:leading-[1.2]">
             Học tập và giảng dạy
-            <span className="text-lime-400"> hiệu quả hơn.</span>
+            <span className="text-green-600"> hiệu quả hơn.</span>
           </h2>
 
-          <p className="mt-5 leading-7 text-green-100/70">
+          <p className="mt-5 leading-7 text-gray-500">
             Hãy nạp lần đầu đi
           </p>
         </div>
 
-        <p className="text-sm text-green-200/50">
+        <p className="mt-8 hidden text-sm text-green-700 lg:block">
           Made by FrogH
         </p>
       </section>
 
-      <section className="flex w-full min-w-0 flex-1 items-center justify-center px-4 py-8 sm:px-6 sm:py-12">
-        <div className="w-full min-w-0 max-w-md">
-          <div className="mb-9 lg:hidden">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl">
-                <img src={logo} alt="Class Management" className="h-12 w-12 object-contain" />
-              </div>
-              <span className="font-bold text-[#18301D]">
-                FrogH
-              </span>
-            </div>
-          </div>
-
-          <div className="mb-8">
+      <section className="flex w-full min-w-0 items-center justify-center">
+        <div className="login-card w-full min-w-0 max-w-[420px] rounded-[28px] border border-green-100 bg-white px-6 py-8 sm:px-9 sm:py-10">
+          <div className="mb-8 text-center">
             <h1 className="text-3xl font-bold text-[#18301D]">
               Đăng nhập
             </h1>
 
-            <p className="mt-2 text-gray-500">
+            <p className="mt-2 text-sm leading-6 text-gray-500">
               Đăng nhập để tiếp tục sử dụng hệ thống.
             </p>
           </div>
@@ -205,12 +201,13 @@ function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="mb-2 block text-sm font-semibold text-gray-700">
+              <label htmlFor="login-username" className="mb-2 block text-sm font-semibold text-gray-700">
                 Tên đăng nhập
               </label>
 
               <input
                 ref={usernameInputRef}
+                id="login-username"
                 name="username"
                 value={form.username}
                 onChange={handleChange}
@@ -230,13 +227,14 @@ function LoginPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-gray-700">
+              <label htmlFor="login-password" className="mb-2 block text-sm font-semibold text-gray-700">
                 Mật khẩu
               </label>
 
               <div className="relative">
                 <input
                   ref={passwordInputRef}
+                  id="login-password"
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                   value={form.password}
@@ -251,6 +249,7 @@ function LoginPage() {
 
                 <button
                   type="button"
+                  aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                   onClick={() => setShowPassword((prev) => !prev)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-green-700"
                 >
@@ -296,6 +295,7 @@ function LoginPage() {
           </p>
         </div>
       </section>
+      </div>
     </div>
   )
 }
