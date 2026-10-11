@@ -16,7 +16,6 @@ function ExamTable({
   onView,
   onEdit,
   onDelete,
-  onTogglePublish,
   
 }) {
   const prefetch = useRoutePrefetch()
@@ -130,7 +129,7 @@ function ExamTable({
                 {/* ACTION */}
                 <td className="px-6 py-5">
                     <div className="flex items-center justify-end gap-1">
-                        {['DRAFT', 'PUBLISHED'].includes(exam.status) && <button type="button" onClick={(event) => { event.stopPropagation(); onTogglePublish?.(exam) }} className="inline-flex h-7 items-center whitespace-nowrap rounded-md border border-emerald-200 bg-emerald-50/60 px-2 text-xs font-medium leading-none text-emerald-700 transition hover:border-emerald-400 hover:bg-emerald-100">{exam.status === 'PUBLISHED' ? 'Về nháp' : 'Xuất bản'}</button>}
+                        {['DRAFT', 'PUBLISHED'].includes(exam.status) && <button type="button" disabled title="Chức năng xuất bản đề thi đang được hoàn thiện" className="inline-flex h-7 cursor-not-allowed items-center whitespace-nowrap rounded-md border border-slate-200 bg-slate-50 px-2 text-xs font-medium leading-none text-slate-400">{exam.status === 'PUBLISHED' ? 'Về nháp' : 'Xuất bản'}</button>}
                         <button
                         type="button"
                         title="Chỉnh sửa"

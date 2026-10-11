@@ -9,7 +9,6 @@ import ResumeExamDraftModal from './components/ResumeExamDraftModal'
 import { hasExamDraftContent } from './draft/hasExamDraftContent'
 import { loadExamDraft, clearExamDraft } from './draft/examDraftStorage'
 import useExams from './hooks/useExams'
-import useExamUiSession from './hooks/useExamUiSession'
 import ExamTable from './components/ExamTable'
 import useExamFilters from './hooks/useExamFilters'
 import DashboardLayout from '../../../layouts/DashboardLayout'
@@ -37,9 +36,6 @@ function ExamManagementPage() {
   const [editingExam, setEditingExam] = useState(null)
   const [deletingExam, setDeletingExam] = useState(null)
   const [uiMessage, setUiMessage] = useState('')
-  const uiExams = useExamUiSession((state) => state.exams)
-  const clearExamPreview = useExamUiSession((state) => state.clearExamPreview)
-  const updateUiExam = useExamUiSession((state) => state.updateExam)
   const deleting = deleteMutation.isPending
   const [actionError, setActionError] = useState('')
   const [forceDelete, setForceDelete] = useState(false)
@@ -55,7 +51,7 @@ function ExamManagementPage() {
     setSortOrder,
 
     filteredExams,
-  } = useExamFilters(exams.map((exam) => ({ ...exam, ...uiExams[exam.id] })))
+  } = useExamFilters(exams)
 
   const handleCreate = () => {
     const draft = loadExamDraft()
@@ -84,12 +80,6 @@ function ExamManagementPage() {
   const handleEdit = (exam) => {
     setActionError('')
     setEditingExam(exam)
-  }
-
-  const handleTogglePublish = (exam) => {
-    const status = exam.status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED'
-    updateUiExam(exam, { status })
-    setUiMessage(`Đã chuyển sang ${status === 'PUBLISHED' ? 'xuất bản' : 'bản nháp'} trên giao diện. Chưa cập nhật lên máy chủ.`)
   }
 
   const handleDelete = (exam) => {
@@ -268,7 +258,6 @@ function ExamManagementPage() {
             <ExamTable
               exams={filteredExams}
               onView={handleView}
-              onTogglePublish={handleTogglePublish}
               onEdit={handleEdit}
               onDelete={handleDelete}
             />
@@ -280,7 +269,7 @@ function ExamManagementPage() {
         exam={editingExam}
         open={Boolean(editingExam)}
         onClose={() => { setEditingExam(null); setActionError('') }}
-        onSaved={(result) => { clearExamPreview(result.id); setEditingExam(null); setUiMessage('Đã lưu cấu hình đề thi.'); setExams((current = []) => current.map((item) => item.id === result.id ? { ...item, ...result.basicInfo } : item)) }}
+        onSaved={(result) => { setEditingExam(null); setUiMessage('Đã lưu cấu hình đề thi.'); setExams((current = []) => current.map((item) => item.id === result.id ? { ...item, ...result.basicInfo } : item)) }}
       />
 
       <DeleteExamModal

@@ -64,7 +64,7 @@ function StudentSidebar({ isOpen, onClose }) {
   return (
     <>
     <button type="button" aria-label="Đóng menu" onClick={onClose} className={`fixed inset-0 z-30 bg-black/40 transition-opacity lg:hidden ${isOpen ? "visible opacity-100" : "invisible opacity-0"}`} />
-    <aside className={`fixed left-0 top-0 z-40 flex h-dvh w-72 max-w-[calc(100vw-3rem)] flex-col bg-[#123524] text-white shadow-xl transition-transform duration-300 lg:w-64 lg:translate-x-0 ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
+    <aside className={`fixed left-0 top-0 z-40 flex h-dvh w-72 max-w-[calc(100vw-3rem)] flex-col bg-gradient-to-r from-[#126b3c] to-[#20a84e] text-white shadow-xl transition-transform duration-300 lg:w-64 lg:translate-x-0 ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
 
       {/* =========================
           LOGO

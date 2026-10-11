@@ -110,8 +110,6 @@ function JoinClassPage() {
   const handleOpenTeacherSearch = () => {
     setSelectedTeacher(null);
     setTeacherSearchTerm("");
-    setTeachersLoading(teachers.length === 0);
-    setTeachersError("");
     navigate("/student/teachers");
   };
 

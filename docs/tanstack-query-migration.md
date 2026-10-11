@@ -148,3 +148,19 @@ Sửa thông tin lớp và kích hoạt/vô hiệu lớp cập nhật cache trư
 | [queryEnhancements.test.js](/D:/class-management/frontend/tests/queryEnhancements.test.js:9) | 5 tests kế hoạch prefetch, rollback, phản hồi cache trước API, cô lập phiên và invalidation hồ sơ. |
 
 Kiểm tra bổ sung: 59 tests pass; build thành công; lint src không có error, còn warnings ở code hiện có. Chưa kiểm tra API với DB thật hoặc đo thời gian trên production.
+# Rà soát nút thao tác FE ngày 11/10/2026
+
+Rà các handler, lời gọi service và state loading/data trong toàn bộ `frontend/src` của teacher/student, auth/profile. Các API đang được tích hợp dùng Query/Mutation; không thêm service. Đây là kiểm tra mã nguồn, lint, build và unit test, chưa phải kiểm thử từng nút với BE trên production.
+
+- `frontend/src/pages/student/JoinClassPage.jsx:110`: bỏ setter loading/error đã bị xóa, khôi phục chuyển đến trang tìm giáo viên.
+- `frontend/src/pages/teacher/classroom/tabs/attendance/useAttendanceSession.js`: dùng `lessonsQuery.isFetching`, `isError`, `data`; cập nhật cache lesson sau create/update; bỏ state server trùng lặp và chặn mở/đóng khi đang xử lý.
+- `frontend/src/pages/teacher/classroom/tabs/students/modals/AddStudentModal.jsx`: lấy học sinh phù hợp trực tiếp từ query; hiện lỗi query đúng nội dung, không báo không tìm thấy khi API lỗi; chặn submit lúc tải/lỗi.
+- `frontend/src/pages/teacher/exams/ExamManagementPage.jsx`, `ExamDetailPage.jsx`: bỏ override trạng thái đề từ Zustand, dùng dữ liệu query.
+- `frontend/src/pages/teacher/exams/components/ExamTable.jsx`: khóa nút xuất bản/về nháp vì BE chưa có API đổi trạng thái; không giả lập lưu thành công.
+- Xóa hook `useUpdateExam.js` và modal `modals/EditExamModal.jsx` không còn được import; hook cũ gọi `examService.updateExam` đã không tồn tại. Modal cấu hình hiện hành trong `components/EditExamModal.jsx` và `useSaveExamConfiguration.js` được giữ nguyên.
+- Xóa `useExamUiSession.js` và test riêng của store preview đã bỏ.
+- `frontend/.oxlintrc.json`: bật `no-undef` và môi trường browser để bắt setter/hàm chưa khai báo.
+- `frontend/package.json:9`: lint phạm vi `src`, tránh kiểm tra code thư viện trong node_modules.
+
+Kiểm tra: build thành công, 58 unit tests pass (bỏ 1 test của store preview đã xóa), lint không lỗi, còn 8 cảnh báo. Danh sách đề học sinh vẫn là UI mock theo yêu cầu trước; tab/chức năng chưa nối API không được tuyên bố đã tích hợp.
+

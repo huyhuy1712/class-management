@@ -15,48 +15,23 @@ function AddStudentModal({
   const [studentCode, setStudentCode] = useState('')
   const studentsQuery = useResourceQuery('studentDirectory', [], { enabled: open })
   const students = studentsQuery.data ?? EMPTY_LIST
-  const [selectedStudent, setSelectedStudent] = useState(null)
+  const normalizedCode = studentCode.trim().toLowerCase()
+  const selectedStudent = normalizedCode
+    ? students.find((student) => student.studentCode?.trim().toLowerCase() === normalizedCode) ?? null
+    : null
 
   const loadingStudents = studentsQuery.isLoading
   const [searchError, setSearchError] = useState(null)
 
   useEffect(() => {
-    if (!open) { setStudentCode(''); setSelectedStudent(null); setSearchError(null) }
+    if (!open) { setStudentCode(''); setSearchError(null) }
   }, [open])
-
-  useEffect(() => {
-    const normalizedCode = studentCode
-      .trim()
-      .toLowerCase()
-
-    if (!normalizedCode) {
-      setSelectedStudent(null)
-      setSearchError(null)
-      return
-    }
-
-    if (loadingStudents) {
-      return
-    }
-
-    const student = students.find(
-      (item) =>
-        item.studentCode?.trim().toLowerCase() ===
-        normalizedCode,
-    )
-
-    if (student) {
-      setSelectedStudent(student)
-      setSearchError(null)
-    } else {
-      setSelectedStudent(null)
-    }
-  }, [studentCode, students, loadingStudents])
 
   if (!open) return null
 
   const handleSubmit = (event) => {
     event.preventDefault()
+    if (loading || loadingStudents || studentsQuery.errorMessage) return
 
     if (!selectedStudent) {
       setSearchError(
@@ -199,7 +174,7 @@ function AddStudentModal({
           {studentCode.trim() &&
             !selectedStudent &&
             !loadingStudents &&
-            !searchError && (
+            !searchError && !studentsQuery.errorMessage && (
               <p className="mt-3 text-sm text-orange-500">
                 Không tìm thấy học sinh với mã này.
               </p>
@@ -209,7 +184,7 @@ function AddStudentModal({
           {(searchError || studentsQuery.errorMessage) && (
             <div className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
               <p className="text-sm text-red-600">
-                {searchError}
+                {searchError || studentsQuery.errorMessage}
               </p>
             </div>
           )}
@@ -238,6 +213,7 @@ function AddStudentModal({
               disabled={
                 loading ||
                 loadingStudents ||
+                Boolean(studentsQuery.errorMessage) ||
                 !selectedStudent ||
                 selectedStudent.status !== 'ACTIVE'
               }

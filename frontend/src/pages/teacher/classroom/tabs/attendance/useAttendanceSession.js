@@ -10,56 +10,39 @@ function getErrorMessage(data) {
   return data.message || data.error || ''
 }
 
+const buildDateTime = (date, time) => `${date}T${time}:00`
+
+function buildLessonTitle(date) {
+  const [year, month, day] = date.split('-')
+  return `Điểm danh buổi học ${day}/${month}/${year}`
+}
+
 export default function useAttendanceSession(classroomId) {
   const createMutation = useMutation({ mutationFn: (args) => lessonService.create(...args) })
   const updateMutation = useMutation({ mutationFn: (args) => lessonService.update(...args) })
   const lessonsQuery = useResourceQuery('lessons', [classroomId, getTodayDate()], { enabled: false })
   const [toast, setToast] = useState(null)
-const [createAttendanceOpen, setCreateAttendanceOpen] =
-  useState(false)
+  const [createAttendanceOpen, setCreateAttendanceOpen] = useState(false)
 
   const creatingAttendance = createMutation.isPending || updateMutation.isPending
-    const [loadingAttendanceSession, setLoadingAttendanceSession] =
-      useState(false)
-    const [createAttendanceError, setCreateAttendanceError] = useState('')
-    const [existingAttendanceSession, setExistingAttendanceSession] =
-      useState(null)
-    const [attendanceSessionLookupFailed, setAttendanceSessionLookupFailed] =
-      useState(false)
-  const buildDateTime = (date, time) => {
-  return `${date}T${time}:00`
-}
-
-const buildLessonTitle = (date) => {
-  const [year, month, day] = date.split('-')
-
-  return `Điểm danh buổi học ${day}/${month}/${year}`
-}
-
+  const loadingAttendanceSession = lessonsQuery.isFetching
+  const [createAttendanceError, setCreateAttendanceError] = useState('')
+  const existingAttendanceSession = lessonsQuery.data?.[0] ?? null
+  const attendanceSessionLookupFailed = lessonsQuery.isError
 const handleOpenAttendanceSession = async () => {
-  if (!classroomId) return
+  if (!classroomId || loadingAttendanceSession || creatingAttendance) return
 
   setCreateAttendanceOpen(true)
-  setLoadingAttendanceSession(true)
   setCreateAttendanceError('')
-  setExistingAttendanceSession(null)
-  setAttendanceSessionLookupFailed(false)
 
   try {
-    const result = await lessonsQuery.refetch({ throwOnError: true })
-    const lessons = result.data
-    setExistingAttendanceSession(
-      Array.isArray(lessons) ? lessons[0] ?? null : null,
-    )
+    await lessonsQuery.refetch({ throwOnError: true })
   } catch (error) {
     console.error('Get attendance session error:', error)
-    setAttendanceSessionLookupFailed(true)
     setCreateAttendanceError(
       getErrorMessage(error.response?.data) ||
         'Không thể tải thông tin phiên điểm danh. Vui lòng thử lại.',
     )
-  } finally {
-    setLoadingAttendanceSession(false)
   }
 }
 
@@ -90,7 +73,7 @@ const handleCreateAttendanceSession = async ({
         classroomId,
         commonData,
       ])
-      setExistingAttendanceSession(createdSession)
+      lessonsQuery.setData([createdSession])
 
       setToast({
         type: 'success',
@@ -102,7 +85,7 @@ const handleCreateAttendanceSession = async ({
         existingAttendanceSession.id,
         commonData,
       ])
-      setExistingAttendanceSession(updatedSession)
+      lessonsQuery.setData((lessons = []) => lessons.map((lesson) => lesson.id === updatedSession.id ? updatedSession : lesson))
 
       setToast({
         type: 'success',
@@ -147,10 +130,22 @@ const handleCreateAttendanceSession = async ({
   }
 }
 
-  return { createAttendanceOpen, creatingAttendance, loadingAttendanceSession, createAttendanceError, existingAttendanceSession, attendanceSessionLookupFailed, handleOpenAttendanceSession, handleCreateAttendanceSession, toast, close: () => {
-    if (creatingAttendance) return
+  const close = () => {
+    if (creatingAttendance || loadingAttendanceSession) return
     setCreateAttendanceOpen(false)
     setCreateAttendanceError('')
-    setExistingAttendanceSession(null)
-  } }
+  }
+
+  return {
+    createAttendanceOpen,
+    creatingAttendance,
+    loadingAttendanceSession,
+    createAttendanceError,
+    existingAttendanceSession,
+    attendanceSessionLookupFailed,
+    handleOpenAttendanceSession,
+    handleCreateAttendanceSession,
+    toast,
+    close,
+  }
 }

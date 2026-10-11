@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "oxlint",
+    "lint": "oxlint src",
     "test": "node --test tests",
     "preview": "vite preview"
   },

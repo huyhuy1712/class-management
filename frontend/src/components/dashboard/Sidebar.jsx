@@ -56,7 +56,7 @@ function Sidebar({ isOpen, onClose }) {
       />
 
       <aside
-        className={`fixed left-0 top-0 z-40 flex h-screen w-72 max-w-[calc(100vw-3rem)] flex-col bg-[#123524] text-white shadow-xl transition-transform duration-300 lg:w-64 lg:translate-x-0 ${
+        className={`fixed left-0 top-0 z-40 flex h-screen w-72 max-w-[calc(100vw-3rem)] flex-col bg-gradient-to-r from-[#126b3c] to-[#20a84e] text-white shadow-xl transition-transform duration-300 lg:w-64 lg:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

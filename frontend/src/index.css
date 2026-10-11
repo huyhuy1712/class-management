@@ -36,6 +36,29 @@ button:disabled {
   cursor: not-allowed;
 }
 
+/* Shared filled action-button gradient, matching both sidebars. */
+:is(button, a):not([role="checkbox"]):not([role="switch"]):is(
+  [class~="bg-green-500"], [class~="bg-green-600"], [class~="bg-green-700"],
+  [class~="bg-emerald-500"], [class~="bg-emerald-600"], [class~="bg-emerald-700"], [class~="bg-emerald-800"],
+  [class~="bg-indigo-600"], [class~="bg-blue-600"],
+  [class~="bg-[#159447]"], [class~="bg-[#00B33C]"], [class~="bg-[#14532D]"],
+  [class~="bg-[#159a68]"], [class~="bg-[#009E49]"]
+):not(:disabled) {
+  background-color: #126b3c;
+  background-image: linear-gradient(100deg, #126b3c, #20a84e);
+}
+
+:is(button, a):not([role="checkbox"]):not([role="switch"]):is(
+  [class~="bg-green-500"], [class~="bg-green-600"], [class~="bg-green-700"],
+  [class~="bg-emerald-500"], [class~="bg-emerald-600"], [class~="bg-emerald-700"], [class~="bg-emerald-800"],
+  [class~="bg-indigo-600"], [class~="bg-blue-600"],
+  [class~="bg-[#159447]"], [class~="bg-[#00B33C]"], [class~="bg-[#14532D]"],
+  [class~="bg-[#159a68]"], [class~="bg-[#009E49]"]
+):not(:disabled):hover {
+  background-color: #105e35;
+  background-image: linear-gradient(100deg, #105e35, #1c9545);
+}
+
 .login-scene {
   background-image: radial-gradient(ellipse at 12% 30%, #dcfce7 0, transparent 48%);
 }
