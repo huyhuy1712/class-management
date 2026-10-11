@@ -28,12 +28,18 @@ import StudentAttendancePage from '../pages/student/StudentAttendancePage'
 import JoinClassPage from '../pages/student/JoinClassPage' 
 import StudentClassDetailPage from '../pages/student/classroom/StudentClassDetailPage'
 
+// =============================
+// Landing Page (Public)
+// =============================
+import LandingPage from '../pages/landing'
+
 function AppRoutes() {
   return (
     <Suspense fallback={<div role="status" className="p-8 text-center text-slate-500">Đang mở trang...</div>}>
     <Routes>
-      {/* Route mặc định */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      {/* Landing Page — Public, không cần đăng nhập */}
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/landing" element={<LandingPage />} />
 
       {/* Route Auth */}
       <Route path="/login" element={<LoginPage />} />
