@@ -5,9 +5,13 @@ import logo from '../../assets/logos/logo.png'
 import defaultAvatar from '../../assets/images/avatar_default.png'
 import NotificationBell from '../dashboard/NotificationBell'
 import StudentNotificationBell from './StudentNotificationBell'
+import useProfileSync from '../../pages/profile/hooks/useProfileSync'
+import useRoutePrefetch from '../../query/useRoutePrefetch'
 
 
 function Header({ onMenuClick }) {
+  useProfileSync()
+  const prefetch = useRoutePrefetch()
   const navigate = useNavigate()
   const user = useAuthStore((state) => state.user)
 
@@ -46,6 +50,8 @@ function Header({ onMenuClick }) {
   <button
     type="button"
     onClick={() => navigate(user?.role === 'STUDENT' ? '/student/profile' : '/teacher/profile')}
+    onMouseEnter={() => prefetch(user?.role === 'STUDENT' ? '/student/profile' : '/teacher/profile')}
+    onFocus={() => prefetch(user?.role === 'STUDENT' ? '/student/profile' : '/teacher/profile')}
     className="group flex items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-green-50 sm:px-3"
   >
     <img

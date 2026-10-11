@@ -26,3 +26,10 @@ test('target types clear inapplicable targets and missing assignment cannot be s
   assert.deepEqual(all.assignment.studentIds, [])
   assert.throws(() => buildExamConfigurationPayload(form, null), /lần giao/)
 })
+
+test('student update sends the classroom context as a numeric classId', () => {
+  const result = buildExamConfigurationPayload({ ...form, accessType: 'STUDENT', classId: '21' }, { id: 3 })
+  assert.equal(result.assignment.classId, 21)
+  assert.deepEqual(result.assignment.studentIds, [7])
+  assert.equal('classId' in buildExamConfigurationPayload(form, { id: 3 }).assignment, false)
+})

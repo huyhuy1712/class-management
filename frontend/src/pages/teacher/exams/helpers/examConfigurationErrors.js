@@ -1,7 +1,7 @@
 const assignmentFields = {
   openTime: 'openTime', closeTime: 'closeTime', scoreVisibility: 'scoreVisibility',
   answerVisibility: 'answerVisibility', hideCorrectAnswerOnWrong: 'hideWrongAnswers',
-  assignmentType: 'accessType', classIds: 'accessType', studentIds: 'accessType', id: 'accessType',
+  assignmentType: 'accessType', classIds: 'accessType', classId: 'accessType', studentIds: 'accessType', id: 'accessType',
 }
 const basicFields = new Set(['title', 'subjectId', 'gradeLevel', 'purpose', 'description', 'timeLimit', 'maxAttempts'])
 export function mapConfigurationErrors(validationErrors = {}) {

@@ -8,22 +8,23 @@ import { normalizeExamForm, validateExamForm } from '../helpers/examFormValidati
 
 function useCreateExamForm({ classes = [], students = [], initialConfig, persistDraft = true } = {}) {
   const savedDraft = useMemo(() => persistDraft ? loadExamDraft() : null, [persistDraft])
-  const generalDraft = initialConfig ? { form: initialConfig, accessType: initialConfig.accessType, selectedClasses: initialConfig.classIds, selectedStudents: initialConfig.studentIds } : savedDraft?.general
+  const generalDraft = initialConfig ? { form: initialConfig, accessType: initialConfig.accessType, selectedClasses: initialConfig.classIds, selectedStudents: initialConfig.studentIds, studentAssignmentClassId: initialConfig.classId, selectedStudentClassId: initialConfig.classId } : savedDraft?.general
   const [form, setForm] = useState(() => normalizeExamForm(generalDraft?.form))
   const [errors, setErrors] = useState(savedDraft?.configErrors ?? {})
   const [accessType, setAccessType] = useState(generalDraft?.accessType ?? EXAM_ACCESS_TYPE.ALL)
   const [selectedClasses, setSelectedClasses] = useState(generalDraft?.selectedClasses ?? [])
   const [selectedStudents, setSelectedStudents] = useState(generalDraft?.selectedStudents ?? [])
   const [selectedStudentClassId, setSelectedStudentClassId] = useState(generalDraft?.selectedStudentClassId ?? null)
+  const [studentAssignmentClassId, setStudentAssignmentClassId] = useState(generalDraft?.studentAssignmentClassId ?? generalDraft?.selectedStudentClassId ?? null)
   const [classSearch, setClassSearch] = useState('')
   const [studentSearch, setStudentSearch] = useState('')
 
   useEffect(() => {
     if (!persistDraft) return
     saveExamDraft({
-      general: { form, accessType, selectedClasses, selectedStudents, selectedStudentClassId },
+      general: { form, accessType, selectedClasses, selectedStudents, selectedStudentClassId, studentAssignmentClassId },
     })
-  }, [form, accessType, selectedClasses, selectedStudents, selectedStudentClassId, persistDraft])
+  }, [form, accessType, selectedClasses, selectedStudents, selectedStudentClassId, studentAssignmentClassId, persistDraft])
 
   const handleChange = (event) => {
     const { name, value, type, checked } = event.target
@@ -45,6 +46,7 @@ function useCreateExamForm({ classes = [], students = [], initialConfig, persist
     if (type !== EXAM_ACCESS_TYPE.CLASS) setSelectedClasses([])
     if (type !== EXAM_ACCESS_TYPE.STUDENT) {
       setSelectedStudents([])
+      setStudentAssignmentClassId(null)
       setSelectedStudentClassId(null)
     }
   }
@@ -58,7 +60,18 @@ function useCreateExamForm({ classes = [], students = [], initialConfig, persist
     )
   }
 
+  const changeStudentClass = (classId) => {
+    if (classId && studentAssignmentClassId && String(classId) !== String(studentAssignmentClassId)) {
+      setSelectedStudents([])
+      setStudentAssignmentClassId(null)
+    }
+    setSelectedStudentClassId(classId)
+    setStudentSearch('')
+  }
+
   const toggleStudent = (studentId) => {
+    if (!selectedStudentClassId) return
+    setStudentAssignmentClassId(selectedStudentClassId)
     setErrors((current) => ({ ...current, accessType: undefined }))
     setSelectedStudents((current) =>
       current.includes(studentId)
@@ -99,6 +112,8 @@ function useCreateExamForm({ classes = [], students = [], initialConfig, persist
     if (accessType === EXAM_ACCESS_TYPE.CLASS && selectedClasses.some((id) => !classes.some((item) => item.id === Number(id) && item.status === 'ACTIVE'))) nextErrors.accessType = 'Một lớp đã chọn không còn hoạt động hoặc không thuộc phạm vi của bạn. Vui lòng chọn lại.'
     if (accessType === EXAM_ACCESS_TYPE.STUDENT && selectedStudents.some((id) => !students.some((item) => item.id === Number(id) && item.status === 'ACTIVE' && item.classes?.some((classroom) => classroom.status === 'ACTIVE')))) nextErrors.accessType = 'Một học sinh đã chọn không còn đủ điều kiện làm bài. Vui lòng chọn lại.'
 
+    if (accessType === EXAM_ACCESS_TYPE.STUDENT && (!studentAssignmentClassId || !classes.some((item) => String(item.id) === String(studentAssignmentClassId) && item.status === 'ACTIVE') || selectedStudents.some((id) => !students.some((item) => String(item.id) === String(id) && item.classes?.some((group) => String(group.id) === String(studentAssignmentClassId)))))) nextErrors.accessType = 'Vui lòng chọn học sinh thuộc cùng một lớp đang hoạt động.'
+
     setErrors(nextErrors)
     const firstError = Object.keys(nextErrors)[0]
     if (firstError) {
@@ -127,6 +142,7 @@ function useCreateExamForm({ classes = [], students = [], initialConfig, persist
     accessType,
     classIds: accessType === EXAM_ACCESS_TYPE.CLASS ? selectedClasses : [],
     studentIds: accessType === EXAM_ACCESS_TYPE.STUDENT ? selectedStudents : [],
+    classId: accessType === EXAM_ACCESS_TYPE.STUDENT ? Number(studentAssignmentClassId) : null,
   })
 
   return {
@@ -135,7 +151,7 @@ function useCreateExamForm({ classes = [], students = [], initialConfig, persist
     classSearch, studentSearch,
     filteredClasses, filteredStudents, studentsInSelectedClass,
     handleChange, handleAccessChange,
-    toggleClass, toggleStudent, setSelectedStudentClassId,
+    toggleClass, toggleStudent, setSelectedStudentClassId: changeStudentClass,
     setClassSearch, setStudentSearch,
     validate, buildExamData, setErrors,
   }

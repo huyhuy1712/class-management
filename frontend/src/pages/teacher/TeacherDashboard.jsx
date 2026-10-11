@@ -1,3 +1,4 @@
+import useResourceQuery from '../../query/useResourceQuery'
 import useTeacherExamCount from './hooks/useTeacherExamCount'
 import {
   BookOpen,
@@ -10,12 +11,9 @@ import {
   Clock3,
   ArrowRight,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import FeatureCard from '../../components/dashboard/FeatureCard'
 import useAuthStore from '../../stores/authStore'
-import classroomService from '../../services/classroomService'
-import userService from '../../services/userService'
 
 const features = [
   {
@@ -52,41 +50,15 @@ const features = [
 function TeacherDashboard() {
   const user = useAuthStore((state) => state.user)
   const examCount = useTeacherExamCount()
-  const [classCount, setClassCount] = useState(0)
-  const [studentCount, setStudentCount] = useState(0)
-
-  useEffect(() => {
-    let cancelled = false
-
-    const fetchDashboardData = async () => {
-      try {
-        const [classes, students] = await Promise.all([
-          classroomService.getMyClasses(),
-          userService.getMyStudents(),
-        ])
-
-        if (cancelled) return
-
-        setClassCount(
-          classes.length,
-        )
-        setStudentCount(students.length)
-      } catch (error) {
-        console.error('Get dashboard data error:', error)
-      }
-    }
-
-    fetchDashboardData()
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const classesQuery = useResourceQuery('teacherClasses')
+  const studentsQuery = useResourceQuery('teacherStudents')
+  const classCount = classesQuery.data?.length ?? (classesQuery.isError ? '--' : '...')
+  const studentCount = studentsQuery.data?.length ?? (studentsQuery.isError ? '--' : '...')
 
   const statistics = [
-    { title: 'Lớp đang dạy', value: classCount, icon: School, color: 'border-emerald-100 bg-emerald-50', iconColor: 'text-emerald-600' },
-    { title: 'Tổng học sinh', value: studentCount, icon: GraduationCap, color: 'border-green-100 bg-green-50', iconColor: 'text-green-600' },
-    { title: 'Đề thi', value: examCount, icon: FileText, color: 'border-lime-100 bg-lime-50', iconColor: 'text-lime-600' },
+    { title: 'Lớp đang dạy', value: classCount, icon: School, color: 'border-emerald-100 bg-emerald-50', iconColor: 'text-emerald-600', valueColor: 'text-emerald-700' },
+    { title: 'Tổng học sinh', value: studentCount, icon: GraduationCap, color: 'border-sky-100 bg-sky-50', iconColor: 'text-sky-600', valueColor: 'text-sky-700' },
+    { title: 'Đề thi', value: examCount, icon: FileText, color: 'border-violet-100 bg-violet-50', iconColor: 'text-violet-600', valueColor: 'text-violet-700' },
   ]
     
     const today = new Intl.DateTimeFormat('vi-VN', {
@@ -143,7 +115,7 @@ function TeacherDashboard() {
                 </div>
 
                 <div>
-                  <p className="text-2xl font-bold text-[#18301D]">
+                  <p className={`text-2xl font-bold ${item.valueColor}`}>
                     {item.value}
                   </p>
 

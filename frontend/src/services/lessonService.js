@@ -1,11 +1,12 @@
 import api from './api'
 
 const lessonService = {
-  getByDate: async (classroomId, date) => {
+  getByDate: async (classroomId, date, options = {}) => {
     const response = await api.get(
       `/classes/${classroomId}/lessons`,
       {
-        params: { date },
+        ...options,
+        params: { ...options.params, date },
       },
     )
 

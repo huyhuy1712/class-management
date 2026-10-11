@@ -20,6 +20,7 @@ public class ExamTargetValidator {
     public Targets validate(Long teacherId, CreateCompleteExamRequest.Assignment assignment) {
         List<Classroom> classes = List.of();
         List<User> students = List.of();
+        Classroom context = null;
         if (assignment.assignmentType() == ExamAssignmentType.CLASS) {
             classes = classroomRepository.findAllById(assignment.classIds());
             if (classes.size() != assignment.classIds().size() || classes.stream().anyMatch(c ->
@@ -33,10 +34,24 @@ public class ExamTargetValidator {
                     s.getRole() != UserRole.STUDENT || s.getStatus() != UserStatus.ACTIVE || !allowed.contains(s.getId()))) {
                 fail("assignment.studentIds", "Học sinh không hoạt động hoặc không thuộc lớp đang phụ trách");
             }
+            if (assignment.classId() != null) {
+                context = classroomRepository.findById(assignment.classId()).orElse(null);
+                if (context == null || !context.getTeacher().getId().equals(teacherId)
+                        || context.getStatus() != ClassroomStatus.ACTIVE) {
+                    fail("assignment.classId", "Lớp ngữ cảnh không tồn tại, đã lưu trữ hoặc không thuộc giáo viên");
+                }
+                Set<Long> members = new HashSet<>(classStudentRepository.findStudentIdsInClass(
+                        assignment.classId(), assignment.studentIds()));
+                if (!members.containsAll(assignment.studentIds())) {
+                    fail("assignment.studentIds", "Học sinh phải thuộc lớp ngữ cảnh đã chọn");
+                }
+            }
         }
-        return new Targets(classes, students);
+        return new Targets(classes, students, context);
     }
 
-    public record Targets(List<Classroom> classes, List<User> students) {}
+    public record Targets(List<Classroom> classes, List<User> students, Classroom classroom) {
+        public Targets(List<Classroom> classes, List<User> students) { this(classes, students, null); }
+    }
 }
 

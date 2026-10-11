@@ -1,7 +1,8 @@
+import { EMPTY_LIST } from '../../../../../../query/queryKeys'
+import useResourceQuery from '../../../../../../query/useResourceQuery'
 import { CheckCircle2, Search, UserPlus, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import userService from '../../../../../../services/userService'
 import defaultAvatar from '../../../../../../assets/images/avatar_default.png'
 
 function AddStudentModal({
@@ -12,41 +13,15 @@ function AddStudentModal({
   error = null,
 }) {
   const [studentCode, setStudentCode] = useState('')
-  const [students, setStudents] = useState([])
+  const studentsQuery = useResourceQuery('studentDirectory', [], { enabled: open })
+  const students = studentsQuery.data ?? EMPTY_LIST
   const [selectedStudent, setSelectedStudent] = useState(null)
 
-  const [loadingStudents, setLoadingStudents] = useState(false)
+  const loadingStudents = studentsQuery.isLoading
   const [searchError, setSearchError] = useState(null)
 
   useEffect(() => {
-    if (!open) {
-      setStudentCode('')
-      setStudents([])
-      setSelectedStudent(null)
-      setSearchError(null)
-      return
-    }
-
-    const fetchStudents = async () => {
-      try {
-        setLoadingStudents(true)
-        setSearchError(null)
-
-        const data = await userService.getStudents()
-
-        setStudents(data)
-      } catch (error) {
-        console.error('Get students error:', error)
-
-        setSearchError(
-          'Không thể tải danh sách học sinh.',
-        )
-      } finally {
-        setLoadingStudents(false)
-      }
-    }
-
-    fetchStudents()
+    if (!open) { setStudentCode(''); setSelectedStudent(null); setSearchError(null) }
   }, [open])
 
   useEffect(() => {
@@ -231,7 +206,7 @@ function AddStudentModal({
             )}
 
           {/* Search error */}
-          {searchError && (
+          {(searchError || studentsQuery.errorMessage) && (
             <div className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
               <p className="text-sm text-red-600">
                 {searchError}

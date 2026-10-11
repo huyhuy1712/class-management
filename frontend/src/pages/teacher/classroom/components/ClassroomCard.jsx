@@ -7,6 +7,7 @@ import {
   CircleOff,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import useRoutePrefetch from '../../../../query/useRoutePrefetch'
 
 function ClassCard({
   classroom,
@@ -15,6 +16,7 @@ function ClassCard({
   onArchive,
   onDelete,
 }) {
+  const prefetch = useRoutePrefetch()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef(null)
 
@@ -138,6 +140,8 @@ function ClassCard({
       <button
         type="button"
         onClick={() => onView(classroom)}
+        onMouseEnter={() => prefetch(`/teacher/classes/${classroom.id}`)}
+        onFocus={() => prefetch(`/teacher/classes/${classroom.id}`)}
         className="mt-auto w-full rounded-xl bg-[#14532D] py-2.5 text-sm font-semibold text-white transition hover:bg-[#166534]"
       >
         Vào lớp học

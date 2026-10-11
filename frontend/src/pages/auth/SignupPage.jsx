@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import {
   Eye,
@@ -25,7 +26,8 @@ function SignupPage() {
   })
 
   const [showPassword, setShowPassword] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const mutation = useMutation({ mutationFn: signup })
+  const loading = mutation.isPending
   const [fieldErrors, setFieldErrors] = useState({})
   const [error, setError] = useState('')
   const fullNameInputRef = useRef(null)
@@ -70,6 +72,7 @@ function SignupPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+    if (loading) return
     const nextFieldErrors = {}
 
     const fullName = form.fullName.trim()
@@ -115,9 +118,8 @@ function SignupPage() {
     }
 
     try {
-      setLoading(true)
 
-      const signupResult = await signup({
+      const signupResult = await mutation.mutateAsync({
         username: form.username.trim(),
         password: form.password,
         email: form.email.trim(),
@@ -188,8 +190,6 @@ function SignupPage() {
       setError(
         firstErrorField ? '' : backendMessage || fallbackMessage,
       )
-    } finally {
-      setLoading(false)
     }
   }
 

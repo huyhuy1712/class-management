@@ -1,10 +1,10 @@
 import { LogOut } from 'lucide-react'
 
-export default function StudentLogoutModal({ onClose, onConfirm }) {
+export default function StudentLogoutModal({ onClose, onConfirm, pending = false }) {
   return (
 <div
         className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4 backdrop-blur-[2px]"
-        onClick={() => onClose()}
+        onClick={() => { if (!pending) onClose() }}
       >
         <div
           role="dialog"
@@ -28,6 +28,7 @@ export default function StudentLogoutModal({ onClose, onConfirm }) {
             <button
               type="button"
               onClick={() => onClose()}
+              disabled={pending}
               className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50"
             >
               Hủy
@@ -35,10 +36,11 @@ export default function StudentLogoutModal({ onClose, onConfirm }) {
             <button
               type="button"
               onClick={onConfirm}
+              disabled={pending}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-600"
             >
               <LogOut size={17} />
-              Đăng xuất
+              {pending ? 'Đang đăng xuất...' : 'Đăng xuất'}
             </button>
           </div>
         </div>

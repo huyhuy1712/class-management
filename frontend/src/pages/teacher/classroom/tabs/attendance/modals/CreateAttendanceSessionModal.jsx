@@ -32,6 +32,11 @@ function getTimeFromDateTime(value) {
   return match?.[1] ?? ''
 }
 
+function getCurrentTime() {
+  const now = new Date()
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+}
+
 function CreateAttendanceSessionModal({
   open,
   onClose,
@@ -55,16 +60,16 @@ function CreateAttendanceSessionModal({
 
 
   useEffect(() => {
-    if (!open) return
+    if (!open || loadingSession || sessionLookupFailed) return
 
     setPassword(existingSession?.attendanceCode ?? '')
     setShowPassword(false)
     setDate(existingSession?.lessonDate ?? getLocalDate())
-    setStartTime(getTimeFromDateTime(existingSession?.startTime))
+    setStartTime(existingSession ? getTimeFromDateTime(existingSession.startTime) : getCurrentTime())
     setEndTime(getTimeFromDateTime(existingSession?.endTime))
     setLateTime(getTimeFromDateTime(existingSession?.lateTime))
     setValidationError('')
-  }, [open, existingSession])
+  }, [open, existingSession, loadingSession, sessionLookupFailed])
 
   if (!open) return null
 

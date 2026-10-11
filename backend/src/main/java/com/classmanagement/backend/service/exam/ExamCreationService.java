@@ -111,7 +111,7 @@ public class ExamCreationService {
         for (var student : targets.students()) {
             entityManager.persist(ExamAssignmentStudent.builder()
                     .id(new ExamAssignmentStudentId(assignment.getId(), student.getId()))
-                    .assignment(assignment).student(student).build());
+                    .assignment(assignment).student(student).classroom(targets.classroom()).build());
         }
         return assignment;
     }

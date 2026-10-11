@@ -1,3 +1,4 @@
+import useExamTargetOptions from '../hooks/useExamTargetOptions'
 import {
   ArrowLeft,
   Check,
@@ -5,12 +6,8 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
 
 import DashboardLayout from '../../../../layouts/DashboardLayout'
-import subjectService from '../../../../services/subjectService'
-import classroomService from '../../../../services/classroomService'
-import userService from '../../../../services/userService'
 
 import ExamAccessSection from './components/ExamAccessSection'
 import ExamBasicInfoSection from './components/ExamBasicInfoSection'
@@ -23,81 +20,7 @@ import useCreateExamForm from './hooks/useCreateExamForm'
 
 function CreateExamPage() {
   const navigate = useNavigate()
-  const [subjects, setSubjects] = useState([])
-  const [subjectsLoading, setSubjectsLoading] = useState(true)
-  const [subjectsError, setSubjectsError] = useState('')
-  const [classes, setClasses] = useState([])
-  const [students, setStudents] = useState([])
-
-  useEffect(() => {
-    let cancelled = false
-
-    const loadSubjects = async () => {
-      try {
-        setSubjectsLoading(true)
-        setSubjectsError('')
-        const data = await subjectService.getAll()
-
-        if (!cancelled) {
-          setSubjects(Array.isArray(data) ? data : [])
-        }
-      } catch (error) {
-        console.error('Get subjects for create exam error:', error)
-        if (!cancelled) {
-          setSubjects([])
-          setSubjectsError('Không thể tải danh sách môn học.')
-        }
-      } finally {
-        if (!cancelled) setSubjectsLoading(false)
-      }
-    }
-
-    loadSubjects()
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-
-    Promise.all([
-      classroomService.getMyClasses(),
-      userService.getMyStudents(),
-    ])
-      .then(([classData, studentData]) => {
-        if (!cancelled) {
-          const teacherClasses = (Array.isArray(classData) ? classData : []).filter((item) => item.status === 'ACTIVE')
-          const activeClassIds = new Set(teacherClasses.map((item) => item.id))
-          const teacherStudents = (Array.isArray(studentData) ? studentData : []).filter((item) => item.status === 'ACTIVE' && item.classes?.some((classroom) => activeClassIds.has(classroom.id)))
-          const studentCountByClass = teacherStudents.reduce((counts, student) => {
-            student.classes?.forEach((classroom) => {
-              counts[classroom.id] = (counts[classroom.id] ?? 0) + 1
-            })
-            return counts
-          }, {})
-
-          setClasses(teacherClasses.map((classroom) => ({
-            ...classroom,
-            studentCount: studentCountByClass[classroom.id] ?? 0,
-          })))
-          setStudents(teacherStudents)
-        }
-      })
-      .catch((error) => {
-        console.error('Get exam access data error:', error)
-        if (!cancelled) {
-          setClasses([])
-          setStudents([])
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
+  const { subjects, subjectsLoading, subjectsError, classes, students, loading: targetsLoading, error: targetsError } = useExamTargetOptions()
   const {
     form,
     errors,
@@ -131,7 +54,7 @@ function CreateExamPage() {
   })
 
   const handleCreateOnline = () => {
-    if (!validate()) return
+    if (targetsLoading || targetsError || !validate()) return
 
     const data = buildExamData()
 
@@ -242,6 +165,7 @@ function CreateExamPage() {
           />
 
           {/* AI ĐƯỢC PHÉP LÀM */}
+          {targetsError && <p role="alert" className="text-sm text-red-600">{targetsError}</p>}
           <ExamAccessSection
             form={form} errors={errors} onChange={handleChange}
             error={errors.accessType}

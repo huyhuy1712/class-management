@@ -11,6 +11,7 @@ export function buildExamConfigurationPayload(form, assignment) {
       id: assignment.id, assignmentType: form.accessType,
       classIds: form.accessType === 'CLASS' ? ids(form.classIds) : [],
       studentIds: form.accessType === 'STUDENT' ? ids(form.studentIds) : [],
+      ...(form.accessType === 'STUDENT' ? { classId: Number(form.classId) } : {}),
       scoreVisibility: form.scoreVisibility, answerVisibility: form.answerVisibility,
       threshold: assignment.threshold ?? null,
       hideCorrectAnswerOnWrong: Boolean(form.hideWrongAnswers),

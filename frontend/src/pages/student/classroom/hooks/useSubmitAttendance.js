@@ -1,9 +1,11 @@
+import { useMutation } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import attendanceService from '../../../../services/attendanceService'
 
 export default function useSubmitAttendance(classId, onSuccess) {
+  const attendanceMutation = useMutation({ mutationFn: (args) => attendanceService.attendAsStudent(...args) })
   const [step, setStep] = useState(null)
-  const [busy, setBusy] = useState(false)
+  const busy = attendanceMutation.isPending
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const password = useRef('')
@@ -11,10 +13,9 @@ export default function useSubmitAttendance(classId, onSuccess) {
   const submit = async (code, note) => {
     if (lock.current) return
     lock.current = true
-    setBusy(true)
     setError('')
     try {
-      const records = await attendanceService.attendAsStudent(classId, code, note)
+      const records = await attendanceMutation.mutateAsync([classId, code, note])
       onSuccess(records)
       setSuccess('Điểm danh thành công!')
       setStep(null)
@@ -24,7 +25,7 @@ export default function useSubmitAttendance(classId, onSuccess) {
         password.current = code
         setStep('late')
       } else setError(exception.response?.data?.message || 'Không thể điểm danh. Vui lòng thử lại.')
-    } finally { lock.current = false; setBusy(false) }
+    } finally { lock.current = false }
   }
   return {
     step, busy, error, success,

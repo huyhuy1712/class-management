@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query'
 import {
   AlertCircle,
   CheckCircle2,
@@ -38,9 +39,11 @@ function validateImportFile(file) {
 }
 
 function ImportStudentsModal({ classroomId, onClose, onImported }) {
+  const importMutation = useMutation({ mutationFn: (args) => classroomService.importStudents(...args) })
+  const templateMutation = useMutation({ mutationFn: classroomService.downloadStudentImportTemplate })
   const [file, setFile] = useState(null)
-  const [importing, setImporting] = useState(false)
-  const [downloadingTemplate, setDownloadingTemplate] = useState(false)
+  const importing = importMutation.isPending
+  const downloadingTemplate = templateMutation.isPending
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
   const fileInputRef = useRef(null)
@@ -83,11 +86,10 @@ function ImportStudentsModal({ classroomId, onClose, onImported }) {
 
   const handleDownloadTemplate = async () => {
     try {
-      setDownloadingTemplate(true)
       setError('')
 
       const template =
-        await classroomService.downloadStudentImportTemplate()
+        await templateMutation.mutateAsync()
       const downloadUrl = URL.createObjectURL(template)
       const link = document.createElement('a')
       link.href = downloadUrl
@@ -99,8 +101,6 @@ function ImportStudentsModal({ classroomId, onClose, onImported }) {
     } catch (downloadError) {
       console.error('Download student import template error:', downloadError)
       setError('Không thể tải file mẫu. Vui lòng thử lại.')
-    } finally {
-      setDownloadingTemplate(false)
     }
   }
 
@@ -119,18 +119,17 @@ function ImportStudentsModal({ classroomId, onClose, onImported }) {
     }
 
     try {
-      setImporting(true)
       setError('')
       setResult(null)
 
-      const importResult = await classroomService.importStudents(
+      const importResult = await importMutation.mutateAsync([
         classroomId,
         file,
-      )
+      ])
       setResult(importResult)
 
       if (importResult?.success > 0) {
-        await onImported()
+        await onImported?.()
       }
     } catch (importError) {
       console.error('Import students error:', importError)
@@ -155,8 +154,6 @@ function ImportStudentsModal({ classroomId, onClose, onImported }) {
             'Không thể import học sinh. Vui lòng thử lại.',
         )
       }
-    } finally {
-      setImporting(false)
     }
   }
 

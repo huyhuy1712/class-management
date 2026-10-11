@@ -19,10 +19,16 @@ public record UpdateExamRequest(
             @NotNull AnswerVisibility answerVisibility,
             @DecimalMin("0") @Digits(integer = 4, fraction = 2) BigDecimal threshold,
             @NotNull Boolean hideCorrectAnswerOnWrong,
-            LocalDateTime openTime, LocalDateTime closeTime) {
+            LocalDateTime openTime, LocalDateTime closeTime, @Positive Long classId) {
+        public Assignment(Long id, ExamAssignmentType assignmentType, List<Long> classIds, List<Long> studentIds,
+                ScoreVisibility scoreVisibility, AnswerVisibility answerVisibility, BigDecimal threshold,
+                Boolean hideCorrectAnswerOnWrong, LocalDateTime openTime, LocalDateTime closeTime) {
+            this(id, assignmentType, classIds, studentIds, scoreVisibility, answerVisibility, threshold,
+                    hideCorrectAnswerOnWrong, openTime, closeTime, null);
+        }
         public CreateCompleteExamRequest.Assignment toCreateAssignment() {
             return new CreateCompleteExamRequest.Assignment(assignmentType, classIds, studentIds,
-                    scoreVisibility, answerVisibility, threshold, hideCorrectAnswerOnWrong, openTime, closeTime);
+                    scoreVisibility, answerVisibility, threshold, hideCorrectAnswerOnWrong, openTime, closeTime, classId);
         }
     }
 }

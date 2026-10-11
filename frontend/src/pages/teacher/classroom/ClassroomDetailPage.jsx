@@ -1,56 +1,14 @@
-import { useEffect, useState } from 'react'
 import { Outlet, useParams } from 'react-router-dom'
 
 import DashboardLayout from '../../../layouts/DashboardLayout'
 import ClassDetailHeader from '../../../components/classroom/detail/ClassDetailHeader'
 import ClassDetailSidebar from '../../../components/classroom/detail/ClassDetailSidebar'
-import classroomService from '../../../services/classroomService'
+import useTeacherClassDetail from './hooks/useTeacherClassDetail'
 
 function ClassDetailPage() {
   const { classId } = useParams()
 
-  const [classroom, setClassroom] = useState(null)
-  const [studentCount, setStudentCount] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-
-  useEffect(() => {
-    const fetchClassroom = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-
-        const classes = await classroomService.getAll()
-
-        const foundClass = classes.find(
-          (item) => Number(item.id) === Number(classId),
-        )
-
-        if (!foundClass) {
-          setError('Không tìm thấy lớp học.')
-          return
-        }
-
-        const students = await classroomService.getStudents(foundClass.id)
-
-        setClassroom(foundClass)
-        setStudentCount(students.length)
-      } catch (error) {
-        console.error('Get classroom detail error:', error)
-        setError('Không thể tải thông tin lớp học.')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchClassroom()
-  }, [classId])
-
-  const handleActivate = async () => {
-    const activeClassroom = await classroomService.activate(classroom.id)
-    setClassroom(activeClassroom)
-    return activeClassroom
-  }
+  const { classroom, studentCount, loading, error, handleActivate, activating } = useTeacherClassDetail(classId)
 
   return (
     <DashboardLayout>
@@ -76,7 +34,7 @@ function ClassDetailPage() {
               <Outlet
                 context={{
                   classroom,
-                  onStudentCountChange: setStudentCount,
+                  activating,
                   onActivate: handleActivate,
                 }}
               />

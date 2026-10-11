@@ -6,8 +6,10 @@ import {
   Users,
 } from 'lucide-react'
 import { NavLink, useLocation, useParams } from 'react-router-dom'
+import useRoutePrefetch from '../../../query/useRoutePrefetch'
 
 function ClassDetailSidebar({ studentCount = 0 }) {
+  const prefetch = useRoutePrefetch()
   const { classId } = useParams()
   const { pathname } = useLocation()
 
@@ -61,6 +63,8 @@ function ClassDetailSidebar({ studentCount = 0 }) {
               <NavLink
                 key={item.label}
                 to={item.to}
+                onMouseEnter={() => prefetch(item.to)}
+                onFocus={() => prefetch(item.to)}
                 end={item.end}
                 className={({ isActive }) =>
                   `flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition ${
@@ -89,7 +93,7 @@ function ClassDetailSidebar({ studentCount = 0 }) {
                         <span>{item.label}</span>
 
                         {item.showCount && (
-                          <span className="rounded-full bg-white px-2 py-0.5 text-xs font-bold text-green-700 shadow-sm">
+                          <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-bold text-sky-700 shadow-sm">
                             {studentCount}
                           </span>
                         )}

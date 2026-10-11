@@ -1,3 +1,6 @@
+import { useMutation } from '@tanstack/react-query'
+import { EMPTY_LIST } from '../../../../query/queryKeys'
+import useResourceQuery from '../../../../query/useResourceQuery'
 import { sortByText } from '../../../../utils/sortByText'
 import {
   CalendarCheck,
@@ -43,16 +46,22 @@ function formatJoinedDate(value) {
 }
 
 function StudentsTab() {
-  const { classroom, onStudentCountChange, onActivate } = useOutletContext()
+  const addMutation = useMutation({ mutationFn: (args) => classroomService.addStudent(...args) })
+  const removeMutation = useMutation({ mutationFn: (args) => classroomService.removeStudent(...args) })
+  const removeAllMutation = useMutation({ mutationFn: classroomService.removeAllStudents })
+  const attendanceMutation = useMutation({ mutationFn: (args) => classroomService.createAttendance(...args) })
+  const { classroom, onStudentCountChange, onActivate, activating: activatingClass } = useOutletContext()
   const classroomId = classroom?.id
 
-  const [students, setStudents] = useState([])
+  const studentsQuery = useResourceQuery('classStudents', [classroomId], { enabled: Boolean(classroomId), errorMessage: 'Không thể tải danh sách học sinh.' })
+  const students = studentsQuery.data ?? EMPTY_LIST
+  const setStudents = studentsQuery.setData
   const [search, setSearch] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const loading = studentsQuery.isLoading
+  const error = studentsQuery.errorMessage
 
   const [addModalOpen, setAddModalOpen] = useState(false)
-  const [adding, setAdding] = useState(false)
+  const adding = addMutation.isPending
   const [addError, setAddError] = useState(null)
   const [addMenuOpen, setAddMenuOpen] = useState(false)
   const addMenuRef = useRef(null)
@@ -60,21 +69,20 @@ function StudentsTab() {
   const [importModalOpen, setImportModalOpen] = useState(false)
 
   const [studentToDelete, setStudentToDelete] = useState(null)
-  const [deleting, setDeleting] = useState(false)
+  const deleting = removeMutation.isPending
   const [deleteAllStudentsOpen, setDeleteAllStudentsOpen] = useState(false)
-  const [deletingAllStudents, setDeletingAllStudents] = useState(false)
+  const deletingAllStudents = removeAllMutation.isPending
   const [toast, setToast] = useState(null)
-  const [activatingClass, setActivatingClass] = useState(false)
 
   const [attendanceStudent, setAttendanceStudent] = useState(null)
-  const [attendanceLoading, setAttendanceLoading] = useState(false)
+  const attendanceLoading = attendanceMutation.isPending
   const [attendanceError, setAttendanceError] = useState(null)
 
   const navigate = useNavigate()
 
   const handleActivateClass = async () => {
+    if (activatingClass) return
     try {
-      setActivatingClass(true)
       await onActivate()
       setToast({
         type: 'success',
@@ -87,45 +95,8 @@ function StudentsTab() {
           getErrorMessage(activateError.response?.data) ||
           'Không thể kích hoạt lớp học. Vui lòng thử lại.',
       })
-    } finally {
-      setActivatingClass(false)
     }
   }
-
-  useEffect(() => {
-    let ignore = false
-
-    const fetchStudents = async () => {
-      if (!classroomId) {
-        setStudents([])
-        setLoading(false)
-        return
-      }
-
-      try {
-        setLoading(true)
-        setError(null)
-
-        const data = await classroomService.getStudents(classroomId)
-        if (!ignore) setStudents(data)
-      } catch (fetchError) {
-        if (ignore) return
-
-        setError(
-          getErrorMessage(fetchError.response?.data) ||
-            'Không thể tải danh sách học sinh.',
-        )
-      } finally {
-        if (!ignore) setLoading(false)
-      }
-    }
-
-    fetchStudents()
-
-    return () => {
-      ignore = true
-    }
-  }, [classroomId])
 
   useEffect(() => {
     if (!toast) return undefined
@@ -169,11 +140,11 @@ function StudentsTab() {
   }, [search, students])
 
   const handleAddStudent = async (studentId) => {
+    if (adding) return
     try {
-      setAdding(true)
       setAddError(null)
 
-      const student = await classroomService.addStudent(classroomId, studentId)
+      const student = await addMutation.mutateAsync([classroomId, studentId])
       setStudents((previous) => {
         const nextStudents = [student, ...previous]
         onStudentCountChange?.(nextStudents.length)
@@ -193,17 +164,14 @@ function StudentsTab() {
               ? 'Không tìm thấy học sinh hoặc tài khoản không hợp lệ.'
               : 'Không thể thêm học sinh. Vui lòng thử lại.'),
       )
-    } finally {
-      setAdding(false)
     }
   }
 
   const handleDeleteStudent = async () => {
-    if (!studentToDelete) return
+    if (!studentToDelete || deleting) return
 
     try {
-      setDeleting(true)
-      await classroomService.removeStudent(classroomId, studentToDelete.id)
+      await removeMutation.mutateAsync([classroomId, studentToDelete.id])
 
       setStudents((previous) =>
         previous.filter((student) => student.id !== studentToDelete.id),
@@ -221,8 +189,6 @@ function StudentsTab() {
           getErrorMessage(deleteError.response?.data) ||
           'Không thể xóa học sinh khỏi lớp.',
       })
-    } finally {
-      setDeleting(false)
     }
   }
 
@@ -231,11 +197,10 @@ function StudentsTab() {
   }
 
   const handleDeleteAllStudents = async () => {
-    if (!classroomId) return
+    if (!classroomId || deletingAllStudents) return
 
     try {
-      setDeletingAllStudents(true)
-      await classroomService.removeAllStudents(classroomId)
+      await removeAllMutation.mutateAsync(classroomId)
       setStudents([])
       onStudentCountChange?.(0)
       setDeleteAllStudentsOpen(false)
@@ -250,8 +215,6 @@ function StudentsTab() {
           getErrorMessage(deleteError.response?.data) ||
           'Không thể xóa toàn bộ học sinh khỏi lớp.',
       })
-    } finally {
-      setDeletingAllStudents(false)
     }
   }
 
@@ -347,12 +310,11 @@ const handleSubmitAttendance = async ({
   status,
   note,
 }) => {
-  if (!attendanceStudent || !classroom?.id) {
+  if (!attendanceStudent || !classroom?.id || attendanceLoading) {
     return
   }
 
   try {
-    setAttendanceLoading(true)
     setAttendanceError(null)
 
     const payload = {
@@ -367,10 +329,10 @@ const handleSubmitAttendance = async ({
     }
 
     const result =
-      await classroomService.createAttendance(
+      await attendanceMutation.mutateAsync([
         classroom.id,
         payload,
-      )
+      ])
 
     console.log('Attendance created:', result)
 
@@ -415,15 +377,7 @@ const handleSubmitAttendance = async ({
       backendMessage ||
         'Không thể lưu điểm danh. Vui lòng thử lại.',
     )
-  } finally {
-    setAttendanceLoading(false)
   }
-}
-
-const handleImportedStudents = async () => {
-  const updatedStudents = await classroomService.getStudents(classroomId)
-  setStudents(updatedStudents)
-  onStudentCountChange?.(updatedStudents.length)
 }
 
   return (
@@ -719,7 +673,6 @@ const handleImportedStudents = async () => {
         <ImportStudentsModal
           classroomId={classroomId}
           onClose={() => setImportModalOpen(false)}
-          onImported={handleImportedStudents}
         />
       )}
 

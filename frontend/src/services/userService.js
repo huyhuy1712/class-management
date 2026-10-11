@@ -1,13 +1,19 @@
 import api from './api'
 
 const userService = {
-  getMyClasses: async () => {
-    const response = await api.get('/users/me/classes')
+  getProfile: async (userId, options = {}) => {
+    const response = await api.get(`/users/${userId}`, options)
+    if (!response.data || String(response.data.id) !== String(userId)) throw new Error('Invalid profile response')
+    return response.data
+  },
+  getMyClasses: async (options = {}) => {
+    const response = await api.get('/users/me/classes', options)
     if (!Array.isArray(response.data)) throw new Error('Invalid student classes response format')
     return response.data
   },
-getStudents: async () => {
+getStudents: async (options = {}) => {
     const response = await api.get('/users', {
+      ...options,
       params: {
         role: 'STUDENT',
       },
@@ -21,8 +27,9 @@ getStudents: async () => {
 
     return data
   },
-  getTeachers: async () => {
+  getTeachers: async (options = {}) => {
     const response = await api.get('/users', {
+      ...options,
       params: {
         role: 'TEACHER',
       },
@@ -62,18 +69,18 @@ deleteAvatar: async () => {
     await api.delete('/users/me/avatar')
   },
 
-getMyStudents: async () => {
-  const response = await api.get('/users/my-students')
+getMyStudents: async (options = {}) => {
+  const response = await api.get('/users/my-students', options)
   return response.data
 },
 
-getMyStudentDashboard: async () => {
-  const response = await api.get('/users/me/student-dashboard')
+getMyStudentDashboard: async (options = {}) => {
+  const response = await api.get('/users/me/student-dashboard', options)
   return response.data
 },
 
-getMyCompletedExamCount: async () => {
-  const response = await api.get('/users/me/student-exam-count')
+getMyCompletedExamCount: async (options = {}) => {
+  const response = await api.get('/users/me/student-exam-count', options)
   return response.data
 },
 

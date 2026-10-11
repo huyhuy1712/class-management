@@ -2566,3 +2566,29 @@ Test: lớp có N học sinh, giáo viên nhấn Xóa toàn bộ nhận 204; cla
 Với tài khoản STUDENT, body: {"attendanceCode":"mật khẩu","note":"lý do trễ (nếu cần)"}. BE lấy học sinh từ authentication và ngày/giờ theo Asia/Ho_Chi_Minh; không dùng studentId/status/date do học sinh gửi. Chỉ thành viên lớp ACTIVE được điểm danh, trong startTime–endTime và với mật khẩu đúng. Trước lateTime lưu PRESENT; từ lateTime lưu LATE và bắt buộc lý do tối đa 500 ký tự.
 
 Nếu mật khẩu đúng nhưng trễ và chưa có lý do: 409 {"code":"LATE_REASON_REQUIRED","message":"Bạn đã đi trễ buổi này, hãy nhập lý do trễ."}, chưa lưu điểm danh. Gửi lại cùng POST với note; BE kiểm tra lại toàn bộ điều kiện. Thành công 201 trả danh sách AttendanceResponse để FE cập nhật bảng/count. Điểm danh trùng vẫn bị từ chối. Luồng nhập danh sách điểm danh của giáo viên giữ body date/students cũ.
+
+#### Lớp ngữ cảnh khi giao riêng STUDENT (POST/PUT đề thi)
+
+Reuse POST `/api/exams` và PUT `/api/exams/{examId}`, không thêm endpoint. `assignment.classId` là field tùy chọn, số nguyên dương, chỉ dùng khi assignmentType=STUDENT. Đây là lớp ngữ cảnh chung cho tất cả studentIds trong lần giao này; classIds vẫn phải rỗng vì không giao cho cả lớp.
+
+```json
+{
+  "assignmentType": "STUDENT",
+  "classIds": [],
+  "studentIds": [21, 22],
+  "classId": 3,
+  "scoreVisibility": "NEVER",
+  "answerVisibility": "NEVER",
+  "hideCorrectAnswerOnWrong": false,
+  "openTime": null,
+  "closeTime": null
+}
+```
+
+Đây là phần assignment của POST; PUT thêm id của assignment và vẫn gửi đầy đủ basicInfo/revision theo contract hiện có. BE validate lớp tồn tại, ACTIVE, thuộc giáo viên; tất cả học sinh phải ACTIVE, có role STUDENT và thuộc lớp ngữ cảnh. Membership được kiểm tra bằng một query theo lô, không truy vấn từng học sinh. Không truyền/null classId thì giao riêng không gắn lớp; validation quyền nhận đề hiện có vẫn áp dụng.
+
+POST lưu class_id trên từng exam_assignment_students. PUT cập nhật ngữ cảnh cả học sinh đã có và học sinh mới; gửi classId=null hoặc bỏ field sẽ xóa ngữ cảnh của những học sinh còn được giao vì PUT thay thế cấu hình đầy đủ. Không đổi quyền nhận đề: vẫn dựa vào student_id, không mở đề cho cả lớp.
+
+GET `/api/exams/{examId}/configuration` và GET detail bổ sung `assignments[].studentClasses`, ví dụ `[{"studentId":21,"classId":3},{"studentId":22,"classId":3}]`. studentIds cũ giữ nguyên; dữ liệu cũ trả classId=null. Khi sửa form có ngữ cảnh chung, FE lấy classId từ studentClasses và gửi lại trong assignment.classId để giữ lớp ngữ cảnh. GET chỉ đọc ID của lazy classroom, không tải tên lớp hay thêm query từng học sinh.
+
+Validation trả 400 với field assignment.classId hoặc assignment.studentIds. Test POST STUDENT với lớp hợp lệ, kiểm tra class_id DB và GET; PUT giữ studentIds nhưng đổi classId rồi kiểm tra cập nhật; PUT null kiểm tra xóa ngữ cảnh; lớp khác giáo viên/lớp ARCHIVED/học sinh không thuộc lớp phải bị từ chối trước khi ghi. V55 cần đã được áp dụng. Chưa thêm API danh sách đề dành cho học sinh ở bước này.

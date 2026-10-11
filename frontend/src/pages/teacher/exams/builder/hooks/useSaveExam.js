@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import examService from '../../../../../services/examService'
@@ -12,7 +13,8 @@ import { uploadExamMedia, validateExamMedia } from '../helpers/examMediaUpload.j
 export default function useSaveExam({ builder, routeConfig, onValidationErrors, enabled = true }) {
   const navigate = useNavigate()
   const lock = useRef(false)
-  const [saving, setSaving] = useState(false)
+  const saveMutation = useMutation({ mutationFn: performSave })
+  const saving = saveMutation.isPending
   const [message, setMessage] = useState('')
   const [uncertain, setUncertain] = useState(() => enabled && Boolean(loadExamDraft()?.pendingSave))
   useEffect(() => {
@@ -26,10 +28,9 @@ export default function useSaveExam({ builder, routeConfig, onValidationErrors, 
     if (!saveExamDraft(changes)) throw new Error('Không thể giữ bản nháp trên trình duyệt. Vui lòng kiểm tra dung lượng lưu trữ trước khi lưu đề.')
   }
 
-  const save = async () => {
+  async function performSave() {
     if (!enabled || lock.current || uncertain || loadExamDraft()?.pendingSave) return
     lock.current = true
-    setSaving(true)
     setMessage('')
     let sections = orderExamSections(builder.sections)
     let requestStarted = false
@@ -37,6 +38,7 @@ export default function useSaveExam({ builder, routeConfig, onValidationErrors, 
       const draft = loadExamDraft()
       const config = getExamConfig(draft, routeConfig)
       const configErrors = validateExamForm(config, config.accessType, config.classIds ?? [], config.studentIds ?? [])
+      if (config.accessType === 'STUDENT' && (!Number.isSafeInteger(Number(config.classId)) || Number(config.classId) <= 0)) configErrors.accessType = 'Vui lòng chọn lại lớp và học sinh trước khi giao riêng đề.'
       const validation = validateExamBuilder(sections)
       onValidationErrors(validation.errors)
       if (Object.keys(configErrors).length) {
@@ -73,9 +75,9 @@ export default function useSaveExam({ builder, routeConfig, onValidationErrors, 
         setMessage(error.response?.data?.message || error.message || 'Không thể lưu đề. Bản nháp vẫn được giữ.')
         if (Object.keys(mapped.errors).length) focusExamError(Object.keys(mapped.errors)[0])
       }
+      throw error
     } finally {
       lock.current = false
-      setSaving(false)
     }
   }
 
@@ -85,5 +87,6 @@ export default function useSaveExam({ builder, routeConfig, onValidationErrors, 
     setUncertain(false)
     setMessage('Đã mở lại nút lưu. Bấm Lưu đề thi khi bạn muốn gửi lại.')
   }
+  const save = () => lock.current ? Promise.resolve() : saveMutation.mutateAsync().catch(() => {})
   return { save, saving, uncertain, message, confirmRetry }
 }

@@ -14,6 +14,11 @@ const item = (id, correct = false) => ({ id, content: `Ý ${id}`, isCorrect: cor
 const group = (id = 'g') => ({ id, answerType: 'TRUE_FALSE', point: 1, orderIndex: 1, answers: [item('a'), item('b')], scoringRules: [] })
 const sections = () => [{ id: 's', title: 'Phần 1', orderIndex: 1, questions: [{ id: 'q', content: 'Câu hỏi', point: 1, orderIndex: 1, answerGroups: [group()] }] }]
 
+test('student creation preserves classroom context through draft and payload', () => {
+  const restored = getExamConfig({ general: { form: config, accessType: 'STUDENT', selectedStudents: [10], studentAssignmentClassId: '21', selectedStudentClassId: null } })
+  assert.equal(buildExamPayload(restored, sections()).assignment.classId, 21)
+})
+
 test('ALL never sends class or student targets', () => {
   assert.deepEqual(buildExamPayload(config, sections()).assignment, {
     assignmentType: 'ALL', openTime: null, closeTime: null, classIds: [], studentIds: [], scoreVisibility: 'AFTER_EXAM', answerVisibility: 'AFTER_SUBMIT', hideCorrectAnswerOnWrong: true,

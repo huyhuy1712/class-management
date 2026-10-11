@@ -3,7 +3,7 @@ import StudentAttendanceTab from '../tabs/StudentAttendanceTab'
 
 const tabs = [
   { id: 'attendance', label: 'Điểm danh', Icon: ClipboardCheck },
-  { id: 'exams', label: 'Đề thi', Icon: FileText },
+  { id: 'grades', label: 'Điểm số', Icon: FileText },
   { id: 'announcements', label: 'Bảng tin', Icon: Bell },
 ]
 

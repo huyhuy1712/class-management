@@ -1,5 +1,6 @@
+import useStudentAttendanceOverview from './hooks/useStudentAttendanceOverview'
 import { sortByText } from '../../utils/sortByText'
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   BookOpen,
   CalendarDays,
@@ -9,8 +10,6 @@ import {
   XCircle,
 } from "lucide-react";
 
-import attendanceService from "../../services/attendanceService";
-import userService from "../../services/userService";
 import StudentDashboardLayout from "../../layouts/StudentDashboardLayout";
 
 const statusLabels = {
@@ -28,37 +27,9 @@ function formatDate(date) {
 }
 
 function StudentAttendancePage() {
-  const [classes, setClasses] = useState([]);
-  const [records, setRecords] = useState([]);
-  const [selectedClassId, setSelectedClassId] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    Promise.all([
-      userService.getMyStudentDashboard(),
-      attendanceService.getMyAttendances(),
-    ])
-      .then(([dashboard, attendanceRecords]) => {
-        if (cancelled) return;
-        const studentClasses = dashboard.classes || [];
-        setClasses(studentClasses);
-        setRecords(attendanceRecords || []);
-        setSelectedClassId(studentClasses[0]?.id ?? null);
-      })
-      .catch(() => {
-        if (!cancelled) setError("Không thể tải dữ liệu điểm danh.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { classes, records, loading, error } = useStudentAttendanceOverview();
+  const [chosenClassId, setSelectedClassId] = useState(null);
+  const selectedClassId = chosenClassId ?? classes[0]?.id ?? null;
 
   const selectedClass = classes.find(
     (classroom) => classroom.id === selectedClassId,

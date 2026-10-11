@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import attendanceService from '../../../../../services/attendanceService'
 
@@ -6,11 +7,13 @@ function getApiMessage(error) {
 }
 
 function useAttendanceActions(classId, setAttendances) {
+  const updateMutation = useMutation({ mutationFn: (args) => attendanceService.updateAttendance(...args) })
+  const deleteMutation = useMutation({ mutationFn: (args) => attendanceService.deleteAttendance(...args) })
   const [editingAttendance, setEditingAttendance] = useState(null)
-  const [updating, setUpdating] = useState(false)
+  const updating = updateMutation.isPending
   const [editError, setEditError] = useState('')
   const [deleteTarget, setDeleteTarget] = useState(null)
-  const [deleting, setDeleting] = useState(false)
+  const deleting = deleteMutation.isPending
   const [deleteError, setDeleteError] = useState('')
 
   const openEdit = (attendance) => {
@@ -36,10 +39,9 @@ function useAttendanceActions(classId, setAttendances) {
     if (!editingAttendance || !classId || updating) return
 
     try {
-      setUpdating(true)
       setEditError('')
 
-      const updatedAttendance = await attendanceService.updateAttendance(
+      const updatedAttendance = await updateMutation.mutateAsync([
         classId,
         editingAttendance.id,
         {
@@ -47,7 +49,7 @@ function useAttendanceActions(classId, setAttendances) {
           status: editingAttendance.status,
           note: editingAttendance.note ?? '',
         },
-      )
+      ])
 
       setAttendances((current) =>
         current.map((item) =>
@@ -61,8 +63,6 @@ function useAttendanceActions(classId, setAttendances) {
         getApiMessage(error) ||
           'Không thể cập nhật điểm danh. Vui lòng thử lại.',
       )
-    } finally {
-      setUpdating(false)
     }
   }
 
@@ -81,14 +81,13 @@ function useAttendanceActions(classId, setAttendances) {
     if (!deleteTarget || deleting || !classId) return
 
     try {
-      setDeleting(true)
       setDeleteError('')
 
-      await attendanceService.deleteAttendance(
+      await deleteMutation.mutateAsync([
         classId,
         deleteTarget.studentId,
         deleteTarget.date,
-      )
+      ])
 
       setAttendances((current) =>
         current.filter(
@@ -115,8 +114,6 @@ function useAttendanceActions(classId, setAttendances) {
           message || 'Không thể xóa điểm danh. Vui lòng thử lại.',
         )
       }
-    } finally {
-      setDeleting(false)
     }
   }
 

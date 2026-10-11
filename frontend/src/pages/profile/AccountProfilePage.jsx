@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query'
 import { sortByText } from '../../utils/sortByText'
 import useTeacherExamCount from '../teacher/hooks/useTeacherExamCount'
 import {
@@ -23,8 +24,17 @@ import userService from '../../services/userService'
 import defaultAvatar from '../../assets/images/avatar_default.png'
 import useProfileActivity from './hooks/useProfileActivity'
 import { optimizeAvatar } from '../teacher/helpers/avatarImageUtils'
+import useProfileSync from './hooks/useProfileSync'
 
 function AccountProfilePage({ student = false }) {
+  const profile = useProfileSync()
+  const dirty = useRef(false)
+  const avatarMutation = useMutation({
+    mutationFn: async (file) => userService.uploadAvatar(await optimizeAvatar(file)),
+  })
+  const deleteAvatarMutation = useMutation({ mutationFn: userService.deleteAvatar })
+  const profileMutation = useMutation({ mutationFn: userService.updateProfile })
+  const passwordMutation = useMutation({ mutationFn: (args) => userService.changePassword(...args) })
   const roleLabel = student ? 'Học sinh' : 'Giáo viên'
   const homePath = student ? '/student' : '/teacher'
   const activity = useProfileActivity(student)
@@ -33,12 +43,12 @@ function AccountProfilePage({ student = false }) {
   const updateUser = useAuthStore((state) => state.updateUser)
   const navigate = useNavigate()
 
-const [uploadingAvatar, setUploadingAvatar] = useState(false)
-const [deletingAvatar, setDeletingAvatar] = useState(false)
+const uploadingAvatar = avatarMutation.isPending
+const deletingAvatar = deleteAvatarMutation.isPending
 
 const [avatarError, setAvatarError] = useState('')
 const [avatarSuccess, setAvatarSuccess] = useState('')
-const [saving, setSaving] = useState(false)
+const saving = profileMutation.isPending
 const [formError, setFormError] = useState('')
 const [formSuccess, setFormSuccess] = useState('')
 const [fieldErrors, setFieldErrors] = useState({})
@@ -54,7 +64,7 @@ const [passwordForm, setPasswordForm] = useState({
 
 const [passwordError, setPasswordError] = useState('')
 const [passwordSuccess, setPasswordSuccess] = useState('')
-const [changingPassword, setChangingPassword] = useState(false)
+const changingPassword = passwordMutation.isPending
   
 const teacherExamCount = useTeacherExamCount(!student)
 const examCount = student ? (activity.examCountError ? 0 : activity.completedExamCount ?? 0) : teacherExamCount
@@ -78,6 +88,7 @@ const [form, setForm] = useState({
   })
 
 const handleChange = (event) => {
+    dirty.current = true
     const { name, value } = event.target
 
     setForm((prev) => ({
@@ -95,6 +106,7 @@ const handleChange = (event) => {
   }, [user?.avatar])
 
   useEffect(() => {
+    if (dirty.current) return
     setForm({
       fullName: user?.fullName || '',
       email: user?.email || '',
@@ -105,7 +117,7 @@ const handleChange = (event) => {
 const handleAvatarChange = async (event) => {
   const file = event.target.files?.[0]
 
-  if (!file) return
+  if (!file || uploadingAvatar || deletingAvatar) return
 
   setAvatarError('')
   setAvatarSuccess('')
@@ -140,10 +152,8 @@ const handleAvatarChange = async (event) => {
   setAvatarPreview(localPreviewUrl)
 
   try {
-    setUploadingAvatar(true)
-
-    const optimizedFile = await optimizeAvatar(file)
-    const data = await userService.uploadAvatar(optimizedFile)
+    const data = await avatarMutation.mutateAsync(file)
+    profile.setData((current) => ({ ...current, id: user.id, avatar: data.avatar }))
 
     updateUser({
       avatar: data.avatar,
@@ -168,8 +178,6 @@ const handleAvatarChange = async (event) => {
       'Không thể tải ảnh lên. Vui lòng thử lại.'
     )
   } finally {
-    setUploadingAvatar(false)
-
     if (avatarInputRef.current) {
       avatarInputRef.current.value = ''
     }
@@ -177,15 +185,14 @@ const handleAvatarChange = async (event) => {
 }
 
 const handleDeleteAvatar = async () => {
-  if (!user?.avatar) return
+  if (!user?.avatar || uploadingAvatar || deletingAvatar) return
 
   setAvatarError('')
   setAvatarSuccess('')
 
   try {
-    setDeletingAvatar(true)
-
-    await userService.deleteAvatar()
+    await deleteAvatarMutation.mutateAsync()
+    profile.setData((current) => ({ ...current, id: user.id, avatar: null }))
 
     updateUser({
       avatar: null,
@@ -200,13 +207,12 @@ const handleDeleteAvatar = async () => {
       err.response?.data?.message ||
       'Không thể gỡ ảnh đại diện.'
     )
-  } finally {
-    setDeletingAvatar(false)
   }
 }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+    if (saving) return
     setFormError('')
     setFormSuccess('')
     setFieldErrors({})
@@ -229,8 +235,9 @@ const handleDeleteAvatar = async () => {
     }
 
     try {
-      setSaving(true)
-      const updatedUser = await userService.updateProfile({ fullName, email, phone })
+      const updatedUser = await profileMutation.mutateAsync({ fullName, email, phone })
+      dirty.current = false
+      profile.setData(updatedUser)
       updateUser(updatedUser)
       setFormSuccess('Cập nhật thông tin cá nhân thành công.')
     } catch (err) {
@@ -250,8 +257,6 @@ const handleDeleteAvatar = async () => {
           'Không thể cập nhật thông tin cá nhân. Vui lòng thử lại.'
         )
       }
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -281,6 +286,7 @@ const closePasswordModal = () => {
 
 const handleChangePassword = async (event) => {
   event.preventDefault()
+  if (changingPassword) return
 
   setPasswordError('')
   setPasswordSuccess('')
@@ -314,12 +320,10 @@ const handleChangePassword = async (event) => {
   }
 
   try {
-    setChangingPassword(true)
-
-    await userService.changePassword(
+    await passwordMutation.mutateAsync([
       currentPassword,
       newPassword,
-    )
+    ])
 
     setShowPasswordModal(false)
 
@@ -350,13 +354,12 @@ const handleChangePassword = async (event) => {
         message || 'Không thể đổi mật khẩu. Vui lòng thử lại.',
       )
     }
-  } finally {
-    setChangingPassword(false)
   }
 }
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-5">
+      {profile.errorMessage && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-600">{profile.errorMessage}</p>}
       {/* PAGE TITLE */}
       <div className="flex flex-col items-center text-center">
       </div>
@@ -693,12 +696,12 @@ const handleChangePassword = async (event) => {
 
           <div className="grid grid-cols-2 gap-3">
             {/* CLASS COUNT */}
-            <div className="rounded-xl bg-green-50 p-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-green-600">
+            <div className="rounded-xl bg-sky-50 p-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-sky-600">
                 <BookOpen size={16} />
               </div>
 
-              <p className="mt-3 text-xl font-bold text-[#18301D]">
+              <p className="mt-3 text-xl font-bold text-sky-700">
                 {classCountError
                   ? '--'
                   : classCount === null
@@ -712,12 +715,12 @@ const handleChangePassword = async (event) => {
             </div>
 
             {/* EXAM COUNT */}
-            <div className="rounded-xl bg-lime-50 p-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-lime-600">
+            <div className="rounded-xl bg-violet-50 p-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-violet-600">
                 <ClipboardCheck size={16} />
               </div>
 
-              <p className="mt-3 text-xl font-bold text-[#18301D]">
+              <p className="mt-3 text-xl font-bold text-violet-700">
                 {examCount}
               </p>
 

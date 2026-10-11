@@ -30,7 +30,7 @@ const features = [
   },
   
   {
-    title: "Làm bài kiểm tra",
+    title: "Bài kiểm tra",
     description: "Xem và thực hiện các bài kiểm tra",
     icon: FileCheck,
     path: "/student/exams",
@@ -80,18 +80,18 @@ function StudentDashboard() {
       <section className="mb-10 grid grid-cols-1 gap-4 md:grid-cols-2">
 
         {/* Card 1 */}
-        <div className="rounded-2xl border border-[#dcefe3] bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-6 shadow-sm">
           <div className="flex items-center gap-4">
 
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#effbf3]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-emerald-600">
               <BookOpen
                 size={24}
-                className="text-[#159447]"
+                className="text-emerald-600"
               />
             </div>
 
             <div>
-              <p className="text-2xl font-bold text-[#102d22]">
+              <p className="text-2xl font-bold text-emerald-700">
                 {loading ? "..." : classError ? "--" : classCount}
               </p>
 
@@ -104,18 +104,18 @@ function StudentDashboard() {
         </div>
 
         {/* Card 2 */}
-        <div className="rounded-2xl border border-[#dcefe3] bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-violet-100 bg-violet-50/60 p-6 shadow-sm">
           <div className="flex items-center gap-4">
 
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#effbf3]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-violet-600">
               <ClipboardCheck
                 size={24}
-                className="text-[#159447]"
+                className="text-violet-600"
               />
             </div>
 
             <div>
-              <p className="text-2xl font-bold text-[#102d22]">
+              <p className="text-2xl font-bold text-violet-700">
                 {examCountLoading ? "..." : examCountError ? "--" : completedExamCount}
               </p>
 

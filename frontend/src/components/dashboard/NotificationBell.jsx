@@ -1,6 +1,8 @@
+import { useMutation } from '@tanstack/react-query'
+import useResourceQuery from '../../query/useResourceQuery'
 import { sortByText } from '../../utils/sortByText'
 import { Bell, X, Users, MessageSquare, LoaderCircle } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import requestService from '../../services/requestService'
 import defaultAvatar from '../../assets/images/avatar_default.png'
 
@@ -15,52 +17,21 @@ function formatRequestDate(createdAt) {
 }
 
 function NotificationBell() {
+  const rejectMutation = useMutation({ mutationFn: requestService.rejectJoinClassRequest })
+  const approveMutation = useMutation({ mutationFn: requestService.approveJoinClassRequest })
   const [open, setOpen] = useState(false)
-  const [requests, setRequests] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const query = useResourceQuery('requests')
+  const requests = query.data ?? []
+  const setRequests = query.setData
+  const loading = query.isLoading
+  const error = query.errorMessage
 
   const pendingCount = requests.length
   
-  const [rejectingId, setRejectingId] = useState(null)
+  const rejectingId = rejectMutation.isPending ? rejectMutation.variables : null
   const [actionError, setActionError] = useState('')
 
-  const [approvingId, setApprovingId] = useState(null)
-
-  useEffect(() => {
-    let cancelled = false
-
-    const fetchRequests = async () => {
-      try {
-        setLoading(true)
-        setError('')
-
-        const data =
-          await requestService.getReceivedJoinClassRequests()
-
-        if (!cancelled) {
-          setRequests(Array.isArray(data) ? data : [])
-        }
-      } catch (error) {
-        console.error('Get join class requests error:', error)
-
-        if (!cancelled) {
-          setError('Không thể tải yêu cầu tham gia lớp.')
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
-      }
-    }
-
-    fetchRequests()
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
+  const approvingId = approveMutation.isPending ? approveMutation.variables : null
 
 const handleReject = async (request) => {
   if (!request?.requestId || rejectingId !== null || approvingId !== null) return
@@ -68,11 +39,10 @@ const handleReject = async (request) => {
   const requestId = request.requestId
 
   try {
-    setRejectingId(requestId)
     setActionError('')
 
     // BE creates the notification and deletes the request atomically.
-    await requestService.rejectJoinClassRequest(requestId)
+    await rejectMutation.mutateAsync(requestId)
 
     // PATCH succeeded: request and detail have been deleted.
     // Xóa khỏi UI ngay
@@ -112,8 +82,6 @@ const handleReject = async (request) => {
           'Không thể từ chối yêu cầu. Vui lòng thử lại.'
       )
     }
-  } finally {
-    setRejectingId(null)
   }
 }
 
@@ -123,11 +91,10 @@ const handleApprove = async (request) => {
   const requestId = request.requestId
 
   try {
-    setApprovingId(requestId)
     setActionError('')
 
     // BE adds membership, creates notification and deletes the request atomically.
-    await requestService.approveJoinClassRequest(requestId)
+    await approveMutation.mutateAsync(requestId)
 
     // A successful PATCH means membership is saved and request/detail are deleted.
     setRequests((current) =>
@@ -170,8 +137,6 @@ const handleApprove = async (request) => {
           'Không thể chấp nhận yêu cầu. Vui lòng thử lại.'
       )
     }
-  } finally {
-    setApprovingId(null)
   }
 }
 

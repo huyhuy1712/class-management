@@ -1,8 +1,8 @@
 import api from './api'
 
 const subjectService = {
-  getAll: async () => {
-    const response = await api.get('/subjects')
+  getAll: async (options = {}) => {
+    const response = await api.get('/subjects', options)
     return response.data
   },
 }

@@ -1,8 +1,9 @@
+import { useMutation } from '@tanstack/react-query'
+import useRoutePrefetch from '../../query/useRoutePrefetch'
 import {
   House,
   School,
   Users,
-  ClipboardCheck,
   ChartNoAxesColumnIncreasing,
   FileText,
   BookOpen,
@@ -24,19 +25,23 @@ const menuItems = [
 ]
 
 function Sidebar({ isOpen, onClose }) {
+  const prefetch = useRoutePrefetch()
+
   const navigate = useNavigate()
   const logout = useAuthStore((state) => state.logout)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
 
+  const logoutMutation = useMutation({
+    mutationFn: logoutRequest,
+    onSettled: () => {
+      logout()
+      setShowLogoutModal(false)
+      onClose?.()
+      navigate('/login', { replace: true })
+    },
+  })
   const handleLogout = () => {
-    logoutRequest()
-      .catch((error) => console.error('Logout error:', error))
-      .finally(() => {
-        logout()
-        setShowLogoutModal(false)
-        onClose?.()
-        navigate('/login', { replace: true })
-      })
+    if (!logoutMutation.isPending) logoutMutation.mutate()
   }
 
   return (
@@ -88,6 +93,8 @@ function Sidebar({ isOpen, onClose }) {
             <NavLink
               key={item.path}
               to={item.path}
+              onMouseEnter={() => prefetch(item.path)}
+              onFocus={() => prefetch(item.path)}
               end={item.end}
               onClick={onClose}
               className={({ isActive }) =>
@@ -160,6 +167,7 @@ function Sidebar({ isOpen, onClose }) {
               <button
                 type="button"
                 onClick={handleLogout}
+                disabled={logoutMutation.isPending}
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-600"
               >
                 <LogOut size={17} />

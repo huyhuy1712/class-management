@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import examService from '../../../../services/examService'
@@ -11,8 +12,9 @@ function getErrorMessage(error) {
 }
 
 function useUpdateExam({ onUpdated } = {}) {
+  const updateMutation = useMutation({ mutationFn: (args) => examService.updateExam(...args) })
   const [editTarget, setEditTarget] = useState(null)
-  const [updating, setUpdating] = useState(false)
+  const updating = updateMutation.isPending
   const [updateError, setUpdateError] = useState('')
 
   const openEditModal = (exam) => {
@@ -25,19 +27,16 @@ function useUpdateExam({ onUpdated } = {}) {
   }
 
   const updateExam = async (data) => {
-    if (!editTarget) return
+    if (!editTarget || updating) return
 
     try {
-      setUpdating(true)
       setUpdateError('')
-      await examService.updateExam(editTarget.id, data)
+      await updateMutation.mutateAsync([editTarget.id, data])
       await onUpdated?.()
       setEditTarget(null)
     } catch (error) {
       console.error('Update exam error:', error)
       setUpdateError(getErrorMessage(error))
-    } finally {
-      setUpdating(false)
     }
   }
 

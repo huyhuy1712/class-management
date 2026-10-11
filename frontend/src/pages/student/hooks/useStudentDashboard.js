@@ -1,51 +1,22 @@
-import { useEffect, useState } from 'react'
-import userService from '../../../services/userService'
+import { useEffect } from 'react'
+import useResourceQuery from '../../../query/useResourceQuery'
 import useAuthStore from '../../../stores/authStore'
 
 export default function useStudentDashboard() {
   const user = useAuthStore((state) => state.user)
   const updateUser = useAuthStore((state) => state.updateUser)
-  const [dashboard, setDashboard] = useState(null)
-  const [classes, setClasses] = useState([])
-  const [classError, setClassError] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [completedExamCount, setCompletedExamCount] = useState(null)
-  const [examCountLoading, setExamCountLoading] = useState(true)
-  const [examCountError, setExamCountError] = useState(false)
-
+  const dashboard = useResourceQuery('dashboard')
+  const classes = useResourceQuery('studentClasses')
+  const exams = useResourceQuery('examCount')
   useEffect(() => {
-    let active = true
-
-    userService.getMyStudentDashboard()
-      .then((data) => {
-        if (!active) return
-        setDashboard(data)
-        updateUser({ fullName: data.fullName })
-      })
-      .catch(() => { if (active) setError('Không thể tải dữ liệu học tập.') })
-
-    userService.getMyClasses()
-      .then((data) => { setClasses(data) })
-      .catch(() => { if (active) setClassError(true) })
-      .finally(() => { if (active) setLoading(false) })
-
-    userService.getMyCompletedExamCount()
-      .then((data) => { if (active) setCompletedExamCount(data.completedExamCount) })
-      .catch(() => { if (active) setExamCountError(true) })
-      .finally(() => { if (active) setExamCountLoading(false) })
-
-    return () => { active = false }
-  }, [updateUser])
-
+    if (dashboard.data?.fullName && dashboard.data.fullName !== user?.fullName) updateUser({ fullName: dashboard.data.fullName })
+  }, [dashboard.data?.fullName, user?.fullName, updateUser])
   return {
-    studentName: dashboard?.fullName || user?.fullName || 'Học sinh',
-    classCount: classes.length,
-    classError,
-    loading,
-    error,
-    completedExamCount,
-    examCountLoading,
-    examCountError,
+    studentName: dashboard.data?.fullName || user?.fullName || 'Học sinh',
+    classCount: classes.data?.length ?? 0,
+    classError: Boolean(classes.errorMessage), loading: classes.isLoading,
+    error: dashboard.errorMessage,
+    completedExamCount: exams.data?.completedExamCount ?? null,
+    examCountLoading: exams.isLoading, examCountError: Boolean(exams.errorMessage),
   }
 }

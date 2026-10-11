@@ -86,6 +86,9 @@ public class ExamStructureValidator {
             List<@jakarta.validation.constraints.NotNull @jakarta.validation.Valid Section> sections) {}
 
     public void validateAssignment(CreateCompleteExamRequest.Assignment a) {
+        if (a.classId() != null && (a.classId() <= 0 || a.assignmentType() != ExamAssignmentType.STUDENT)) {
+            fail("assignment.classId", "classId phải lớn hơn 0 và chỉ dùng khi giao riêng STUDENT");
+        }
         var classes = list(a.classIds());
         var students = list(a.studentIds());
         if (new HashSet<>(classes).size() != classes.size()) fail("assignment.classIds", "ID lớp bị trùng");

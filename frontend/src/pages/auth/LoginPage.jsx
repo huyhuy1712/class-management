@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { Eye, EyeOff, LoaderCircle } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
@@ -20,7 +21,8 @@ function LoginPage() {
   })
 
   const [showPassword, setShowPassword] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const mutation = useMutation({ mutationFn: login })
+  const loading = mutation.isPending
   const [fieldErrors, setFieldErrors] = useState({})
   const [error, setError] = useState('')
   const usernameInputRef = useRef(null)
@@ -43,6 +45,7 @@ function LoginPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+    if (loading) return
     const nextFieldErrors = {}
 
     if (!form.username.trim()) {
@@ -67,9 +70,8 @@ function LoginPage() {
     }
 
     try {
-      setLoading(true)
 
-      const data = await login({
+      const data = await mutation.mutateAsync({
         username: form.username.trim(),
         password: form.password,
       })
@@ -125,8 +127,6 @@ function LoginPage() {
       } else {
         setError(message)
       }
-    } finally {
-      setLoading(false)
     }
   }
 

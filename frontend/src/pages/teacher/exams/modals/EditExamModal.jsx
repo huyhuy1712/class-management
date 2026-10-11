@@ -1,8 +1,8 @@
+import useResourceQuery from '../../../../query/useResourceQuery'
 import { sortByText } from '../../../../utils/sortByText'
 import { LoaderCircle, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import subjectService from '../../../../services/subjectService'
 
 function EditExamModal({
   open,
@@ -12,9 +12,10 @@ function EditExamModal({
   onClose,
   onSubmit,
 }) {
-  const [subjects, setSubjects] = useState([])
-  const [subjectsLoading, setSubjectsLoading] = useState(false)
-  const [subjectsError, setSubjectsError] = useState('')
+  const subjectsQuery = useResourceQuery('subjects', [], { enabled: open })
+  const subjects = subjectsQuery.data ?? []
+  const subjectsLoading = subjectsQuery.isLoading
+  const subjectsError = subjectsQuery.errorMessage
   const [form, setForm] = useState({
     subjectId: '',
     title: '',
@@ -34,25 +35,6 @@ function EditExamModal({
       purpose: exam.purpose ?? '',
     })
 
-    let cancelled = false
-    const loadSubjects = async () => {
-      try {
-        setSubjectsLoading(true)
-        setSubjectsError('')
-        const data = await subjectService.getAll()
-        if (!cancelled) setSubjects(Array.isArray(data) ? data : [])
-      } catch (loadError) {
-        console.error('Get subjects for exam edit error:', loadError)
-        if (!cancelled) setSubjectsError('Không thể tải danh sách môn học.')
-      } finally {
-        if (!cancelled) setSubjectsLoading(false)
-      }
-    }
-
-    loadSubjects()
-    return () => {
-      cancelled = true
-    }
   }, [exam, open])
 
   if (!open || !exam) return null

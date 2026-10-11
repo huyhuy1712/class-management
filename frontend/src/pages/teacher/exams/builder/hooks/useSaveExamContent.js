@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import examService from '../../../../../services/examService'
 import examMediaService from '../../../../../services/examMediaService'
@@ -11,12 +12,12 @@ export default function useSaveExamContent({ exam, builder, readOnly, onValidati
   const lock = useRef(false)
   const revision = useRef(exam?.revision)
   const token = useRef(null)
-  const [saving, setSaving] = useState(false)
+  const saveMutation = useMutation({ mutationFn: performSave })
+  const saving = saveMutation.isPending
   const [message, setMessage] = useState('')
-  const save = async () => {
+  async function performSave() {
     if (!exam || readOnly || lock.current) return
     lock.current = true
-    setSaving(true)
     setMessage('')
     let sections = orderExamSections(builder.sections)
     try {
@@ -38,10 +39,11 @@ export default function useSaveExamContent({ exam, builder, readOnly, onValidati
       onValidationErrors(mapped.errors)
       if (Object.keys(mapped.errors).length) focusExamError(Object.keys(mapped.errors)[0])
       setMessage(error.response?.data?.message || error.message || 'Không thể lưu chỉnh sửa. Vui lòng thử lại.')
+      throw error
     } finally {
       lock.current = false
-      setSaving(false)
     }
   }
+  const save = () => lock.current ? Promise.resolve() : saveMutation.mutateAsync().catch(() => {})
   return { save, saving, message }
 }

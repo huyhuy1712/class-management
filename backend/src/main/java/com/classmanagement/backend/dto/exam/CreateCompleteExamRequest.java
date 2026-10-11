@@ -32,7 +32,15 @@ public record CreateCompleteExamRequest(
             @DecimalMin("0") @Digits(integer = 4, fraction = 2) BigDecimal answerVisibilityScore,
             @NotNull Boolean hideCorrectAnswerOnWrong,
             LocalDateTime openTime,
-            LocalDateTime closeTime) {}
+            LocalDateTime closeTime,
+            @Positive Long classId) {
+        public Assignment(ExamAssignmentType assignmentType, List<Long> classIds, List<Long> studentIds,
+                ScoreVisibility scoreVisibility, AnswerVisibility answerVisibility, BigDecimal answerVisibilityScore,
+                Boolean hideCorrectAnswerOnWrong, LocalDateTime openTime, LocalDateTime closeTime) {
+            this(assignmentType, classIds, studentIds, scoreVisibility, answerVisibility, answerVisibilityScore,
+                    hideCorrectAnswerOnWrong, openTime, closeTime, null);
+        }
+    }
 
     public record Section(
             @NotBlank @Size(max = 255) String title,

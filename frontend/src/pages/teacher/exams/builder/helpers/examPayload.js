@@ -60,6 +60,7 @@ export function buildExamPayload(config, sections, draftToken) {
       closeTime: config.closeTime || null,
       classIds: assignmentType === 'CLASS' ? ids(config.classIds) : [],
       studentIds: assignmentType === 'STUDENT' ? ids(config.studentIds) : [],
+      ...(assignmentType === 'STUDENT' ? { classId: number(config.classId) } : {}),
       scoreVisibility: config.scoreVisibility, answerVisibility: config.answerVisibility,
       hideCorrectAnswerOnWrong: Boolean(config.hideWrongAnswers),
     },
@@ -80,6 +81,7 @@ export function getExamConfig(draft, routeConfig) {
   return {
     ...general.form,
     accessType: general.accessType,
+    classId: general.studentAssignmentClassId ?? general.selectedStudentClassId ?? null,
     classIds: general.selectedClasses ?? [], studentIds: general.selectedStudents ?? [],
   }
 }

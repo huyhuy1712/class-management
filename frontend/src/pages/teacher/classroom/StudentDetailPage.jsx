@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import useResourceQuery from '../../../query/useResourceQuery'
+import { useMemo } from 'react'
 import {
   ArrowLeft,
   BarChart3,
@@ -13,57 +14,16 @@ import {
 } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import defaultAvatar from '../../../assets/images/avatar_default.png'
-import attendanceService from '../../../services/attendanceService'
 
 function StudentDetailPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { classId, studentId } = useParams()
-  const [attendances, setAttendances] = useState(null)
-  const [attendanceError, setAttendanceError] = useState('')
-
-  // Student được truyền từ StudentsTab qua navigate()
+  const query = useResourceQuery('attendances', [classId], { enabled: Boolean(classId && studentId) })
+  const attendances = query.data ?? null
+  const attendanceError = query.errorMessage
+  // Student is supplied by the list navigation.
   const student = location.state?.student
-
-  useEffect(() => {
-    let cancelled = false
-
-    const fetchAttendances = async () => {
-      if (!classId || !studentId) {
-        setAttendanceError('Thiếu thông tin lớp hoặc học sinh để tải điểm danh.')
-        setAttendances([])
-        return
-      }
-
-      setAttendances(null)
-      setAttendanceError('')
-
-      try {
-        const data = await attendanceService.getByClass(classId)
-
-        if (!Array.isArray(data)) {
-          throw new Error('Invalid attendances response format')
-        }
-
-        if (!cancelled) {
-          setAttendances(data)
-        }
-      } catch (error) {
-        console.error('Get student attendances error:', error)
-
-        if (!cancelled) {
-          setAttendanceError('Không thể tải tình trạng điểm danh. Vui lòng thử lại.')
-          setAttendances([])
-        }
-      }
-    }
-
-    fetchAttendances()
-
-    return () => {
-      cancelled = true
-    }
-  }, [classId, studentId])
 
   const attendanceStats = useMemo(() => {
     const studentAttendances = (attendances ?? []).filter(

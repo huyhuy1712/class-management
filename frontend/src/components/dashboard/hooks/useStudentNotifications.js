@@ -1,53 +1,55 @@
-import { useEffect, useRef, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useRef, useState } from 'react'
+import { useMutation } from '@tanstack/react-query'
+import useResourceQuery from '../../../query/useResourceQuery'
+import { getSessionVersion, queryClient } from '../../../query/queryClient'
 import notificationService from '../../../services/notificationService'
+import { applyNotificationAction, restoreNotifications } from '../../../query/notificationUpdates'
 
 export default function useStudentNotifications() {
-  const { pathname } = useLocation()
-  const [notifications, setNotifications] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const query = useResourceQuery('notifications')
+  const notifications = query.data ?? []
   const [actionError, setActionError] = useState('')
-  const [busy, setBusy] = useState(false)
   const lock = useRef(false)
-
-  useEffect(() => {
-    let active = true
-    notificationService.getMyNotifications()
-      .then((data) => {
-        if (!Array.isArray(data)) throw new Error('Invalid notifications response')
-        if (active) { setNotifications(data.map((item) => ({ ...item, read: item.read ?? item.is_read ?? false }))); setError('') }
-      })
-      .catch(() => { if (active) setError('Không thể tải thông báo. Vui lòng tải lại trang.') })
-      .finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
-  }, [pathname])
-
+  const mutation = useMutation({
+    mutationFn: async (action) => {
+      if (action.version !== getSessionVersion()) throw new Error('Account session changed')
+      if (action.type === 'read') return notificationService.markRead(action.id, { skipQueryInvalidation: true })
+      if (action.type === 'delete') return notificationService.deleteNotification(action.id, { skipQueryInvalidation: true })
+      const results = await Promise.allSettled(action.ids.map((id) => notificationService.deleteNotification(id, { skipQueryInvalidation: true })))
+      if (results.some((result) => result.status === 'rejected')) {
+        const error = new Error('Một số thông báo chưa xóa được. Vui lòng thử lại.')
+        error.deletedIds = action.ids.filter((_, index) => results[index].status === 'fulfilled')
+        throw error
+      }
+    },
+    onMutate: async (action) => {
+      const version = getSessionVersion()
+      await queryClient.cancelQueries({ queryKey: query.queryKey, exact: true })
+      const previous = queryClient.getQueryData(query.queryKey) ?? []
+      query.setData(applyNotificationAction(previous, action))
+      return { previous, version }
+    },
+    onError: (error, action, context) => {
+      if (context?.version !== getSessionVersion()) return
+      query.setData(restoreNotifications(context.previous, error.deletedIds))
+      setActionError(error.deletedIds ? error.message : 'Không thể cập nhật thông báo. Vui lòng thử lại.')
+    },
+    onSettled: (_, __, ___, context) => {
+      if (context?.version === getSessionVersion()) void queryClient.invalidateQueries({ queryKey: query.queryKey, exact: true })
+    },
+  })
   const run = async (action) => {
     if (lock.current) return
     lock.current = true
-    setBusy(true)
     setActionError('')
-    try { await action() }
-    catch { setActionError('Không thể cập nhật thông báo. Vui lòng thử lại.') }
-    finally { lock.current = false; setBusy(false) }
+    try { await mutation.mutateAsync({ ...action, version: getSessionVersion() }) } catch { /* Error and rollback handled above. */ }
+    finally { lock.current = false }
   }
-  const onRead = (item) => {
-    if (item.read) return
-    return run(async () => {
-      await notificationService.markRead(item.id)
-      setNotifications((current) => current.map((entry) => entry.id === item.id ? { ...entry, read: true } : entry))
-    })
+  return {
+    notifications, loading: query.isLoading, error: query.errorMessage, actionError, busy: mutation.isPending,
+    onRead: (item) => item.read ? undefined : run({ type: 'read', id: item.id }),
+    onDelete: (id) => run({ type: 'delete', id }),
+    onDeleteAll: () => run({ type: 'deleteAll', ids: notifications.map((item) => item.id) }),
+    unread: notifications.some((item) => !item.read),
   }
-  const onDelete = (id) => run(async () => {
-    await notificationService.deleteNotification(id)
-    setNotifications((current) => current.filter((item) => item.id !== id))
-  })
-  const onDeleteAll = () => run(async () => {
-    const results = await Promise.allSettled(notifications.map((item) => notificationService.deleteNotification(item.id)))
-    const deleted = new Set(notifications.filter((_, index) => results[index].status === 'fulfilled').map((item) => item.id))
-    setNotifications((current) => current.filter((item) => !deleted.has(item.id)))
-    if (results.some((item) => item.status === 'rejected')) throw new Error('Delete failed')
-  })
-  return { notifications, loading, error, actionError, busy, onRead, onDelete, onDeleteAll, unread: notifications.some((item) => !item.read) }
 }

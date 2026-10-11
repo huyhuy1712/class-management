@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import examService from '../../../../services/examService'
@@ -32,14 +33,14 @@ function getDeleteErrorMessage(error) {
 function useDeleteExam({
   onDeleted,
 } = {}) {
+  const deleteMutation = useMutation({ mutationFn: (args) => examService.deleteExam(...args) })
   const [deleteTarget, setDeleteTarget] =
     useState(null)
 
   const [forceDelete, setForceDelete] =
     useState(false)
 
-  const [deleting, setDeleting] =
-    useState(false)
+  const deleting = deleteMutation.isPending
 
   const [deleteError, setDeleteError] =
     useState('')
@@ -59,16 +60,15 @@ function useDeleteExam({
   }
 
   const confirmDelete = async () => {
-    if (!deleteTarget?.id) return
+    if (!deleteTarget?.id || deleting) return
 
     try {
-      setDeleting(true)
       setDeleteError('')
 
-      await examService.deleteExam(
+      await deleteMutation.mutateAsync([
         deleteTarget.id,
         forceDelete,
-      )
+      ])
 
       const deletedExam = deleteTarget
 
@@ -96,8 +96,6 @@ function useDeleteExam({
       setDeleteError(
         getDeleteErrorMessage(error),
       )
-    } finally {
-      setDeleting(false)
     }
   }
 

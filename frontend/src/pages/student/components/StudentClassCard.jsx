@@ -1,10 +1,12 @@
 import { BookOpen, CalendarDays } from 'lucide-react'
+import useRoutePrefetch from '../../../query/useRoutePrefetch'
 
 export default function StudentClassCard({ classroom, isJoined, onView }) {
+  const prefetch = useRoutePrefetch()
   const archived = classroom.status === 'ARCHIVED'
 
   return (
-    <article className={`group flex h-full flex-col rounded-2xl border p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-green-900/5 ${archived ? 'border-rose-100 bg-rose-50/30' : 'border-emerald-100 bg-white'}`}>
+    <article onMouseEnter={() => { if (isJoined && classroom.status === 'ACTIVE') prefetch(`/student/classes/${classroom.id}`) }} onFocus={() => { if (isJoined && classroom.status === 'ACTIVE') prefetch(`/student/classes/${classroom.id}`) }} className={`group flex h-full flex-col rounded-2xl border p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-green-900/5 ${archived ? 'border-rose-100 bg-rose-50/30' : 'border-emerald-100 bg-white'}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-50 text-green-700">
           <BookOpen size={22} strokeWidth={1.8} />

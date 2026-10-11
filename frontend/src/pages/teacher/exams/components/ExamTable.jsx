@@ -9,6 +9,7 @@ import {
 import { formatExamDateTime } from '../helpers/examHelpers'
 import ExamEmptyState from './ExamEmptyState'
 import ExamStatusBadge from './ExamStatusBadge'
+import useRoutePrefetch from '../../../../query/useRoutePrefetch'
 
 function ExamTable({
   exams = [],
@@ -18,6 +19,7 @@ function ExamTable({
   onTogglePublish,
   
 }) {
+  const prefetch = useRoutePrefetch()
   if (!exams.length) {
     return (
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -63,6 +65,8 @@ function ExamTable({
               <tr
                 key={exam.id}
                 onClick={() => onView?.(exam)}
+                onMouseEnter={() => prefetch(`/teacher/exams/${exam.id}`)}
+                onFocus={() => prefetch(`/teacher/exams/${exam.id}`)}
                 className="cursor-pointer transition hover:bg-green-50/30"
               >
                 {/* TÊN ĐỀ */}

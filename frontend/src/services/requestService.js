@@ -5,8 +5,8 @@ const requestService = {
     await api.post(`/requests/join-class/${classroomId}`, { message })
   },
 
-  getReceivedJoinClassRequests: async () => {
-    const response = await api.get('/requests/join-class/received')
+  getReceivedJoinClassRequests: async (options = {}) => {
+    const response = await api.get('/requests/join-class/received', options)
     return response.data
   },
 

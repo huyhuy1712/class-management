@@ -1,3 +1,6 @@
+import { useMutation } from '@tanstack/react-query'
+import useResourceQuery from '../../../../../query/useResourceQuery'
+import { getTodayDate } from '../../../../../utils/dateUtils'
 import { useState } from 'react'
 import lessonService from '../../../../../services/lessonService'
 
@@ -8,11 +11,14 @@ function getErrorMessage(data) {
 }
 
 export default function useAttendanceSession(classroomId) {
+  const createMutation = useMutation({ mutationFn: (args) => lessonService.create(...args) })
+  const updateMutation = useMutation({ mutationFn: (args) => lessonService.update(...args) })
+  const lessonsQuery = useResourceQuery('lessons', [classroomId, getTodayDate()], { enabled: false })
   const [toast, setToast] = useState(null)
 const [createAttendanceOpen, setCreateAttendanceOpen] =
   useState(false)
 
-  const [creatingAttendance, setCreatingAttendance] = useState(false)
+  const creatingAttendance = createMutation.isPending || updateMutation.isPending
     const [loadingAttendanceSession, setLoadingAttendanceSession] =
       useState(false)
     const [createAttendanceError, setCreateAttendanceError] = useState('')
@@ -30,15 +36,6 @@ const buildLessonTitle = (date) => {
   return `Điểm danh buổi học ${day}/${month}/${year}`
 }
 
-const getLocalDate = () => {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-
-  return `${year}-${month}-${day}`
-}
-
 const handleOpenAttendanceSession = async () => {
   if (!classroomId) return
 
@@ -49,10 +46,8 @@ const handleOpenAttendanceSession = async () => {
   setAttendanceSessionLookupFailed(false)
 
   try {
-    const lessons = await lessonService.getByDate(
-      classroomId,
-      getLocalDate(),
-    )
+    const result = await lessonsQuery.refetch({ throwOnError: true })
+    const lessons = result.data
     setExistingAttendanceSession(
       Array.isArray(lessons) ? lessons[0] ?? null : null,
     )
@@ -75,10 +70,9 @@ const handleCreateAttendanceSession = async ({
   lateTime,
   endTime,
 }) => {
-  if (!classroomId) return
+  if (!classroomId || creatingAttendance || loadingAttendanceSession || attendanceSessionLookupFailed) return
 
   try {
-    setCreatingAttendance(true)
     setCreateAttendanceError('')
 
     const commonData = {
@@ -92,10 +86,10 @@ const handleCreateAttendanceSession = async ({
     }
 
     if (!existingAttendanceSession) {
-      const createdSession = await lessonService.create(
+      const createdSession = await createMutation.mutateAsync([
         classroomId,
         commonData,
-      )
+      ])
       setExistingAttendanceSession(createdSession)
 
       setToast({
@@ -103,11 +97,11 @@ const handleCreateAttendanceSession = async ({
         message: 'Tạo phiên điểm danh thành công.',
       })
     } else {
-      const updatedSession = await lessonService.update(
+      const updatedSession = await updateMutation.mutateAsync([
         classroomId,
         existingAttendanceSession.id,
         commonData,
-      )
+      ])
       setExistingAttendanceSession(updatedSession)
 
       setToast({
@@ -150,8 +144,6 @@ const handleCreateAttendanceSession = async ({
           'Không thể tạo điểm danh. Vui lòng thử lại.',
       )
     }
-  } finally {
-    setCreatingAttendance(false)
   }
 }
 

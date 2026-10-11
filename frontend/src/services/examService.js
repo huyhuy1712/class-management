@@ -5,16 +5,16 @@ const examService = {
     const response = await api.post('/exams', payload)
     return response.data
   },
-  getExamDetail: async (examId) => {
-    const response = await api.get(`/exams/${examId}`)
+  getExamDetail: async (examId, options = {}) => {
+    const response = await api.get(`/exams/${examId}`, options)
     return response.data
   },
-  getExamConfiguration: async (examId) => {
-    const response = await api.get(`/exams/${examId}/configuration`)
+  getExamConfiguration: async (examId, options = {}) => {
+    const response = await api.get(`/exams/${examId}/configuration`, options)
     return response.data
   },
-  getMyExams: async () => {
-    const response = await api.get('/exams')
+  getMyExams: async (options = {}) => {
+    const response = await api.get('/exams', options)
     return response.data
   },
 

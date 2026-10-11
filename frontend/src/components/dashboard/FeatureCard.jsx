@@ -1,3 +1,4 @@
+import useRoutePrefetch from '../../query/useRoutePrefetch'
 import { ArrowUpRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
@@ -8,9 +9,12 @@ function FeatureCard({
   path,
 }) {
   const navigate = useNavigate()
+  const prefetch = useRoutePrefetch()
 
   return (
     <button
+      onMouseEnter={() => prefetch(path)}
+      onFocus={() => prefetch(path)}
       onClick={() => navigate(path)}
       className="group relative w-full overflow-hidden rounded-2xl border border-green-100 bg-white p-6 text-left shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-green-200 hover:shadow-lg hover:shadow-green-900/5"
     >

@@ -1,3 +1,5 @@
+import { useMutation } from '@tanstack/react-query'
+import useResourceQuery from '../../query/useResourceQuery'
 import { sortByText } from '../../utils/sortByText'
 import useStudentClassList from './hooks/useStudentClassList';
 import TeacherSearchCard from './components/TeacherSearchCard';
@@ -23,7 +25,6 @@ import StudentDashboardLayout from "../../layouts/StudentDashboardLayout";
 
 
 import requestService from "../../services/requestService";
-import userService from "../../services/userService";
 
 function filterClasses(classes, searchTerm) {
   const keyword = searchTerm.trim().toLocaleLowerCase();
@@ -47,46 +48,25 @@ function getTeacherName(teacher) {
 }
 
 function JoinClassPage() {
+  const joinMutation = useMutation({ mutationFn: (args) => requestService.createJoinClassRequest(...args) })
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const showTeacherSearch = pathname === "/student/teachers";
   const [searchTerm, setSearchTerm] = useState("");
   const [teacherSearchTerm, setTeacherSearchTerm] = useState("");
-  const [teachers, setTeachers] = useState([]);
+  const teachersQuery = useResourceQuery('teachers', [], { enabled: showTeacherSearch });
+  const teachers = teachersQuery.data ?? [];
   const [selectedTeacher, setSelectedTeacher] = useState(null);
-  const [teachersLoading, setTeachersLoading] = useState(false);
-  const [teachersError, setTeachersError] = useState("");
+  const teachersLoading = teachersQuery.isLoading;
+  const teachersError = teachersQuery.errorMessage;
   const { classes, joinedClassIds, classesError, dashboardError, pendingCount, pendingError, loading } = useStudentClassList(showTeacherSearch);
 
   const [selectedClass, setSelectedClass] = useState(null);
   const [requestMessage, setRequestMessage] = useState("");
   const [requestSent, setRequestSent] = useState(false);
-  const [sendingRequest, setSendingRequest] = useState(false);
+  const sendingRequest = joinMutation.isPending
   const [requestError, setRequestError] = useState("");
-  useEffect(() => {
-    if (!showTeacherSearch || teachers.length > 0) return undefined;
 
-    let cancelled = false;
-
-    userService.getTeachers()
-      .then((results) => {
-        if (!cancelled) {
-          setTeachers(results.filter((teacher) => teacher.role === "TEACHER"));
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setTeachersError("Không thể tải danh sách giáo viên.");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setTeachersLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [showTeacherSearch, teachers.length]);
 
   useEffect(() => {
     if (!selectedClass) return undefined;
@@ -157,22 +137,19 @@ function JoinClassPage() {
     event.preventDefault();
     if (!selectedClass || sendingRequest || requestSent) return;
 
-    setSendingRequest(true);
     setRequestError("");
 
     try {
-      await requestService.createJoinClassRequest(
+      await joinMutation.mutateAsync([
         selectedClass.id,
         requestMessage.trim(),
-      );
+      ]);
       setRequestSent(true);
     } catch (error) {
       setRequestError(
         error.response?.data?.message ||
           "Không thể gửi yêu cầu vào lớp. Vui lòng thử lại.",
       );
-    } finally {
-      setSendingRequest(false);
     }
   };
 

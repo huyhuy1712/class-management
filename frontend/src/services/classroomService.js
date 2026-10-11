@@ -1,8 +1,8 @@
 import api from './api'
 
 const classroomService = {
-  getAll: async () => {
-    const response = await api.get('/classes')
+  getAll: async (options = {}) => {
+    const response = await api.get('/classes', options)
     const payload = response.data
 
     const classes = Array.isArray(payload)
@@ -50,9 +50,9 @@ const classroomService = {
   return response.data
 },
 
-getStudents: async (classroomId) => {
+getStudents: async (classroomId, options = {}) => {
   const response = await api.get(
-    `/classes/${classroomId}/students`,
+    `/classes/${classroomId}/students`, options,
   )
 
   const students = response.data
@@ -83,8 +83,8 @@ createAttendance: async (classroomId, attendanceData) => {
   return response.data
 },
 
-getMyClasses: async () => {
-  const response = await api.get('/classes/my')
+getMyClasses: async (options = {}) => {
+  const response = await api.get('/classes/my', options)
   return response.data
 },
 

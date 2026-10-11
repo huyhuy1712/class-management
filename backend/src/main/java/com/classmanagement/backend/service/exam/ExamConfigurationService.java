@@ -38,10 +38,16 @@ public class ExamConfigurationService {
                 : classRepository.findAllByAssignment_IdIn(assignmentIds).stream()
                 .map(ExamAssignmentClass::getId).collect(Collectors.groupingBy(
                         id -> id.getAssignmentId(), Collectors.mapping(id -> id.getClassId(), Collectors.toList())));
-        Map<Long, List<Long>> students = assignmentIds.isEmpty() ? Map.of()
-                : studentRepository.findAllByAssignment_IdIn(assignmentIds).stream()
+        var studentRows = assignmentIds.isEmpty() ? List.<ExamAssignmentStudent>of()
+                : studentRepository.findAllByAssignment_IdIn(assignmentIds);
+        Map<Long, List<Long>> students = studentRows.stream()
                 .map(ExamAssignmentStudent::getId).collect(Collectors.groupingBy(
                         id -> id.getAssignmentId(), Collectors.mapping(id -> id.getStudentId(), Collectors.toList())));
+        Map<Long, List<ExamConfigurationResponse.StudentClassContext>> contexts = studentRows.stream()
+                .sorted(Comparator.comparing(s -> s.getId().getStudentId()))
+                .collect(Collectors.groupingBy(s -> s.getId().getAssignmentId(), Collectors.mapping(
+                        s -> new ExamConfigurationResponse.StudentClassContext(s.getId().getStudentId(),
+                                s.getClassroom() == null ? null : s.getClassroom().getId()), Collectors.toList())));
         var subject = exam.getSubject();
         return new ExamConfigurationResponse(exam.getId(), exam.getCode(), exam.getStatus(),
                 exam.getMaxScore(), exam.getUpdatedAt(),
@@ -55,7 +61,8 @@ public class ExamConfigurationService {
                                 a.getTimeLimit(), a.getMaxAttempts(), a.getScoreVisibility(),
                                 a.getAnswerVisibility(), a.getAnswerVisibilityScore(),
                                 a.getHideCorrectAnswerOnWrong(), a.getOpenTime(), a.getCloseTime(),
-                                a.getUpdatedAt())).toList(), exam.getRevision());
+                                a.getUpdatedAt(), contexts.getOrDefault(a.getId(), List.of())))
+                        .toList(), exam.getRevision());
     }
 
     private static List<Long> sortedIds(List<Long> ids) {

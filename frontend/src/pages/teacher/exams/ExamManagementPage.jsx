@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query'
 import {
   ArrowDownUp,
   Plus,
@@ -20,12 +21,14 @@ import DeleteExamModal from './components/DeleteExamModal'
 
 
 function ExamManagementPage() {
+  const deleteMutation = useMutation({ mutationFn: (args) => examService.deleteExam(...args) })
 
     const {
       exams,
       loading,
       error,
       refetch,
+      setExams,
     } = useExams()
 
   const navigate = useNavigate()
@@ -37,7 +40,7 @@ function ExamManagementPage() {
   const uiExams = useExamUiSession((state) => state.exams)
   const clearExamPreview = useExamUiSession((state) => state.clearExamPreview)
   const updateUiExam = useExamUiSession((state) => state.updateExam)
-  const [deleting, setDeleting] = useState(false)
+  const deleting = deleteMutation.isPending
   const [actionError, setActionError] = useState('')
   const [forceDelete, setForceDelete] = useState(false)
 
@@ -96,13 +99,13 @@ function ExamManagementPage() {
   }
 
   const handleConfirmDelete = async () => {
+    if (!deletingExam || deleting) return
     try {
-      setDeleting(true)
       setActionError('')
-      await examService.deleteExam(deletingExam.id, forceDelete)
+      await deleteMutation.mutateAsync([deletingExam.id, forceDelete])
+      setExams((current = []) => current.filter((item) => item.id !== deletingExam.id))
       setDeletingExam(null)
       setForceDelete(false)
-      await refetch()
     } catch (deleteError) {
       if (deleteError.response?.status === 409 && !forceDelete) {
         setForceDelete(true)
@@ -113,8 +116,6 @@ function ExamManagementPage() {
         deleteError.response?.data?.message ||
           'Không thể xóa đề thi. Vui lòng thử lại.',
       )
-    } finally {
-      setDeleting(false)
     }
   }
 
@@ -279,7 +280,7 @@ function ExamManagementPage() {
         exam={editingExam}
         open={Boolean(editingExam)}
         onClose={() => { setEditingExam(null); setActionError('') }}
-        onSaved={(result) => { clearExamPreview(result.id); setEditingExam(null); setUiMessage('Đã lưu cấu hình đề thi.'); refetch() }}
+        onSaved={(result) => { clearExamPreview(result.id); setEditingExam(null); setUiMessage('Đã lưu cấu hình đề thi.'); setExams((current = []) => current.map((item) => item.id === result.id ? { ...item, ...result.basicInfo } : item)) }}
       />
 
       <DeleteExamModal

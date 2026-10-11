@@ -1,3 +1,4 @@
+import { resetQuerySession } from '../query/queryClient'
 import { create } from 'zustand'
 
 const normalizeRole = (value) => {
@@ -31,6 +32,7 @@ const useAuthStore = create((set, get) => ({
   token: null,
 
   setAuth: (user) => {
+    resetQuerySession()
     const normalizedUser = {
       ...user,
       role: normalizeRole(user?.role),
@@ -67,6 +69,7 @@ const useAuthStore = create((set, get) => ({
   },
 
   logout: () => {
+    resetQuerySession()
     localStorage.removeItem('accessToken')
     localStorage.removeItem('user')
 

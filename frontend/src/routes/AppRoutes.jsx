@@ -1,3 +1,5 @@
+import { lazy, Suspense } from 'react'
+import StudentExamListPage from '../pages/student/exams/StudentExamListPage'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 import TeacherDashboard from '../pages/teacher/TeacherDashboard'
@@ -13,9 +15,9 @@ import AttendanceTab from '../pages/teacher/classroom/tabs/AttendanceTab'
 import StudentDetailPage from '../pages/teacher/classroom/StudentDetailPage'
 import TeacherProfilePage from '../pages/teacher/TeacherProfilePage'
 import ExamManagementPage from '../pages/teacher/exams/ExamManagementPage'
-import ExamDetailPage from '../pages/teacher/exams/ExamDetailPage'
+const ExamDetailPage = lazy(() => import('../pages/teacher/exams/ExamDetailPage'))
 import CreateExamPage from '../pages/teacher/exams/create/CreateExamPage'
-import ExamBuilderPage from '../pages/teacher/exams/builder/ExamBuilderPage'
+const ExamBuilderPage = lazy(() => import('../pages/teacher/exams/builder/ExamBuilderPage'))
 
 // =============================
 // Student
@@ -28,6 +30,7 @@ import StudentClassDetailPage from '../pages/student/classroom/StudentClassDetai
 
 function AppRoutes() {
   return (
+    <Suspense fallback={<div role="status" className="p-8 text-center text-slate-500">Đang mở trang...</div>}>
     <Routes>
       {/* Route mặc định */}
       <Route path="/" element={<Navigate to="/login" replace />} />
@@ -59,6 +62,7 @@ function AppRoutes() {
       <Route path="/student/attendance" element={<StudentAttendancePage />} />
       <Route path="/student/classes" element={<JoinClassPage />} />
       <Route path="/student/classes/:classId" element={<StudentClassDetailPage />} />
+      <Route path="/student/exams" element={<StudentExamListPage />} />
       <Route path="/student/teachers" element={<JoinClassPage />} />
 
       {/* Route exam management */}
@@ -67,6 +71,7 @@ function AppRoutes() {
       <Route path="/teacher/exams/create" element={<CreateExamPage />} />
       <Route path="/teacher/exams/create/online" element={<ExamBuilderPage />} />
     </Routes>
+    </Suspense>
   )
 }
 

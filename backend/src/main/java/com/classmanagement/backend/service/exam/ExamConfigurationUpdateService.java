@@ -88,7 +88,8 @@ public class ExamConfigurationUpdateService {
         Long id = assignment.getId();
         Set<Long> oldClasses = classRepository.findAllByAssignment_IdIn(List.of(id)).stream()
                 .map(c -> c.getId().getClassId()).collect(Collectors.toSet());
-        Set<Long> oldStudents = studentRepository.findAllByAssignment_IdIn(List.of(id)).stream()
+        var studentRows = studentRepository.findAllByAssignment_IdIn(List.of(id));
+        Set<Long> oldStudents = studentRows.stream()
                 .map(s -> s.getId().getStudentId()).collect(Collectors.toSet());
         Set<Long> newClasses = targets.classes().stream().map(Classroom::getId).collect(Collectors.toSet());
         Set<Long> newStudents = targets.students().stream().map(User::getId).collect(Collectors.toSet());
@@ -96,12 +97,14 @@ public class ExamConfigurationUpdateService {
         var removedStudents = new HashSet<>(oldStudents); removedStudents.removeAll(newStudents);
         if (!removedClasses.isEmpty()) classRepository.deleteTargets(id, removedClasses);
         if (!removedStudents.isEmpty()) studentRepository.deleteTargets(id, removedStudents);
+        studentRows.stream().filter(s -> newStudents.contains(s.getId().getStudentId()))
+                .forEach(s -> s.setClassroom(targets.classroom()));
         targets.classes().stream().filter(c -> !oldClasses.contains(c.getId())).forEach(c -> entityManager.persist(
                 ExamAssignmentClass.builder().id(new ExamAssignmentClassId(id, c.getId()))
                         .assignment(assignment).classroom(c).build()));
         targets.students().stream().filter(s -> !oldStudents.contains(s.getId())).forEach(s -> entityManager.persist(
                 ExamAssignmentStudent.builder().id(new ExamAssignmentStudentId(id, s.getId()))
-                        .assignment(assignment).student(s).build()));
+                        .assignment(assignment).student(s).classroom(targets.classroom()).build()));
     }
 
     private static String trim(String text) { return text == null || text.isBlank() ? null : text.trim(); }

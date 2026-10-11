@@ -25,4 +25,9 @@ public class ExamAssignmentStudent {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "student_id", nullable = false)
     private User student;
+
+    // Optional display context; the assignment is granted to the student.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "class_id")
+    private Classroom classroom;
 }

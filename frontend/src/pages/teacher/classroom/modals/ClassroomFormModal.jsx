@@ -1,8 +1,8 @@
+import useResourceQuery from '../../../../query/useResourceQuery'
 import { sortByText } from '../../../../utils/sortByText'
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 
-import subjectService from '../../../../services/subjectService'
 import useAuthStore from '../../../../stores/authStore'
 
 function generateClassCode(userId, subjectCode, renderedClasses, currentClassId) {
@@ -57,33 +57,11 @@ function ClassFormModal({
     description: '',
   })
 
-  const [subjects, setSubjects] = useState([])
-  const [loadingSubjects, setLoadingSubjects] = useState(false)
-  const [subjectError, setSubjectError] = useState(null)
+  const subjectsQuery = useResourceQuery('subjects', [], { enabled: isOpen })
+  const subjects = subjectsQuery.data ?? []
+  const loadingSubjects = subjectsQuery.isLoading
+  const subjectError = subjectsQuery.errorMessage
   const user = useAuthStore((state) => state.user)
-
-  useEffect(() => {
-    if (!isOpen) return
-
-    const fetchSubjects = async () => {
-      try {
-        setLoadingSubjects(true)
-        setSubjectError(null)
-
-        const data = await subjectService.getAll()
-
-        setSubjects(data)
-      } catch (error) {
-        console.error('Get subjects error:', error)
-
-        setSubjectError('Không thể tải danh sách môn học.')
-      } finally {
-        setLoadingSubjects(false)
-      }
-    }
-
-    fetchSubjects()
-  }, [isOpen])
 
   useEffect(() => {
     if (!isOpen) {
@@ -93,7 +71,6 @@ function ClassFormModal({
         subjectId: '',
         description: '',
       })
-      setSubjectError(null)
       return
     }
 

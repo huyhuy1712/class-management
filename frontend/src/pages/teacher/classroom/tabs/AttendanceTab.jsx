@@ -1,6 +1,9 @@
+import { useMutation } from '@tanstack/react-query'
+import { EMPTY_LIST } from '../../../../query/queryKeys'
+import useResourceQuery from '../../../../query/useResourceQuery'
 import AttendanceSessionButton from './attendance/AttendanceSessionButton'
 import { sortByText } from '../../../../utils/sortByText'
-import { useMemo, useState, useEffect, useRef } from 'react'
+import { useMemo, useState, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   CalendarDays,
@@ -34,9 +37,13 @@ function formatAttendanceTime(createdAt) {
 }
 
 function AttendanceTab() {
+  const absentMutation = useMutation({ mutationFn: (args) => attendanceService.markAbsentForUnrecordedStudents(...args) })
+  const exportMutation = useMutation({ mutationFn: (args) => attendanceService.exportAttendance(...args) })
   const { classId } = useParams()
 
-  const [attendances, setAttendances] = useState([])
+  const attendanceQuery = useResourceQuery('attendances', [classId], { enabled: Boolean(classId) })
+  const attendances = attendanceQuery.data ?? EMPTY_LIST
+  const setAttendances = attendanceQuery.setData
 
   const [search, setSearch] = useState('')
   const [selectedDate, setSelectedDate] = useState(getTodayDate())
@@ -46,10 +53,10 @@ function AttendanceTab() {
 
   const [exportModalOpen, setExportModalOpen] = useState(false)
   const [exportDate, setExportDate] = useState(getTodayDate())
-  const [exporting, setExporting] = useState(false)
+  const exporting = exportMutation.isPending
   const [exportError, setExportError] = useState('')
   const [markAbsentOpen, setMarkAbsentOpen] = useState(false)
-  const [markingAbsent, setMarkingAbsent] = useState(false)
+  const markingAbsent = absentMutation.isPending
   const [markAbsentError, setMarkAbsentError] = useState('')
 
   const datePickerRef = useRef(null)
@@ -89,33 +96,7 @@ const handleDatePickerChange = (value) => {
     setDateError('')
   }
 
-useEffect(() => {
-  let cancelled = false
 
-  const fetchAttendances = async () => {
-    if (!classId) return
-
-    try {
-      const data = await attendanceService.getByClass(classId)
-
-      if (!cancelled) {
-        setAttendances(data)
-      }
-    } catch (error) {
-      console.error('Get attendances error:', error)
-
-      if (!cancelled) {
-        setAttendances([])
-      }
-    }
-  }
-
-  fetchAttendances()
-
-  return () => {
-    cancelled = true
-  }
-}, [classId])
 
   // Filter theo ngày trước để thống kê đúng ngày đang xem
 const dateAttendances = useMemo(() => {
@@ -173,18 +154,14 @@ const handleMarkAbsent = async () => {
   const today = getTodayDate()
 
   try {
-    setMarkingAbsent(true)
     setMarkAbsentError('')
 
-    await attendanceService.markAbsentForUnrecordedStudents(
+    const created = await absentMutation.mutateAsync([
       classId,
       today,
-    )
+    ])
 
-    const refreshedAttendances =
-      await attendanceService.getByClass(classId)
-
-    setAttendances(refreshedAttendances)
+    if (Array.isArray(created)) setAttendances((current = []) => [...current.filter((item) => !created.some((entry) => entry.id === item.id)), ...created])
     setSelectedDate(today)
     setDateInput(formatDate(today))
     setMarkAbsentOpen(false)
@@ -195,8 +172,6 @@ const handleMarkAbsent = async () => {
         error.response?.data?.error ||
         'Không thể đánh vắng học sinh. Vui lòng thử lại.',
     )
-  } finally {
-    setMarkingAbsent(false)
   }
 }
 
@@ -221,14 +196,13 @@ const handleExportAttendance = async () => {
   }
 
   try {
-    setExporting(true)
     setExportError('')
 
     const response =
-      await attendanceService.exportAttendance(
+      await exportMutation.mutateAsync([
         classId,
         exportDate,
-      )
+      ])
 
     const blob = response.data
 
@@ -294,8 +268,6 @@ const handleExportAttendance = async () => {
         'Không thể xuất file Excel. Vui lòng thử lại.',
       )
     }
-  } finally {
-    setExporting(false)
   }
 }
 
@@ -339,6 +311,8 @@ const handleExportAttendance = async () => {
             </div>
           </div>
 
+        {attendanceQuery.isLoading && <p role="status" className="mt-4 text-sm text-slate-500">Đang tải điểm danh...</p>}
+        {attendanceQuery.errorMessage && <p role="alert" className="mt-4 text-sm text-red-600">{attendanceQuery.errorMessage}</p>}
         {/* Filters */}
         <div className="mt-6 grid gap-3 lg:grid-cols-[1fr_190px_190px]">
           <div className="relative">

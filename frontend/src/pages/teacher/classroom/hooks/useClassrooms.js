@@ -1,3 +1,7 @@
+import { useMutation } from '@tanstack/react-query'
+import { EMPTY_LIST } from '../../../../query/queryKeys'
+import useResourceQuery from '../../../../query/useResourceQuery'
+import { optimisticRowOptions } from '../../../../query/optimisticUpdates'
 import { useEffect, useMemo, useState } from 'react'
 
 import classroomService from '../../../../services/classroomService'
@@ -9,51 +13,28 @@ import {
 } from '../helpers/classroomHelpers'
 
 function useClassrooms() {
+  const createMutation = useMutation({ mutationFn: classroomService.create })
+  const deleteMutation = useMutation({ mutationFn: classroomService.delete })
   const currentUser = useAuthStore((state) => state.user)
   const currentUserId = currentUser?.id
-  const [classes, setClasses] = useState([])
+  const classesQuery = useResourceQuery('teacherClasses')
+  const updateMutation = useMutation(optimisticRowOptions(classesQuery, ([id, patch]) => ({ id, patch }), (args) => classroomService.update(...args)))
+  const archiveMutation = useMutation(optimisticRowOptions(classesQuery, (id) => ({ id, patch: { status: 'ARCHIVED' } }), classroomService.archive))
+  const classes = classesQuery.data ?? EMPTY_LIST
+  const setClasses = classesQuery.setData
   const [search, setSearch] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const loading = classesQuery.isLoading
+  const error = classesQuery.errorMessage
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-  const [creating, setCreating] = useState(false)
+  const creating = createMutation.isPending
   const [createError, setCreateError] = useState(null)
   const [editingClass, setEditingClass] = useState(null)
   const [editError, setEditError] = useState(null)
-  const [updating, setUpdating] = useState(false)
+  const updating = updateMutation.isPending
   const [confirmAction, setConfirmAction] = useState(null)
-  const [actionLoading, setActionLoading] = useState(false)
+  const actionLoading = archiveMutation.isPending || deleteMutation.isPending
   const [toast, setToast] = useState(null)
   const [selectedStatus, setSelectedStatus] = useState('ALL')
-
-  useEffect(() => {
-    let cancelled = false
-
-    const fetchClasses = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        const myClasses = await classroomService.getMyClasses()
-
-        if (!cancelled) setClasses(myClasses)
-      } catch (fetchError) {
-        console.error('Get classes error:', fetchError)
-
-        if (!cancelled) {
-          setError('Không thể tải danh sách lớp học.')
-          setClasses([])
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    fetchClasses()
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   useEffect(() => {
     if (!toast) return undefined
@@ -93,13 +74,13 @@ function useClassrooms() {
   ]
 
   const handleCreateSubmit = async (formData) => {
+    if (creating) return
     if (!currentUserId) {
       setCreateError('Không tìm thấy thông tin người dùng đang đăng nhập.')
       return
     }
 
     try {
-      setCreating(true)
       setCreateError(null)
       const payload = {
         name: formData.name,
@@ -109,7 +90,7 @@ function useClassrooms() {
         academicYear: getCurrentAcademicYear(),
         description: formData.description,
       }
-      const createdClass = await classroomService.create(payload)
+      const createdClass = await createMutation.mutateAsync(payload)
 
       setClasses((prev) => [
         {
@@ -134,21 +115,19 @@ function useClassrooms() {
           }).`
 
       setCreateError(message)
-    } finally {
-      setCreating(false)
     }
   }
 
   const handleEdit = (classroom) => {
+    if (updating) return
     setEditError(null)
     setEditingClass(classroom)
   }
 
   const handleEditSubmit = async (formData) => {
-    if (!editingClass || !currentUserId) return
+    if (!editingClass || !currentUserId || updating) return
 
     try {
-      setUpdating(true)
       setEditError(null)
       const payload = {
         name: formData.name,
@@ -158,10 +137,11 @@ function useClassrooms() {
         academicYear: editingClass.academicYear || getCurrentAcademicYear(),
         description: formData.description || '',
       }
-      const updatedClass = await classroomService.update(
+      setEditingClass(null)
+      const updatedClass = await updateMutation.mutateAsync([
         editingClass.id,
         payload,
-      )
+      ])
 
       setClasses((prev) =>
         prev.map((item) =>
@@ -172,6 +152,7 @@ function useClassrooms() {
       setToast({ type: 'success', message: 'Cập nhật lớp học thành công.' })
     } catch (requestError) {
       console.error('Update class error:', requestError)
+      setEditingClass({ ...editingClass, ...formData })
       const backendMessage = getErrorMessage(requestError.response?.data)
       setEditError(
         backendMessage ||
@@ -179,29 +160,28 @@ function useClassrooms() {
             requestError.response?.status || 'unknown'
           }).`,
       )
-    } finally {
-      setUpdating(false)
     }
   }
 
   const handleArchive = (classroom) => {
+    if (actionLoading) return
     setConfirmAction({ type: 'archive', classroom })
   }
 
   const handleDelete = (classroom) => {
+    if (actionLoading) return
     setConfirmAction({ type: 'delete', classroom })
   }
 
   const handleConfirmAction = async () => {
-    if (!confirmAction) return
+    if (!confirmAction || actionLoading) return
 
     const { type, classroom } = confirmAction
+    if (type === 'archive') setConfirmAction(null)
 
     try {
-      setActionLoading(true)
-
       if (type === 'archive') {
-        const archivedClass = await classroomService.archive(classroom.id)
+        const archivedClass = await archiveMutation.mutateAsync(classroom.id)
         setClasses((prev) =>
           prev.map((item) =>
             item.id === classroom.id
@@ -214,7 +194,7 @@ function useClassrooms() {
           message: 'Vô hiệu hóa lớp học thành công.',
         })
       } else {
-        await classroomService.delete(classroom.id)
+        await deleteMutation.mutateAsync(classroom.id)
         setClasses((prev) => prev.filter((item) => item.id !== classroom.id))
         setToast({ type: 'success', message: 'Xóa lớp học thành công.' })
       }
@@ -228,8 +208,6 @@ function useClassrooms() {
         message:
           backendMessage || 'Không thể thực hiện thao tác. Vui lòng thử lại.',
       })
-    } finally {
-      setActionLoading(false)
     }
   }
 

@@ -1,12 +1,10 @@
+import useExamTargetOptions from '../hooks/useExamTargetOptions'
 import { Modal } from 'antd'
 import useSaveExamConfiguration from '../hooks/useSaveExamConfiguration'
 import useExamResource from '../hooks/useExamResource'
 import { getExamConfigurationForm } from '../helpers/examConfigurationForm'
 import { focusConfigurationError } from '../helpers/examConfigurationErrors'
-import { useEffect, useRef, useState } from 'react'
-import subjectService from '../../../../services/subjectService'
-import classroomService from '../../../../services/classroomService'
-import userService from '../../../../services/userService'
+import { useRef, useState } from 'react'
 import useCreateExamForm from '../create/hooks/useCreateExamForm'
 import ExamBasicInfoSection from '../create/components/ExamBasicInfoSection'
 import ExamSettingsSection from '../create/components/ExamSettingsSection'
@@ -18,22 +16,7 @@ function ExamConfiguration({ exam, onClose, saveState }) {
   const published = exam.status === 'PUBLISHED'
   const locked = exam.status !== 'DRAFT' || exam.assignment?.status !== 'DRAFT'
   const { saving, save, error: saveError } = saveState
-  const [options, setOptions] = useState({ subjects: [], classes: [], students: [] })
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  useEffect(() => {
-    let active = true
-    Promise.all([subjectService.getAll(), classroomService.getMyClasses(), userService.getMyStudents()])
-      .then(([subjects, classes, students]) => {
-        if (!active) return
-        const activeClasses = classes.filter((item) => item.status === 'ACTIVE')
-        const activeStudents = students.filter((item) => item.status === 'ACTIVE' && item.classes?.some((group) => activeClasses.some((classroom) => classroom.id === group.id)))
-        setOptions({ subjects, classes: activeClasses.map((item) => ({ ...item, studentCount: activeStudents.filter((student) => student.classes?.some((group) => group.id === item.id)).length })), students: activeStudents })
-      })
-      .catch(() => { if (active) setError('Không thể tải môn học, lớp hoặc học sinh. Đóng và mở lại để thử lại.') })
-      .finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
-  }, [])
+  const { loading, error, ...options } = useExamTargetOptions()
   const editor = useCreateExamForm({ ...options, initialConfig: getExamConfigurationForm(exam), persistDraft: false })
   return <form ref={formRef} className="flex min-h-0 flex-col overflow-hidden" style={{ height: 'min(720px, calc(100dvh - 160px))' }} onSubmit={(event) => { event.preventDefault(); if (!locked && !saving && !loading && !error && editor.validate()) save(editor.buildExamData(), exam, (errors) => { editor.setErrors(errors); focusConfigurationError(formRef.current, errors) }) }}>
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-2" style={{ scrollbarGutter: 'stable' }}>

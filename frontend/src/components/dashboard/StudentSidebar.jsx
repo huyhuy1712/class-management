@@ -1,3 +1,6 @@
+import { useMutation } from '@tanstack/react-query'
+import { logout as logoutRequest } from '../../services/authService'
+import useRoutePrefetch from '../../query/useRoutePrefetch'
 import StudentLogoutModal from './modals/StudentLogoutModal';
 import {
   Home,
@@ -31,7 +34,7 @@ const menuItems = [
     path: "/student/grades",
   },
   {
-    label: "Làm bài kiểm tra",
+    label: "Bài kiểm tra",
     icon: FileCheck,
     path: "/student/exams",
   },
@@ -39,15 +42,23 @@ const menuItems = [
 
 
 function StudentSidebar({ isOpen, onClose }) {
+  const prefetch = useRoutePrefetch()
+
   const navigate = useNavigate();
   const logout = useAuthStore((state) => state.logout);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
+  const logoutMutation = useMutation({
+    mutationFn: logoutRequest,
+    onSettled: () => {
+      logout();
+      setShowLogoutModal(false);
+      onClose?.();
+      navigate('/login', { replace: true });
+    },
+  });
   const handleLogout = () => {
-    logout();
-    setShowLogoutModal(false);
-    onClose?.();
-    navigate("/login", { replace: true });
+    if (!logoutMutation.isPending) logoutMutation.mutate();
   };
 
   return (
@@ -105,6 +116,8 @@ function StudentSidebar({ isOpen, onClose }) {
               <NavLink
                 key={item.path}
                 to={item.path}
+              onMouseEnter={() => prefetch(item.path)}
+              onFocus={() => prefetch(item.path)}
                 onClick={onClose}
                 end={item.path === "/student"}
 
@@ -172,7 +185,7 @@ function StudentSidebar({ isOpen, onClose }) {
       </div>
 
     </aside>
-    {showLogoutModal && <StudentLogoutModal onClose={() => setShowLogoutModal(false)} onConfirm={handleLogout} />}
+    {showLogoutModal && <StudentLogoutModal pending={logoutMutation.isPending} onClose={() => setShowLogoutModal(false)} onConfirm={handleLogout} />}
     </>
   );
 }

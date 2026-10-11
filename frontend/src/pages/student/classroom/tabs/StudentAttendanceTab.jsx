@@ -18,7 +18,7 @@ export default function StudentAttendanceTab({ classId }) {
   ]
   return <>
     <div className="flex flex-wrap items-center justify-between gap-4">
-      <div><h2 className="text-xl font-bold text-[#18301D]">Điểm danh</h2><p className="mt-1 text-sm text-slate-500">Theo dõi lịch sử điểm danh của bạn trong lớp học</p></div>
+      <div><h2 className="text-xl font-bold text-[#18301D]">Điểm danh</h2></div>
       <button type="button" disabled={!availability.available || submission.busy} title={availability.reason} onClick={submission.open} className="flex items-center gap-2 rounded-xl bg-[#00B33C] px-4 py-3 font-semibold text-white hover:bg-green-600 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"><ClipboardCheck size={18} />Điểm danh</button>
     </div>
     {!availability.available && <p role="status" className="mt-3 text-sm text-slate-500">{availability.reason}</p>}

@@ -22,5 +22,7 @@ public record ExamConfigurationResponse(
             Integer timeLimit, Integer maxAttempts, ScoreVisibility scoreVisibility,
             AnswerVisibility answerVisibility, BigDecimal threshold,
             Boolean hideCorrectAnswerOnWrong, LocalDateTime openTime,
-            LocalDateTime closeTime, LocalDateTime updatedAt) {}
+            LocalDateTime closeTime, LocalDateTime updatedAt, List<StudentClassContext> studentClasses) {}
+
+    public record StudentClassContext(Long studentId, Long classId) {}
 }
