@@ -184,3 +184,56 @@ Chọn ALL khi không có lớp ACTIVE hiện "Chưa có lớp nào", khóa tạ
 
 Kiểm tra: 60 tests pass, build thành công, lint không lỗi (8 cảnh báo còn có), git diff --check sạch. Chưa thử tạo/lưu với BE thực tế.
 
+# UI làm bài mẫu học sinh — 13/10/2026
+
+Route thử: `/student/exams/preview/paper`. Đây là preview local, không gọi API tạo lượt/nộp/chấm, không lưu đáp án qua refresh. Server state trang chờ tiếp tục dùng TanStack Query; đáp án chưa gửi/đánh dấu/modal/đồng hồ preview là client state. Tái sử dụng MathRenderer, không thêm service.
+
+| File và dòng | Nội dung |
+| --- | --- |
+| [StudentExamPaperPreviewPage.jsx:10](/D:/class-management/frontend/src/pages/student/exams/StudentExamPaperPreviewPage.jsx:10) | Bố cục trang, đồng hồ, các phần đề, tiến độ và thông báo nộp mẫu. |
+| [studentExamPaper.js:2](/D:/class-management/frontend/src/pages/student/exams/mocks/studentExamPaper.js:2) | 6 câu mẫu, 5 loại trả lời, không có đáp án đúng. |
+| [useExamPaperPreview.js:4](/D:/class-management/frontend/src/pages/student/exams/hooks/useExamPaperPreview.js:4) | State đáp án, đánh dấu, deadline, khóa sau hết giờ/nộp mẫu. |
+| [examPaperHelpers.js:1](/D:/class-management/frontend/src/pages/student/exams/helpers/examPaperHelpers.js:1) | Xác định câu đã trả lời, định dạng thời gian. |
+| [StudentQuestionCard.jsx:4](/D:/class-management/frontend/src/pages/student/exams/components/StudentQuestionCard.jsx:4) | Renderer chung, chọn một/nhiều, đúng-sai, nhập ngắn/tự luận, công thức toán. |
+| [ExamQuestionNavigator.jsx:4](/D:/class-management/frontend/src/pages/student/exams/components/ExamQuestionNavigator.jsx:4) | Điều hướng, trạng thái câu, tiến độ, thu gọn mobile. |
+| [SubmitExamPreviewModal.jsx:3](/D:/class-management/frontend/src/pages/student/exams/components/SubmitExamPreviewModal.jsx:3) | Xác nhận nộp mẫu, số câu chưa trả lời đầy đủ. |
+| [AppRoutes.jsx:74](/D:/class-management/frontend/src/routes/AppRoutes.jsx:74) | Route lazy cho preview. |
+| [StudentExamListPage.jsx:18](/D:/class-management/frontend/src/pages/student/exams/StudentExamListPage.jsx:18) | Link thử trực tiếp từ danh sách. |
+| [StudentExamWaitingPage.jsx:18](/D:/class-management/frontend/src/pages/student/exams/StudentExamWaitingPage.jsx:18) | Link thử từ trang chờ. |
+| [examPaperHelpers.test.js:5](/D:/class-management/frontend/tests/examPaperHelpers.test.js:5) | Kiểm tra lựa chọn đầu tiên, đáp án sai, nhóm chưa đầy đủ, input rỗng và timer. |
+
+Kiểm tra: 65 tests pass, build thành công, lint không lỗi; chưa kiểm thử tương tác trên trình duyệt.
+
+# Tích hợp lượt thi thực tế học sinh — 14/10/2026
+
+Luồng: trang chờ → POST bắt đầu/resume → bài thi thực tế → autosave/ghi TAB_HIDDEN, TAB_VISIBLE → POST nộp → trang kết quả. Giữ UI preview đã chốt, không thêm service. Deadline được đối chiếu serverTime; autosave mỗi 5 giây hoặc khi chuyển tab, nộp đợi autosave hiện tại hoàn thành và dùng revision mới. Bản nháp theo tài khoản/attempt/generation, chỉ khôi phục khi revision khớp. Xung đột 409 khóa ghi, yêu cầu tải lại. Hết hạn dùng kết quả/đáp án mà BE đã lưu, không báo lưu được các thay đổi chưa gửi.
+
+Trang kết quả chỉ render điểm khi scoreVisible, chỉ render đề/đáp án đã chọn/review khi answersVisible; không suy đoán đáp án bị BE ẩn. Tự luận chưa chấm hiện trạng thái/điểm tạm thời theo BE. Refetch giữ input đang nhập; prefetch code và dữ liệu lượt thi/kết quả; mutation start/submit tự revalidate danh sách/count. Autosave không invalidate toàn bộ đề mà cập nhật response nhỏ vào cache đã có.
+
+| File và dòng | Thay đổi |
+| --- | --- |
+| [examService.js:4](/D:/class-management/frontend/src/services/examService.js:4) | Thêm methods vào service cũ cho start/get/save/submit/result. |
+| [resourceOptions.js:36](/D:/class-management/frontend/src/query/resourceOptions.js:36) | Query lượt thi và kết quả với signal. |
+| [mutationResources.js:5](/D:/class-management/frontend/src/query/mutationResources.js:5) | Revalidation đúng nhóm; autosave không tải lại đề. |
+| [prefetchRoutes.js:13](/D:/class-management/frontend/src/query/prefetchRoutes.js:13) | Query key/routes lượt thi và kết quả. |
+| [useRoutePrefetch.js:17](/D:/class-management/frontend/src/query/useRoutePrefetch.js:17) | Prefetch lazy page chunks. |
+| [useStartExamAttempt.js:9](/D:/class-management/frontend/src/pages/student/exams/hooks/useStartExamAttempt.js:9) | UUID ổn định khi retry, kiểm tra lại quyền, expectedAttemptCount, seed cache có guard phiên. |
+| [useExamAttempt.js:11](/D:/class-management/frontend/src/pages/student/exams/hooks/useExamAttempt.js:11) | Lưu/khôi phục đáp án, serialize request, revision, deadline, events và nộp. |
+| [examAttemptAdapter.js:3](/D:/class-management/frontend/src/pages/student/exams/helpers/examAttemptAdapter.js:3) | Chuyển nhóm đáp án BE sang UI, map option IDs và payload; đánh số nhóm 1.1/1.2. |
+| [StudentExamAttemptPage.jsx:11](/D:/class-management/frontend/src/pages/student/exams/StudentExamAttemptPage.jsx:11) | Trang làm bài giữ thiết kế đã chốt. |
+| [StudentExamResultPage.jsx:7](/D:/class-management/frontend/src/pages/student/exams/StudentExamResultPage.jsx:7) | Trang trung gian sau nộp; điểm/nhận xét/trạng thái theo quyền BE. |
+| [ExamAnswerReview.jsx:6](/D:/class-management/frontend/src/pages/student/exams/components/ExamAnswerReview.jsx:6) | Review đầy đủ đề và đáp án BE cho phép. |
+| [ExamMedia.jsx:3](/D:/class-management/frontend/src/pages/student/exams/components/ExamMedia.jsx:3) | Reuse ảnh, render audio ở section/câu/nhóm/option. |
+| [StudentQuestionCard.jsx:5](/D:/class-management/frontend/src/pages/student/exams/components/StudentQuestionCard.jsx:5) | Render media/công thức nhóm và ý đúng-sai, hỗ trợ readonly review. |
+| [ExamQuestionNavigator.jsx:5](/D:/class-management/frontend/src/pages/student/exams/components/ExamQuestionNavigator.jsx:5) | Tiến độ nhóm và số câu/mục theo BE. |
+| [SubmitExamModal.jsx:3](/D:/class-management/frontend/src/pages/student/exams/components/SubmitExamModal.jsx:3) | Modal nộp thật, khóa thao tác trong request. |
+| [StudentExamWaitingPage.jsx:8](/D:/class-management/frontend/src/pages/student/exams/StudentExamWaitingPage.jsx:8) | Nối nút bắt đầu với mutation. |
+| [StudentExamWaitingCard.jsx:9](/D:/class-management/frontend/src/pages/student/exams/components/StudentExamWaitingCard.jsx:9) | Phản hồi trạng thái mở lượt thi. |
+| [StudentExamListPage.jsx:14](/D:/class-management/frontend/src/pages/student/exams/StudentExamListPage.jsx:14) | Điều hướng đến kết quả khi lượt đã hoàn thành. |
+| [StudentExamCard.jsx:10](/D:/class-management/frontend/src/pages/student/exams/components/StudentExamCard.jsx:10) | Prefetch resume/result; nút xem kết quả. |
+| [AppRoutes.jsx:78](/D:/class-management/frontend/src/routes/AppRoutes.jsx:78) | Lazy routes bài thi/kết quả. |
+| [examAttemptAdapter.test.js:16](/D:/class-management/frontend/tests/examAttemptAdapter.test.js:16) | Roundtrip các loại đáp án, IDs, bỏ trống/xóa và media. |
+| [examServices.test.mjs:40](/D:/class-management/frontend/tests/examServices.test.mjs:40) | Transport contract start/save/submit/result, quyền response. |
+
+Kiểm tra build, 69 tests pass, lint không lỗi. Chưa kiểm thử end-to-end với BE/DB/tài khoản thật; tests hiện kiểm tra helper và service, chưa xác nhận timer/autosave trong browser. Browser visibility events phản ánh chuyển tab/ẩn trang, không phải giải pháp chống gian lận toàn diện.
+

@@ -14,6 +14,8 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class ExamAttemptEvent {
+    @Column(name="client_event_id")
+    private java.util.UUID clientEventId;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

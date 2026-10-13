@@ -18,6 +18,8 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @Builder
 public class ExamAssignment {
+    @Column(name="results_released_at")
+    private LocalDateTime resultsReleasedAt;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

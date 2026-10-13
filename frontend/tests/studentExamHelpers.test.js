@@ -33,3 +33,24 @@ test('combines search, class and date filters and sorts a copy', () => {
   assert.deepEqual(filterStudentExams(items, { ...filters, order: 'OLDEST' }).map((item) => item.assignmentId), [1, 2])
   assert.equal(items[0].assignmentId, 1)
 })
+test('personal filter selects STUDENT assignments even when they also have a class context', () => {
+  const items = [
+    { assignmentId: 1, assignmentType: 'STUDENT', classes: [{ id: 21 }] },
+    { assignmentId: 2, assignmentType: 'ALL', classes: [{ id: 21 }] },
+  ]
+  const filters = { search: '', classId: 'PERSONAL', date: '', order: 'SERVER' }
+  assert.deepEqual(filterStudentExams(items, filters).map((item) => item.assignmentId), [1])
+})
+test('waiting page respects Vietnam time, exclusive closing, remaining attempts and BE authority', async () => {
+  const { canEnterAssignment } = await import('../src/pages/student/exams/helpers/studentExamHelpers.js')
+  const exam = { canStart: true, maxAttempts: 2, attemptsUsed: 1, openTime: '2026-10-13T10:00:00', closeTime: '2026-10-13T11:00:00' }
+  assert.equal(canEnterAssignment(exam, Date.parse('2026-10-13T02:59:59Z')), false)
+  assert.equal(canEnterAssignment(exam, Date.parse('2026-10-13T03:00:00Z')), true)
+  assert.equal(canEnterAssignment(exam, Date.parse('2026-10-13T04:00:00Z')), false)
+  const now = Date.parse('2026-10-13T03:30:00Z')
+  assert.equal(canEnterAssignment({ ...exam, attemptsUsed: 2 }, now), false)
+  assert.equal(canEnterAssignment({ ...exam, attemptsUsed: 2, canStart: false, canResume: true }, now), true)
+  assert.equal(canEnterAssignment({ ...exam, maxAttempts: 0, attemptsUsed: 20 }, now), true)
+  assert.equal(canEnterAssignment({ ...exam, canStart: false }, now), false)
+  assert.equal(canEnterAssignment({ ...exam, blockedReason: 'TIME_EXPIRED', canResume: true }, now), false)
+})

@@ -17,6 +17,12 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class ExamAttempt {
+    @Version @Builder.Default @Column(nullable=false)
+    private Long revision = 0L;
+    @Column(name="start_request_id")
+    private java.util.UUID startRequestId;
+    @Column(name="deadline_at")
+    private LocalDateTime deadlineAt;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

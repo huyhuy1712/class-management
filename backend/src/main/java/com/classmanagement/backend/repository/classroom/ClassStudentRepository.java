@@ -66,6 +66,12 @@ public interface ClassStudentRepository
     boolean existsByClassroom_IdAndStudent_Username(Long classroomId, String username);
     @Query("select cs.student.id from ClassStudent cs where cs.classroom.id = :classId and cs.student.id in :studentIds")
     List<Long> findStudentIdsInClass(@Param("classId") Long classId, @Param("studentIds") Collection<Long> studentIds);
+    interface StudentClassPair { Long getClassId(); Long getStudentId(); }
+
+    @Query("select cs.classroom.id as classId, cs.student.id as studentId from ClassStudent cs "
+            + "where cs.classroom.id in :classIds and cs.student.id in :studentIds")
+    List<StudentClassPair> findStudentClassPairs(@Param("classIds") Collection<Long> classIds,
+                                               @Param("studentIds") Collection<Long> studentIds);
 
     List<ClassStudent> findAllByClassroomId(Long classroomId);
 

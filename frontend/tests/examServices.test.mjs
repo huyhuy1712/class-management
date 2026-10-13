@@ -16,6 +16,39 @@ before(async () => {
   mediaService = await loadService('examMediaService')
 })
 
+test('student exam list reads every page and preserves server statistics and sort', async () => {
+  const signal = new AbortController().signal
+  const stats = { completedCount: 2, notStartedCount: 99, pendingGradingCount: 0 }
+  api.handler = async (url, options) => {
+    assert.equal(url, '/users/me/exams')
+    assert.equal(options.signal, signal)
+    assert.equal(options.params.sort, 'oldest')
+    const page = options.params.page
+    return { data: { items: Array.from({ length: page === 0 ? 100 : 1 }, (_, i) => ({ assignmentId: page * 100 + i + 1 })), totalElements: 101, stats } }
+  }
+  const result = await examService.getStudentExams({ signal }, 'oldest')
+  assert.equal(result.items.length, 101)
+  assert.equal(result.items[100].assignmentId, 101)
+  assert.equal(result.stats, stats)
+  api.handler = async (url) => { assert.equal(url, '/exam-assignments/101'); return { data: { assignmentId: 101, canResume: true } } }
+  assert.equal((await examService.getStudentAssignment(101)).canResume, true)
+})
+
+test('attempt writes preserve generation, revision, event UUIDs and answer option IDs', async () => {
+  const body = { attemptNumber: 2, revision: 7, answers: [{ answerId: 101, selectedOptionIds: [11] }], events: [{ eventId: 'same-id-for-retry', type: 'TAB_HIDDEN' }] }
+  for (const [method, path] of [['saveAttempt', '/exam-attempts/42/answers'], ['submitAttempt', '/exam-attempts/42/submit']]) {
+    api.handler = async (url, payload) => { assert.equal(url, path); assert.equal(payload, body); return { data: { attemptId: 42, revision: 8 } } }
+    assert.equal((await examService[method](42, body)).revision, 8)
+  }
+  const start = { requestId: 'stable-start-request', expectedAttemptCount: 1 }
+  api.handler = async (url, payload) => { assert.equal(url, '/exam-assignments/12/attempts'); assert.equal(payload, start); return { data: { attemptId: 42 } } }
+  assert.equal((await examService.startAttempt(12, start)).attemptId, 42)
+  api.handler = async (url) => { assert.equal(url, '/exam-attempts/42/result'); return { data: { scoreVisible: false, answersVisible: false, sections: [], totalScore: null } } }
+  const result = await examService.getAttemptResult(42)
+  assert.equal(result.scoreVisible, false)
+  assert.equal(result.answersVisible, false)
+})
+
 test('create service forwards assignment unchanged and returns BE result', async () => {
   const response = { id: 105, code: 'EX-14-ABCDEF', status: 'DRAFT', assignmentId: 12, maxScore: 1 }
   let requests = 0

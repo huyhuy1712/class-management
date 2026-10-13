@@ -1,5 +1,9 @@
 import { lazy, Suspense } from 'react'
 import StudentExamListPage from '../pages/student/exams/StudentExamListPage'
+import StudentExamWaitingPage from '../pages/student/exams/StudentExamWaitingPage'
+const StudentExamPaperPreviewPage = lazy(() => import('../pages/student/exams/StudentExamPaperPreviewPage'))
+const StudentExamAttemptPage = lazy(() => import('../pages/student/exams/StudentExamAttemptPage'))
+const StudentExamResultPage = lazy(() => import('../pages/student/exams/StudentExamResultPage'))
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 import TeacherDashboard from '../pages/teacher/TeacherDashboard'
@@ -69,6 +73,10 @@ function AppRoutes() {
       <Route path="/student/classes" element={<JoinClassPage />} />
       <Route path="/student/classes/:classId" element={<StudentClassDetailPage />} />
       <Route path="/student/exams" element={<StudentExamListPage />} />
+      <Route path="/student/exams/preview/paper" element={<StudentExamPaperPreviewPage />} />
+      <Route path="/student/exams/:assignmentId" element={<StudentExamWaitingPage />} />
+      <Route path="/student/exam-attempts/:attemptId" element={<StudentExamAttemptPage />} />
+      <Route path="/student/exam-attempts/:attemptId/result" element={<StudentExamResultPage />} />
       <Route path="/student/teachers" element={<JoinClassPage />} />
 
       {/* Route exam management */}

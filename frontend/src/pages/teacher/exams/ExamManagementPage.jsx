@@ -28,6 +28,9 @@ function ExamManagementPage() {
       error,
       refetch,
       setExams,
+      publishExam,
+      unpublishExam,
+      publishingId,
     } = useExams()
 
   const navigate = useNavigate()
@@ -60,6 +63,19 @@ function ExamManagementPage() {
       return
     }
     navigate('/teacher/exams/create')
+  }
+
+  const handlePublish = async (exam) => {
+    if (publishingId !== null) return
+    setUiMessage('')
+    try {
+      const result = await (exam.status === 'PUBLISHED' ? unpublishExam(exam.id) : publishExam(exam.id))
+      if (result) setUiMessage(result.status === 'DRAFT' ? 'Đã đưa đề thi về nháp.' : 'Đã xuất bản đề thi.')
+    } catch (error) {
+      const data = error.response?.data
+      const validation = Object.values(data?.validationErrors ?? {}).join(' ')
+      setUiMessage(validation || data?.message || 'Không thể đổi trạng thái đề thi. Vui lòng thử lại.')
+    }
   }
 
   const handleRestartDraft = () => {
@@ -260,6 +276,8 @@ function ExamManagementPage() {
               onView={handleView}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onPublish={handlePublish}
+              publishingId={publishingId}
             />
           )}
       </div>

@@ -31,8 +31,12 @@ export function resourceOptions(resource, params) {
     examDetail: ({ signal }) => examService.getExamDetail(params[0], { signal }),
     examConfiguration: ({ signal }) => examService.getExamConfiguration(params[0], { signal }),
     subjects: ({ signal }) => subjectService.getAll({ signal }),
+    studentExams: ({ signal }) => examService.getStudentExams({ signal }, params[0] === 'OLDEST' ? 'oldest' : 'newest'),
+    studentAssignment: ({ signal }) => examService.getStudentAssignment(params[0], { signal }),
+    examAttempt: ({ signal }) => examService.getAttempt(params[0], { signal }),
+    examAttemptResult: ({ signal }) => examService.getAttemptResult(params[0], { signal }),
   }
   if (!readers[resource]) throw new Error(`Unknown query resource: ${resource}`)
-  const realtime = ['notifications', 'requests', 'lessons'].includes(resource)
+  const realtime = ['notifications', 'requests', 'lessons', 'studentExams', 'studentAssignment'].includes(resource)
   return { queryFn: readers[resource], staleTime: realtime ? 15_000 : resource === 'subjects' ? 30 * 60_000 : 60_000, ...(realtime ? { refetchInterval: 60_000 } : {}) }
 }

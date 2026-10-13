@@ -6,9 +6,13 @@ export function routeQueries(path, userId, date) {
     '/student': ['studentClasses', 'dashboard', 'examCount'],
     '/student/classes': ['studentClasses', 'dashboard'],
     '/student/teachers': ['studentClasses', 'allClasses', 'teachers'],
-    '/student/exams': ['studentClasses'],
+    '/student/exams': ['studentClasses', 'studentExams'],
   }
   if (/^\/(teacher|student)\/profile$/.test(path)) return [['profile', [userId]]]
+  const studentAssignment = /^\/student\/exams\/([^/]+)$/.exec(path)
+  const attempt = /^\/student\/exam-attempts\/([^/]+)(\/result)?$/.exec(path)
+  if (attempt) return [[attempt[2] ? 'examAttemptResult' : 'examAttempt', [attempt[1]]]]
+  if (studentAssignment) return [['studentAssignment', [studentAssignment[1]]]]
   const classroom = /^\/(teacher|student)\/classes\/([^/]+)(?:\/attendance)?$/.exec(path)
   if (classroom) {
     const [, role, id] = classroom

@@ -2,12 +2,14 @@
 export function mutationResources(url, method) {
   if (!['post', 'put', 'patch', 'delete'].includes(String(method).toLowerCase())) return []
   const path = String(url ?? '').split('?')[0]
+  if (/^\/exam-attempts\/[^/]+\/answers$/.test(path)) return []
+  if (/^\/(exam-attempts|exam-assignments)(?:\/|$)/.test(path)) return ['studentExams', 'studentAssignment', 'examAttemptResult', 'examCount', 'dashboard', 'exams']
   if (/^\/notifications(?:\/|$)/.test(path)) return ['notifications']
   if (/^\/requests(?:\/|$)/.test(path)) return ['requests', 'notifications', 'studentClasses', 'teacherClasses', 'classStudents', 'teacherStudents', 'dashboard']
   if (/^\/classes\/[^/]+\/attendances(?:\/|$)/.test(path)) return ['attendances', 'dashboard']
   if (/^\/classes\/[^/]+\/lessons(?:\/|$)/.test(path)) return ['lessons']
-  if (/^\/classes(?:\/|$)/.test(path)) return ['teacherClasses', 'studentClasses', 'allClasses', 'classStudents', 'teacherStudents', 'dashboard', 'exams']
-  if (/^\/exams(?:\/|$)/.test(path)) return ['exams', 'examDetail', 'examConfiguration', 'examCount', 'dashboard', 'studentExams']
+  if (/^\/classes(?:\/|$)/.test(path)) return ['teacherClasses', 'studentClasses', 'allClasses', 'classStudents', 'teacherStudents', 'dashboard', 'exams', 'studentExams', 'studentAssignment']
+  if (/^\/exams(?:\/|$)/.test(path)) return ['exams', 'examDetail', 'examConfiguration', 'examCount', 'dashboard', 'studentExams', 'studentAssignment']
   if (/^\/users(?:\/|$)/.test(path)) return ['profile', 'teacherStudents', 'classStudents', 'studentDirectory', 'teachers', 'dashboard']
   return []
 }

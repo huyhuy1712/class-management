@@ -4,6 +4,12 @@ export const examStatuses = {
   PENDING: { label: 'Chờ chấm', tone: 'bg-amber-50 text-amber-700' },
 }
 
+export const blockedExamReasons = {
+  CLOSED: 'Đề thi đã đóng.', NOT_OPEN_YET: 'Chưa đến giờ mở đề.',
+  INVALID_CONFIGURATION: 'Cấu hình đề thi chưa hợp lệ.', TIME_EXPIRED: 'Lượt làm bài đã hết giờ.',
+  ATTEMPT_LIMIT_REACHED: 'Bạn đã hết lượt làm bài.',
+}
+
 export function getExamStatus(item) {
   if (item.attemptStatus === 'GRADED') return 'DONE'
   if (item.attemptStatus === 'SUBMITTED') return 'PENDING'
@@ -15,11 +21,20 @@ function normalizeSearch(value) {
     .toLocaleLowerCase('vi').replace(/đ/g, 'd').trim().replace(/\s+/g, ' ')
 }
 
-function dateTimestamp(value) {
+export function dateTimestamp(value) {
   if (!value) return null
   const text = String(value)
   const timestamp = Date.parse(/(?:Z|[+-]\d{2}:?\d{2})$/.test(text) ? text : `${text.length === 10 ? `${text}T00:00:00` : text}+07:00`)
   return Number.isFinite(timestamp) ? timestamp : null
+}
+
+export function canEnterAssignment(exam, now = Date.now()) {
+  if (!exam || (!exam.canStart && !exam.canResume) || exam.blockedReason) return false
+  const open = dateTimestamp(exam.openTime)
+  const close = dateTimestamp(exam.closeTime)
+  if (exam.openTime && open === null || exam.closeTime && close === null) return false
+  if (open !== null && now < open || close !== null && now >= close) return false
+  return Boolean(exam.canResume || exam.maxAttempts === 0 || exam.attemptsUsed < exam.maxAttempts)
 }
 
 export function getExamAssignmentDate(value) {
@@ -35,9 +50,10 @@ export function filterStudentExams(items, filters) {
   return items.filter((item) => {
     const text = normalizeSearch(`${item.title ?? ''} ${item.code ?? ''}`)
     return keywords.every((keyword) => text.includes(keyword))
-      && (!filters.classId || item.classes?.some((group) => String(group.id) === String(filters.classId)))
-      && (!filters.date || getExamAssignmentDate(item.createdAt) === filters.date)
+      && (!filters.classId || (filters.classId === 'PERSONAL' ? item.assignmentType === 'STUDENT' : item.classes?.some((group) => String(group.id) === String(filters.classId))))
+      && (!filters.date || getExamAssignmentDate(item.openTime ?? item.createdAt) === filters.date)
   }).sort((a, b) => {
+    if (filters.order === 'SERVER') return 0
     const left = dateTimestamp(a.createdAt)
     const right = dateTimestamp(b.createdAt)
     if (left === null || right === null) return left === right ? 0 : left === null ? 1 : -1

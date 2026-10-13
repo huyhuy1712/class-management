@@ -22,7 +22,11 @@ public class ExamRequestSizeFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI().substring(request.getContextPath().length());
         return !(request.getMethod().equals("POST") && path.equals("/api/exams"))
-                && !(request.getMethod().equals("PUT") && path.matches("/api/exams/[^/]+/content"));
+                && !(request.getMethod().equals("PUT") && path.matches("/api/exams/[^/]+/content"))
+                && !(request.getMethod().equals("POST") && path.matches("/api/exam-assignments/[^/]+/attempts"))
+                && !(request.getMethod().equals("PUT") && path.matches("/api/exam-attempts/[^/]+/answers"))
+                && !(request.getMethod().equals("POST") && path.matches("/api/exam-attempts/[^/]+/submit"))
+                && !(request.getMethod().equals("PATCH") && path.matches("/api/exam-attempts/[^/]+/grades"));
     }
 
     @Override

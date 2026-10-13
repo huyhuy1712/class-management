@@ -55,6 +55,10 @@
 | 47 | GET | `/api/notifications` | Lấy toàn bộ thông báo của người dùng hiện tại |
 | 48 | DELETE | `/api/notifications/{notificationId}` | Xóa thông báo của người dùng hiện tại |
 | 49 | PATCH | `/api/notifications/{notificationId}/read` | Đổi trạng thái đã đọc/chưa đọc |
+| 50 | GET | `/api/users/me/exams` | Danh sách assignment của học sinh đăng nhập |
+| 51 | GET | `/api/exam-assignments/{assignmentId}` | Thông tin assignment trước khi thi |
+| 52 | PATCH | `/api/exams/{examId}/publish` | Xuất bản đề và kích hoạt phân công |
+| 53 | PATCH | `/api/exams/{examId}/unpublish` | Đưa đề và phân công về nháp |
 
 ## Xác thực
 
@@ -2592,3 +2596,231 @@ POST lưu class_id trên từng exam_assignment_students. PUT cập nhật ngữ
 GET `/api/exams/{examId}/configuration` và GET detail bổ sung `assignments[].studentClasses`, ví dụ `[{"studentId":21,"classId":3},{"studentId":22,"classId":3}]`. studentIds cũ giữ nguyên; dữ liệu cũ trả classId=null. Khi sửa form có ngữ cảnh chung, FE lấy classId từ studentClasses và gửi lại trong assignment.classId để giữ lớp ngữ cảnh. GET chỉ đọc ID của lazy classroom, không tải tên lớp hay thêm query từng học sinh.
 
 Validation trả 400 với field assignment.classId hoặc assignment.studentIds. Test POST STUDENT với lớp hợp lệ, kiểm tra class_id DB và GET; PUT giữ studentIds nhưng đổi classId rồi kiểm tra cập nhật; PUT null kiểm tra xóa ngữ cảnh; lớp khác giáo viên/lớp ARCHIVED/học sinh không thuộc lớp phải bị từ chối trước khi ghi. V55 cần đã được áp dụng. Chưa thêm API danh sách đề dành cho học sinh ở bước này.
+
+### 50. GET `/api/users/me/exams` | Danh sách bài thi của học sinh
+
+Xác thực bằng cookie access_token. Chỉ STUDENT có tài khoản ACTIVE được gọi (sai role/status: 403). Không nhận userId từ FE. Một card là một assignmentId; cùng đề giao nhiều lần với lịch khác nhau vẫn là các card riêng. Không trả section/question/answer/media hay điểm/đáp án chuẩn.
+
+Quyền dùng chung cho danh sách, thống kê và GET assignment detail:
+
+- ALL động: học sinh hiện đang tham gia ít nhất một lớp ACTIVE thuộc giáo viên sở hữu đề. Không cần target trong exam_assignment_classes. Học sinh mới gia nhập nhận đề, rời hết lớp phù hợp thì không thấy assignment trong danh sách này nữa.
+- CLASS: học sinh hiện thuộc ít nhất một lớp ACTIVE được liên kết với assignment.
+- STUDENT: có exam_assignment_students gắn với học sinh. class_id chỉ là ngữ cảnh hiển thị, không điều kiện thu hồi quyền khi rời lớp. class_id=null thì classes=[].
+- Đề DRAFT hoặc assignment DRAFT không được trả. Đề/assignment CLOSED vẫn có thể hiển thị metadata nhưng không cho bắt đầu/tiếp tục. GET không tự xuất bản đề hay đổi status assignment.
+
+| Query | Mặc định | Ý nghĩa |
+|---|---|---|
+| page | 0 | >=0 |
+| size | 20 | 1..100 |
+| q | rỗng | Tìm tên/mã không phân biệt hoa thường; tối đa 255 ký tự; ký tự %/_ được xem là ký tự thường |
+| classId | không lọc | ID lớp >0; STUDENT lọc lớp ngữ cảnh, ALL/CLASS lọc lớp phù hợp học sinh đang tham gia |
+| date | không lọc | YYYY-MM-DD, ngày openTime; openTime=null không khớp bộ lọc ngày |
+| sort | newest | newest/oldest theo createdAt assignment, opening theo openTime tăng dần (null cuối); có ID làm tie-break |
+
+```bash
+curl "http://localhost:8080/api/users/me/exams?page=0&size=20&sort=newest" --cookie "access_token=<token>"
+```
+
+Ví dụ response 200:
+
+```json
+{
+  "items": [
+    {
+      "assignmentId": 12,
+      "examId": 5,
+      "title": "Kiểm tra Toán 12",
+      "code": "EX-11-ABCDEF",
+      "description": "Kiểm tra chương 1",
+      "assignmentType": "STUDENT",
+      "classes": [{"id": 3, "name": "Lớp Toán 12A1"}],
+      "openTime": null,
+      "closeTime": null,
+      "timeLimit": 45,
+      "maxAttempts": 2,
+      "attemptsUsed": 0,
+      "attemptId": null,
+      "attemptStatus": "NOT_STARTED",
+      "canStart": true,
+      "canResume": false,
+      "blockedReason": null
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "totalElements": 1,
+  "stats": {"completedCount": 0, "notStartedCount": 1, "pendingGradingCount": 0}
+}
+```
+
+Ví dụ canStart=true chỉ khi exam PUBLISHED và assignment OPEN, hoặc SCHEDULED đã đến openTime. FE hiển thị nhãn `(giao riêng cho bạn)` cạnh lớp khi assignmentType=STUDENT; không có lớp thì ghi Giao riêng cho bạn. ALL/CLASS có thể có nhiều lớp khớp nhưng mỗi assignment chỉ một item.
+
+Stats tính trên toàn bộ assignment đủ quyền, không phụ thuộc trang/tìm kiếm/bộ lọc: completedCount=GRADED; pendingGradingCount=SUBMITTED; notStartedCount=chưa có attempt hoặc NOT_STARTED. IN_PROGRESS không thuộc ba ô đó; item có trạng thái Đang làm và nút tiếp tục. Stats theo assignment và lượt cuối, không đếm số lần thi; API student-exam-count cũ giữ contract riêng (đếm distinct exam đã nộp/chấm).
+
+Query sai định dạng/phạm vi trả 400. Thiếu cookie hợp lệ bị chặn bởi security. Không có assignment trả items=[] và stats/count tương ứng; trang vượt dữ liệu vẫn trả totalElements thật. Projection metadata + EXISTS không nhân bản item. Một query user, một query trang, một query lớp theo lô (bỏ nếu trang rỗng), một query total có filter, một query aggregate stats; số query không tăng theo số card. Đọc trong REPEATABLE_READ để trang/count/stats nhất quán.
+
+### 51. GET `/api/exam-assignments/{assignmentId}` | Thông tin trước khi thi
+
+```bash
+curl http://localhost:8080/api/exam-assignments/12 --cookie "access_token=<token>"
+```
+
+Response 200 có cùng các field như một item ở mục 50, không wrapper items/stats. Dùng assignmentId lấy từ danh sách, không phải examId. Metadata chưa gồm nội dung thi; GET không tạo/reset attempt, không tăng attempt_count và không xóa câu trả lời cũ. Không tồn tại/không đủ quyền/DRAFT trả 404; ID không dương trả 400; sai role/tài khoản không ACTIVE trả 403. Query access dùng cùng predicate với danh sách.
+
+Cấu hình hiệu lực lấy assignment.timeLimit/maxAttempts nếu có, nếu null kế thừa exam. maxAttempts=0 là không giới hạn. attemptStatus/attemptsUsed/attemptId chỉ đọc bản ghi hiện có (mỗi assignment/student một dòng, lượt cuối).
+
+canStart=true khi còn quyền, cấu hình hợp lệ, exam PUBLISHED, assignment OPEN hoặc SCHEDULED đã mở, chưa đến closeTime, chưa đạt số lượt và không IN_PROGRESS. canResume=true khi IN_PROGRESS còn trong giờ mở/đóng và chưa hết startedAt+timeLimit; không tăng lượt khi tiếp tục. closeTime và hạn làm bài là mốc kết thúc loại trừ (đúng mốc đã hết giờ). Giờ tính theo Asia/Ho_Chi_Minh, các timestamp trả định dạng local như API hiện có.
+
+blockedReason: null, NOT_OPEN_YET, CLOSED, ATTEMPT_LIMIT_REACHED, TIME_EXPIRED, INVALID_CONFIGURATION. canStart/canResume chỉ phục vụ UI; API bắt đầu/nộp bài phải kiểm tra lại các điều kiện trong transaction khi được triển khai.
+
+**Chuẩn bị và test:** restart BE áp dụng V56 index class_students(student_id,class_id), V55 cần đã chạy. Đăng nhập STUDENT ACTIVE; dùng dữ liệu exam PUBLISHED và assignment OPEN/SCHEDULED/CLOSED có sẵn để test, hai GET không tự đổi DRAFT thành công bố. Kiểm tra ALL động theo membership ACTIVE giáo viên, CLASS đúng lớp, STUDENT giao riêng kể cả không có lớp; học sinh khác không thấy đề không được giao; một assignment khớp nhiều lớp không trùng. Thử q/classId/date/page/sort, đối chiếu count và lớp ngữ cảnh. Detail không có đáp án/câu hỏi. IN_PROGRESS hiển thị tiếp tục, đủ lượt không cho bắt đầu mới, maxAttempts=0 không giới hạn. SQL chưa được chạy trên DB thật trong quá trình kiểm tra local.
+
+### 52. PATCH `/api/exams/{examId}/publish` | Xuất bản đề thi
+
+Không cần request body. Dùng examId từ GET `/api/exams`. Đăng nhập bằng cookie access_token, chỉ giáo viên ACTIVE sở hữu đề được xuất bản. Nút Xuất bản trên danh sách giáo viên đã nối API qua service và TanStack mutation; giữ trạng thái đang gửi, cập nhật cache danh sách/invalidate cấu hình và detail khi thành công. Đưa về nháp dùng endpoint riêng ở mục 53.
+
+```bash
+curl -X PATCH http://localhost:8080/api/exams/5/publish --cookie "access_token=<token>"
+```
+
+Response 200 ví dụ:
+
+```json
+{
+  "id": 5,
+  "code": "EX-11-ABCDEF",
+  "status": "PUBLISHED",
+  "revision": 3,
+  "updatedAt": "2026-10-13T18:00:00",
+  "assignments": [{"id": 12, "status": "OPEN"}]
+}
+```
+
+BE khóa exam (cùng khóa PUT/xóa đề), kiểm tra DRAFT chưa có lượt thi và ít nhất một assignment DRAFT. Reuse batch loader GET detail và validator cấu trúc để kiểm tra basicInfo, nội dung section/question/answer/options/scoring rules, registry media ATTACHED, tổng điểm câu/section/đề, cấu hình assignment/threshold. Target được kiểm tra lại theo lô: lớp ACTIVE thuộc giáo viên, học sinh STUDENT ACTIVE thuộc phạm vi giáo viên, lớp ngữ cảnh giao riêng vẫn có học sinh. ALL giữ phạm vi động, không sinh target lớp/học sinh. Không claim media TEMP mới, không upload/download file hoặc gọi API FE khác.
+
+Sau khi toàn bộ validation pass, trong cùng transaction:
+
+- exams.status -> PUBLISHED.
+- Mỗi assignment: openTime ở tương lai -> SCHEDULED; openTime null hoặc đã tới giờ -> OPEN.
+- closeTime nếu có phải ở tương lai; closeTime<=thời điểm xuất bản bị từ chối, không xuất bản một phần.
+- Giữ timeLimit/maxAttempts, target, cấu hình xem điểm/đáp án và lịch đã lưu; tăng revision của exam khi flush.
+
+Nếu đã PUBLISHED, gọi lại trả 200 với trạng thái hiện tại, không reset lịch/assignment hoặc tạo bản ghi mới. Đề CLOSED không được xuất bản lại. SQL lỗi thì rollback toàn bộ. Query đọc cây và target theo lô, không truy vấn mỗi câu hỏi/học sinh/assignment. Response chỉ metadata nhỏ, không trả toàn bộ nội dung.
+
+Lỗi: 400 ID không dương hoặc validationErrors theo field; 401 thiếu xác thực theo security; 403 giáo viên không ACTIVE/sai role; 404 đề không tồn tại hoặc không thuộc giáo viên; 409 đề CLOSED, draft đã có lượt làm hoặc assignment không còn DRAFT; media sai registry có thể trả 409 từ detail loader.
+
+Test: restart BE, đăng nhập chủ đề DRAFT hoàn chỉnh, gọi PATCH nhận 200/PUBLISHED; kiểm tra assignment OPEN nếu không đặt lịch, SCHEDULED nếu lịch mở tương lai. Đăng nhập học sinh đủ quyền gọi GET `/api/users/me/exams` thấy đề mới; OPEN và trong hạn cho canStart, SCHEDULED chưa mở cho NOT_OPEN_YET. Gọi PATCH lại không sinh assignment mới, không mở lại assignment CLOSED. Kiểm tra target lớp/học sinh đã mất quyền hoặc closeTime quá khứ bị từ chối và trạng thái vẫn DRAFT. Không cần migration mới; chưa triển khai bắt đầu/nộp bài ở bước này.
+
+### 53. PATCH `/api/exams/{examId}/unpublish` | Về nháp
+
+Reuse ExamController, ExamPublishService, PublishExamResponse và mutation/cache quản lý đề. Không cần request body. Đăng nhập giáo viên ACTIVE sở hữu đề. Nút Về nháp hiển thị cho PUBLISHED, gọi một PATCH; vô hiệu hóa nút đổi trạng thái trong lúc chờ, cập nhật cache/invalidate cấu hình và detail sau thành công. Không xóa nội dung hoặc tạo lại assignment.
+
+```bash
+curl -X PATCH http://localhost:8080/api/exams/5/unpublish --cookie "access_token=<token>"
+```
+
+Response 200 cùng format publish, ví dụ:
+
+```json
+{
+  "id": 5,
+  "code": "EX-11-ABCDEF",
+  "status": "DRAFT",
+  "revision": 4,
+  "updatedAt": "2026-10-13T18:00:00",
+  "assignments": [{"id": 12, "status": "DRAFT"}]
+}
+```
+
+BE khóa exam cùng cách publish/PUT/delete, kiểm tra chưa có bất kỳ dòng exam_attempts nào của đề (kể cả NOT_STARTED). Đề và mọi assignment chuyển DRAFT trong cùng transaction. Giữ toàn bộ nội dung, media, target, lớp ngữ cảnh, lịch mở/đóng và cấu hình điểm/đáp án. Học sinh không còn thấy đề qua GET list/detail vì chúng loại DRAFT. Giáo viên có thể sửa rồi publish lại; publish vẫn validate target và lịch tại thời điểm xuất bản lại.
+
+Đề đã DRAFT và các assignment đều DRAFT: gọi lại trả 200, không ghi lại hoặc tăng revision. Đề CLOSED không được đưa về nháp. Lỗi DB rollback toàn bộ. Không tải cây nội dung hay query từng học sinh; một query khóa đề, một EXISTS attempt, một query assignment và flush các thay đổi. Không cần migration.
+
+Lỗi: 400 examId không dương; 403 sai role/tài khoản giáo viên không ACTIVE; 404 không có đề hoặc không thuộc giáo viên; 409 đề CLOSED hoặc đã có lượt thi. Thiếu cookie hợp lệ bị security từ chối.
+
+Test: publish đề chưa có lượt thi, nhấn Về nháp nhận 200; exams/assignments đều DRAFT, nội dung/target giữ nguyên; GET học sinh không còn đề. Mở chỉnh sửa cấu hình rồi xuất bản lại. Gọi unpublish lại khi đã nháp không đổi dữ liệu. Đề có attempt phải 409 và trạng thái không đổi. Chưa chạy kiểm chứng transaction trên DB thật trong quá trình kiểm tra local.
+
+## API bài làm học sinh — attempt runtime
+
+Các endpoint dưới đây dùng cookie đăng nhập hiện có. BE lấy học sinh/giáo viên từ phiên đăng nhập, không nhận userId tùy ý. Reuse API danh sách đề và GET `/api/exam-assignments/{assignmentId}` để lấy thông tin trước khi bắt đầu. FE bài làm chưa được nối trong thay đổi BE này.
+
+| Method | Endpoint | Công dụng |
+| --- | --- | --- |
+| POST | `/api/exam-assignments/{assignmentId}/attempts` | Học sinh bắt đầu hoặc tiếp tục |
+| GET | `/api/exam-attempts/{attemptId}` | Học sinh tải lại bài đang làm |
+| PUT | `/api/exam-attempts/{attemptId}/answers` | Lưu toàn bộ snapshot đáp án + sự kiện |
+| POST | `/api/exam-attempts/{attemptId}/submit` | Lưu cuối, chấm, nộp và trả kết quả |
+| GET | `/api/exam-attempts/{attemptId}/result` | Học sinh xem kết quả được phép; giáo viên chủ đề xem đầy đủ |
+| GET | `/api/exam-assignments/{assignmentId}/attempts?page=0&size=20&status=SUBMITTED` | Giáo viên xem danh sách bài; status không bắt buộc |
+| PATCH | `/api/exam-attempts/{attemptId}/grades` | Giáo viên chấm nhiều nhóm tự luận trong một request |
+
+### Bắt đầu / tiếp tục
+
+Body POST start:
+
+```json
+{"requestId":"79fdc641-d380-44b5-aef9-38780949336c","expectedAttemptCount":0}
+```
+
+`expectedAttemptCount` lấy từ số lượt đã dùng trong API danh sách/detail. Tạo UUID một lần cho thao tác bắt đầu; retry giữ cùng UUID, làm lại tạo UUID mới. Cùng UUID trả lượt hiện tại, không reset. Lượt IN_PROGRESS được tiếp tục, không tăng số lượt và không reset giờ. Khi làm lại, BE kiểm tra quyền ALL/CLASS/STUDENT, giờ mở/đóng, trạng thái và maxAttempts rồi tăng attemptNumber, xóa đáp án/điểm/sự kiện cũ. Chỉ giữ lượt cuối cùng cho mỗi assignment/học sinh.
+
+Response start/GET gồm `attemptId`, `assignmentId`, `attemptNumber`, `revision`, `status`, `serverTime`, `deadline`, `tabSwitchCount`, `exam`, `sections`, `answers`, `result`. Thời gian có offset +07:00. Deadline do BE tính từ thời gian bắt đầu + thời lượng hiệu lực, giới hạn bởi closeTime. Cây sections chứa paragraph, media, questions và các nhóm answers/options; không chứa isCorrect, correctAnswerText hay scoring rules. SHORT_ANSWER.content là null vì nội dung này có thể chứa đáp án. Khi đã nộp, sections/answers cấp ngoài rỗng và dữ liệu được phép xem nằm trong result.
+
+### Lưu đáp án và nộp bài
+
+PUT answers và POST submit dùng cùng body. ID minh họa dưới đây phải thay bằng ID nhóm/options từ response bài làm, không dùng index lựa chọn hay questionId thay answerId:
+
+```json
+{
+  "attemptNumber":1,
+  "revision":2,
+  "answers":[
+    {"answerId":101,"selectedOptionIds":[501]},
+    {"answerId":102,"booleanAnswers":[{"optionId":502,"value":false}]},
+    {"answerId":103,"text":"Nội dung trả lời"}
+  ],
+  "events":[{"eventId":"d4850fe8-f8ec-45f3-af04-845605be54ba","type":"TAB_HIDDEN"}]
+}
+```
+
+Đây là **snapshot đầy đủ**, nhóm bị bỏ khỏi answers được xóa; answers=[] xóa toàn bộ lựa chọn. Nhóm chọn đáp án dùng selectedOptionIds; TRUE_FALSE dùng booleanAnswers (false khác bỏ trống); SHORT_ANSWER/ESSAY dùng text. Autosave trả trạng thái/revision mới, không tải lại cây đề. FE gửi tuần tự các lần lưu, dùng revision mới nhất; nếu 409, GET lại trước khi giải quyết xung đột. Không gửi một request cho mỗi câu.
+
+Nút nộp chỉ cần một POST submit chứa snapshot cuối và events còn chờ; không cần PUT rồi GET result. BE lưu/chấm trong transaction. Retry nộp cùng attemptNumber đã hoàn tất trả kết quả hiện tại, không ghi lại. Request thuộc lượt cũ bị 409. Quá deadline: BE bỏ qua đáp án/sự kiện mới và chấm snapshot đã lưu; PUT quá hạn trả 200 trạng thái kết thúc, POST trả kết quả đã chấm. Cutoff lấy giờ BE khi service nhận thao tác, không lấy giờ máy học sinh.
+
+Chấm SINGLE/MULTIPLE theo tập lựa chọn đúng hoàn toàn. TRUE_FALSE theo PER_ANSWER hoặc CORRECT_COUNT cấu hình; bỏ trống không được coi là false. SHORT_ANSWER chuẩn hóa Unicode NFC, trim và case sensitivity theo cấu hình. Tự luận có nội dung chờ giáo viên; tự luận trống tự động 0. Hoàn tất tự động: GRADED/isFinal=true; còn tự luận: SUBMITTED/isFinal=false, điểm được phép hiển thị là điểm tạm thời.
+
+### Kết quả và chấm tự luận
+
+GET result/POST submit trả `attemptId`, `attemptNumber`, `revision`, `submittedAt`, `durationSeconds`, `status`, `scoreVisible`, `answersVisible`, `isFinal`, `autoScore`, `manualScore`, `totalScore`, `teacherComment`, `sectionScores`, `sections`, `answers`, `review`, `tabSwitchCount`, `events`.
+
+BE áp dụng NEVER/AFTER_SUBMIT/AFTER_EXAM cho điểm; đáp án thêm AFTER_SCORE (chỉ GRADED và đạt ngưỡng). Điểm chưa được xem là null, sectionScores rỗng; đề/đáp án/review chỉ trả khi được phép. hideCorrectAnswerOnWrong che khóa đáp án của nhóm sai. Teacher chủ đề xem đầy đủ và tối đa 1000 sự kiện gần nhất. Học sinh khác/giáo viên khác không xem được. Lượt đang làm được hoàn tất nếu học sinh mất membership; bắt đầu lượt mới phải kiểm tra lại quyền.
+
+GET danh sách giáo viên trả `items`, `page`, `size`, `totalElements`; item gồm attemptId/studentId/fullName/attemptNumber/status/tabSwitchCount/totalScore. page >= 0, size 1..100. Mỗi học sinh một lượt cuối, không có lịch sử từng đợt.
+
+PATCH grades:
+
+```json
+{"attemptNumber":1,"revision":3,"grades":[{"answerId":103,"score":1.50}],"teacherComment":"Cần giải thích rõ hơn"}
+```
+
+Chỉ nhận ESSAY có nội dung, thuộc bài đã nộp, không trùng và điểm 0..points của nhóm. BE giữ điểm thủ công các nhóm khác, tính lại câu/phần/tổng điểm, chuyển GRADED khi chấm đủ và trả kết quả mới. teacherComment=null giữ nhận xét, chuỗi trắng xóa nhận xét. Không nhận điểm trắc nghiệm do client tính.
+
+### Hoàn thành nhóm, hết giờ và chuyển tab
+
+Publish chốt nhóm học sinh xét AFTER_EXAM vào exam_assignment_completion_students. ALL vẫn nhận học sinh mới theo membership hiện tại; học sinh mới không trì hoãn mở kết quả. Một lần nộp đầu tiên ghi completed_at, giữ khi làm lại. Thành viên mất toàn bộ quyền trước khi bắt đầu được miễn khỏi nhóm; lượt IN_PROGRESS vẫn phải hoàn tất. Khi mọi thành viên đã nộp hoặc được miễn, results_released_at được chốt, không đóng lại. Tự luận chờ chấm không trì hoãn điều kiện “đã nộp”. V57 backfill đề đã xuất bản bằng nhóm **hiện tại lúc migration chạy**, không thể khôi phục nhóm tại thời điểm xuất bản cũ.
+
+Scheduler tự kết thúc bài quá hạn từ snapshot đã lưu mỗi `exam.attempt.expiry-delay-ms` (mặc định 15000 ms), mỗi đợt `app.exam.expiry-batch-size` (mặc định 20, giới hạn 1..100). GET/PUT/POST cũng xử lý hết hạn khi truy cập. FE đồng hồ không cần polling mỗi giây; scheduler có độ trễ xử lý theo chu kỳ và tải.
+
+Events chỉ TAB_HIDDEN/TAB_VISIBLE, mỗi sự kiện UUID riêng; retry trùng UUID không tăng đếm. tabSwitchCount đếm TAB_HIDDEN ở BE. Gửi gộp cùng autosave/submit; không thêm API riêng cho mỗi lần chuyển tab. Thời gian events là giờ BE nhận, không phải thời điểm chuyển tab thực tế. Đây là tín hiệu từ trình duyệt, có thể bị bỏ gửi/tắt script; không tự trừ điểm hoặc kết luận gian lận.
+
+Body tối đa theo filter hiện có (mặc định 2 MiB), tối đa 2000 nhóm đáp án/điểm, 1000 events mỗi body, 50 lựa chọn mỗi nhóm, text 20000 ký tự. Lỗi 400 payload/ID/điểm không hợp lệ, 403 sai role/tài khoản không ACTIVE, 404 tài nguyên không tồn tại/không được phép, 409 lượt/revision/trạng thái hoặc điều kiện bắt đầu không hợp lệ; 413 body quá lớn. Security hiện có xử lý cookie không hợp lệ.
+
+### Kiểm tra tích hợp sau khi restart BE
+
+1. Chạy Flyway V57 bằng quy trình khởi động của dự án; kiểm tra cột runtime/cohort được tạo. Migration chưa được chạy bởi agent.
+2. Đăng nhập HS, lấy assignmentId từ API danh sách, POST start; retry cùng UUID không tăng lượt, GET không reset deadline và không lộ khóa đáp án.
+3. PUT snapshot, GET xác nhận; thử false rõ ràng/SHORT Unicode/multiple thiếu lựa chọn. Revision cũ và option của đề khác phải bị từ chối, DB không ghi một phần.
+4. POST submit một lần, retry không nhân bản; kiểm tra student_answers/values/options/section scores và tổng. ESSAY trống 0, ESSAY có nội dung SUBMITTED rồi teacher PATCH chuyển GRADED khi đủ.
+5. Thử đề thời lượng ngắn: autosave rồi chờ hết giờ; scheduler chấm snapshot, submit muộn không thay đáp án. Làm lại kiểm tra số lượt, dữ liệu cũ bị xóa, request lượt cũ 409.
+6. Thử ALL/CLASS/STUDENT, tài khoản khác, NEVER/AFTER_SCORE/AFTER_EXAM. Với AFTER_EXAM: học sinh gia nhập sau publish vẫn nhận đề nhưng không chặn mở kết quả; kiểm tra cohort mất quyền và retake.
+7. Gửi cùng event UUID hai lần, count không tăng lại. Giáo viên nhận events, học sinh không nhận log. Kiểm tra rollback và các race start/save/submit trên PostgreSQL thật; unit checks chưa thay thế kiểm tra transaction/SQL này.

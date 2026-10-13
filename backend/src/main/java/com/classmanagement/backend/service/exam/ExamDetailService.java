@@ -43,6 +43,14 @@ public class ExamDetailService {
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public ExamDetailResponse get(Long examId, String username) {
         var config = configurationService.get(examId, username);
+        var sections = getStructure(examId);
+        return new ExamDetailResponse(config.id(), config.code(), config.status(), config.maxScore(),
+                config.updatedAt(), config.basicInfo(), config.assignments(), sections, config.revision());
+    }
+
+    // Internal batch loader. Callers must authorize exam/attempt access before use.
+    @Transactional(readOnly = true)
+    public List<ExamDetailResponse.Section> getStructure(Long examId) {
         var sections = sectionRepository.findAllByExam_IdOrderByOrderIndexAsc(examId);
         var sectionIds = sections.stream().map(s -> s.getId()).toList();
         List<Question> questions = sectionIds.isEmpty() ? List.of()
@@ -74,8 +82,7 @@ public class ExamDetailService {
                         questionsBySection.getOrDefault(s.getId(), List.of()).stream().map(q ->
                                 questionResponse(q, answersByQuestion, optionsByAnswer, rulesByAnswer, media))
                                 .toList())).toList();
-        return new ExamDetailResponse(config.id(), config.code(), config.status(), config.maxScore(),
-                config.updatedAt(), config.basicInfo(), config.assignments(), sectionResponses, config.revision());
+        return sectionResponses;
     }
 
     private static ExamDetailResponse.Question questionResponse(Question question,
