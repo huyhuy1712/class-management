@@ -17,7 +17,7 @@ export default function ExamQuestionNavigator({ questions, answers, flags = [], 
     { icon: CircleDashed, label: 'Chưa trả lời', count: questions.length - answered, tone: 'text-slate-500', background: 'bg-slate-100' },
     { icon: Flag, label: 'Cần xem lại', count: flags.length, tone: 'text-amber-700', background: 'bg-amber-50' },
   ]
-  return <aside className="order-first overflow-hidden rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm lg:sticky lg:top-28 lg:order-last">
+  return <aside tabIndex={0} aria-label="Danh sách câu hỏi" className="order-first overflow-hidden rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm lg:sticky lg:top-28 lg:order-last lg:max-h-[calc(100dvh-8rem)] lg:overflow-y-auto lg:overscroll-contain">
     <div className="flex items-center gap-2.5"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><LayoutGrid size={18} /></span><h2 className="text-sm font-bold text-slate-900">Danh sách câu hỏi</h2></div>
     <div className="mt-4 flex items-center justify-between text-xs"><p className="text-slate-500">Đã trả lời <span className="font-semibold text-emerald-700">{answered}/{questions.length}</span> {itemLabel}</p><span className="font-bold text-emerald-600">{percent}%</span></div>
     <div role="progressbar" aria-label="Tiến độ trả lời" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} className="mb-5 mt-2.5 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-green-400 transition-all" style={{ width: `${percent}%` }} /></div>

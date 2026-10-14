@@ -34,6 +34,14 @@ public class ClassroomController {
 
 private final ClassroomService classroomService;
 private final com.classmanagement.backend.service.ExamService examService;
+private final com.classmanagement.backend.service.exam.ExamAttemptService attempts;
+
+@GetMapping("/{classId}/students/{studentId}/exam-results")
+public com.classmanagement.backend.dto.exam.StudentClassExamResultsResponse studentExamResults(
+        @PathVariable Long classId,@PathVariable Long studentId,
+        @RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="10") int size,Authentication auth) {
+    return attempts.studentClassResults(classId,studentId,auth.getName(),page,size);
+}
 
 @GetMapping("/{id}/exams")
 public List<com.classmanagement.backend.dto.exam.ClassExamResponse> classExams(@PathVariable Long id, Authentication auth) {

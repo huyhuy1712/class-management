@@ -16,6 +16,35 @@ before(async () => {
   mediaService = await loadService('examMediaService')
 })
 
+test('teacher review and destructive reset preserve attempt generation and revision', async () => {
+  const signal = new AbortController().signal
+  api.handler = async (url, options) => {
+    assert.equal(url, '/exam-attempts/42/teacher-review')
+    assert.equal(options.signal, signal)
+    return { data: { assignmentId: 8, student: { id: 23 }, result: { revision: 5 } } }
+  }
+  assert.equal((await examService.getTeacherAttemptReview(42, { signal })).result.revision, 5)
+  for (const mode of ['RETAKE', 'BLOCK']) {
+    const body = { attemptNumber: 2, revision: 5, mode }
+    api.handler = async (url, payload) => { assert.equal(url, '/exam-attempts/42/reset'); assert.equal(payload, body); return { data: undefined } }
+    await examService.resetAttempt(42, body)
+  }
+})
+
+test('student overview collects every page so score distribution covers the whole class student scope', async () => {
+  const signal = new AbortController().signal
+  const summary = { total: 101, graded: 101, averageScoreOnTen: 7 }
+  api.handler = async (url, options) => {
+    assert.equal(url, '/classes/21/students/23/exam-results')
+    assert.equal(options.signal, signal)
+    assert.equal(options.params.size, 100)
+    return { data: { items: Array.from({ length: options.params.page ? 1 : 100 }, (_, i) => ({ assignmentId: options.params.page * 100 + i })), totalElements: 101, summary } }
+  }
+  const result = await examService.getStudentClassExamResults(21, 23, { signal })
+  assert.equal(result.items.length, 101)
+  assert.equal(result.summary, summary)
+})
+
 test('assignment attempts forward class scope, search and pagination; comment writes omit grades', async () => {
   const signal = new AbortController().signal
   const params = { classId: 21, page: 2, size: 12, q: 'Huy', status: 'SUBMITTED', sort: 'score_desc' }

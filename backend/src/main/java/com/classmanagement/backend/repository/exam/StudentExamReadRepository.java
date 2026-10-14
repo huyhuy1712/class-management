@@ -38,9 +38,9 @@ public class StudentExamReadRepository {
         select a.id assignment_id, e.id exam_id, e.title, e.code, e.description,
           e.status exam_status, a.status assignment_status, a.assignment_type,
           a.open_time, a.close_time, coalesce(a.time_limit,e.time_limit) time_limit,
-          coalesce(a.max_attempts,e.max_attempts) max_attempts,
+          coalesce(t.attempt_limit_override,a.max_attempts,e.max_attempts) max_attempts,
           t.id attempt_id, coalesce(t.attempt_count,0) attempts_used,
-          coalesce(t.status,'NOT_STARTED') attempt_status, t.started_at
+          case when t.teacher_blocked then 'TEACHER_BLOCKED' else coalesce(t.status,'NOT_STARTED') end attempt_status, t.started_at
         """;
     private static final String FILTER = """
         and (:q = '' or lower(e.title) like :pattern escape '!' or lower(e.code) like :pattern escape '!')

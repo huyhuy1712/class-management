@@ -19,6 +19,8 @@ class ExamSubmissionListTest {
     private boolean empty;
     private boolean notStarted;
     private boolean classAccess;
+    private BigDecimal average=new BigDecimal("5.25");
+    private BigDecimal[] modes={new BigDecimal("4.50"),new BigDecimal("6.00")};
     private final NamedParameterJdbcTemplate jdbc=new NamedParameterJdbcTemplate(new JdbcTemplate()) {
         @Override public <T> T queryForObject(String query,SqlParameterSource p,Class<T> type) {
             sql.add(query); parameters=p;
@@ -33,7 +35,9 @@ class ExamSubmissionListTest {
         }
         @Override public <T> T queryForObject(String query,SqlParameterSource p,RowMapper<T> mapper) {
             sql.add(query);
-            return map(mapper,new Object[]{empty?0L:1L,8L,1L,2L,3L,2L});
+            java.sql.Array array=modes==null?null:(java.sql.Array)Proxy.newProxyInstance(java.sql.Array.class.getClassLoader(),new Class<?>[]{java.sql.Array.class},
+                    (o,m,a)->m.getName().equals("getArray")?modes:null);
+            return map(mapper,new Object[]{empty?0L:1L,8L,1L,2L,3L,2L,average,array});
         }
     };
     private static <T> T map(RowMapper<T> mapper,Object[] values) {
@@ -60,6 +64,16 @@ class ExamSubmissionListTest {
         assertEquals("+07:00",page.items().getFirst().submittedAt().getOffset().toString());
         assertEquals(1,page.totalElements()); assertEquals(8,page.stats().total());
         assertEquals(5,page.stats().submitted()); assertEquals(3,page.stats().pendingGrading()); assertEquals(2,page.stats().graded());
+        assertEquals(new BigDecimal("5.25"),page.stats().averageScore());
+        assertEquals(List.of(new BigDecimal("4.50"),new BigDecimal("6.00")),page.stats().modes());
+        assertTrue(sql.getLast().contains("where status='GRADED' and total_score is not null"));
+        assertTrue(sql.getLast().contains("frequency>1"));
+    }
+    @Test void absentFinalScoresAndModeAreNotInventedAsZero() {
+        average=null; modes=null;
+        var page=new ExamAttemptDataRepository(jdbc).list(12L,0,20,null,"","newest",21L);
+        assertNull(page.stats().averageScore()); assertTrue(page.stats().modes().isEmpty());
+        assertEquals(2,sql.size());
     }
     @Test void emptyFilteredPageStillReturnsGlobalStatsAndStableSorts() {
         empty=true;

@@ -5,6 +5,7 @@ export const examStatuses = {
 }
 
 export const blockedExamReasons = {
+  TEACHER_BLOCKED: 'Giáo viên đã chặn lượt thi của bạn trong đợt giao này.',
   CLOSED: 'Đề thi đã đóng.', NOT_OPEN_YET: 'Chưa đến giờ mở đề.',
   INVALID_CONFIGURATION: 'Cấu hình đề thi chưa hợp lệ.', TIME_EXPIRED: 'Lượt làm bài đã hết giờ.',
   ATTEMPT_LIMIT_REACHED: 'Bạn đã hết lượt làm bài.',

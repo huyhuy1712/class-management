@@ -2742,6 +2742,38 @@ Test: publish đề chưa có lượt thi, nhấn Về nháp nhận 200; exams/a
 
 ## API bài làm học sinh — attempt runtime
 
+### Kết quả và tổng quan điểm một học sinh trong lớp (giáo viên)
+
+```http
+GET /api/classes/{classId}/students/{studentId}/exam-results?page=0&size=10
+```
+
+Cookie đăng nhập hiện có; chỉ TEACHER ACTIVE là chủ lớp, học sinh phải có membership hiện tại trong lớp và role STUDENT. Sai role/tài khoản bị 403; không có lớp/quyền/membership trả 404. classId/studentId > 0; page >= 0, size 1..100, mặc định 0/10; vi phạm trả 400. Không nhận teacherId từ client.
+
+Một response phục vụ cả ô Kết quả học tập và Tổng quan điểm số:
+
+```json
+{
+  "classId":31,"studentId":21,"page":0,"size":10,"totalElements":8,
+  "items":[{
+    "assignmentId":12,"examId":5,"title":"Kiểm tra chương 1","code":"EX-5",
+    "assignmentType":"CLASS","attemptId":10,"attemptNumber":1,"status":"GRADED",
+    "maxScore":20,"totalScore":15,"scoreOnTen":7.5,"isFinal":true,
+    "submittedAt":"2026-10-14T10:30:00+07:00","durationSeconds":1800,"teacherComment":"Làm tốt"
+  }],
+  "summary":{"total":8,"notStarted":2,"inProgress":1,"submitted":5,"pendingGrading":2,"graded":3,
+    "averageScoreOnTen":7.5,"highestScoreOnTen":9,"lowestScoreOnTen":6}
+}
+```
+
+Một item cho một assignment, chỉ lượt cuối theo schema hiện tại. Sắp xếp assignment.created_at giảm, assignmentId giảm; không trả lịch sử các lượt. totalElements/summary tính trên toàn tập, không chỉ trang hiện tại. Trang vượt phạm vi trả items=[] nhưng summary vẫn đầy đủ. Chưa có attempt: attemptId/totalScore/scoreOnTen/submittedAt/durationSeconds/teacherComment=null, attemptNumber=0, status=NOT_STARTED, isFinal=false. Giáo viên mở bài bằng GET /api/exam-attempts/{attemptId}/result hiện có; không gọi GET result cho từng item để dựng trang.
+
+Phạm vi: chỉ đề/assignment không còn DRAFT do giáo viên chủ lớp tạo. ALL áp dụng lớp ACTIVE hiện tại của giáo viên; CLASS phải target đúng classId; STUDENT phải target đúng studentId và lớp ngữ cảnh s.class_id=classId. ALL/CLASS tại lớp đã archive chỉ giữ item đã có attempt; không tạo thêm bài chưa làm cho lớp archive. STUDENT legacy thiếu class_id không được gán đoán sang lớp này. Đây là dữ liệu giáo viên, không áp dụng chính sách ẩn điểm của học sinh. Quyền truy cập và phạm vi dựa cấu trúc hiện tại, không phục dựng lịch sử lớp/target đã xóa.
+
+submitted = SUBMITTED + GRADED; pendingGrading = SUBMITTED; graded = GRADED. Chỉ GRADED và maxScore>0 được dùng cho thống kê điểm: scoreOnTen = totalScore/maxScore*10, làm tròn 2 số lẻ. Điểm trung bình lấy trung bình các điểm quy đổi chưa làm tròn, mỗi assignment trọng số bằng nhau; không cộng các điểm thô khác thang. SUBMITTED có thể trả totalScore tạm thời nhưng scoreOnTen=null/isFinal=false; FE cần hiện chờ chấm. Chưa có điểm hợp lệ thì ba thống kê điểm là null, không phải 0. Điểm 0 đã chấm hợp lệ vẫn tham gia trung bình.
+
+Một request FE; BE có một query tìm tài khoản, một EXISTS kiểm tra chủ lớp/membership, hai query dữ liệu (trang + tổng hợp). Không đọc cây đề, không SELECT từng assignment/câu hỏi, không ghi attempt, không migration/service mới. Checklist sau restart: teacher sai chủ, HS ngoài lớp; ALL/CLASS/STUDENT và target lớp khác; đề DRAFT; chưa làm; bài chờ chấm; bài 15/20 quy đổi 7.50; trang rỗng; đối chiếu summary trên DB thật. Kiểm tra tự động hiện dùng unit/JDBC stub, chưa thay thế SQL/HTTP integration PostgreSQL.
+
 ### Màn hình giáo viên xem phân công và bài làm
 
 Reuse 2 GET khi mở màn hình: `/api/exams/{examId}/configuration` lấy thông tin đề/assignment, sau đó `/api/exam-assignments/{assignmentId}/attempts` lấy trang bài làm của assignment đang chọn. Chỉ gọi `/api/exam-attempts/{attemptId}/result` khi mở một bài cụ thể, không gọi cho từng thẻ học sinh.

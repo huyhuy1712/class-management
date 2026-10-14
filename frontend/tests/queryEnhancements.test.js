@@ -18,6 +18,8 @@ test('detail prefetch uses the same class, date and exam parameters as page quer
   assert.ok(mutationResources('/exams/7/publish', 'patch').includes('classExams'))
   assert.ok(mutationResources('/exam-attempts/42/grades', 'patch').includes('classExams'))
   assert.ok(mutationResources('/exam-attempts/42/grades', 'patch').includes('teacherAssignmentAttempts'))
+  assert.ok(mutationResources('/exam-attempts/42/reset', 'post').includes('teacherAttemptReview'))
+  assert.deepEqual(routeQueries('/teacher/exams/7/assignments/8/attempts/42?classId=21', 7), [['teacherAttemptReview', ['42']]])
   assert.deepEqual(routeQueries('/teacher/exams/7/assignments/8?classId=21', 7), [['examConfiguration', ['7']], ['teacherAssignmentAttempts', ['8', '21', 0, 12, '', '', 'newest']]])
   assert.deepEqual(routeQueries('/student/exams/42', 7), [['studentAssignment', ['42']]])
   assert.deepEqual(routeQueries('/student/profile', 7), [['profile', [7]]])

@@ -69,7 +69,8 @@ public class StudentExamReadService {
     static StudentExamResponse response(StudentExamReadRepository.Row row,
             List<StudentExamResponse.ClassInfo> classes, LocalDateTime now) {
         String blocked = null;
-        if (!"PUBLISHED".equals(row.examStatus())
+        if ("TEACHER_BLOCKED".equals(row.attemptStatus())) blocked = "TEACHER_BLOCKED";
+        else if (!"PUBLISHED".equals(row.examStatus())
                 || !Set.of("OPEN", "SCHEDULED").contains(row.assignmentStatus())) blocked = "CLOSED";
         else if (row.timeLimit() == null || row.timeLimit() <= 0 || row.maxAttempts() == null
                 || row.maxAttempts() < 0) blocked = "INVALID_CONFIGURATION";

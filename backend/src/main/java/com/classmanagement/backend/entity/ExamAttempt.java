@@ -17,6 +17,10 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class ExamAttempt {
+    @Column(name="teacher_blocked",nullable=false) @Builder.Default
+    private boolean teacherBlocked=false;
+    @Column(name="attempt_limit_override")
+    private Integer attemptLimitOverride;
     @Version @Builder.Default @Column(nullable=false)
     private Long revision = 0L;
     @Column(name="start_request_id")

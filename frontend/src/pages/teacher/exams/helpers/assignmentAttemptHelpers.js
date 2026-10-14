@@ -1,5 +1,9 @@
 export const attemptLabels = { NOT_STARTED: 'Chưa làm', IN_PROGRESS: 'Đang làm', SUBMITTED: 'Chờ chấm tự luận', GRADED: 'Đã chấm' }
 export const canComment = (item) => item?.attemptId != null && ['SUBMITTED', 'GRADED'].includes(item.status)
+export function scoreTone(score, maxScore) {
+  if (score == null || maxScore == null || Number(maxScore) <= 0) return 'text-slate-500'
+  return Number(score) < Number(maxScore) / 2 ? 'text-red-600' : 'text-emerald-700'
+}
 export function patchAttemptPage(page, id, patch) {
   return page ? { ...page, items: page.items.map((item) => item.attemptId === id ? { ...item, ...patch } : item) } : page
 }

@@ -165,6 +165,10 @@ public class ExamAttemptDataRepository {
     public void completed(Long assignmentId,Long studentId,LocalDateTime now) {
         jdbc.update("update exam_assignment_completion_students set completed_at=coalesce(completed_at,:now) where assignment_id=:id and student_id=:student",p("id",assignmentId,"student",studentId,"now",now));
     }
+    public void resetCompletion(Long assignmentId,Long studentId) {
+        jdbc.update("update exam_assignment_completion_students set completed_at=null,exempt_at=null where assignment_id=:id and student_id=:student",
+                p("id",assignmentId,"student",studentId));
+    }
     public boolean released(Long assignmentId,LocalDateTime now) {
         jdbc.update("update exam_assignment_completion_students r set exempt_at=:now where r.assignment_id=:id and r.completed_at is null and r.exempt_at is null and not exists (select 1 from exam_attempts t where t.assignment_id=r.assignment_id and t.student_id=r.student_id and t.status='IN_PROGRESS') and not exists (select 1 from exam_assignments a join exams e on e.id=a.exam_id join users u on u.id=r.student_id where a.id=r.assignment_id and u.role='STUDENT' and u.status='ACTIVE' and "
                 +StudentExamReadRepository.ELIGIBILITY.replace(":studentId","r.student_id")+")",p("id",assignmentId,"now",now));
@@ -197,13 +201,58 @@ public class ExamAttemptDataRepository {
             case "newest"->"t.updated_at desc nulls last,u.id desc";
             default->throw new IllegalArgumentException("sort không hợp lệ");
         };
-        var items=jdbc.query("select t.id,u.id,u.full_name,coalesce(t.attempt_count,0),coalesce(t.status,'NOT_STARTED'),coalesce(t.tab_switch_count,0),t.total_score,u.avatar,u.student_code,u.email,t.started_at,t.submitted_at,t.duration_seconds,t.teacher_comment,t.revision"+from+" and "+filter+" order by "+order+" limit :limit offset :offset",p,
+        var items=jdbc.query("select t.id,u.id,u.full_name,coalesce(t.attempt_count,0),coalesce(t.status,'NOT_STARTED'),coalesce(t.tab_switch_count,0),case when t.status in ('SUBMITTED','GRADED') then t.total_score end,u.avatar,u.student_code,u.email,t.started_at,t.submitted_at,t.duration_seconds,t.teacher_comment,t.revision"+from+" and "+filter+" order by "+order+" limit :limit offset :offset",p,
                 (r,i)->new ExamAttemptResponse.Summary(r.getObject(1,Long.class),r.getLong(2),r.getString(3),r.getInt(4),ExamAttemptStatus.valueOf(r.getString(5)),r.getInt(6),r.getBigDecimal(7),
                         r.getString(8),r.getString(9),r.getString(10),time(r.getObject(11,LocalDateTime.class)),time(r.getObject(12,LocalDateTime.class)),
                         r.getObject(13,Integer.class),r.getString(14),"GRADED".equals(r.getString(5)),r.getObject(15,Long.class)));
         // One aggregate supplies global counters and the filtered pagination count, including empty pages.
-        return jdbc.queryForObject("select count(*) filter (where "+filter+"),count(*),count(*) filter (where t.id is null or t.status='NOT_STARTED'),count(*) filter (where t.status='IN_PROGRESS'),count(*) filter (where t.status='SUBMITTED'),count(*) filter (where t.status='GRADED')"+from,p,
-                (r,i)->new ExamAttemptResponse.Page(items,page,size,r.getLong(1),new ExamAttemptResponse.Stats(r.getLong(2),r.getLong(3),r.getLong(4),r.getLong(5)+r.getLong(6),r.getLong(5),r.getLong(6))));
+        String aggregate="with scoped as (select t.id,t.status,t.total_score,("+filter+") matches"+from+
+                "), frequencies as (select total_score,count(*) frequency from scoped where status='GRADED' and total_score is not null group by total_score) "
+                +"select count(*) filter (where matches),count(*),count(*) filter (where id is null or status='NOT_STARTED'),"
+                +"count(*) filter (where status='IN_PROGRESS'),count(*) filter (where status='SUBMITTED'),count(*) filter (where status='GRADED'),"
+                +"round(avg(total_score) filter (where status='GRADED'),2),"
+                +"(select array_agg(total_score order by total_score) from frequencies where frequency=(select max(frequency) from frequencies) and frequency>1) from scoped";
+        return jdbc.queryForObject(aggregate,p,(r,i)-> {
+            var array=r.getArray(8);
+            List<BigDecimal> modes=array==null?List.of():Arrays.stream((Object[])array.getArray())
+                    .map(value->new BigDecimal(value.toString())).toList();
+            if(array!=null) array.free();
+            return new ExamAttemptResponse.Page(items,page,size,r.getLong(1),new ExamAttemptResponse.Stats(
+                    r.getLong(2),r.getLong(3),r.getLong(4),r.getLong(5)+r.getLong(6),r.getLong(5),r.getLong(6),r.getBigDecimal(7),modes));
+        });
     }
     private static OffsetDateTime time(LocalDateTime value) { return value==null?null:value.atOffset(ZoneOffset.ofHours(7)); }
+
+    public boolean studentClassAllowed(Long classId,Long studentId,Long teacherId) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("""
+                select exists(select 1 from classes c join class_students cs on cs.class_id=c.id
+                  join users u on u.id=cs.student_id where c.id=:classId and c.teacher_id=:teacherId
+                  and cs.student_id=:studentId and u.role='STUDENT')
+                """,p("classId",classId,"studentId",studentId,"teacherId",teacherId),Boolean.class));
+    }
+
+    public StudentClassExamResultsResponse studentClassResults(Long classId,Long studentId,Long teacherId,int page,int size) {
+        var parameters=p("classId",classId,"studentId",studentId,"teacherId",teacherId,"limit",size,"offset",(long)page*size);
+        String from="""
+                from exam_assignments a join exams e on e.id=a.exam_id
+                join classes c on c.id=:classId and c.teacher_id=e.teacher_id
+                left join exam_attempts t on t.assignment_id=a.id and t.student_id=:studentId
+                where e.teacher_id=:teacherId and e.status<>'DRAFT' and a.status<>'DRAFT' and (
+                  (a.assignment_type='ALL' and (c.status='ACTIVE' or t.id is not null))
+                  or (a.assignment_type='CLASS' and (c.status='ACTIVE' or t.id is not null) and exists(
+                    select 1 from exam_assignment_classes ac where ac.assignment_id=a.id and ac.class_id=:classId))
+                  or (a.assignment_type='STUDENT' and exists(select 1 from exam_assignment_students s
+                    where s.assignment_id=a.id and s.student_id=:studentId and s.class_id=:classId))
+                )
+                """;
+        String normalized="case when t.status='GRADED' and e.max_score>0 then t.total_score*10.0/e.max_score end";
+        var items=jdbc.query("select a.id,e.id,e.title,e.code,a.assignment_type,t.id,coalesce(t.attempt_count,0),coalesce(t.status,'NOT_STARTED'),e.max_score,case when t.status in ('SUBMITTED','GRADED') then t.total_score end,round("+normalized+",2),t.submitted_at,t.duration_seconds,t.teacher_comment "+from+
+                " order by a.created_at desc,a.id desc limit :limit offset :offset",parameters,
+                (r,i)->new StudentClassExamResultsResponse.Item(r.getLong(1),r.getLong(2),r.getString(3),r.getString(4),ExamAssignmentType.valueOf(r.getString(5)),
+                        r.getObject(6,Long.class),r.getInt(7),ExamAttemptStatus.valueOf(r.getString(8)),r.getBigDecimal(9),r.getBigDecimal(10),r.getBigDecimal(11),
+                        "GRADED".equals(r.getString(8)),time(r.getObject(12,LocalDateTime.class)),r.getObject(13,Integer.class),r.getString(14)));
+        return jdbc.queryForObject("select count(*),count(*) filter(where t.id is null or t.status='NOT_STARTED'),count(*) filter(where t.status='IN_PROGRESS'),count(*) filter(where t.status='SUBMITTED'),count(*) filter(where t.status='GRADED'),round(avg("+normalized+"),2),round(max("+normalized+"),2),round(min("+normalized+"),2) "+from,parameters,
+                (r,i)->new StudentClassExamResultsResponse(classId,studentId,items,page,size,r.getLong(1),new StudentClassExamResultsResponse.Summary(
+                        r.getLong(1),r.getLong(2),r.getLong(3),r.getLong(4)+r.getLong(5),r.getLong(4),r.getLong(5),r.getBigDecimal(6),r.getBigDecimal(7),r.getBigDecimal(8))));
+    }
 }

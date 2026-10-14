@@ -1,9 +1,8 @@
 import useResourceQuery from '../../../query/useResourceQuery'
+import StudentExamOverview from './components/StudentExamOverview'
 import { useMemo } from 'react'
 import {
   ArrowLeft,
-  BarChart3,
-  BookOpenCheck,
   Mail,
   Phone,
   UserRound,
@@ -137,55 +136,7 @@ function StudentDetailPage() {
       {/* Placeholder */}
       <div className="grid gap-5 lg:grid-cols-2">
 
-                {/* Result statistics */}
-        <section className="rounded-2xl border border-sky-200 bg-white p-6 shadow-sm shadow-sky-950/5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl text-sky-900">
-              <BookOpenCheck size={19} />
-            </div>
-
-            <div>
-              <h2 className="font-bold text-[#18301D]">
-                Kết quả học tập
-              </h2>
-
-              <p className="mt-1 text-sm text-slate-600">
-                Bài tập và đề thi của học sinh
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-6 flex min-h-40 items-center justify-center border-t border-sky-200 text-center">
-            <p className="text-sm text-slate-500">
-              Sẽ kết nối API ở bước sau
-            </p>
-          </div>
-        </section>
-
-        {/* Grade statistics */}
-        <section className="rounded-2xl border border-amber-200 bg-white p-6 shadow-sm shadow-amber-950/5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-200/70 text-amber-900">
-              <BarChart3 size={19} />
-            </div>
-
-            <div>
-              <h2 className="font-bold text-[#18301D]">
-                Tổng quan điểm số
-              </h2>
-
-              <p className="mt-1 text-sm text-slate-600">
-                Thống kê kết quả của học sinh
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-6 flex min-h-40 items-center justify-center border-t border-amber-200 text-center">
-            <p className="text-sm text-slate-500">
-              Sẽ kết nối API ở bước sau
-            </p>
-          </div>
-        </section>
+        <StudentExamOverview key={`${classId}:${studentId}`} classId={classId} studentId={studentId} />
 
         {/* Attendance statistics */}
   <section className="rounded-2xl border border-emerald-200 bg-white p-6 shadow-sm shadow-emerald-950/5">

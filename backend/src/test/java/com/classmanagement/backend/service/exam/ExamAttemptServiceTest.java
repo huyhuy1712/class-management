@@ -30,6 +30,13 @@ class ExamAttemptServiceTest {
     private boolean exists=true,eligible=true,released=false,includeShort,runExpiry;
     private int writes,resets,hidden,structureReads,completionMarks;
     private final ExamAttemptDataRepository data=new ExamAttemptDataRepository(null) {
+        @Override public boolean studentClassAllowed(Long classId,Long studentId,Long teacherId) {
+            return classId==31L&&studentId==21L&&teacherId==11L;
+        }
+        @Override public StudentClassExamResultsResponse studentClassResults(Long classId,Long studentId,Long teacherId,int page,int size) {
+            return new StudentClassExamResultsResponse(classId,studentId,List.of(),page,size,0,
+                    new StudentClassExamResultsResponse.Summary(0,0,0,0,0,0,null,null,null));
+        }
         @Override public boolean classAllowed(Long id,Long classId) { return classId==21L; }
         @Override public ExamAttemptResponse.Page list(Long id,int page,int size,ExamAttemptStatus status,String q,String sort,Long classId) {
             assertEquals("Student",q); assertEquals("name",sort);
@@ -55,10 +62,21 @@ class ExamAttemptServiceTest {
             return hidden;
         }
         @Override public void completed(Long id,Long studentId,LocalDateTime now) { completionMarks++; }
+        @Override public void resetCompletion(Long id,Long studentId) { completionMarks--; }
         @Override public boolean released(Long id,LocalDateTime now) { return released; }
         @Override public List<ExamAttemptResponse.Event> readEvents(Long id) { return List.of(); }
     };
     private static LocalDateTime now() { return LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")); }
+    @Test void studentScoreOverviewChecksOwnerMembershipRoleAndPagination() {
+        var result=service().studentClassResults(31L,21L,"teacher",0,10);
+        assertEquals(31L,result.classId()); assertEquals(0,result.totalElements());
+        assertThrows(ResourceNotFoundException.class,()->service().studentClassResults(31L,21L,"otherTeacher",0,10));
+        assertThrows(ResourceNotFoundException.class,()->service().studentClassResults(31L,99L,"teacher",0,10));
+        assertThrows(IllegalStateException.class,()->service().studentClassResults(31L,21L,"student",0,10));
+        assertThrows(IllegalArgumentException.class,()->service().studentClassResults(0L,21L,"teacher",0,10));
+        assertThrows(IllegalArgumentException.class,()->service().studentClassResults(31L,21L,"teacher",-1,10));
+        assertThrows(IllegalArgumentException.class,()->service().studentClassResults(31L,21L,"teacher",0,101));
+    }
     @Test void commentOnlyPreservesScoresAndAnswerRowsAndAllowsClear() {
         service().submit(10L,"student",payload(List.of(choice(201))));
         var score=attempt.getTotalScore(); int priorWrites=writes;
@@ -230,6 +248,40 @@ class ExamAttemptServiceTest {
         assertThrows(ResourceNotFoundException.class,()->service().grade(10L,"otherTeacher",new ExamAttemptPayload.Grades(1,0L,List.of(new ExamAttemptPayload.Grade(102L,BigDecimal.ONE)),null)));
         assertEquals(0,writes);
     }
+    @Test void teacherRetakeClearsOnlyCurrentResultPreservesGenerationAndGrantsNextAttempt() {
+        var service=service(); service.submit(10L,"student",payload(List.of(choice(201))));
+        attempt.setAttemptCount(2);
+        service.resetByTeacher(10L,"teacher",new ExamAttemptPayload.Reset(2,attempt.getRevision(),ExamAttemptPayload.ResetMode.RETAKE));
+        assertEquals(2,attempt.getAttemptCount()); assertEquals(3,attempt.getAttemptLimitOverride());
+        assertEquals(ExamAttemptStatus.NOT_STARTED,attempt.getStatus()); assertTrue(saved.isEmpty());
+        assertNull(attempt.getSubmittedAt()); assertFalse(attempt.isTeacherBlocked());
+        service.start(12L,"student",new ExamAttemptPayload.Start(UUID.randomUUID(),2));
+        assertEquals(3,attempt.getAttemptCount());
+        assertThrows(ConflictException.class,()->service.save(10L,"student",new ExamAttemptPayload.Save(2,attempt.getRevision(),List.of(),List.of())));
+    }
+
+    @Test void teacherBlockPreventsStudentRestartAndClosedRoundDoesNotEraseResult() {
+        var service=service(); service.submit(10L,"student",payload(List.of(choice(201))));
+        assignment.setCloseTime(now().minusMinutes(1));
+        int writesBefore=resets;
+        assertThrows(ConflictException.class,()->service.resetByTeacher(10L,"teacher",new ExamAttemptPayload.Reset(1,attempt.getRevision(),ExamAttemptPayload.ResetMode.RETAKE)));
+        assertEquals(writesBefore,resets);
+        assertThrows(ResourceNotFoundException.class,()->service.resetByTeacher(10L,"otherTeacher",new ExamAttemptPayload.Reset(1,attempt.getRevision(),ExamAttemptPayload.ResetMode.BLOCK)));
+        assertThrows(ConflictException.class,()->service.resetByTeacher(10L,"teacher",new ExamAttemptPayload.Reset(1,attempt.getRevision()+1,ExamAttemptPayload.ResetMode.BLOCK)));
+        service.resetByTeacher(10L,"teacher",new ExamAttemptPayload.Reset(1,attempt.getRevision(),ExamAttemptPayload.ResetMode.BLOCK));
+        assertTrue(attempt.isTeacherBlocked());
+        assertThrows(ConflictException.class,()->service.start(12L,"student",new ExamAttemptPayload.Start(UUID.randomUUID(),1)));
+        assertThrows(ConflictException.class,()->service.result(10L,"student"));
+    }
+
+    @Test void teacherReviewEnforcesOwnerAndReturnsFullPaperAndStudent() {
+        var service=service(); service.submit(10L,"student",payload(List.of(choice(201))));
+        assertThrows(ResourceNotFoundException.class,()->service.teacherReview(10L,"otherTeacher"));
+        var review=service.teacherReview(10L,"teacher");
+        assertEquals(21L,review.student().id()); assertEquals(12L,review.assignmentId());
+        assertTrue(review.result().answersVisible()); assertFalse(review.result().sections().isEmpty());
+    }
+
     private ExamAttemptService service() {
         var paper=new ExamDetailService(null,null,null,null,null,null,null,null) {
             @Override public List<ExamDetailResponse.Section> getStructure(Long id) { structureReads++; return structure(); }
@@ -237,7 +289,8 @@ class ExamAttemptServiceTest {
         var access=new StudentExamReadRepository(null) {
             @Override public Optional<Row> findAccessible(long id,long studentId) {
                 return eligible?Optional.of(new Row(12L,5L,"Exam",exam.getCode(),null,"PUBLISHED","OPEN","ALL",null,null,
-                        45,2,attempt.getAttemptCount(),10L,attempt.getStatus().name(),attempt.getStartedAt())):Optional.empty();
+                        45,attempt.getAttemptLimitOverride()==null?2:attempt.getAttemptLimitOverride(),attempt.getAttemptCount(),10L,
+                        attempt.isTeacherBlocked()?"TEACHER_BLOCKED":attempt.getStatus().name(),attempt.getStartedAt())):Optional.empty();
             }
         };
         return new ExamAttemptService(repo(UserRepository.class),repo(ExamRepository.class),repo(ExamAssignmentRepository.class),

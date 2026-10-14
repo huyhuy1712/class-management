@@ -1,6 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { canComment, patchAttemptPage, rollbackAttemptComment, attemptDuration } from '../src/pages/teacher/exams/helpers/assignmentAttemptHelpers.js'
+import { canComment, patchAttemptPage, rollbackAttemptComment, attemptDuration, scoreTone } from '../src/pages/teacher/exams/helpers/assignmentAttemptHelpers.js'
+
+test('score colour uses half the actual exam maximum, preserves zero and handles missing scores', () => {
+  assert.equal(scoreTone(0, 20), 'text-red-600')
+  assert.equal(scoreTone(9.99, 20), 'text-red-600')
+  assert.equal(scoreTone(10, 20), 'text-emerald-700')
+  assert.equal(scoreTone(15, 20), 'text-emerald-700')
+  assert.equal(scoreTone(null, 20), 'text-slate-500')
+  assert.equal(scoreTone(0, null), 'text-slate-500')
+})
 
 test('not-started and in-progress students cannot receive grading comments', () => {
   assert.equal(canComment({ attemptId: null, status: 'NOT_STARTED' }), false)

@@ -29,6 +29,42 @@ public class ExamAttemptService {
     private static OffsetDateTime offset(LocalDateTime time) { return time==null?null:time.atOffset(ZoneOffset.ofHours(7)); }
 
     @Transactional
+    public void resetByTeacher(Long id,String username,ExamAttemptPayload.Reset request) {
+        var attempt=lock(id,user(username,UserRole.TEACHER),true);
+        generation(attempt,request.attemptNumber()); revision(attempt,request.revision());
+        if(!finished(attempt)) throw new ConflictException("Chỉ bài đã nộp mới được xóa kết quả");
+        var assignment=attempt.getAssignment(); var exam=assignment.getExam(); var now=now();
+        boolean retake=request.mode()==ExamAttemptPayload.ResetMode.RETAKE;
+        if(retake && (exam.getStatus()!=ExamStatus.PUBLISHED || !Set.of(ExamAssignmentStatus.OPEN,ExamAssignmentStatus.SCHEDULED).contains(assignment.getStatus())
+                || assignment.getCloseTime()!=null&&!assignment.getCloseTime().isAfter(now))) {
+            throw new ConflictException("Đợt thi đã đóng. Hãy mở đợt giao mới để học sinh thi lại");
+        }
+        if(retake) {
+            int limit=assignment.getMaxAttempts()!=null?assignment.getMaxAttempts():exam.getMaxAttempts();
+            if(attempt.getAttemptLimitOverride()!=null) limit=attempt.getAttemptLimitOverride();
+            attempt.setAttemptLimitOverride(limit==0?0:Math.max(limit,attempt.getAttemptCount()+1));
+            data.resetCompletion(assignment.getId(),attempt.getStudent().getId());
+        }
+        data.reset(id);
+        attempt.setTeacherBlocked(!retake); attempt.setStartRequestId(null); attempt.setDeadlineAt(null);
+        attempt.setStartedAt(null); attempt.setSubmittedAt(null); attempt.setDurationSeconds(null);
+        attempt.setAutoScore(BigDecimal.ZERO); attempt.setManualScore(BigDecimal.ZERO); attempt.setTotalScore(BigDecimal.ZERO);
+        attempt.setTeacherComment(null); attempt.setTabSwitchCount(0); attempt.setStatus(ExamAttemptStatus.NOT_STARTED);
+        attempt.setUpdatedAt(now); attempts.flush();
+    }
+
+    @Transactional
+    public ExamAttemptResponse.TeacherReview teacherReview(Long id,String username) {
+        var attempt=lock(id,user(username,UserRole.TEACHER),true);
+        if(!finished(attempt)) throw new ConflictException("Bài chưa nộp hoặc đã bị xóa kết quả");
+        var exam=attempt.getAssignment().getExam(); var student=attempt.getStudent();
+        return new ExamAttemptResponse.TeacherReview(attempt.getAssignment().getId(),
+                new ExamAttemptResponse.ExamInfo(exam.getId(),exam.getTitle(),exam.getCode(),exam.getMaxScore(),exam.getTimeLimit(),exam.getMaxAttempts()),
+                new ExamAttemptResponse.StudentInfo(student.getId(),student.getFullName(),student.getStudentCode(),
+                        student.getAvatar()==null?null:storage.getUrl(student.getAvatar())),result(attempt,true));
+    }
+
+    @Transactional
     public ExamAttemptResponse start(Long assignmentId,String username,ExamAttemptPayload.Start request) {
         positive(assignmentId); User student=user(username,UserRole.STUDENT);
         Long examId=data.assignmentExamId(assignmentId).orElseThrow(()->missing());
@@ -175,6 +211,15 @@ public class ExamAttemptService {
             var structure=structures.computeIfAbsent(examId,papers::getStructure);
             finish(a,structure,values.getOrDefault(a.getId(),Map.of()),null);
         }
+    }
+
+    @Transactional(readOnly=true)
+    public StudentClassExamResultsResponse studentClassResults(Long classId,Long studentId,String username,int page,int size) {
+        positive(classId); positive(studentId);
+        if(page<0||size<1||size>100) throw new IllegalArgumentException("page >= 0, size 1..100");
+        var teacher=user(username,UserRole.TEACHER);
+        if(!data.studentClassAllowed(classId,studentId,teacher.getId())) throw missing();
+        return data.studentClassResults(classId,studentId,teacher.getId(),page,size);
     }
 
     private ExamAttempt lock(Long id,User user,boolean allowTeacher) {

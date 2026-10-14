@@ -28,6 +28,8 @@ export function resourceOptions(resource, params) {
     },
     requests: ({ signal }) => requestService.getReceivedJoinClassRequests({ signal }),
     exams: ({ signal }) => examService.getMyExams({ signal }),
+    teacherAttemptReview: ({ signal }) => examService.getTeacherAttemptReview(params[0], { signal }),
+    studentClassExamResults: ({ signal }) => examService.getStudentClassExamResults(params[0], params[1], { signal }),
     classExams: ({ signal }) => examService.getClassExams(params[0], { signal }),
     teacherAssignmentAttempts: ({ signal }) => examService.getAssignmentAttempts(params[0], {
       ...(params[1] ? { classId: Number(params[1]) } : {}), page: Number(params[2] ?? 0), size: Number(params[3] ?? 12),

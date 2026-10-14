@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react'
+import FrogLoading from '../utils/FrogLoading'
 import StudentExamListPage from '../pages/student/exams/StudentExamListPage'
 import StudentExamWaitingPage from '../pages/student/exams/StudentExamWaitingPage'
 const StudentExamPaperPreviewPage = lazy(() => import('../pages/student/exams/StudentExamPaperPreviewPage'))
@@ -21,6 +22,7 @@ import TeacherProfilePage from '../pages/teacher/TeacherProfilePage'
 import ExamManagementPage from '../pages/teacher/exams/ExamManagementPage'
 const ExamDetailPage = lazy(() => import('../pages/teacher/exams/ExamDetailPage'))
 const TeacherAssignmentDetailPage = lazy(() => import('../pages/teacher/exams/TeacherAssignmentDetailPage'))
+const TeacherAttemptReviewPage = lazy(() => import('../pages/teacher/exams/TeacherAttemptReviewPage'))
 import CreateExamPage from '../pages/teacher/exams/create/CreateExamPage'
 const ExamBuilderPage = lazy(() => import('../pages/teacher/exams/builder/ExamBuilderPage'))
 
@@ -40,7 +42,7 @@ import LandingPage from '../pages/landing'
 
 function AppRoutes() {
   return (
-    <Suspense fallback={<div role="status" className="p-8 text-center text-slate-500">Đang mở trang...</div>}>
+    <Suspense fallback={<FrogLoading label="Đang mở trang..." />}>
     <Routes>
       {/* Landing Page — Public, không cần đăng nhập */}
       <Route path="/" element={<LandingPage />} />
@@ -84,6 +86,7 @@ function AppRoutes() {
       <Route path="/teacher/exams" element={<ExamManagementPage />} />
       <Route path="/teacher/exams/:examId" element={<ExamDetailPage />} />
       <Route path="/teacher/exams/:examId/assignments/:assignmentId" element={<TeacherAssignmentDetailPage />} />
+      <Route path="/teacher/exams/:examId/assignments/:assignmentId/attempts/:attemptId" element={<TeacherAttemptReviewPage />} />
       <Route path="/teacher/exams/create" element={<CreateExamPage />} />
       <Route path="/teacher/exams/create/online" element={<ExamBuilderPage />} />
     </Routes>

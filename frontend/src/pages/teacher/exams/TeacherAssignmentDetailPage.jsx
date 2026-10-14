@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams, useNavigate } from 'react-router-dom'
+import useRoutePrefetch from '../../../query/useRoutePrefetch'
 import { Modal, message } from 'antd'
 import { ArrowLeft, CalendarDays, Clock, FileText, Users, Search, UserRound, ClipboardCheck } from 'lucide-react'
 import DashboardLayout from '../../../layouts/DashboardLayout'
@@ -16,6 +17,9 @@ export default function TeacherAssignmentDetailPage() {
 }
 
 function AssignmentDetail({ examId, assignmentId, classId }) {
+  const navigate = useNavigate()
+  const prefetch = useRoutePrefetch()
+  const reviewPath = (item) => `/teacher/exams/${examId}/assignments/${assignmentId}/attempts/${item.attemptId}${classId ? `?classId=${classId}` : ''}`
   const config = useResourceQuery('examConfiguration', [examId])
   const [filters, setFilters] = useState({ page: 0, q: '', status: '', sort: 'newest' })
   const { query, saveComment, saving, prefetchNext } = useAssignmentAttempts(assignmentId, classId, filters)
@@ -51,6 +55,12 @@ function AssignmentDetail({ examId, assignmentId, classId }) {
           <p>{config.data.basicInfo.gradeLevel} · {config.data.basicInfo.subjectName}</p>
           <p className="flex gap-2"><Users size={17} className="shrink-0" />{classId ? assignment.classrooms?.find((item) => String(item.id) === classId)?.name || `Lớp #${classId}` : assignment.assignmentType === 'ALL' ? 'Tất cả lớp của giáo viên' : assignment.classrooms?.map((item) => item.name).join(', ') || 'Giao riêng cho học sinh'}</p>
           <Link to={`/teacher/exams/${examId}`} className="block rounded-xl border border-emerald-200 px-3 py-2.5 text-center text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50">Xem nội dung đề</Link>
+          <div className="space-y-2 rounded-xl bg-emerald-50 p-3">
+            <p className="font-semibold text-emerald-800">Thống kê điểm đã chấm</p>
+            <p>Điểm trung bình: <strong>{stats?.averageScore == null ? '—' : `${stats.averageScore}/${config.data.maxScore}`}</strong></p>
+            <p>Mốt: <strong>{stats?.averageScore == null ? '—' : stats.modes?.length ? stats.modes.join(', ') : 'Không có mốt'}</strong></p>
+            <p className="text-[11px] text-slate-500">Tính trên {stats?.graded ?? 0} bài đã chấm trong phạm vi đang xem, không gồm bài chờ chấm. Các điểm không lặp lại thì không có mốt.</p>
+          </div>
         </div>
       </aside>
       <main className="min-w-0 space-y-4">
@@ -61,7 +71,7 @@ function AssignmentDetail({ examId, assignmentId, classId }) {
         </div>
         {query.isError && query.data && <p role="alert" className="text-sm text-amber-700">Chưa cập nhật được dữ liệu mới. <button type="button" onClick={() => query.refetch()} className="underline">Thử lại</button></p>}
         {query.isLoading ? <p role="status" className="p-6">Đang tải học sinh...</p> : query.errorMessage ? <p role="alert" className="text-red-600">{query.errorMessage}<button type="button" onClick={() => query.refetch()} className="ml-3 underline">Thử lại</button></p> : <>
-          <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">{query.data?.items.map((item) => <AssignmentStudentCard key={item.studentId} item={item} saving={saving || query.isPlaceholderData} onComment={(row) => { setEditing(row); setComment(row.teacherComment || '') }} />)}</div>
+          <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">{query.data?.items.map((item) => <AssignmentStudentCard key={item.studentId} item={item} maxScore={config.data.maxScore} onView={(row) => navigate(reviewPath(row))} onPrefetch={(row) => prefetch(reviewPath(row))} saving={saving || query.isPlaceholderData} onComment={(row) => { setEditing(row); setComment(row.teacherComment || '') }} />)}</div>
           {!query.data?.items.length && <p className="rounded-2xl bg-white p-10 text-center text-slate-500">{stats?.total ? 'Không có học sinh phù hợp bộ lọc.' : 'Chưa có học sinh trong phạm vi giao đề này.'}</p>}
           <div className="flex items-center justify-between gap-3 text-sm text-slate-600"><span>{query.data?.totalElements ?? 0} học sinh phù hợp · Trang {filters.page + 1}</span><div className="flex gap-2"><button type="button" disabled={filters.page === 0 || query.isPlaceholderData} onClick={() => change('page', filters.page - 1)} className="rounded-lg border border-slate-200 bg-white px-4 py-2 disabled:opacity-40">Trước</button><button type="button" disabled={query.isPlaceholderData || (filters.page + 1) * 12 >= (query.data?.totalElements ?? 0)} onMouseEnter={prefetchNext} onFocus={prefetchNext} onClick={() => change('page', filters.page + 1)} className="rounded-lg border border-slate-200 bg-white px-4 py-2 disabled:opacity-40">Sau</button></div></div>
         </>}

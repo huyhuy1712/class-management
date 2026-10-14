@@ -1,6 +1,19 @@
 import api from './api'
 
 const examService = {
+  getTeacherAttemptReview: async (id, options = {}) => (await api.get(`/exam-attempts/${id}/teacher-review`, options)).data,
+  resetAttempt: async (id, body) => (await api.post(`/exam-attempts/${id}/reset`, body)).data,
+  getStudentClassExamResults: async (classId, studentId, options = {}) => {
+    const items = []
+    let result
+    for (let page = 0; ; page++) {
+      result = (await api.get(`/classes/${classId}/students/${studentId}/exam-results`, { ...options, params: { page, size: 100 } })).data
+      if (!Array.isArray(result?.items) || !Number.isFinite(result.totalElements)) throw new Error('Dữ liệu kết quả học sinh không hợp lệ.')
+      items.push(...result.items)
+      if (items.length >= result.totalElements || !result.items.length) break
+    }
+    return { ...result, items }
+  },
   getAssignmentAttempts: async (id, params, options = {}) => (await api.get(`/exam-assignments/${id}/attempts`, { ...options, params })).data,
   updateAttemptGrades: async (id, body) => (await api.patch(`/exam-attempts/${id}/grades`, body)).data,
   getClassExams: async (classId, options = {}) => (await api.get(`/classes/${classId}/exams`, options)).data,

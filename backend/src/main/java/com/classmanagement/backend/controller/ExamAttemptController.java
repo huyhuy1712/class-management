@@ -12,6 +12,14 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ExamAttemptController {
     private final ExamAttemptService attempts;
+    @GetMapping("/{attemptId}/teacher-review")
+    public ExamAttemptResponse.TeacherReview teacherReview(@PathVariable Long attemptId,Authentication auth) {
+        return attempts.teacherReview(attemptId,auth.getName());
+    }
+    @PostMapping("/{attemptId}/reset")
+    public void reset(@PathVariable Long attemptId,@Valid @RequestBody ExamAttemptPayload.Reset body,Authentication auth) {
+        attempts.resetByTeacher(attemptId,auth.getName(),body);
+    }
     @GetMapping("/{attemptId}")
     public ExamAttemptResponse get(@PathVariable Long attemptId,Authentication auth) {
         return attempts.get(attemptId,auth.getName());

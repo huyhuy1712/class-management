@@ -54,6 +54,7 @@ function JoinClassPage() {
   const showTeacherSearch = pathname === "/student/teachers";
   const [searchTerm, setSearchTerm] = useState("");
   const [teacherSearchTerm, setTeacherSearchTerm] = useState("");
+  const [classCodeSearch, setClassCodeSearch] = useState('');
   const teachersQuery = useResourceQuery('teachers', [], { enabled: showTeacherSearch });
   const teachers = teachersQuery.data ?? [];
   const [selectedTeacher, setSelectedTeacher] = useState(null);
@@ -82,6 +83,8 @@ function JoinClassPage() {
   }, [selectedClass, sendingRequest]);
 
   const visibleClasses = filterClasses(classes, searchTerm);
+  const matchingCodeClasses = classes.filter((classroom) => classroom.status === 'ACTIVE'
+    && String(classroom.code ?? '').trim().toLocaleLowerCase() === classCodeSearch.trim().toLocaleLowerCase());
   const matchingTeachers = teachers.filter((teacher) => {
     const keyword = teacherSearchTerm.trim().toLocaleLowerCase();
     if (!keyword) return false;
@@ -168,7 +171,7 @@ function JoinClassPage() {
             <section className="relative overflow-hidden rounded-[28px] border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-5 shadow-sm sm:p-8">
               <div className="pointer-events-none absolute -right-12 -top-16 h-44 w-44 rounded-full bg-emerald-100/60" />
               <div className="pointer-events-none absolute -bottom-20 right-24 h-40 w-40 rounded-full bg-sky-100/50" />
-              <div className="relative max-w-3xl">
+              <div className="relative">
                 <div className="mb-5 flex items-start gap-4">
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-600/20">
                     <UserRound size={27} />
@@ -181,11 +184,12 @@ function JoinClassPage() {
                       Tìm giáo viên của bạn
                     </h1>
                     <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
-                      Nhập mã giáo viên để xem các lớp đang mở và gửi yêu cầu tham gia.
+                      Nhập mã giáo viên để xem các lớp đang mở, hoặc mã lớp để tìm trực tiếp lớp bạn muốn tham gia.
                     </p>
                   </div>
                 </div>
 
+                <div className="grid gap-5 md:grid-cols-2"><div>
                 <label
                   htmlFor="teacher-search"
                   className="mb-2 block text-sm font-bold text-[#102d22]"
@@ -199,6 +203,7 @@ function JoinClassPage() {
                   value={teacherSearchTerm}
                   onChange={(event) => {
                     setTeacherSearchTerm(event.target.value);
+                    setClassCodeSearch('');
                     setSelectedTeacher(null);
                   }}
                   placeholder="Nhập mã giáo viên..."
@@ -210,6 +215,14 @@ function JoinClassPage() {
                   className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#102d22]"
                 />
               </div>
+              </div><div>
+                <label htmlFor="class-code-search" className="mb-2 block text-sm font-bold text-[#102d22]">Mã lớp</label>
+                <div className="relative"><input id="class-code-search" type="search" value={classCodeSearch}
+                  onChange={(event) => { setClassCodeSearch(event.target.value); setTeacherSearchTerm(''); setSelectedTeacher(null); resetClassDialog() }}
+                  placeholder="Nhập mã lớp..." className="w-full rounded-2xl border border-emerald-200 bg-white py-3.5 pl-4 pr-12 text-sm text-[#102d22] shadow-sm outline-none transition placeholder:text-slate-400 focus:border-[#159447] focus:ring-4 focus:ring-[#159447]/10" />
+                  <Search size={20} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#102d22]" />
+                </div>
+              </div></div>
                 <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs font-medium text-slate-500">
                   <span className="inline-flex items-center gap-1.5">
                     <CheckCircle2 size={14} className="text-emerald-600" />
@@ -251,6 +264,13 @@ function JoinClassPage() {
                 </div>
               )}
             </section>
+
+            {classCodeSearch.trim() && <section className="mt-6 rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
+              <h2 className="mb-4 font-bold text-[#102d22]">Lớp học theo mã</h2>
+              {classesError ? <p role="alert" className="text-sm text-red-600">{classesError}</p> : loading ? <p role="status" className="text-sm text-slate-500">Đang tìm lớp học...</p>
+                : matchingCodeClasses.length ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{matchingCodeClasses.map((classroom) => <StudentClassCard key={classroom.id} classroom={classroom} isJoined={joinedClassIds.includes(String(classroom.id))} onView={handleSelectClass} />)}</div>
+                  : <p className="text-sm text-slate-500">Không tìm thấy lớp đang hoạt động với mã này.</p>}
+            </section>}
 
             {selectedTeacher && (
               <section className="mt-6 max-w-4xl rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">

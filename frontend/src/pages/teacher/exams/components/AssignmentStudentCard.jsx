@@ -1,14 +1,14 @@
 import { Clock, CalendarCheck, Pencil, ShieldAlert, UserRound } from 'lucide-react'
-import { attemptLabels, attemptDuration, canComment } from '../helpers/assignmentAttemptHelpers'
+import { attemptLabels, attemptDuration, canComment, scoreTone } from '../helpers/assignmentAttemptHelpers'
 import { formatExamDateTime } from '../helpers/examHelpers'
 import defaultAvatar from '../../../../assets/images/avatar_default.png'
 
-export default function AssignmentStudentCard({ item, saving, onComment }) {
+export default function AssignmentStudentCard({ item, saving, onComment, maxScore, onView, onPrefetch }) {
   const tone = item.status === 'GRADED' ? 'bg-emerald-50 text-emerald-700' : item.status === 'SUBMITTED' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600'
-  return <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md">
+  return <article role={canComment(item) ? 'link' : undefined} tabIndex={canComment(item) ? 0 : undefined} onMouseEnter={() => { if (canComment(item)) onPrefetch?.(item) }} onFocus={() => { if (canComment(item)) onPrefetch?.(item) }} onClick={(event) => { if (canComment(item) && !event.target.closest('button')) onView?.(item) }} onKeyDown={(event) => { if (event.key === 'Enter' && event.target === event.currentTarget && canComment(item)) onView?.(item) }} className={`overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md ${canComment(item) ? 'cursor-pointer focus-visible:outline-emerald-500' : ''}`}>
     <div className="border-b border-slate-100 bg-slate-50/60 p-3.5">
       <div className="flex items-center gap-3"><img src={item.avatarUrl || defaultAvatar} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = defaultAvatar }} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" /><div className="min-w-0"><h3 className="break-words font-bold text-[#18301D]">{item.fullName}</h3><p className="mt-1 text-xs text-slate-500">{item.studentCode || '—'} · Lượt {item.attemptNumber || 0}</p></div></div>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2"><span className={`rounded-lg px-2 py-1 text-xs font-semibold ${tone}`}>{attemptLabels[item.status] ?? item.status}</span><span className="font-bold text-emerald-700">{item.totalScore == null ? 'Chưa có điểm' : `${item.totalScore} điểm${item.isFinal ? '' : ' (tạm tính)'}`}</span></div>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2"><span className={`rounded-lg px-2 py-1 text-xs font-semibold ${tone}`}>{attemptLabels[item.status] ?? item.status}</span><span className={`font-bold ${scoreTone(item.totalScore, maxScore)}`}>{item.totalScore == null ? 'Chưa có điểm' : `${item.totalScore}/${maxScore ?? '—'} điểm${item.isFinal ? '' : ' (tạm tính)'}`}</span></div>
     </div>
     <div className="space-y-2.5 p-3.5 text-xs text-slate-500">
       <p className="flex items-center gap-2 break-all"><UserRound size={15} className="shrink-0" />{item.email || 'Chưa có email'}</p>

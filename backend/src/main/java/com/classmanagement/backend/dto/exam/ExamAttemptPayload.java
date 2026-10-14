@@ -19,6 +19,8 @@ public final class ExamAttemptPayload {
             @NotNull @Size(max=2000) List<@NotNull @Valid Value> answers,
             @Size(max=1000) List<@NotNull @Valid Event> events) {}
     public record Grade(@NotNull @Positive Long answerId,@NotNull @DecimalMin("0") @Digits(integer=4,fraction=2) BigDecimal score) {}
+    public enum ResetMode { RETAKE, BLOCK }
+    public record Reset(@NotNull @Min(1) Integer attemptNumber,@NotNull @Min(0) Long revision,@NotNull ResetMode mode) {}
     public record Grades(@NotNull @Min(1) Integer attemptNumber,@NotNull @Min(0) Long revision,
             @Size(max=2000) List<@NotNull @Valid Grade> grades,@Size(max=20000) String teacherComment) {}
 }

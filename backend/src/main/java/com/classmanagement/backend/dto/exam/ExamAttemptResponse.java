@@ -9,6 +9,8 @@ public record ExamAttemptResponse(Long attemptId,Long assignmentId,int attemptNu
         ExamAttemptStatus status,OffsetDateTime serverTime,OffsetDateTime deadline,int tabSwitchCount,
         ExamInfo exam,List<Section> sections,List<ExamAttemptPayload.Value> answers,Result result) {
     public record ExamInfo(Long id,String title,String code,BigDecimal maxScore,Integer timeLimit,Integer maxAttempts) {}
+    public record StudentInfo(Long id,String fullName,String studentCode,String avatarUrl) {}
+    public record TeacherReview(Long assignmentId,ExamInfo exam,StudentInfo student,Result result) {}
     public record Section(Long id,String title,String paragraph,ExamDetailResponse.Media imageMedia,
             ExamDetailResponse.Media audioMedia,List<Question> questions) {}
     public record Question(Long id,String content,String explanation,BigDecimal points,ExamDetailResponse.Media imageMedia,
@@ -33,6 +35,11 @@ public record ExamAttemptResponse(Long attemptId,Long assignmentId,int attemptNu
     public record Summary(Long attemptId,Long studentId,String fullName,int attemptNumber,
             ExamAttemptStatus status,int tabSwitchCount,BigDecimal totalScore,String avatarUrl,String studentCode,String email,
             OffsetDateTime startedAt,OffsetDateTime submittedAt,Integer durationSeconds,String teacherComment,boolean isFinal,Long revision) {}
-    public record Stats(long total,long notStarted,long inProgress,long submitted,long pendingGrading,long graded) {}
+    public record Stats(long total,long notStarted,long inProgress,long submitted,long pendingGrading,long graded,
+            BigDecimal averageScore,List<BigDecimal> modes) {
+        public Stats(long total,long notStarted,long inProgress,long submitted,long pendingGrading,long graded) {
+            this(total,notStarted,inProgress,submitted,pendingGrading,graded,null,List.of());
+        }
+    }
     public record Page(List<Summary> items,int page,int size,long totalElements,Stats stats) {}
 }
