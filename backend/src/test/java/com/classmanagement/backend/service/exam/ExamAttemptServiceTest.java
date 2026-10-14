@@ -30,6 +30,13 @@ class ExamAttemptServiceTest {
     private boolean exists=true,eligible=true,released=false,includeShort,runExpiry;
     private int writes,resets,hidden,structureReads,completionMarks;
     private final ExamAttemptDataRepository data=new ExamAttemptDataRepository(null) {
+        @Override public Optional<ClassGradebookResponse.ClassInfo> gradebookClass(Long classId,Long teacherId) {
+            return classId==31L&&teacherId==11L?Optional.of(new ClassGradebookResponse.ClassInfo(31L,"Class",1L,"Math")):Optional.empty();
+        }
+        @Override public ClassGradebookResponse gradebook(ClassGradebookResponse.ClassInfo classroom,Long teacherId,int page,int size,String q,Long subjectId) {
+            assertEquals("student",q);
+            return new ClassGradebookResponse(classroom,List.of(),List.of(),page,size,0);
+        }
         @Override public boolean studentClassAllowed(Long classId,Long studentId,Long teacherId) {
             return classId==31L&&studentId==21L&&teacherId==11L;
         }
@@ -67,6 +74,14 @@ class ExamAttemptServiceTest {
         @Override public List<ExamAttemptResponse.Event> readEvents(Long id) { return List.of(); }
     };
     private static LocalDateTime now() { return LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")); }
+    @Test void gradebookRequiresActiveOwnerAndValidFilters() {
+        assertEquals(31L,service().gradebook(31L,"teacher",0,20," Student ",null).classroom().id());
+        assertThrows(ResourceNotFoundException.class,()->service().gradebook(31L,"otherTeacher",0,20,"Student",null));
+        assertThrows(IllegalStateException.class,()->service().gradebook(31L,"student",0,20,"Student",null));
+        assertThrows(IllegalArgumentException.class,()->service().gradebook(0L,"teacher",0,20,null,null));
+        assertThrows(IllegalArgumentException.class,()->service().gradebook(31L,"teacher",0,101,null,null));
+        assertThrows(IllegalArgumentException.class,()->service().gradebook(31L,"teacher",0,20,null,0L));
+    }
     @Test void studentScoreOverviewChecksOwnerMembershipRoleAndPagination() {
         var result=service().studentClassResults(31L,21L,"teacher",0,10);
         assertEquals(31L,result.classId()); assertEquals(0,result.totalElements());

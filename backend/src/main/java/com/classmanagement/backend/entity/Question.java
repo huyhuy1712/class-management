@@ -44,7 +44,7 @@ public class Question {
     @Column(name = "order_index", nullable = false)
     private Integer orderIndex;
 
-    @Column(nullable = false, precision = 6, scale = 2)
+    @Column(nullable = false, precision = 7, scale = 3)
     private BigDecimal points;
 
 

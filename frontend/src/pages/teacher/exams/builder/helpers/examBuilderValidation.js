@@ -20,7 +20,7 @@ export function validateExamBuilder(sections) {
       const name = `Câu ${questionIndex + 1} - Phần ${sectionIndex + 1}`
       if (!hasText(question.content) || question.content.length > 20000) add(id, `${name} cần nội dung từ 1 đến 20000 ký tự.`)
       if (String(question.explanation ?? '').length > 20000) add(id, `${name}: giải thích tối đa 20000 ký tự.`)
-      if (!isExamPoint(getQuestionScore(question)) || Number(getQuestionScore(question)) <= 0) add(id, `${name} cần điểm lớn hơn 0, tối đa 9999.99 và 2 chữ số thập phân.`)
+      if (!isExamPoint(getQuestionScore(question)) || Number(getQuestionScore(question)) <= 0) add(id, `${name} cần điểm lớn hơn 0, tối đa 9999.999 và 3 chữ số thập phân.`)
       totalPoints += pointUnits(getQuestionScore(question)) || 0
       const groups = question.answerGroups ?? []
       if (!groups.length || groups.length > 20) add(id, `${name} phải có từ 1 đến 20 nhóm đáp án.`)
@@ -48,6 +48,6 @@ export function validateExamBuilder(sections) {
     })
   })
   if (questionCount > 500 || groupCount > 2000 || optionCount > 10000) add('builder-root', 'Đề vượt giới hạn 500 câu hỏi, 2000 nhóm hoặc 10000 phương án.')
-  if (totalPoints > 999999) add('builder-root', 'Tổng điểm đề không được vượt quá 9999.99.')
+  if (totalPoints > 9999999) add('builder-root', 'Tổng điểm đề không được vượt quá 9999.999.')
   return { errors, firstErrorId: Object.keys(errors)[0] ?? null, isValid: Object.keys(errors).length === 0 }
 }

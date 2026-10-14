@@ -30,10 +30,10 @@ public class StudentAnswer {
     @JoinColumn(name = "question_id", nullable = false)
     private Question question;
 
-    @Column(name = "auto_score", precision = 6, scale = 2)
+    @Column(name = "auto_score", precision = 7, scale = 3)
     private BigDecimal autoScore;
 
-    @Column(name = "manual_score", precision = 6, scale = 2)
+    @Column(name = "manual_score", precision = 7, scale = 3)
     private BigDecimal manualScore;
 
     @Enumerated(EnumType.STRING)

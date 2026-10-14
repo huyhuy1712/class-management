@@ -152,6 +152,7 @@ function StudentDashboard() {
               "/student/classes",
               "/student/teachers",
               "/student/exams",
+              "/student/grades",
             ].includes(feature.path);
             const FeatureLink = isImplementedRoute ? Link : "a";
             const destinationProps = isImplementedRoute

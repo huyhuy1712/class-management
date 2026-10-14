@@ -3,8 +3,6 @@ import useRoutePrefetch from '../../query/useRoutePrefetch'
 import {
   House,
   School,
-  Users,
-  ChartNoAxesColumnIncreasing,
   FileText,
   BookOpen,
   LogOut 
@@ -18,8 +16,6 @@ import logo from '../../assets/logos/logo.png'
 const menuItems = [
   { label: 'Trang chủ', icon: House, path: '/teacher', end: true },
   { label: 'Lớp học', icon: School, path: '/teacher/classes' },
-  { label: 'Học sinh', icon: Users, path: '/teacher/students' },
-  { label: 'Bảng điểm', icon: ChartNoAxesColumnIncreasing, path: '/teacher/grades' },
   { label: 'Đề thi', icon: FileText, path: '/teacher/exams' },
   { label: 'Tài liệu', icon: BookOpen, path: '/teacher/materials' },
 ]

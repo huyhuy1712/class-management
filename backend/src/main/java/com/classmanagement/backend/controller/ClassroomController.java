@@ -36,6 +36,13 @@ private final ClassroomService classroomService;
 private final com.classmanagement.backend.service.ExamService examService;
 private final com.classmanagement.backend.service.exam.ExamAttemptService attempts;
 
+@GetMapping("/{classId}/gradebook")
+public com.classmanagement.backend.dto.exam.ClassGradebookResponse gradebook(@PathVariable Long classId,
+        @RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="20") int size,
+        @RequestParam(required=false) String q,@RequestParam(required=false) Long subjectId,Authentication auth) {
+    return attempts.gradebook(classId,auth.getName(),page,size,q,subjectId);
+}
+
 @GetMapping("/{classId}/students/{studentId}/exam-results")
 public com.classmanagement.backend.dto.exam.StudentClassExamResultsResponse studentExamResults(
         @PathVariable Long classId,@PathVariable Long studentId,

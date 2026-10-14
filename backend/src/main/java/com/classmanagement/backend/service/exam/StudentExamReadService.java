@@ -22,6 +22,23 @@ public class StudentExamReadService {
     private final StudentExamReadRepository repository;
     private static final ZoneId ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
+    @Transactional(readOnly=true,isolation=Isolation.REPEATABLE_READ)
+    public com.classmanagement.backend.dto.exam.StudentGradesResponse grades(String username,Long classId,Long subjectId,
+            LocalDate from,LocalDate to,String query,String status,String sort,int page,int size,boolean includeCharts) {
+        String q=query==null?"":query.trim().toLowerCase(Locale.ROOT);
+        status=status==null||status.isBlank()?null:status;
+        if(page<0||size<1||size>100||(classId!=null&&classId<=0)||(subjectId!=null&&subjectId<=0)||q.length()>200
+                ||!Set.of("newest","score").contains(sort)||(status!=null&&!Set.of("GRADED","SUBMITTED").contains(status))
+                ||(from!=null&&to!=null&&from.isAfter(to))||LocalDate.MAX.equals(to))
+            throw new IllegalArgumentException("Bộ lọc không hợp lệ: page >= 0, size 1..100, ID > 0, q <= 200, sort newest/score, status GRADED/SUBMITTED, from <= to");
+        var student=student(username);
+        var p=new MapSqlParameterSource("studentId",student.getId()).addValue("classId",classId).addValue("subjectId",subjectId)
+                .addValue("from",from==null?null:from.atStartOfDay()).addValue("to",to==null?null:to.plusDays(1).atStartOfDay())
+                .addValue("q",q).addValue("pattern","%"+q.replace("!","!!").replace("%","!%").replace("_","!_")+"%")
+                .addValue("status",status).addValue("limit",size).addValue("offset",(long)page*size);
+        return repository.grades(p,sort,page,size,includeCharts);
+    }
+
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public StudentExamResponse.Page list(String username, int page, int size, String query,
             Long classId, LocalDate date, String sort) {

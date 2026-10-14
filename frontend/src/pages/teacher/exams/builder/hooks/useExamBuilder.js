@@ -1,7 +1,7 @@
 import { distributeQuestionScore } from '../helpers/examScoreDistribution'
 import { useEffect, useMemo, useState } from 'react'
 import { loadExamDraft, saveExamDraft } from '../../draft/examDraftStorage'
-import { createAnswer, createAnswerGroup, createQuestion, createScoringRule, createSection } from '../helpers/examBuilderConstants'
+import { createAnswer, createAnswerGroup, createQuestion, createScoringRule, createSection, DEFAULT_CHOICE_ANSWER_COUNT } from '../helpers/examBuilderConstants'
 import { getExamScore, migrateDraftScores } from '../helpers/examScoreUtils'
 
 const withMediaChanges = (changes) => ({
@@ -33,7 +33,15 @@ function useExamBuilder({ initialSections, persistDraft = true } = {}) {
     const reset = { ...g, scoreByCorrectCount: false, scoringRules: [] }
     if (!type) return { ...reset, answerType: null, answers: [] }
     if (type === 'TRUE_FALSE') return { ...reset, answerType: type, choiceMode: 'SINGLE', answers: [] }
-    if (type === 'CHOICE') return { ...reset, answerType: type, choiceMode: 'SINGLE', answers: [] }
+    if (type === 'CHOICE') return {
+      ...reset,
+      answerType: type,
+      choiceMode: 'SINGLE',
+      answers: Array.from(
+        { length: DEFAULT_CHOICE_ANSWER_COUNT },
+        (_, index) => createAnswer(type, index),
+      ),
+    }
     return { ...reset, answerType: type, answers: [createAnswer(type, 0)] }
   })
   const setGroupChoiceCount = (sectionId, questionId, groupId, count) => mapGroup(sectionId, questionId, groupId, (g) => {

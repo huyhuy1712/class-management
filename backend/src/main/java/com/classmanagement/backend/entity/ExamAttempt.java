@@ -55,13 +55,13 @@ public class ExamAttempt {
     @Column(name = "duration_seconds")
     private Integer durationSeconds;
 
-    @Column(name = "auto_score", nullable = false, precision = 6, scale = 2)
+    @Column(name = "auto_score", nullable = false, precision = 7, scale = 3)
     private BigDecimal autoScore;
 
-    @Column(name = "manual_score", nullable = false, precision = 6, scale = 2)
+    @Column(name = "manual_score", nullable = false, precision = 7, scale = 3)
     private BigDecimal manualScore;
 
-    @Column(name = "total_score", nullable = false, precision = 6, scale = 2)
+    @Column(name = "total_score", nullable = false, precision = 7, scale = 3)
     private BigDecimal totalScore;
 
     @Enumerated(EnumType.STRING)

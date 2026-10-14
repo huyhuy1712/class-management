@@ -30,13 +30,13 @@ public class AttemptSectionScore {
     @JoinColumn(name = "section_id", nullable = false)
     private ExamSection section;
 
-    @Column(name = "auto_score", nullable = false, precision = 6, scale = 2)
+    @Column(name = "auto_score", nullable = false, precision = 7, scale = 3)
     private BigDecimal autoScore;
 
-    @Column(name = "manual_score", nullable = false, precision = 6, scale = 2)
+    @Column(name = "manual_score", nullable = false, precision = 7, scale = 3)
     private BigDecimal manualScore;
 
-    @Column(name = "total_score", nullable = false, precision = 6, scale = 2)
+    @Column(name = "total_score", nullable = false, precision = 7, scale = 3)
     private BigDecimal totalScore;
 
     @Column(name = "created_at", nullable = false)

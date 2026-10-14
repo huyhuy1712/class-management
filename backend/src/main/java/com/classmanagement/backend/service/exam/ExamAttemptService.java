@@ -222,6 +222,19 @@ public class ExamAttemptService {
         return data.studentClassResults(classId,studentId,teacher.getId(),page,size);
     }
 
+    @Transactional(readOnly=true,isolation=org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    public ClassGradebookResponse gradebook(Long classId,String username,int page,int size,String query,Long subjectId) {
+        positive(classId); if(subjectId!=null) positive(subjectId);
+        String q=query==null?"":query.trim().toLowerCase(Locale.ROOT);
+        if(page<0||size<1||size>100||q.length()>200) throw new IllegalArgumentException("page >= 0, size 1..100, q <= 200 ký tự");
+        var teacher=user(username,UserRole.TEACHER);
+        var classroom=data.gradebookClass(classId,teacher.getId()).orElseThrow(()->missing());
+        var result=data.gradebook(classroom,teacher.getId(),page,size,q,subjectId);
+        var students=result.items().stream().map(s->new ClassGradebookResponse.Student(s.studentId(),s.studentCode(),s.fullName(),s.email(),s.phone(),
+                s.avatarUrl()==null||s.avatarUrl().isBlank()?null:storage.getUrl(s.avatarUrl()),s.joinedAt(),s.averageScoreOnTen(),s.gradedCount(),s.cells())).toList();
+        return new ClassGradebookResponse(classroom,result.columns(),students,page,size,result.totalElements());
+    }
+
     private ExamAttempt lock(Long id,User user,boolean allowTeacher) {
         positive(id); var ref=data.ref(id).orElseThrow(()->missing());
         if(user.getRole()==UserRole.STUDENT&&!ref.studentId().equals(user.getId())) throw missing();

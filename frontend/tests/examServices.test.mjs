@@ -4,6 +4,35 @@ import { readFile } from 'node:fs/promises'
 import { runInNewContext } from 'node:vm'
 
 let api, examService, mediaService
+test('assignment export reads all recipients in class scope without display filters', async () => {
+  const signal = new AbortController().signal
+  const pages = []
+  api.handler = async (url, options) => {
+    assert.equal(url, '/exam-assignments/8/attempts')
+    assert.equal(options.params.classId, '21')
+    assert.equal(options.params.size, 100)
+    assert.equal(options.params.q, undefined)
+    assert.equal(options.params.status, undefined)
+    assert.equal(options.signal, signal)
+    pages.push(options.params.page)
+    return { data: { items: Array.from({ length: options.params.page === 0 ? 100 : 1 }, (_, i) => ({ studentId: options.params.page * 100 + i })), totalElements: 101 } }
+  }
+  assert.equal((await examService.getAssignmentExport(8, '21', { signal })).length, 101)
+  assert.deepEqual(pages, [0, 1])
+})
+test('student grades forwards filters, pagination and cancellation and preserves server aggregates', async () => {
+  const params = { classId: 21, subjectId: 1, from: '2026-10-01', to: '2026-10-31', page: 2, size: 6, includeCharts: true }
+  const signal = new AbortController().signal
+  const response = { items: [], totalElements: 13, summary: { average: 7, hiddenScoreCount: 2 }, charts: { scoreBands: [1, 2, 3, 4] } }
+  api.handler = async (url, options) => {
+    assert.equal(url, '/users/me/grades')
+    assert.equal(options.params, params)
+    assert.equal(options.signal, signal)
+    assert.equal(Object.hasOwn(options.params, 'userId'), false)
+    return { data: response }
+  }
+  assert.equal(await examService.getMyGrades(params, { signal }), response)
+})
 before(async () => {
   api = { put: (...args) => api.handler(...args), get: (...args) => api.handler(...args), post: (...args) => api.handler(...args) }
   // Evaluate the real service modules with an isolated HTTP transport.

@@ -12,18 +12,17 @@ import {
   CircleX,
   Clock3,
 } from 'lucide-react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import defaultAvatar from '../../../assets/images/avatar_default.png'
 
 function StudentDetailPage() {
   const navigate = useNavigate()
-  const location = useLocation()
   const { classId, studentId } = useParams()
   const query = useResourceQuery('attendances', [classId], { enabled: Boolean(classId && studentId) })
   const attendances = query.data ?? null
   const attendanceError = query.errorMessage
-  // Student is supplied by the list navigation.
-  const student = location.state?.student
+  const studentsQuery = useResourceQuery('classStudents', [classId], { enabled: Boolean(classId && studentId) })
+  const student = studentsQuery.data?.find((item) => String(item.id) === String(studentId))
 
   const attendanceStats = useMemo(() => {
     const studentAttendances = (attendances ?? []).filter(
@@ -57,11 +56,14 @@ function StudentDetailPage() {
       </button>
 
       {/* Student header */}
+      {studentsQuery.isLoading && <p role="status" className="text-sm text-slate-500">Đang tải thông tin học sinh...</p>}
+      {studentsQuery.isError && <p role="alert" className="text-sm text-red-600">{student ? 'Chưa cập nhật được thông tin học sinh.' : studentsQuery.errorMessage}<button type="button" onClick={() => studentsQuery.refetch()} className="ml-2 underline">Thử lại</button></p>}
+      {studentsQuery.isSuccess && !student && <p role="alert" className="text-sm text-amber-700">Không tìm thấy học sinh trong lớp này.</p>}
       <section className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-100 via-lime-50 to-amber-50 p-6 shadow-sm shadow-emerald-950/5 sm:p-8">
         <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
           <div className="flex items-center gap-4">
             <img
-              src={student?.avatar || defaultAvatar}
+              src={student?.avatar || student?.avatarUrl || defaultAvatar}
               alt={student?.fullName || 'Học sinh'}
               className="h-20 w-20 shrink-0 rounded-2xl border-4 border-white/80 object-cover shadow-sm"
               onError={(event) => {
@@ -75,7 +77,7 @@ function StudentDetailPage() {
               </p>
 
               <h1 className="mt-1 break-words text-2xl font-bold text-[#18301D] sm:text-3xl">
-                {student?.fullName || `Học sinh #${studentId}`}
+                {student?.fullName || (studentsQuery.isLoading ? 'Đang tải...' : `Học sinh #${studentId}`)}
               </h1>
 
               <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-sm text-slate-600">

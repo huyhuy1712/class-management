@@ -3,10 +3,12 @@ import { useState } from 'react'
 import { Link, useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import useRoutePrefetch from '../../../query/useRoutePrefetch'
 import { Modal, message } from 'antd'
-import { ArrowLeft, CalendarDays, Clock, FileText, Users, Search, UserRound, ClipboardCheck } from 'lucide-react'
+import { ArrowLeft, CalendarDays, Clock, FileText, Users, Search, UserRound, ClipboardCheck, Download, BarChart3, Trophy } from 'lucide-react'
 import DashboardLayout from '../../../layouts/DashboardLayout'
 import useResourceQuery from '../../../query/useResourceQuery'
 import useAssignmentAttempts from './hooks/useAssignmentAttempts'
+import useAssignmentGradeExport from './hooks/useAssignmentGradeExport'
+import AssignmentInsights from './components/AssignmentInsights'
 import AssignmentStudentCard from './components/AssignmentStudentCard'
 import { formatExamDateTime } from './helpers/examHelpers'
 
@@ -22,8 +24,10 @@ function AssignmentDetail({ examId, assignmentId, classId }) {
   const prefetch = useRoutePrefetch()
   const reviewPath = (item) => `/teacher/exams/${examId}/assignments/${assignmentId}/attempts/${item.attemptId}${classId ? `?classId=${classId}` : ''}`
   const config = useResourceQuery('examConfiguration', [examId])
+  const [tab, setTab] = useState('students')
   const [filters, setFilters] = useState({ page: 0, q: '', status: '', sort: 'newest' })
   const { query, saveComment, saving, prefetchNext } = useAssignmentAttempts(assignmentId, classId, filters)
+  const { exportGrades, exporting, prefetchInsights } = useAssignmentGradeExport(assignmentId, classId)
   const [editing, setEditing] = useState(null)
   const [comment, setComment] = useState('')
   const [messageApi, context] = message.useMessage()
@@ -63,10 +67,12 @@ function AssignmentDetail({ examId, assignmentId, classId }) {
             <p className="text-[11px] text-slate-500">Tính trên {stats?.graded ?? 0} bài đã chấm trong phạm vi đang xem, không gồm bài chờ chấm. Các điểm không lặp lại thì không có mốt.</p>
           </div>
         </div>
+        <nav aria-label="Menu đợt giao" className="mt-4 space-y-2 border-t border-slate-100 pt-4">{[['students', 'Danh sách học sinh', Users], ['statistics', 'Thống kê', BarChart3], ['ranking', 'Bảng xếp hạng', Trophy]].map(([id, label, Icon]) => <button key={id} type="button" aria-current={tab === id ? 'page' : undefined} onMouseEnter={id !== 'students' ? prefetchInsights : undefined} onFocus={id !== 'students' ? prefetchInsights : undefined} onClick={() => setTab(id)} className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold ${tab === id ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-50'}`}><Icon size={19} />{label}</button>)}</nav>
       </aside>
       <main className="min-w-0 space-y-4">
+        {tab !== 'students' ? <AssignmentInsights assignmentId={assignmentId} classId={classId} maxScore={config.data.maxScore} tab={tab} onView={(item) => navigate(reviewPath(item))} /> : <>
         <div className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm sm:p-5">
-          <h2 className="flex items-center gap-2 text-lg font-bold text-[#18301D]"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600"><ClipboardCheck size={19} /></span>Danh sách học sinh {stats ? `(${stats.total})` : ''}</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="flex items-center gap-2 text-lg font-bold text-[#18301D]"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600"><ClipboardCheck size={19} /></span>Danh sách học sinh {stats ? `(${stats.total})` : ''}</h2><button type="button" disabled={exporting} onClick={() => void exportGrades(config.data.basicInfo.title, config.data.maxScore).catch((error) => messageApi.error(error.response?.data?.message || error.message || 'Không thể xuất bảng điểm.'))} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"><Download size={17} />{exporting ? 'Đang xuất...' : 'Xuất bảng điểm'}</button></div><p className="mt-3 text-xs text-slate-500">Xuất Excel điểm tăng dần, kèm thống kê · Chưa làm tính 0 · Toàn bộ học sinh trong phạm vi đang xem</p>
           <div className="mt-4 flex flex-wrap gap-2 text-xs">{[['Tổng', stats?.total, 'bg-slate-100 text-slate-700'], ['Chưa làm', stats?.notStarted, 'bg-slate-50 text-slate-600'], ['Đang làm', stats?.inProgress, 'bg-blue-50 text-blue-700'], ['Chờ chấm', stats?.pendingGrading, 'bg-amber-50 text-amber-700'], ['Đã chấm', stats?.graded, 'bg-emerald-50 text-emerald-700']].map(([label, count, tone]) => <span key={label} className={`rounded-lg px-2.5 py-1.5 font-medium ${tone}`}>{label}: <strong>{count ?? '—'}</strong></span>)}</div>
           <div className="mt-4 flex flex-col gap-2.5 lg:flex-row"><div className="relative min-w-0 flex-1"><Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input maxLength={200} aria-label="Tìm học sinh" value={filters.q} onChange={(event) => change('q', event.target.value)} placeholder="Tên, mã học sinh hoặc email..." className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-50" /></div><select aria-label="Trạng thái bài làm" value={filters.status} onChange={(event) => change('status', event.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-400"><option value="">Tất cả trạng thái</option><option value="NOT_STARTED">Chưa làm</option><option value="IN_PROGRESS">Đang làm</option><option value="SUBMITTED">Chờ chấm tự luận</option><option value="GRADED">Đã chấm</option></select><select aria-label="Sắp xếp bài làm" value={filters.sort} onChange={(event) => change('sort', event.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-400"><option value="newest">Mới nhất</option><option value="oldest">Cũ nhất</option><option value="name">Tên A → Z</option><option value="score_desc">Điểm cao → thấp</option><option value="score_asc">Điểm thấp → cao</option></select></div>
         </div>
@@ -75,6 +81,7 @@ function AssignmentDetail({ examId, assignmentId, classId }) {
           <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">{query.data?.items.map((item) => <AssignmentStudentCard key={item.studentId} item={item} maxScore={config.data.maxScore} onView={(row) => navigate(reviewPath(row))} onPrefetch={(row) => prefetch(reviewPath(row))} saving={saving || query.isPlaceholderData} onComment={(row) => { setEditing(row); setComment(row.teacherComment || '') }} />)}</div>
           {!query.data?.items.length && <p className="rounded-2xl bg-white p-10 text-center text-slate-500">{stats?.total ? 'Không có học sinh phù hợp bộ lọc.' : 'Chưa có học sinh trong phạm vi giao đề này.'}</p>}
           <div className="flex items-center justify-between gap-3 text-sm text-slate-600"><span>{query.data?.totalElements ?? 0} học sinh phù hợp · Trang {filters.page + 1}</span><div className="flex gap-2"><button type="button" disabled={filters.page === 0 || query.isPlaceholderData} onClick={() => change('page', filters.page - 1)} className="rounded-lg border border-slate-200 bg-white px-4 py-2 disabled:opacity-40">Trước</button><button type="button" disabled={query.isPlaceholderData || (filters.page + 1) * 12 >= (query.data?.totalElements ?? 0)} onMouseEnter={prefetchNext} onFocus={prefetchNext} onClick={() => change('page', filters.page + 1)} className="rounded-lg border border-slate-200 bg-white px-4 py-2 disabled:opacity-40">Sau</button></div></div>
+        </>}
         </>}
       </main>
     </div>}

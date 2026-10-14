@@ -1,6 +1,10 @@
 package com.classmanagement.backend.repository.exam;
 
 import com.classmanagement.backend.dto.exam.StudentExamResponse;
+import com.classmanagement.backend.dto.exam.StudentGradesResponse;
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -122,4 +126,72 @@ public class StudentExamReadRepository {
                 rs.getObject("attempt_id", Long.class), rs.getString("attempt_status"),
                 rs.getObject("started_at", LocalDateTime.class));
     }
+
+    // Shared shape for the grade page; score keys never enter a student response.
+    private static final String GRADE_FROM="""
+        from exam_attempts t join exam_assignments a on a.id=t.assignment_id join exams e on e.id=a.exam_id
+        left join subjects sub on sub.id=e.subject_id
+        where t.student_id=:studentId and t.status in ('GRADED','SUBMITTED')
+        """;
+    private static final String GRADE_SCOPE="""
+        and (cast(:subjectId as bigint) is null or e.subject_id=:subjectId)
+        and (cast(:from as timestamp) is null or t.submitted_at>=:from)
+        and (cast(:to as timestamp) is null or t.submitted_at<:to)
+        and (cast(:classId as bigint) is null or exists(select 1 from classes c where c.id=:classId and (
+          (a.assignment_type='STUDENT' and exists(select 1 from exam_assignment_students s where s.assignment_id=a.id and s.student_id=:studentId and s.class_id=c.id))
+          or (a.assignment_type in ('ALL','CLASS') and c.status='ACTIVE' and exists(select 1 from class_students cs where cs.class_id=c.id and cs.student_id=:studentId)
+            and ((a.assignment_type='ALL' and c.teacher_id=e.teacher_id) or (a.assignment_type='CLASS' and exists(select 1 from exam_assignment_classes ac where ac.assignment_id=a.id and ac.class_id=c.id))))
+        )))
+        """;
+    private static final String GRADE_VISIBLE="""
+        (a.score_visibility='AFTER_SUBMIT' or (a.score_visibility='AFTER_EXAM' and
+          (a.results_released_at is not null or not exists(select 1 from exam_assignment_completion_students r
+             where r.assignment_id=a.id and r.completed_at is null and r.exempt_at is null))))
+        """;
+    private static final String GRADE_CTE="with scoped as (select t.id,t.assignment_id,e.title,e.code,t.status,t.attempt_count,t.submitted_at,t.duration_seconds,t.teacher_comment,e.subject_id,sub.name subject_name,"
+            +GRADE_VISIBLE+" visible,case when t.status='GRADED' and e.max_score>0 and "+GRADE_VISIBLE+
+            " then round(t.total_score*10.0/e.max_score,2) end score "+GRADE_FROM+GRADE_SCOPE+") ";
+    private static final String GRADE_TABLE_FILTER="(cast(:status as varchar) is null or status=:status) and (:q='' or lower(title) like :pattern escape '!' or lower(code) like :pattern escape '!')";
+
+    public StudentGradesResponse grades(MapSqlParameterSource p,String sort,int page,int size,boolean includeCharts) {
+        String aggregate=GRADE_CTE+", frequencies as (select score,count(*) n from scoped where score is not null group by score) "+
+                "select count(*) filter(where "+GRADE_TABLE_FILTER+"),avg(score),max(score),min(score),count(score),count(*) filter(where status='SUBMITTED'),count(*) filter(where status='GRADED' and not visible),count(*) filter(where score>=5),"+
+                "count(*) filter(where score<5),count(*) filter(where score>=5 and score<6.5),count(*) filter(where score>=6.5 and score<8),count(*) filter(where score>=8),"+
+                "(select array_agg(score order by score) from frequencies where n=(select max(n) from frequencies) and n>1) from scoped";
+        record Overview(long count,StudentGradesResponse.Summary summary,List<Long> bands) {}
+        var overview=jdbc.queryForObject(aggregate,p,(r,i)-> {
+            var array=r.getArray(13);
+            List<BigDecimal> modes=array==null?List.of():Arrays.stream((Object[])array.getArray()).map(v->new BigDecimal(v.toString())).toList();
+            if(array!=null) array.free();
+            long graded=r.getLong(5),passed=r.getLong(8);
+            BigDecimal rate=graded==0?null:BigDecimal.valueOf(passed*100).divide(BigDecimal.valueOf(graded),2,java.math.RoundingMode.HALF_UP);
+            return new Overview(r.getLong(1),new StudentGradesResponse.Summary(decimal(r.getBigDecimal(2)),r.getBigDecimal(3),r.getBigDecimal(4),modes,
+                    graded,r.getLong(6),r.getLong(7),passed,rate),List.of(r.getLong(9),r.getLong(10),r.getLong(11),r.getLong(12)));
+        });
+        // Options independent of selected filters; read assignment IDs once, then reuse batch class resolver.
+        record OptionRow(Long assignmentId,Long subjectId,String name) {}
+        var options=jdbc.query("select distinct a.id,e.subject_id,sub.name "+GRADE_FROM+" order by a.id",p,
+                (r,i)->new OptionRow(r.getLong(1),r.getObject(2,Long.class),r.getString(3)));
+        var classes=findClasses(options.stream().map(OptionRow::assignmentId).toList(),((Number)p.getValue("studentId")).longValue());
+        var classOptions=classes.values().stream().flatMap(List::stream).map(c->new StudentGradesResponse.Option(c.id(),c.name()))
+                .distinct().sorted(Comparator.comparing(StudentGradesResponse.Option::id)).toList();
+        var subjects=options.stream().filter(o->o.subjectId()!=null).map(o->new StudentGradesResponse.Option(o.subjectId(),o.name()))
+                .distinct().sorted(Comparator.comparing(StudentGradesResponse.Option::id)).toList();
+        String order=switch(sort) { case "newest"->"submitted_at desc nulls last,id desc"; case "score"->"score desc nulls last,id desc"; default->throw new IllegalArgumentException("sort không hợp lệ"); };
+        var items=jdbc.query(GRADE_CTE+"select * from scoped where "+GRADE_TABLE_FILTER+" order by "+order+" limit :limit offset :offset",p,
+                (r,i)->new StudentGradesResponse.Item(r.getLong("id"),r.getLong("assignment_id"),r.getString("title"),r.getString("code"),
+                        r.getObject("subject_id",Long.class),r.getString("subject_name"),classes.getOrDefault(r.getLong("assignment_id"),List.of()),
+                        r.getInt("attempt_count"),r.getString("status"),r.getBoolean("visible"),r.getBigDecimal("score"),
+                        gradeTime(r.getObject("submitted_at",LocalDateTime.class)),r.getObject("duration_seconds",Integer.class),r.getString("teacher_comment")));
+        StudentGradesResponse.Charts charts=null;
+        if(includeCharts) {
+            var timeline=new ArrayList<>(jdbc.query(GRADE_CTE+"select id,assignment_id,title,attempt_count,submitted_at,score from scoped where score is not null order by submitted_at desc nulls last,id desc limit 200",p,
+                    (r,i)->new StudentGradesResponse.Point(r.getLong(1),r.getLong(2),r.getString(3),r.getInt(4),gradeTime(r.getObject(5,LocalDateTime.class)),r.getBigDecimal(6))));
+            Collections.reverse(timeline);
+            charts=new StudentGradesResponse.Charts(timeline,overview.summary().gradedCount()>200,overview.bands(),overview.summary().gradedCount(),overview.summary().pendingGradingCount());
+        }
+        return new StudentGradesResponse(new StudentGradesResponse.Filters(classOptions,subjects),overview.summary(),charts,items,page,size,overview.count());
+    }
+    private static BigDecimal decimal(BigDecimal value) { return value==null?null:value.setScale(2,java.math.RoundingMode.HALF_UP); }
+    private static OffsetDateTime gradeTime(LocalDateTime value) { return value==null?null:value.atOffset(ZoneOffset.ofHours(7)); }
 }

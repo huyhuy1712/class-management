@@ -1,6 +1,7 @@
 import api from './api'
 
 const examService = {
+  getMyGrades: async (params = {}, options = {}) => (await api.get('/users/me/grades', { ...options, params })).data,
   getTeacherAttemptReview: async (id, options = {}) => (await api.get(`/exam-attempts/${id}/teacher-review`, options)).data,
   resetAttempt: async (id, body) => (await api.post(`/exam-attempts/${id}/reset`, body)).data,
   getStudentClassExamResults: async (classId, studentId, options = {}) => {
@@ -15,6 +16,19 @@ const examService = {
     return { ...result, items }
   },
   getAssignmentAttempts: async (id, params, options = {}) => (await api.get(`/exam-assignments/${id}/attempts`, { ...options, params })).data,
+  getAssignmentExport: async (id, classId, options = {}) => {
+    const items = []
+    let page = 0, total = 0
+    do {
+      const result = await examService.getAssignmentAttempts(id, { ...(classId ? { classId } : {}), page, size: 100, sort: 'name' }, options)
+      if (!Array.isArray(result.items)) throw new Error('Dữ liệu bảng điểm không hợp lệ.')
+      items.push(...result.items)
+      total = result.totalElements
+      if (!result.items.length && items.length < total) throw new Error('Danh sách học sinh đã thay đổi. Vui lòng xuất lại.')
+      page += 1
+    } while (items.length < total)
+    return items
+  },
   updateAttemptGrades: async (id, body) => (await api.patch(`/exam-attempts/${id}/grades`, body)).data,
   getClassExams: async (classId, options = {}) => (await api.get(`/classes/${classId}/exams`, options)).data,
   copyExam: async (examId, requestId) => (await api.post(`/exams/${examId}/copy`, { requestId })).data,

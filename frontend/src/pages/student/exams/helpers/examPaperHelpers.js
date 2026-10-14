@@ -13,6 +13,7 @@ export function formatRemainingTime(seconds) {
 export function getReviewStatus(question, value, review) {
   const hasAnswer = question.type === 'TRUE_FALSE' ? Object.values(value ?? {}).some((item) => typeof item === 'boolean') : isQuestionAnswered(question, value)
   if (!hasAnswer) return 'EMPTY'
+  if (question.type === 'ESSAY' && review?.score != null) return 'GRADED'
   if (review?.correct === true) return 'CORRECT'
   if (review?.correct === false) return 'WRONG'
   return 'PENDING'
