@@ -33,12 +33,15 @@ function ExamManagementPage() {
       publishExam,
       unpublishExam,
       publishingId,
+      copyExam,
+      copyingId,
     } = useExams()
 
   const navigate = useNavigate()
   const { state } = useLocation()
   const [resumeDraftOpen, setResumeDraftOpen] = useState(false)
   const [editingExam, setEditingExam] = useState(null)
+  const [assignmentMode, setAssignmentMode] = useState('edit')
   const [deletingExam, setDeletingExam] = useState(null)
   const [uiMessage, setUiMessage] = useState('')
   const deleting = deleteMutation.isPending
@@ -65,6 +68,17 @@ function ExamManagementPage() {
       return
     }
     navigate('/teacher/exams/create')
+  }
+
+  const handleCopy = async (exam) => {
+    try {
+      const result = await copyExam(exam.id)
+      if (!result) return
+      messageApi.success('Đã tạo bản nháp mới. Đề và kết quả cũ được giữ nguyên.')
+      navigate(`/teacher/exams/${result.id}`, { state: { copiedExam: true, sourceTitle: exam.title } })
+    } catch (error) {
+      messageApi.error(error.response?.data?.message || 'Không thể sao chép đề. Bạn có thể thử lại.')
+    }
   }
 
   const handlePublish = async (exam) => {
@@ -110,6 +124,7 @@ function ExamManagementPage() {
 }
 
   const handleEdit = (exam) => {
+    setAssignmentMode('edit')
     setActionError('')
     setEditingExam(exam)
   }
@@ -294,6 +309,9 @@ function ExamManagementPage() {
               onEdit={handleEdit}
               onDelete={handleDelete}
               onPublish={handlePublish}
+              onCopy={handleCopy}
+              copyingId={copyingId}
+              onReassign={(exam) => { setAssignmentMode('reassign'); setEditingExam(exam) }}
               publishingId={publishingId}
             />
           )}
@@ -301,10 +319,11 @@ function ExamManagementPage() {
 
       <ResumeExamDraftModal open={resumeDraftOpen} onClose={() => setResumeDraftOpen(false)} onContinue={() => { setResumeDraftOpen(false); navigate('/teacher/exams/create/online') }} onRestart={handleRestartDraft} />
       <EditExamModal
+        mode={assignmentMode}
         exam={editingExam}
         open={Boolean(editingExam)}
         onClose={() => { setEditingExam(null); setActionError('') }}
-        onSaved={(result) => { setEditingExam(null); setUiMessage('Đã lưu cấu hình đề thi.'); setExams((current = []) => current.map((item) => item.id === result.id ? { ...item, ...result.basicInfo } : item)) }}
+        onSaved={(result) => { setEditingExam(null); const text = assignmentMode === 'reassign' ? 'Đã mở đợt thi mới. Kết quả và lượt thi cũ được giữ nguyên.' : 'Đã lưu cấu hình đề thi.'; setUiMessage(text); messageApi.success(text); setExams((current = []) => current.map((item) => item.id === result.id ? { ...item, ...result.basicInfo } : item)) }}
       />
 
       <DeleteExamModal

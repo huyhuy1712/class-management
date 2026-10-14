@@ -12,7 +12,12 @@ public record ExamAttemptResponse(Long attemptId,Long assignmentId,int attemptNu
     public record Section(Long id,String title,String paragraph,ExamDetailResponse.Media imageMedia,
             ExamDetailResponse.Media audioMedia,List<Question> questions) {}
     public record Question(Long id,String content,String explanation,BigDecimal points,ExamDetailResponse.Media imageMedia,
-            ExamDetailResponse.Media audioMedia,List<Group> answers) {}
+            ExamDetailResponse.Media audioMedia,List<Group> answers,
+            ExamDetailResponse.Media explanationImageMedia,ExamDetailResponse.Media explanationAudioMedia) {
+        public Question(Long id,String content,String explanation,BigDecimal points,ExamDetailResponse.Media imageMedia,ExamDetailResponse.Media audioMedia,List<Group> answers) {
+            this(id,content,explanation,points,imageMedia,audioMedia,answers,null,null);
+        }
+    }
     public record Group(Long id,AnswerType answerType,String content,BigDecimal points,
             ExamDetailResponse.Media imageMedia,ExamDetailResponse.Media audioMedia,List<Option> options) {}
     public record Option(Long id,String content,ExamDetailResponse.Media imageMedia,ExamDetailResponse.Media audioMedia) {}
@@ -26,6 +31,8 @@ public record ExamAttemptResponse(Long attemptId,Long assignmentId,int attemptNu
             List<Section> sections,List<ExamAttemptPayload.Value> answers,List<Review> review,
             int tabSwitchCount,List<Event> events) {}
     public record Summary(Long attemptId,Long studentId,String fullName,int attemptNumber,
-            ExamAttemptStatus status,int tabSwitchCount,BigDecimal totalScore) {}
-    public record Page(List<Summary> items,int page,int size,long totalElements) {}
+            ExamAttemptStatus status,int tabSwitchCount,BigDecimal totalScore,String avatarUrl,String studentCode,String email,
+            OffsetDateTime startedAt,OffsetDateTime submittedAt,Integer durationSeconds,String teacherComment,boolean isFinal,Long revision) {}
+    public record Stats(long total,long notStarted,long inProgress,long submitted,long pendingGrading,long graded) {}
+    public record Page(List<Summary> items,int page,int size,long totalElements,Stats stats) {}
 }

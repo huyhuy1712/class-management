@@ -8,6 +8,8 @@ export function adaptAttemptSections(sections = []) {
     ...group, id: group.id, sourceQuestionId: question.id, type: types[group.answerType], content: question.content,
     displayNumber: question.answers.length > 1 ? `${questionNumber}.${index + 1}` : questionNumber,
     explanation: index === 0 ? question.explanation : null,
+    explanationImageMedia: index === 0 ? question.explanationImageMedia : null,
+    explanationAudioMedia: index === 0 ? question.explanationAudioMedia : null,
     groupContent: group.content, imageMedia: question.imageMedia, audioMedia: question.audioMedia,
     groupImageMedia: group.imageMedia, groupAudioMedia: group.audioMedia,
     optionRecords: group.options, options: ['SINGLE_CHOICE', 'MULTIPLE_CHOICE'].includes(group.answerType) ? group.options.map((option) => option.content) : undefined,

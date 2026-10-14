@@ -14,6 +14,8 @@ public interface ExamService {
 
     List<ExamListResponse> getMyExams(String username);
 
+    List<com.classmanagement.backend.dto.exam.ClassExamResponse> getClassExams(String username, Long classId);
+
     void deleteExam(Long examId, String username, boolean force);
 
 }

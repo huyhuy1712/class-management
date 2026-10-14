@@ -30,6 +30,13 @@ class ExamAttemptServiceTest {
     private boolean exists=true,eligible=true,released=false,includeShort,runExpiry;
     private int writes,resets,hidden,structureReads,completionMarks;
     private final ExamAttemptDataRepository data=new ExamAttemptDataRepository(null) {
+        @Override public boolean classAllowed(Long id,Long classId) { return classId==21L; }
+        @Override public ExamAttemptResponse.Page list(Long id,int page,int size,ExamAttemptStatus status,String q,String sort,Long classId) {
+            assertEquals("Student",q); assertEquals("name",sort);
+            return new ExamAttemptResponse.Page(List.of(new ExamAttemptResponse.Summary(10L,21L,"Student",1,ExamAttemptStatus.GRADED,0,
+                    BigDecimal.ONE,"avatar.png","ST-21","student@example.com",null,null,100,null,true,2L)),page,size,1,
+                    new ExamAttemptResponse.Stats(1,0,0,1,0,1));
+        }
         @Override public List<Ref> expired(LocalDateTime now) { return runExpiry?List.of(new Ref(10L,5L,21L,12L)):List.of(); }
         @Override public Optional<Long> assignmentExamId(Long id) { return Optional.of(5L); }
         @Override public Optional<Ref> ref(Long id) { return Optional.of(new Ref(id,5L,21L,12L)); }
@@ -52,18 +59,55 @@ class ExamAttemptServiceTest {
         @Override public List<ExamAttemptResponse.Event> readEvents(Long id) { return List.of(); }
     };
     private static LocalDateTime now() { return LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")); }
+    @Test void commentOnlyPreservesScoresAndAnswerRowsAndAllowsClear() {
+        service().submit(10L,"student",payload(List.of(choice(201))));
+        var score=attempt.getTotalScore(); int priorWrites=writes;
+        service().grade(10L,"teacher",new ExamAttemptPayload.Grades(1,attempt.getRevision(),null,"  Nhận xét  "));
+        assertEquals("Nhận xét",attempt.getTeacherComment());
+        assertEquals(score,attempt.getTotalScore()); assertEquals(priorWrites,writes);
+        service().grade(10L,"teacher",new ExamAttemptPayload.Grades(1,attempt.getRevision(),List.of(),"  "));
+        assertNull(attempt.getTeacherComment()); assertEquals(priorWrites,writes);
+    }
+    @Test void emptyGradePatchIsRejectedAndCommentCannotBypassRevisionOrState() {
+        assertThrows(ConflictException.class,()->service().grade(10L,"teacher",new ExamAttemptPayload.Grades(1,0L,null,"Hi")));
+        service().submit(10L,"student",payload(List.of(choice(201))));
+        assertThrows(ExamValidationException.class,()->service().grade(10L,"teacher",new ExamAttemptPayload.Grades(1,attempt.getRevision(),List.of(),null)));
+        assertThrows(ConflictException.class,()->service().grade(10L,"teacher",new ExamAttemptPayload.Grades(1,999L,null,"Hi")));
+    }
+    @Test void invalidSubmissionFiltersAreRejectedBeforeRepositoryReads() {
+        assertThrows(IllegalArgumentException.class,()->service().list(12L,"teacher",0,20,null,"x","injected sql",null));
+        assertThrows(IllegalArgumentException.class,()->service().list(12L,"teacher",0,20,null,"x".repeat(201),"newest",null));
+    }
+    @Test void ownerCanListCardsAndResolveAvatarButOthersCannot() {
+        var result=service().list(12L,"teacher",0,20,null,"  Student  ","name",null);
+        assertEquals("https://storage/avatar.png",result.items().getFirst().avatarUrl());
+        assertEquals(1,result.totalElements());
+        assertThrows(ResourceNotFoundException.class,()->service().list(12L,"otherTeacher",0,20,null,"Student","name",null));
+        assertThrows(IllegalStateException.class,()->service().list(12L,"student",0,20,null,"Student","name",null));
+    }
+    @Test void classFilterMustBePositiveAndBelongToAssignment() {
+        assertThrows(IllegalArgumentException.class,()->service().list(12L,"teacher",0,20,null,"Student","name",0L));
+        assertThrows(ResourceNotFoundException.class,()->service().list(12L,"teacher",0,20,null,"Student","name",99L));
+        assertEquals(1,service().list(12L,"teacher",0,20,null,"Student","name",21L).totalElements());
+    }
     @Test void explanationIsHiddenDuringAttemptAndReturnedOnlyWithAnswerPermission() {
         assertNull(service().get(10L,"student").sections().getFirst().questions().getFirst().explanation());
+        assertNull(service().get(10L,"student").sections().getFirst().questions().getFirst().explanationImageMedia());
+        assertNull(service().get(10L,"student").sections().getFirst().questions().getFirst().explanationAudioMedia());
         var hiddenResult=service().submit(10L,"student",payload(List.of(choice(201))));
         assertTrue(hiddenResult.sections().isEmpty());
         assignment.setAnswerVisibility(AnswerVisibility.AFTER_SUBMIT);
         assertEquals("Explanation secret",service().result(10L,"student").sections().getFirst().questions().getFirst().explanation());
+        assertNotNull(service().result(10L,"student").sections().getFirst().questions().getFirst().explanationImageMedia());
+        assertNotNull(service().result(10L,"student").sections().getFirst().questions().getFirst().explanationAudioMedia());
     }
     @Test void hideWrongAnswersAlsoHidesQuestionExplanationButTeacherCanReadIt() {
         assignment.setAnswerVisibility(AnswerVisibility.AFTER_SUBMIT);
         assignment.setHideCorrectAnswerOnWrong(true);
         var result=service().submit(10L,"student",payload(List.of(choice(202))));
         assertNull(result.sections().getFirst().questions().getFirst().explanation());
+        assertNull(result.sections().getFirst().questions().getFirst().explanationImageMedia());
+        assertNull(result.sections().getFirst().questions().getFirst().explanationAudioMedia());
         assertEquals("Explanation secret",service().result(10L,"teacher").sections().getFirst().questions().getFirst().explanation());
     }
     @Test void explanationWaitsForAfterExamRelease() {
@@ -197,7 +241,7 @@ class ExamAttemptServiceTest {
             }
         };
         return new ExamAttemptService(repo(UserRepository.class),repo(ExamRepository.class),repo(ExamAssignmentRepository.class),
-                repo(ExamAttemptRepository.class),access,paper,data);
+                repo(ExamAttemptRepository.class),access,paper,data,repo(com.classmanagement.backend.service.StorageService.class));
     }
     private List<ExamDetailResponse.Section> structure() {
         var groups=new ArrayList<ExamDetailResponse.Answer>();
@@ -207,7 +251,9 @@ class ExamAttemptServiceTest {
         if(includeShort) groups.add(new ExamDetailResponse.Answer(103L,2,AnswerType.SHORT_ANSWER,"secret",BigDecimal.ONE,ScoringType.PER_ANSWER,"secret",null,false,null,null,List.of(),List.of()));
         var points=new BigDecimal(includeShort?"3":"2");
         return List.of(new ExamDetailResponse.Section(1L,0,"Section",null,points,null,null,
-                List.of(new ExamDetailResponse.Question(11L,0,"Question","Explanation secret",points,null,null,groups))));
+                List.of(new ExamDetailResponse.Question(11L,0,"Question","Explanation secret",points,null,null,groups,
+                        new ExamDetailResponse.Media(UUID.randomUUID(),"https://example.com/explanation.png"),
+                        new ExamDetailResponse.Media(UUID.randomUUID(),"https://example.com/explanation.mp3")))));
     }
     private <T> T repo(Class<T> type) {
         return type.cast(Proxy.newProxyInstance(type.getClassLoader(),new Class<?>[]{type},(p,m,a)->switch(m.getName()) {
@@ -217,6 +263,8 @@ class ExamAttemptServiceTest {
             case "findSharedLockedBatch" -> List.of(exam);
             case "findAllById" -> List.of(assignment);
             case "findById" -> Optional.of(assignment);
+            case "findByIdAndExam_Teacher_Username" -> "teacher".equals(a[1])?Optional.of(assignment):Optional.empty();
+            case "getUrl" -> "https://storage/"+a[0];
             case "findLockedById" -> Optional.of(attempt);
             case "findLockedBatch" -> List.of(attempt);
             case "findLockedByAssignment_IdAndStudent_Id" -> exists?Optional.of(attempt):Optional.empty();

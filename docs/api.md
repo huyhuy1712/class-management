@@ -2742,6 +2742,55 @@ Test: publish đề chưa có lượt thi, nhấn Về nháp nhận 200; exams/a
 
 ## API bài làm học sinh — attempt runtime
 
+### Màn hình giáo viên xem phân công và bài làm
+
+Reuse 2 GET khi mở màn hình: `/api/exams/{examId}/configuration` lấy thông tin đề/assignment, sau đó `/api/exam-assignments/{assignmentId}/attempts` lấy trang bài làm của assignment đang chọn. Chỉ gọi `/api/exam-attempts/{attemptId}/result` khi mở một bài cụ thể, không gọi cho từng thẻ học sinh.
+
+Configuration bổ sung `createdAt` (LocalDateTime theo convention hiện có), `creator: {id, fullName, avatarUrl}` và `assignments[].classrooms: [{id, name, code}]`. Giữ nguyên classIds/studentIds/studentClasses cũ. CLASS trả lớp được chọn; STUDENT trả các lớp ngữ cảnh được lưu; ALL trả các lớp ACTIVE hiện tại của chủ đề (động, không snapshot). Một query projection đọc lớp cho toàn bộ assignment, không lazy-load từng classroom. Creator dùng teacher đã fetch cùng exam, avatarUrl được resolve qua StorageService hiện có.
+
+Danh sách bài làm:
+
+`classId` tùy chọn, số dương: bỏ để xem toàn phân công; gửi để danh sách/count/stats cùng phạm vi lớp. BE kiểm tra lớp thuộc giáo viên chủ đề và đúng target: ALL là lớp ACTIVE của giáo viên, CLASS có trong target classes, STUDENT có lớp ngữ cảnh đã lưu. Sai phạm vi trả 404, ID không dương trả 400; không được dùng classId lớp khác để xem học sinh. ALL/CLASS lọc thành viên hiện tại của lớp; STUDENT lọc đúng s.class_id được lưu, không thay thế bằng membership lớp khác. Assignment STUDENT legacy không có ngữ cảnh không xuất hiện ở lớp cụ thể nhưng vẫn xem được ở toàn phân công.
+
+Người nhận chưa bắt đầu được tính theo quyền hiện tại: user STUDENT ACTIVE và predicate ALL/CLASS/STUDENT dùng chung với API nhận đề. Học sinh mới vào lớp ALL/CLASS tự xuất hiện. Không nhân bản học sinh khi thuộc nhiều lớp vì dùng EXISTS. Bài đã có được giữ ở danh sách toàn assignment ngay cả khi học sinh mất membership hoặc không ACTIVE; trong danh sách lớp ALL/CLASS chỉ hiện nếu còn membership lớp đó (không có snapshot lớp lúc thi). Không ghi thêm attempt chỉ vì giáo viên mở danh sách. Đây là danh sách quản trị nên xem được cả phân công đề DRAFT, không phụ thuộc trạng thái xuất bản.
+
+Chưa có attempt: `attemptId=null`, `attemptNumber=0`, `status=NOT_STARTED`, `tabSwitchCount=0`, `totalScore=null`, `startedAt/submittedAt/durationSeconds/teacherComment/revision=null`, `isFinal=false`. FE dùng studentId làm key và vô hiệu nút xem/chấm/nhận xét nếu chưa có attemptId. Dòng NOT_STARTED có sẵn từ dữ liệu cũ vẫn có attemptId/revision nhưng chưa được chấm/nhận xét; luôn kiểm tra status.
+
+```text
+GET /api/exam-assignments/12/attempts?classId=21&page=0&size=20&q=Nguyen&status=SUBMITTED&sort=newest
+```
+
+page >= 0, size 1..100; status không bắt buộc nhận enum NOT_STARTED/IN_PROGRESS/SUBMITTED/GRADED. q không bắt buộc, trim, tối đa 200 ký tự, tìm không phân biệt hoa/thường theo tên, mã HS hoặc email; `%`, `_`, `!` được escape thành ký tự literal. Không tự bỏ dấu tiếng Việt. sort gồm newest (mặc định, updatedAt giảm), oldest (updatedAt tăng), name (tên tăng), score_desc, score_asc; luôn có studentId để ổn định thứ tự; timestamp/điểm null xếp cuối. Sort ngoài danh sách bị 400, không nối SQL do client gửi.
+
+Response ví dụ:
+
+```json
+{
+  "items":[{
+    "attemptId":10,"studentId":21,"fullName":"Nguyễn Văn A","attemptNumber":2,
+    "status":"GRADED","tabSwitchCount":1,"totalScore":8.5,
+    "avatarUrl":"http://localhost:8080/uploads/avatars/student.png",
+    "studentCode":"ST-21","email":"student@example.com",
+    "startedAt":"2026-10-14T10:00:00+07:00","submittedAt":"2026-10-14T10:30:00+07:00",
+    "durationSeconds":1800,"teacherComment":"Làm tốt","isFinal":true,"revision":7
+  }],
+  "page":0,"size":20,"totalElements":1,
+  "stats":{"total":8,"notStarted":1,"inProgress":2,"submitted":5,"pendingGrading":3,"graded":2}
+}
+```
+
+totalElements là số dòng khớp q/status cho phân trang. stats là thống kê trong phạm vi assignment/classId, không đổi theo q/status: submitted = SUBMITTED + GRADED (tổng bài đã nộp), pendingGrading = SUBMITTED (đang chờ chấm), graded = GRADED. Danh sách gồm người đang được giao và các bài đã có, LEFT JOIN exam_attempts; notStarted tính cả học sinh chưa có dòng attempt. isFinal chỉ true khi GRADED; điểm của SUBMITTED có thể còn tạm thời, IN_PROGRESS không nên hiển thị như điểm đã chấm. Chỉ giữ lượt cuối mỗi HS; attemptNumber là số lượt đã dùng, không trả lịch sử từng lượt. Trang vượt phạm vi vẫn trả items=[] cùng totalElements/stats. Hai query dữ liệu (trang + tổng hợp), ngoài query kiểm tra tài khoản/chủ assignment; không đọc đáp án/cây đề khi dựng danh sách.
+
+PATCH grades cho phép chỉ sửa nhận xét (vẫn cần attemptNumber/revision mới nhất từ list hoặc result):
+
+```json
+{"attemptNumber":2,"revision":7,"teacherComment":"Cần trình bày rõ hơn"}
+```
+
+grades được bỏ hoặc []; teacherComment phải khác null cho nhánh chỉ nhận xét. Chuỗi trắng xóa nhận xét; body không có cả điểm lẫn nhận xét bị 400. Chỉ bài đã nộp, đúng giáo viên sở hữu được sửa; lượt/revision cũ bị 409. Nhánh nhận xét không ghi lại đáp án/điểm hoặc đổi trạng thái chấm, nhưng response vẫn là result đầy đủ của giáo viên theo contract cũ. Nhánh gửi điểm tự luận giữ validation/chấm lại hiện có; teacherComment=null giữ nhận xét cũ. FE dùng revision mới từ response sau mỗi PATCH.
+
+Không thêm endpoint/migration/FE trong thay đổi này. Kiểm tra PostgreSQL thật sau restart: creator/tên lớp ALL/CLASS/STUDENT, tìm q chứa wildcard, trang rỗng, từng sort/status, stats không đổi theo bộ lọc; nhận xét riêng không đổi điểm/status, sai chủ/lượt/revision bị chặn.
+
 ### Giải thích câu hỏi (V58)
 
 `questions.explanation` là TEXT nullable, lời giải chung của một câu hỏi (không phải từng nhóm answers). Tái sử dụng POST `/api/exams` và PUT `/api/exams/{examId}/content`: gửi `sections[].questions[].explanation` là chuỗi tối đa 20000 ký tự. BE trim hai đầu, giữ xuống dòng bên trong; null/chuỗi trắng lưu null. PUT content là thay thế nội dung đầy đủ: bỏ field explanation cũng xóa lời giải, nên FE cần giữ/gửi lại field từ GET khi sửa đề. Payload cũ không có field vẫn hợp lệ.

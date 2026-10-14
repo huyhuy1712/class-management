@@ -12,6 +12,17 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ExamStructureValidatorTest {
+    @Test void explanationMediaIsValidatedAndIncludedInClaimWithoutExplanationText() {
+        var source=request(List.of(choice()),"1",assignment()).sections().getFirst();
+        var q=source.questions().getFirst();
+        var image=UUID.randomUUID(); var audio=UUID.randomUUID();
+        var valid=new Question(q.content(),null,null,null,q.points(),q.answers(),image,audio);
+        var summary=validator.validateContent(List.of(new Section(source.title(),null,null,null,List.of(valid))));
+        assertEquals(ExamMediaType.IMAGE,summary.mediaTypes().get(image));
+        assertEquals(ExamMediaType.AUDIO,summary.mediaTypes().get(audio));
+        var invalid=new Question(q.content(),null,null,null,q.points(),q.answers(),image,image);
+        assertThrows(ExamValidationException.class,()->validator.validateContent(List.of(new Section(source.title(),null,null,null,List.of(invalid)))));
+    }
     @Test void explanationAcceptsLimitAndRejectsOverflow() {
         var source=request(List.of(choice()),"1",assignment()).sections().getFirst();
         var q=source.questions().getFirst();

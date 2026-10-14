@@ -18,7 +18,11 @@ public record ExamDetailResponse(Long id, String code, ExamStatus status, BigDec
             BigDecimal points, Media imageMedia, Media audioMedia, List<Question> questions) {}
 
     public record Question(Long id, Integer orderIndex, String content, String explanation, BigDecimal points,
-            Media imageMedia, Media audioMedia, List<Answer> answers) {}
+            Media imageMedia, Media audioMedia, List<Answer> answers, Media explanationImageMedia, Media explanationAudioMedia) {
+        public Question(Long id, Integer orderIndex, String content, String explanation, BigDecimal points, Media imageMedia, Media audioMedia, List<Answer> answers) {
+            this(id, orderIndex, content, explanation, points, imageMedia, audioMedia, answers, null, null);
+        }
+    }
 
     public record Answer(Long id, Integer orderIndex, AnswerType answerType, String content,
             BigDecimal points, ScoringType scoringType, String correctAnswerText,

@@ -25,8 +25,9 @@ public class ExamAssignmentController {
     @GetMapping("/{assignmentId}/attempts")
     public ExamAttemptResponse.Page submissions(@PathVariable Long assignmentId,
             @RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="20") int size,
-            @RequestParam(required=false) ExamAttemptStatus status,Authentication auth) {
-        return attempts.list(assignmentId,auth.getName(),page,size,status);
+            @RequestParam(required=false) ExamAttemptStatus status,@RequestParam(required=false) String q,
+            @RequestParam(defaultValue="newest") String sort,@RequestParam(required=false) Long classId,Authentication auth) {
+        return attempts.list(assignmentId,auth.getName(),page,size,status,q,sort,classId);
     }
 
     @GetMapping("/{assignmentId}")

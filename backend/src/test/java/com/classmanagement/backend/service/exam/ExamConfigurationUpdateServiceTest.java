@@ -25,6 +25,30 @@ class ExamConfigurationUpdateServiceTest {
     private final ExamAssignment assignment = ExamAssignment.builder().id(8L).exam(exam)
             .status(ExamAssignmentStatus.DRAFT).timeLimit(5).maxAttempts(2).build();
     private boolean missing, attempts, persistFailure;
+    private ExamAssignment created;
+
+    @Test void opensSeparateRoundAndRetryDoesNotCreateAnotherOrTouchOldRound() {
+        exam.setStatus(ExamStatus.PUBLISHED);
+        var request = new CreateExamAssignmentRequest(UUID.randomUUID(), request(AnswerVisibility.AFTER_SUBMIT,null).assignment().toCreateAssignment(),90,1);
+        var service=service();
+        service.createAssignment(7L,"teacher",request);
+        assertEquals(9L,created.getId()); assertEquals(ExamAssignmentStatus.OPEN,created.getStatus());
+        assertEquals(90,created.getTimeLimit()); assertEquals(1,created.getMaxAttempts());
+        assertEquals(8L,assignment.getId()); assertEquals(5,assignment.getTimeLimit());
+        assertEquals("old",exam.getTitle());
+        assertEquals(1,Collections.frequency(calls,"snapshot-new"));
+        service.createAssignment(7L,"teacher",request);
+        assertEquals(1,Collections.frequency(calls,"save"));
+        assertEquals(1,Collections.frequency(calls,"snapshot-new"));
+    }
+    @Test void rejectsReassignmentForDraftOrPastClosingBeforeWriting() {
+        var input=request(AnswerVisibility.NEVER,null).assignment().toCreateAssignment();
+        assertThrows(ConflictException.class,()->service().createAssignment(7L,"teacher",new CreateExamAssignmentRequest(UUID.randomUUID(),input,90,1)));
+        exam.setStatus(ExamStatus.PUBLISHED);
+        var expired=new CreateCompleteExamRequest.Assignment(input.assignmentType(),input.classIds(),input.studentIds(),input.scoreVisibility(),input.answerVisibility(),null,false,null,java.time.LocalDateTime.of(2020,1,1,0,0));
+        assertThrows(ExamValidationException.class,()->service().createAssignment(7L,"teacher",new CreateExamAssignmentRequest(UUID.randomUUID(),expired,90,1)));
+        assertFalse(calls.contains("save"));
+    }
 
     @Test void updatesConfigurationAndOnlyChangedTargets() {
         service().update(7L, "teacher", request(AnswerVisibility.AFTER_SUBMIT, null));
@@ -101,28 +125,33 @@ class ExamConfigurationUpdateServiceTest {
                 return new Targets(List.of(Classroom.builder().id(12L).build(), Classroom.builder().id(13L).build()), List.of());
             }
         };
-        var config = new ExamConfigurationService(null, null, null, null) {
+        var config = new ExamConfigurationService(null, null, null, null, null) {
             @Override public ExamConfigurationResponse get(Long id, String username) { calls.add("response"); return null; }
         };
         return new ExamConfigurationUpdateService(repo(ExamRepository.class), repo(ExamAssignmentRepository.class),
                 repo(ExamAttemptRepository.class), repo(ExamAssignmentClassRepository.class),
                 repo(ExamAssignmentStudentRepository.class), repo(SubjectRepository.class),
-                new ExamStructureValidator(VALIDATOR), targets, config, VALIDATOR, repo(EntityManager.class));
+                new ExamStructureValidator(VALIDATOR), targets, config, VALIDATOR, repo(EntityManager.class), new ExamAttemptDataRepository(null) {
+                    @Override public void snapshotAssignment(Long id) { assertEquals(9L,id); calls.add("snapshot-new"); }
+                    @Override public void snapshot(Long id) { fail("Must not reset cohorts of old rounds"); }
+                });
     }
     private <T> T repo(Class<T> type) {
         return type.cast(Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (proxy, method, args) -> {
             calls.add(method.getName());
             return switch (method.getName()) {
                 case "findLockedByIdAndTeacher_Username" -> missing ? Optional.empty() : Optional.of(exam);
+                case "findByExam_IdAndCreationRequestId" -> created != null && created.getCreationRequestId().equals(args[1]) ? Optional.of(created) : Optional.empty();
+                case "save" -> { created=(ExamAssignment)args[0]; created.setId(9L); yield created; }
                 case "findLockedByIdAndExam_Id" -> { assertEquals(8L, args[0]); assertEquals(7L, args[1]); yield Optional.of(assignment); }
                 case "existsByAssignment_Id" -> attempts;
                 case "findById" -> Optional.of(Subject.builder().id(1L).build());
-                case "findAllByAssignment_IdIn" -> type == ExamAssignmentClassRepository.class
+                case "findAllByAssignment_IdIn" -> created != null ? List.of() : type == ExamAssignmentClassRepository.class
                         ? List.of(ExamAssignmentClass.builder().id(new ExamAssignmentClassId(8L, 12L)).build(),
                                 ExamAssignmentClass.builder().id(new ExamAssignmentClassId(8L, 14L)).build()) : List.of();
                 case "deleteTargets" -> { assertEquals(Set.of(14L), args[1]); yield 1; }
                 case "persist" -> {
-                    assertEquals(13L, ((ExamAssignmentClass) args[0]).getId().getClassId());
+                    if (created == null) assertEquals(13L, ((ExamAssignmentClass) args[0]).getId().getClassId());
                     if (persistFailure) throw new IllegalStateException("write failed"); yield null;
                 }
                 case "flush" -> null;

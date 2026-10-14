@@ -139,6 +139,19 @@ public class SupabaseStorageService implements StorageService {
                 + encodePath(objectPath);
     }
 
+    @Override
+    public void copy(String sourcePath, String targetPath) {
+        try {
+            restClient.post().uri(supabaseUrl + "/storage/v1/object/copy")
+                    .header("Authorization", "Bearer " + secretKey).header("apikey", secretKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(java.util.Map.of("bucketId", bucket, "sourceKey", sourcePath, "destinationKey", targetPath))
+                    .retrieve().toBodilessEntity();
+        } catch (Exception e) {
+            throw new IllegalStateException("Không thể sao chép tệp đề thi trên Storage", e);
+        }
+    }
+
     // =====================================================
     // HELPERS
     // =====================================================

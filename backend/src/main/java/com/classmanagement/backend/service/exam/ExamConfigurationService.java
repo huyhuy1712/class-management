@@ -23,6 +23,7 @@ public class ExamConfigurationService {
     private final ExamAssignmentRepository assignmentRepository;
     private final ExamAssignmentClassRepository classRepository;
     private final ExamAssignmentStudentRepository studentRepository;
+    private final com.classmanagement.backend.service.StorageService storage;
 
     @Transactional(readOnly = true)
     public ExamConfigurationResponse get(Long examId, String username) {
@@ -49,6 +50,12 @@ public class ExamConfigurationService {
                         s -> new ExamConfigurationResponse.StudentClassContext(s.getId().getStudentId(),
                                 s.getClassroom() == null ? null : s.getClassroom().getId()), Collectors.toList())));
         var subject = exam.getSubject();
+        var classroomRows=assignmentIds.isEmpty()?List.<ExamAssignmentClassRepository.ClassroomSummary>of()
+                :classRepository.findClassroomSummaries(assignmentIds);
+        var classrooms=classroomRows.stream().collect(Collectors.groupingBy(
+                ExamAssignmentClassRepository.ClassroomSummary::getAssignmentId,Collectors.mapping(
+                        c->new ExamConfigurationResponse.ClassroomInfo(c.getId(),c.getName(),c.getCode()),Collectors.toList())));
+        var teacher=exam.getTeacher();
         return new ExamConfigurationResponse(exam.getId(), exam.getCode(), exam.getStatus(),
                 exam.getMaxScore(), exam.getUpdatedAt(),
                 new ExamConfigurationResponse.BasicInfo(exam.getTitle(),
@@ -61,8 +68,10 @@ public class ExamConfigurationService {
                                 a.getTimeLimit(), a.getMaxAttempts(), a.getScoreVisibility(),
                                 a.getAnswerVisibility(), a.getAnswerVisibilityScore(),
                                 a.getHideCorrectAnswerOnWrong(), a.getOpenTime(), a.getCloseTime(),
-                                a.getUpdatedAt(), contexts.getOrDefault(a.getId(), List.of())))
-                        .toList(), exam.getRevision());
+                                a.getUpdatedAt(), contexts.getOrDefault(a.getId(), List.of()),classrooms.getOrDefault(a.getId(),List.of())))
+                        .toList(), exam.getRevision(),exam.getCreatedAt(),teacher==null?null:
+                        new ExamConfigurationResponse.Creator(teacher.getId(),teacher.getFullName(),
+                                teacher.getAvatar()==null||teacher.getAvatar().isBlank()?null:storage.getUrl(teacher.getAvatar())));
     }
 
     private static List<Long> sortedIds(List<Long> ids) {

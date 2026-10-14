@@ -96,4 +96,20 @@ public class LocalStorageService implements StorageService {
                 + "/uploads/"
                 + objectPath.replace("\\", "/");
     }
+
+    @Override
+    public void copy(String sourcePath, String targetPath) {
+        Path root = Paths.get(localDir).toAbsolutePath().normalize();
+        Path source = root.resolve(sourcePath).normalize();
+        Path target = root.resolve(targetPath).normalize();
+        if (!source.startsWith(root) || !target.startsWith(root) || source.equals(target)) {
+            throw new IllegalArgumentException("Đường dẫn sao chép không hợp lệ");
+        }
+        try {
+            Files.createDirectories(target.getParent());
+            Files.copy(source, target);
+        } catch (IOException e) {
+            throw new IllegalStateException("Không thể sao chép tệp đề thi", e);
+        }
+    }
 }

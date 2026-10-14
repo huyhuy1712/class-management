@@ -12,6 +12,7 @@ export const createSection = (index) => ({
 
 export const createQuestion = (index) => ({
   id: crypto.randomUUID(), content: '', explanation: '', imageFile: null, audioFile: null, point: 1,
+  explanationImageFile: null, explanationAudioFile: null,
   orderIndex: index + 1, scoringType: 'PER_QUESTION', answerGroups: [],
 })
 export const createAnswer = (type, index) => ({

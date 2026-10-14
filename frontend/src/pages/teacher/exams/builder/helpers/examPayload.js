@@ -69,6 +69,8 @@ export function buildExamPayload(config, sections, draftToken) {
       title: section.title?.trim() ?? '', paragraph: section.paragraph?.trim() || null, ...mediaFields(section),
       questions: section.questions.map((question) => ({
         content: question.content?.trim() ?? '', explanation: question.explanation?.trim() || null, points: getQuestionScore(question),
+        explanationImageMediaId: question.explanationImageMedia?.mediaId ?? null,
+        explanationAudioMediaId: question.explanationAudioMedia?.mediaId ?? null,
         ...mediaFields(question), answers: question.answerGroups.map(buildAnswer),
       })),
     })),

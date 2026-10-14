@@ -92,7 +92,7 @@ public class ExamDetailService {
                 question.getExplanation(), question.getPoints(), media.image(question.getImageUrl()), media.audio(question.getAudioUrl()),
                 answers.getOrDefault(question.getId(), List.of()).stream().map(a -> answerResponse(a,
                         options.getOrDefault(a.getId(), List.of()), rules.getOrDefault(a.getId(), List.of()), media))
-                        .toList());
+                        .toList(), media.image(question.getExplanationImageUrl()), media.audio(question.getExplanationAudioUrl()));
     }
 
     private static ExamDetailResponse.Answer answerResponse(Answer answer, List<AnswerOption> options,

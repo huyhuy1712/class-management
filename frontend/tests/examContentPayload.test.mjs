@@ -7,6 +7,10 @@ const sections = [{ id: 1, title: 'Phần', paragraph: 'Đoạn văn', questions
 test('create and edit send explanation with math and send null when removed', () => {
   const input = structuredClone(sections)
   input[0].questions[0].explanation = '  Vì $x=2$, đáp án là B.  '
+  input[0].questions[0].explanationImageMedia = { mediaId: 'solution-image' }
+  input[0].questions[0].explanationAudioMedia = { mediaId: 'solution-audio' }
+  assert.equal(buildExamContentPayload(input, 4).sections[0].questions[0].explanationImageMediaId, 'solution-image')
+  assert.equal(buildExamContentPayload(input, 4).sections[0].questions[0].explanationAudioMediaId, 'solution-audio')
   assert.equal(buildExamPayload({}, input).sections[0].questions[0].explanation, 'Vì $x=2$, đáp án là B.')
   assert.equal(buildExamContentPayload(input, 4).sections[0].questions[0].explanation, 'Vì $x=2$, đáp án là B.')
   input[0].questions[0].explanation = ''

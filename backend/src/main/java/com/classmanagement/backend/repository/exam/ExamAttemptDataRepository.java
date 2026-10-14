@@ -18,6 +18,42 @@ public class ExamAttemptDataRepository {
     @org.springframework.beans.factory.annotation.Value("${app.exam.expiry-batch-size:20}")
     private int expiryBatchSize=20;
     public record Ref(Long id,Long examId,Long studentId,Long assignmentId) {}
+    public boolean ownsExamClass(String username, Long classId) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("""
+                select exists(select 1 from classes c join users u on u.id=c.teacher_id
+                    where c.id=:classId and u.username=:username and u.role='TEACHER' and u.status='ACTIVE')
+                """, p("classId", classId, "username", username), Boolean.class));
+    }
+
+    public List<ClassExamResponse> classExams(Long classId) {
+        return jdbc.query("""
+                select a.id assignment_id, e.id exam_id, e.title, e.code, e.status exam_status,
+                    a.status assignment_status, a.assignment_type, coalesce(a.time_limit,e.time_limit) time_limit,
+                    a.open_time, a.close_time, a.created_at,
+                    count(t.id) filter (where t.status='GRADED') graded_count,
+                    count(t.id) filter (where t.status='SUBMITTED') pending_count
+                from classes c join exams e on e.teacher_id=c.teacher_id
+                join exam_assignments a on a.exam_id=e.id
+                left join exam_attempts t on t.assignment_id=a.id and (
+                    (a.assignment_type='STUDENT' and exists (
+                        select 1 from exam_assignment_students s where s.assignment_id=a.id
+                            and s.student_id=t.student_id and s.class_id=c.id))
+                    or (a.assignment_type<>'STUDENT' and exists (
+                        select 1 from class_students cs where cs.class_id=c.id and cs.student_id=t.student_id)))
+                where c.id=:classId and (
+                    (a.assignment_type='ALL' and c.status='ACTIVE')
+                    or (a.assignment_type='CLASS' and exists (
+                        select 1 from exam_assignment_classes ac where ac.assignment_id=a.id and ac.class_id=c.id))
+                    or (a.assignment_type='STUDENT' and exists (
+                        select 1 from exam_assignment_students s where s.assignment_id=a.id and s.class_id=c.id)))
+                group by a.id,e.id
+                order by a.created_at desc, a.id desc
+                """, p("classId",classId), (r,i) -> new ClassExamResponse(r.getLong("assignment_id"),r.getLong("exam_id"),
+                    r.getString("title"),r.getString("code"),r.getString("exam_status"),r.getString("assignment_status"),
+                    r.getString("assignment_type"),r.getObject("time_limit",Integer.class),
+                    r.getObject("open_time",LocalDateTime.class),r.getObject("close_time",LocalDateTime.class),
+                    r.getObject("created_at",LocalDateTime.class),r.getLong("graded_count"),r.getLong("pending_count")));
+    }
     private static MapSqlParameterSource p(Object... items) {
         var p=new MapSqlParameterSource(); for(int i=0;i<items.length;i+=2) p.addValue((String)items[i],items[i+1]); return p;
     }
@@ -122,6 +158,10 @@ public class ExamAttemptDataRepository {
         jdbc.update("insert into exam_assignment_completion_students(assignment_id,student_id) select a.id,u.id from exam_assignments a join exams e on e.id=a.exam_id cross join users u where a.exam_id=:id and u.role='STUDENT' and u.status='ACTIVE' and "
                 +StudentExamReadRepository.ELIGIBILITY.replace(":studentId","u.id"),p("id",examId));
     }
+    public void snapshotAssignment(Long assignmentId) {
+        jdbc.update("insert into exam_assignment_completion_students(assignment_id,student_id) select a.id,u.id from exam_assignments a join exams e on e.id=a.exam_id cross join users u where a.id=:id and u.role='STUDENT' and u.status='ACTIVE' and "
+                +StudentExamReadRepository.ELIGIBILITY.replace(":studentId","u.id"),p("id",assignmentId));
+    }
     public void completed(Long assignmentId,Long studentId,LocalDateTime now) {
         jdbc.update("update exam_assignment_completion_students set completed_at=coalesce(completed_at,:now) where assignment_id=:id and student_id=:student",p("id",assignmentId,"student",studentId,"now",now));
     }
@@ -131,11 +171,39 @@ public class ExamAttemptDataRepository {
         jdbc.update("update exam_assignments set results_released_at=:now where id=:id and results_released_at is null and not exists (select 1 from exam_assignment_completion_students r where r.assignment_id=:id and r.completed_at is null and r.exempt_at is null)",p("id",assignmentId,"now",now));
         return Boolean.TRUE.equals(jdbc.queryForObject("select results_released_at is not null from exam_assignments where id=:id",p("id",assignmentId),Boolean.class));
     }
-    public ExamAttemptResponse.Page list(Long assignmentId,int page,int size,ExamAttemptStatus status) {
-        var p=p("id",assignmentId,"status",status==null?null:status.name(),"limit",size,"offset",(long)page*size);
-        String from=" from exam_attempts t join users u on u.id=t.student_id where t.assignment_id=:id and (cast(:status as varchar) is null or t.status=:status)";
-        var items=jdbc.query("select t.id,t.student_id,u.full_name,t.attempt_count,t.status,t.tab_switch_count,t.total_score"+from+" order by t.updated_at desc,t.id desc limit :limit offset :offset",p,
-                (r,i)->new ExamAttemptResponse.Summary(r.getLong(1),r.getLong(2),r.getString(3),r.getInt(4),ExamAttemptStatus.valueOf(r.getString(5)),r.getInt(6),r.getBigDecimal(7)));
-        return new ExamAttemptResponse.Page(items,page,size,jdbc.queryForObject("select count(*)"+from,p,Long.class));
+    public boolean classAllowed(Long assignmentId,Long classId) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("""
+                select exists(select 1 from exam_assignments a join exams e on e.id=a.exam_id
+                  join classes c on c.teacher_id=e.teacher_id where a.id=:id and c.id=:classId and (
+                    (a.assignment_type='ALL' and c.status='ACTIVE')
+                    or (a.assignment_type='CLASS' and exists(select 1 from exam_assignment_classes ac where ac.assignment_id=a.id and ac.class_id=c.id))
+                    or (a.assignment_type='STUDENT' and exists(select 1 from exam_assignment_students s where s.assignment_id=a.id and s.class_id=c.id))
+                  ))
+                """,p("id",assignmentId,"classId",classId),Boolean.class));
     }
+    public ExamAttemptResponse.Page list(Long assignmentId,int page,int size,ExamAttemptStatus status,String q,String sort,Long classId) {
+        String escaped=q.toLowerCase(Locale.ROOT).replace("!","!!").replace("%","!%").replace("_","!_");
+        var p=p("id",assignmentId,"classId",classId,"status",status==null?null:status.name(),"q",q,"pattern","%"+escaped+"%","limit",size,"offset",(long)page*size);
+        // Current recipients plus existing attempts: membership changes must not erase submitted work.
+        String from=" from exam_assignments a join exams e on e.id=a.exam_id cross join users u left join exam_attempts t on t.assignment_id=a.id and t.student_id=u.id where a.id=:id and u.role='STUDENT' and (t.id is not null or (u.status='ACTIVE' and "
+                +StudentExamReadRepository.ELIGIBILITY.replace(":studentId","u.id")+"))";
+        if(classId!=null) from+=" and ((a.assignment_type='STUDENT' and exists(select 1 from exam_assignment_students s where s.assignment_id=a.id and s.student_id=u.id and s.class_id=:classId)) or (a.assignment_type in ('ALL','CLASS') and exists(select 1 from class_students cs join classes c on c.id=cs.class_id where cs.student_id=u.id and cs.class_id=:classId and (t.id is not null or c.status='ACTIVE'))))";
+        String filter="(cast(:status as varchar) is null or coalesce(t.status,'NOT_STARTED')=:status) and (:q='' or lower(u.full_name) like :pattern escape '!' or lower(u.email) like :pattern escape '!' or lower(u.student_code) like :pattern escape '!')";
+        String order=switch(sort) {
+            case "oldest"->"t.updated_at asc nulls last,u.id asc";
+            case "name"->"lower(u.full_name) asc,u.id asc";
+            case "score_desc"->"t.total_score desc nulls last,u.id desc";
+            case "score_asc"->"t.total_score asc nulls last,u.id asc";
+            case "newest"->"t.updated_at desc nulls last,u.id desc";
+            default->throw new IllegalArgumentException("sort không hợp lệ");
+        };
+        var items=jdbc.query("select t.id,u.id,u.full_name,coalesce(t.attempt_count,0),coalesce(t.status,'NOT_STARTED'),coalesce(t.tab_switch_count,0),t.total_score,u.avatar,u.student_code,u.email,t.started_at,t.submitted_at,t.duration_seconds,t.teacher_comment,t.revision"+from+" and "+filter+" order by "+order+" limit :limit offset :offset",p,
+                (r,i)->new ExamAttemptResponse.Summary(r.getObject(1,Long.class),r.getLong(2),r.getString(3),r.getInt(4),ExamAttemptStatus.valueOf(r.getString(5)),r.getInt(6),r.getBigDecimal(7),
+                        r.getString(8),r.getString(9),r.getString(10),time(r.getObject(11,LocalDateTime.class)),time(r.getObject(12,LocalDateTime.class)),
+                        r.getObject(13,Integer.class),r.getString(14),"GRADED".equals(r.getString(5)),r.getObject(15,Long.class)));
+        // One aggregate supplies global counters and the filtered pagination count, including empty pages.
+        return jdbc.queryForObject("select count(*) filter (where "+filter+"),count(*),count(*) filter (where t.id is null or t.status='NOT_STARTED'),count(*) filter (where t.status='IN_PROGRESS'),count(*) filter (where t.status='SUBMITTED'),count(*) filter (where t.status='GRADED')"+from,p,
+                (r,i)->new ExamAttemptResponse.Page(items,page,size,r.getLong(1),new ExamAttemptResponse.Stats(r.getLong(2),r.getLong(3),r.getLong(4),r.getLong(5)+r.getLong(6),r.getLong(5),r.getLong(6))));
+    }
+    private static OffsetDateTime time(LocalDateTime value) { return value==null?null:value.atOffset(ZoneOffset.ofHours(7)); }
 }

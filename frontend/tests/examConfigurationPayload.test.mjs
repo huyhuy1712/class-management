@@ -1,8 +1,19 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { buildExamConfigurationPayload } from '../src/pages/teacher/exams/helpers/examConfigurationPayload.js'
+import { buildExamConfigurationPayload, buildNewAssignmentPayload } from '../src/pages/teacher/exams/helpers/examConfigurationPayload.js'
 
 const form = { title: ' Đề mới ', subjectId: '2', gradeLevel: '10', timeLimit: '60', maxAttempts: '1', accessType: 'CLASS', classIds: ['21', 21], studentIds: [7], scoreVisibility: 'AFTER_SUBMIT', answerVisibility: 'NEVER', hideWrongAnswers: true, openTime: '', closeTime: '2026-10-10T17:00' }
+test('reassignment creates a separate round payload without exam edits or old assignment identity', () => {
+  const payload = buildNewAssignmentPayload({ ...form, accessType: 'STUDENT', classId: '21', studentIds: [7], closeTime: '' }, 'stable-request')
+  assert.equal(payload.requestId, 'stable-request')
+  assert.equal(payload.timeLimit, 60)
+  assert.equal(payload.maxAttempts, 1)
+  assert.equal(payload.basicInfo, undefined)
+  assert.equal(payload.assignment.id, undefined)
+  assert.equal(payload.assignment.classId, 21)
+  assert.deepEqual(payload.assignment.studentIds, [7])
+  assert.equal(payload.assignment.closeTime, null)
+})
 test('new update payload preserves assignment identity and threshold while mapping edited fields', () => {
   const result = buildExamConfigurationPayload(form, { id: 3, threshold: 5 })
   assert.equal(result.basicInfo.title, 'Đề mới')

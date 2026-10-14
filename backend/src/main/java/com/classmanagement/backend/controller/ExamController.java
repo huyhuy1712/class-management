@@ -45,6 +45,18 @@ public class ExamController {
     private final ExamConfigurationUpdateService configurationUpdateService;
     private final ExamContentUpdateService contentUpdateService;
     private final ExamPublishService publishService;
+    private final com.classmanagement.backend.service.exam.ExamCreationService creationService;
+
+    @PostMapping("/{examId}/copy")
+    public ResponseEntity<ExamDetailResponse> copyExam(@PathVariable Long examId,
+            @Valid @RequestBody com.classmanagement.backend.dto.exam.CopyExamRequest request, Authentication auth) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(creationService.copy(examId, auth.getName(), request));
+    }
+    @PostMapping("/{examId}/assignments")
+    public ResponseEntity<ExamConfigurationResponse> createAssignment(@PathVariable Long examId,
+            @Valid @RequestBody com.classmanagement.backend.dto.exam.CreateExamAssignmentRequest request, Authentication auth) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(configurationUpdateService.createAssignment(examId,auth.getName(),request));
+    }
 
     @PatchMapping("/{examId}/publish")
     public ResponseEntity<PublishExamResponse> publish(@PathVariable Long examId, Authentication authentication) {

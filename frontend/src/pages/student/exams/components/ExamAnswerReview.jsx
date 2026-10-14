@@ -24,7 +24,7 @@ export default function ExamAnswerReview({ result }) {
       {correctOptions.map((option) => <div key={option.id} className="mt-2"><MathRenderer content={`Đáp án: ${option.content}`} /><ExamMedia {...option} /></div>)}
       {item?.correctBooleans?.map((answer) => <p key={answer.optionId} className="mt-2"><MathRenderer content={question.optionRecords.find((option) => option.id === answer.optionId)?.content ?? ''} />: {answer.value ? 'Đúng' : 'Sai'}</p>)}
       {!item?.correctText && !correctOptions.length && !item?.correctBooleans?.length && <p className="mt-2 text-slate-500">Không có đáp án đúng được công bố cho mục này.</p>}
-      {question.explanation && <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/60 p-4"><p className="mb-2 flex items-center gap-2 font-semibold text-amber-800"><Lightbulb size={17} />Giải thích</p><p className="whitespace-pre-wrap break-words leading-7"><MathRenderer content={question.explanation} /></p></div>}
+      {(question.explanation || question.explanationImageMedia || question.explanationAudioMedia) && <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/60 p-4"><p className="mb-2 flex items-center gap-2 font-semibold text-amber-800"><Lightbulb size={17} />Giải thích</p>{question.explanation && <p className="whitespace-pre-wrap break-words leading-7"><MathRenderer content={question.explanation} /></p>}<ExamMedia imageMedia={question.explanationImageMedia} audioMedia={question.explanationAudioMedia} /></div>}
     </details></div>
   })}</section>)}</div><ExamQuestionNavigator questions={questions} answers={answers} answered={answered} reviewStatuses={reviewStatuses} itemLabel="mục" /></div>
 }

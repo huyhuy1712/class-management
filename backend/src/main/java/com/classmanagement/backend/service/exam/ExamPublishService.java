@@ -132,7 +132,7 @@ public class ExamPublishService {
 
     private static UUID media(ExamDetailResponse.Media value) { return value == null ? null : value.mediaId(); }
 
-    private static CreateCompleteExamRequest.Section section(ExamDetailResponse.Section s) {
+    static CreateCompleteExamRequest.Section section(ExamDetailResponse.Section s) {
         return new CreateCompleteExamRequest.Section(s.title(), s.paragraph(), media(s.imageMedia()), media(s.audioMedia()),
                 s.questions().stream().map(q -> new CreateCompleteExamRequest.Question(q.content(), q.explanation(), media(q.imageMedia()),
                         media(q.audioMedia()), q.points(), q.answers().stream().map(a -> new CreateCompleteExamRequest.Answer(
@@ -141,6 +141,6 @@ public class ExamPublishService {
                                         .map(o -> new CreateCompleteExamRequest.Option(o.content(), media(o.imageMedia()),
                                                 media(o.audioMedia()), o.isCorrect(), o.points())).toList(),
                                 a.scoringRules().stream().map(r -> new CreateCompleteExamRequest.ScoringRule(
-                                        r.correctCount(), r.score())).toList())).toList())).toList());
+                                        r.correctCount(), r.score())).toList())).toList(), media(q.explanationImageMedia()), media(q.explanationAudioMedia()))).toList());
     }
 }

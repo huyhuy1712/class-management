@@ -1,5 +1,6 @@
 import {
   ClipboardCheck,
+  Copy,
   FileText,
   Pencil,
   Trash2,
@@ -17,6 +18,9 @@ function ExamTable({
   onEdit,
   onDelete,
   onPublish,
+  onReassign,
+  onCopy,
+  copyingId = null,
   publishingId = null,
   
 }) {
@@ -117,6 +121,14 @@ function ExamTable({
                 {/* ACTION */}
                 <td className="px-6 py-5">
                     <div className="flex items-center justify-end gap-1">
+                        <Tooltip title="Sao chép thành bản nháp mới để sửa và giao lại">
+                          <button type="button" aria-label={`Sao chép đề ${exam.title}`} disabled={copyingId !== null}
+                            onClick={(event) => { event.stopPropagation(); onCopy?.(exam) }}
+                            className="inline-flex items-center gap-1 rounded-lg p-2 text-emerald-700 hover:bg-emerald-50 disabled:opacity-50">
+                            <Copy size={18} />{copyingId === exam.id && <span className="whitespace-nowrap text-xs">Đang sao chép…</span>}
+                          </button>
+                        </Tooltip>
+                        {exam.status === 'PUBLISHED' && <button type="button" onClick={(event) => { event.stopPropagation(); onReassign?.(exam) }} className="inline-flex h-7 items-center whitespace-nowrap rounded-md border border-emerald-200 bg-emerald-50 px-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">Giao lại</button>}
                         {['DRAFT', 'PUBLISHED'].includes(exam.status) && <button type="button" disabled={publishingId !== null}
                           onClick={(event) => { event.stopPropagation(); onPublish?.(exam) }}
                           className="inline-flex h-7 items-center whitespace-nowrap rounded-md border border-green-200 bg-green-50 px-2 text-xs font-medium leading-none text-green-700 transition hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50">

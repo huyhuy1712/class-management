@@ -8,6 +8,8 @@ const withMediaChanges = (changes) => ({
   ...changes,
   ...('imageFile' in changes ? { imageMedia: null } : {}),
   ...('audioFile' in changes ? { audioMedia: null } : {}),
+  ...('explanationImageFile' in changes ? { explanationImageMedia: null } : {}),
+  ...('explanationAudioFile' in changes ? { explanationAudioMedia: null } : {}),
 })
 
 function useExamBuilder({ initialSections, persistDraft = true } = {}) {

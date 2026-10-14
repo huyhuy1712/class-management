@@ -30,6 +30,10 @@ public class Question {
 
     @Column(columnDefinition = "TEXT")
     private String explanation;
+    @Column(name = "explanation_image_url", columnDefinition = "TEXT")
+    private String explanationImageUrl;
+    @Column(name = "explanation_audio_url", columnDefinition = "TEXT")
+    private String explanationAudioUrl;
 
     @Column(name = "image_url", columnDefinition = "TEXT")
     private String imageUrl;

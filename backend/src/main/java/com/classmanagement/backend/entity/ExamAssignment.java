@@ -18,6 +18,8 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @Builder
 public class ExamAssignment {
+    @Column(name="creation_request_id")
+    private java.util.UUID creationRequestId;
     @Column(name="results_released_at")
     private LocalDateTime resultsReleasedAt;
 

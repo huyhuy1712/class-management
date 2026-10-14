@@ -28,6 +28,11 @@ export function resourceOptions(resource, params) {
     },
     requests: ({ signal }) => requestService.getReceivedJoinClassRequests({ signal }),
     exams: ({ signal }) => examService.getMyExams({ signal }),
+    classExams: ({ signal }) => examService.getClassExams(params[0], { signal }),
+    teacherAssignmentAttempts: ({ signal }) => examService.getAssignmentAttempts(params[0], {
+      ...(params[1] ? { classId: Number(params[1]) } : {}), page: Number(params[2] ?? 0), size: Number(params[3] ?? 12),
+      q: params[4] ?? '', ...(params[5] ? { status: params[5] } : {}), sort: params[6] ?? 'newest',
+    }, { signal }),
     examDetail: ({ signal }) => examService.getExamDetail(params[0], { signal }),
     examConfiguration: ({ signal }) => examService.getExamConfiguration(params[0], { signal }),
     subjects: ({ signal }) => subjectService.getAll({ signal }),
@@ -37,6 +42,6 @@ export function resourceOptions(resource, params) {
     examAttemptResult: ({ signal }) => examService.getAttemptResult(params[0], { signal }),
   }
   if (!readers[resource]) throw new Error(`Unknown query resource: ${resource}`)
-  const realtime = ['notifications', 'requests', 'lessons', 'studentExams', 'studentAssignment'].includes(resource)
+  const realtime = ['notifications', 'requests', 'lessons', 'studentExams', 'studentAssignment', 'classExams', 'teacherAssignmentAttempts'].includes(resource)
   return { queryFn: readers[resource], staleTime: realtime ? 15_000 : resource === 'subjects' ? 30 * 60_000 : 60_000, ...(realtime ? { refetchInterval: 60_000 } : {}) }
 }

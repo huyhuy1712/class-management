@@ -37,7 +37,10 @@ class ExamConfigurationServiceTest {
                 .mapToObj(id -> ExamAssignment.builder().id(id).build()).toList();
         var response = service().get(7L, owner);
         assertEquals(100, response.assignments().size());
-        assertEquals(4, calls.size());
+        assertEquals(5, calls.size());
+        assertEquals("Lớp 12A",response.assignments().getFirst().classrooms().getFirst().name());
+        assertEquals("Teacher",response.creator().fullName());
+        assertEquals(java.time.LocalDateTime.of(2026,10,14,12,0),response.createdAt());
         assertEquals(List.of(12L, 13L), response.assignments().getFirst().classIds());
         assertEquals(List.of(22L), response.assignments().getFirst().studentIds());
         assertTrue(response.assignments().getLast().classIds().isEmpty());
@@ -47,7 +50,7 @@ class ExamConfigurationServiceTest {
     private ExamConfigurationService service() {
         return new ExamConfigurationService(repository(ExamRepository.class),
                 repository(ExamAssignmentRepository.class), repository(ExamAssignmentClassRepository.class),
-                repository(ExamAssignmentStudentRepository.class));
+                repository(ExamAssignmentStudentRepository.class),null);
     }
 
     private <T> T repository(Class<T> type) {
@@ -55,9 +58,20 @@ class ExamConfigurationServiceTest {
             calls.add(method.getName());
             if (method.getName().equals("findByIdAndTeacher_Username")) {
                 assertEquals(7L, args[0]);
-                return owner.equals(args[1]) ? Optional.of(Exam.builder().id(7L).maxAttempts(0).build()) : Optional.empty();
+                return owner.equals(args[1]) ? Optional.of(Exam.builder().id(7L).maxAttempts(0)
+                        .createdAt(java.time.LocalDateTime.of(2026,10,14,12,0))
+                        .teacher(User.builder().id(9L).fullName("Teacher").build()).build()) : Optional.empty();
             }
             if (method.getName().equals("findAllByExam_Id")) return assignments;
+            if (method.getName().equals("findClassroomSummaries")) {
+                assertEquals(100,((Collection<?>)args[0]).size());
+                return List.of(new ExamAssignmentClassRepository.ClassroomSummary() {
+                    public Long getAssignmentId() { return 1L; }
+                    public Long getId() { return 12L; }
+                    public String getName() { return "Lớp 12A"; }
+                    public String getCode() { return "12A"; }
+                });
+            }
             if (method.getName().equals("findAllByAssignment_IdIn")) {
                 assertEquals(100, ((Collection<?>) args[0]).size());
                 if (type == ExamAssignmentClassRepository.class) return List.of(

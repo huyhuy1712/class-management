@@ -11,5 +11,9 @@ public interface StorageService {
 
     void delete(String objectPath);
 
+    default void copy(String sourcePath, String targetPath) {
+        throw new UnsupportedOperationException("Storage chưa hỗ trợ sao chép tệp");
+    }
+
     String getUrl(String objectPath);
 }

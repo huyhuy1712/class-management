@@ -1,8 +1,14 @@
 export function routeQueries(path, userId, date) {
+  const [pathname, search = ''] = path.split('?')
+  const assignment = /^\/teacher\/exams\/([^/]+)\/assignments\/([^/]+)$/.exec(pathname)
+  if (assignment) return [['examConfiguration', [assignment[1]]], ['teacherAssignmentAttempts', [assignment[2], new URLSearchParams(search).get('classId') ?? '', 0, 12, '', '', 'newest']]]
+  const classExams = /^\/teacher\/classes\/([^/]+)\/assignments$/.exec(path)
+  if (classExams) return [['teacherClasses', []], ['classExams', [classExams[1]]]]
   const pages = {
     '/teacher': ['teacherClasses', 'teacherStudents', 'exams'],
     '/teacher/classes': ['teacherClasses'],
     '/teacher/exams': ['exams'],
+    '/teacher/exams/create': ['subjects', 'teacherClasses', 'teacherStudents'],
     '/student': ['studentClasses', 'dashboard', 'examCount'],
     '/student/classes': ['studentClasses', 'dashboard'],
     '/student/teachers': ['studentClasses', 'allClasses', 'teachers'],

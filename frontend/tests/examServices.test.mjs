@@ -16,6 +16,55 @@ before(async () => {
   mediaService = await loadService('examMediaService')
 })
 
+test('assignment attempts forward class scope, search and pagination; comment writes omit grades', async () => {
+  const signal = new AbortController().signal
+  const params = { classId: 21, page: 2, size: 12, q: 'Huy', status: 'SUBMITTED', sort: 'score_desc' }
+  const response = { items: [{ attemptId: null, status: 'NOT_STARTED' }], stats: { total: 10, notStarted: 1 }, totalElements: 1 }
+  api.handler = async (url, options) => {
+    assert.equal(url, '/exam-assignments/8/attempts')
+    assert.equal(options.params, params)
+    assert.equal(options.signal, signal)
+    return { data: response }
+  }
+  assert.equal(await examService.getAssignmentAttempts(8, params, { signal }), response)
+  api.patch = async (url, body) => {
+    assert.equal(url, '/exam-attempts/42/grades')
+    assert.equal(body.attemptNumber, 2)
+    assert.equal(body.revision, 5)
+    assert.equal(body.teacherComment, '')
+    assert.equal(Object.hasOwn(body, 'grades'), false)
+    return { data: { revision: 6, teacherComment: null, totalScore: 7 } }
+  }
+  assert.equal((await examService.updateAttemptGrades(42, { attemptNumber: 2, revision: 5, teacherComment: '' })).totalScore, 7)
+})
+
+test('class exam list uses classroom scope and forwards query cancellation', async () => {
+  const signal = new AbortController().signal
+  const rows = [{ assignmentId: 12, examId: 7, gradedCount: 3, pendingGradingCount: 2 }]
+  api.handler = async (url, options) => {
+    assert.equal(url, '/classes/21/exams')
+    assert.equal(options.signal, signal)
+    return { data: rows }
+  }
+  assert.equal(await examService.getClassExams(21, { signal }), rows)
+})
+
+test('copy uses a stable request ID and returns the new independent draft', async () => {
+  const response = { id: 99, status: 'DRAFT', code: 'NEW', sections: [], assignments: [{ id: 100 }] }
+  let calls = 0
+  api.handler = async (url, body) => {
+    calls++
+    assert.equal(url, '/exams/7/copy')
+    assert.equal(body.requestId, 'same-request')
+    return { data: response }
+  }
+  assert.equal(await examService.copyExam(7, 'same-request'), response)
+  assert.equal(await examService.copyExam(7, 'same-request'), response)
+  assert.equal(calls, 2)
+  api.handler = async () => { throw new Error('Response lost') }
+  await assert.rejects(examService.copyExam(7, 'same-request'), /Response lost/)
+})
+
 test('student exam list reads every page and preserves server statistics and sort', async () => {
   const signal = new AbortController().signal
   const stats = { completedCount: 2, notStartedCount: 99, pendingGradingCount: 0 }

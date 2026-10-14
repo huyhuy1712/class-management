@@ -12,6 +12,7 @@ import useSaveExamContent from './hooks/useSaveExamContent'
 import useSaveExam from './hooks/useSaveExam'
 import ExamSaveStatus from './components/layout/ExamSaveStatus'
 import { getExamConfig } from './helpers/examPayload'
+import EditExamModal from '../components/EditExamModal'
 
 function ExamBuilderPage({ editingExam } = {}) {
   const navigate = useNavigate()
@@ -22,6 +23,7 @@ function ExamBuilderPage({ editingExam } = {}) {
   const draft = isEditing ? null : loadExamDraft()
   const examConfig = isEditing ? editingExam : getExamConfig(draft, state?.examConfig)
   const [draftMessage, setDraftMessage] = useState('')
+  const [configurationOpen, setConfigurationOpen] = useState(false)
   const saveExam = useSaveExam({ enabled: !isEditing, builder, routeConfig: state?.examConfig, onValidationErrors: setValidationErrors })
 
   const readOnly = isEditing && editingExam.status !== 'DRAFT'
@@ -62,8 +64,15 @@ function ExamBuilderPage({ editingExam } = {}) {
             </div>
           </header>
 
-          {isEditing ? <div className="mb-4 text-sm text-slate-600"><p>Mã đề: {editingExam.code || '—'} · Trạng thái: {editingExam.status === 'PUBLISHED' ? 'Đã xuất bản' : 'Bản nháp'}</p>{readOnly && <p className="mt-2 font-semibold text-amber-700">Đề thi đã xuất bản hoặc không còn là bản nháp. Bạn chỉ có thể xem nội dung.</p>}{saveContent.message && <p role="status" className="mt-1">{saveContent.message}</p>}</div> : <ExamSaveStatus config={examConfig} message={saveExam.message || draftMessage} uncertain={saveExam.uncertain} saving={saveExam.saving} onConfirmRetry={saveExam.confirmRetry} />}
-          <fieldset inert={readOnly || saving ? true : undefined} disabled={readOnly || saving} className="grid min-w-0 grid-cols-1 items-start gap-3 lg:grid-cols-[285px_minmax(0,1fr)]">
+          {isEditing && state?.copiedExam && <div role="status" className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+            <strong>Bản nháp sao chép từ: {state.sourceTitle}</strong>
+            <p className="mt-1">Sửa và lưu nội dung → kiểm tra người được giao, lịch thi → quay lại danh sách để xuất bản. Khi xuất bản, đề mới sẽ được giao theo cấu hình đã chọn. Đề cũ và kết quả cũ được giữ nguyên.</p>
+          </div>}
+          {isEditing && !readOnly && <button type="button" disabled={saving} onClick={() => setConfigurationOpen(true)} className="mb-4 w-fit rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-700">Cấu hình và đối tượng giao đề</button>}
+
+          {isEditing ? <div className="mb-4 text-sm text-slate-600"><p>Mã đề: {editingExam.code || '—'} · Trạng thái: {editingExam.status === 'PUBLISHED' ? 'Đã xuất bản' : 'Bản nháp'}</p>{readOnly && <p className="mt-2 font-semibold text-amber-700">Đề thi đã xuất bản hoặc không còn là bản nháp. Bạn chỉ có thể xem nội dung.</p>}{(saveContent.message || draftMessage) && <p role="status" className="mt-1">{saveContent.message || draftMessage}</p>}</div> : <ExamSaveStatus config={examConfig} message={saveExam.message || draftMessage} uncertain={saveExam.uncertain} saving={saveExam.saving} onConfirmRetry={saveExam.confirmRetry} />}
+          <fieldset disabled={readOnly || saving} className="grid min-w-0 grid-cols-1 items-start gap-3 lg:grid-cols-[285px_minmax(0,1fr)]">
+            <div inert={readOnly || saving ? true : undefined}>
             <ExamStructureSidebar
               sections={builder.sections}
               totalScore={builder.totalScore}
@@ -76,8 +85,10 @@ function ExamBuilderPage({ editingExam } = {}) {
               onRemoveAnswerGroup={builder.removeAnswerGroup}
               validationErrors={validationErrors}
             />
+            </div>
 
-            <main id="builder-root" className="max-h-[240vh] min-w-0 overflow-y-auto rounded-[22px] border border-slate-200/80 bg-slate-100/70 p-3 pr-2 shadow-[0_8px_24px_rgba(31,56,45,0.04)] [scrollbar-color:#a7d9bf_transparent] [scrollbar-width:thin] sm:p-4">
+            <main id="builder-root" tabIndex={0} aria-label="Nội dung đề thi" className="max-h-[240vh] min-w-0 overflow-y-auto rounded-[22px] border border-slate-200/80 bg-slate-100/70 p-3 pr-2 shadow-[0_8px_24px_rgba(31,56,45,0.04)] [scrollbar-color:#a7d9bf_transparent] [scrollbar-width:thin] sm:p-4">
+              <div inert={readOnly || saving ? true : undefined}>
               {validationErrors['builder-root'] && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">{validationErrors['builder-root']}</div>}
               {builder.sections.length === 0 ? (
                 <div className="flex min-h-[460px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
@@ -104,10 +115,12 @@ function ExamBuilderPage({ editingExam } = {}) {
                   <Plus size={18} /> Thêm phần
                 </button>
               )}
+              </div>
             </main>
           </fieldset>
         </div>
       </div>
+      <EditExamModal exam={editingExam} open={configurationOpen} onClose={() => setConfigurationOpen(false)} onSaved={(result) => { saveContent.acceptConfigurationRevision(result.revision); setConfigurationOpen(false); setDraftMessage('Đã lưu cấu hình giao đề. Hãy lưu nội dung trước khi quay lại danh sách để xuất bản.') }} />
     </DashboardLayout>
     </ScoringRuleTemplatesProvider>
   )

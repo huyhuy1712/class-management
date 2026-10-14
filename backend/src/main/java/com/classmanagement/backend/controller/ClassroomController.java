@@ -33,6 +33,12 @@ import org.springframework.http.MediaType;
 public class ClassroomController {
 
 private final ClassroomService classroomService;
+private final com.classmanagement.backend.service.ExamService examService;
+
+@GetMapping("/{id}/exams")
+public List<com.classmanagement.backend.dto.exam.ClassExamResponse> classExams(@PathVariable Long id, Authentication auth) {
+    return examService.getClassExams(auth.getName(), id);
+}
 
 @PostMapping
 public ResponseEntity<ClassroomResponse> createClassroom(

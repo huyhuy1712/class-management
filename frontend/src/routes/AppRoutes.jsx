@@ -20,6 +20,7 @@ import StudentDetailPage from '../pages/teacher/classroom/StudentDetailPage'
 import TeacherProfilePage from '../pages/teacher/TeacherProfilePage'
 import ExamManagementPage from '../pages/teacher/exams/ExamManagementPage'
 const ExamDetailPage = lazy(() => import('../pages/teacher/exams/ExamDetailPage'))
+const TeacherAssignmentDetailPage = lazy(() => import('../pages/teacher/exams/TeacherAssignmentDetailPage'))
 import CreateExamPage from '../pages/teacher/exams/create/CreateExamPage'
 const ExamBuilderPage = lazy(() => import('../pages/teacher/exams/builder/ExamBuilderPage'))
 
@@ -82,6 +83,7 @@ function AppRoutes() {
       {/* Route exam management */}
       <Route path="/teacher/exams" element={<ExamManagementPage />} />
       <Route path="/teacher/exams/:examId" element={<ExamDetailPage />} />
+      <Route path="/teacher/exams/:examId/assignments/:assignmentId" element={<TeacherAssignmentDetailPage />} />
       <Route path="/teacher/exams/create" element={<CreateExamPage />} />
       <Route path="/teacher/exams/create/online" element={<ExamBuilderPage />} />
     </Routes>

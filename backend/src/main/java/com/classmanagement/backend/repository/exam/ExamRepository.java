@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ExamRepository extends JpaRepository<Exam, Long> {
+        Optional<Exam> findByTeacher_UsernameAndCopiedFromExamIdAndCopyRequestId(String username, Long sourceId, java.util.UUID requestId);
         @Lock(LockModeType.PESSIMISTIC_READ)
         Optional<Exam> findSharedLockedById(Long id);
         @Lock(LockModeType.PESSIMISTIC_READ)

@@ -1,6 +1,11 @@
 import api from './api'
 
 const examService = {
+  getAssignmentAttempts: async (id, params, options = {}) => (await api.get(`/exam-assignments/${id}/attempts`, { ...options, params })).data,
+  updateAttemptGrades: async (id, body) => (await api.patch(`/exam-attempts/${id}/grades`, body)).data,
+  getClassExams: async (classId, options = {}) => (await api.get(`/classes/${classId}/exams`, options)).data,
+  copyExam: async (examId, requestId) => (await api.post(`/exams/${examId}/copy`, { requestId })).data,
+  createAssignment: async (examId, body) => (await api.post(`/exams/${examId}/assignments`, body)).data,
   startAttempt: async (id, body) => (await api.post(`/exam-assignments/${id}/attempts`, body)).data,
   getAttempt: async (id, options = {}) => (await api.get(`/exam-attempts/${id}`, options)).data,
   saveAttempt: async (id, body) => (await api.put(`/exam-attempts/${id}/answers`, body)).data,

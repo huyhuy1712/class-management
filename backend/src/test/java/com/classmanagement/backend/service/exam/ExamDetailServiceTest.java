@@ -118,7 +118,7 @@ class ExamDetailServiceTest {
     }
 
     private ExamDetailService service() {
-        var configuration = new ExamConfigurationService(null, null, null, null) {
+        var configuration = new ExamConfigurationService(null, null, null, null, null) {
             @Override public ExamConfigurationResponse get(Long id, String username) {
                 calls.add("configuration");
                 if (wrongOwner) throw new ResourceNotFoundException("Not found");

@@ -154,7 +154,7 @@ class ExamCreationServiceTest {
                 repository(ExamRepository.class, "exams"), repository(ExamAssignmentRepository.class, "assignments"),
                 repository(ExamSectionRepository.class, "sections"), repository(QuestionRepository.class, "questions"),
                 repository(AnswerRepository.class, "answers"), repository(AnswerOptionRepository.class, "options"),
-                repository(QuestionScoringRuleRepository.class, "rules"), repository(EntityManager.class, "entityManager"));
+                repository(QuestionScoringRuleRepository.class, "rules"), repository(EntityManager.class, "entityManager"), null, null, null);
         var interceptor = new TransactionInterceptor();
         interceptor.setTransactionManager(transactions);
         interceptor.setTransactionAttributeSource(new AnnotationTransactionAttributeSource());

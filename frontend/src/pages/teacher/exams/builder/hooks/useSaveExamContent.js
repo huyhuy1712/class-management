@@ -45,5 +45,5 @@ export default function useSaveExamContent({ exam, builder, readOnly, onValidati
     }
   }
   const save = () => lock.current ? Promise.resolve() : saveMutation.mutateAsync().catch(() => {})
-  return { save, saving, message }
+  return { save, saving, message, acceptConfigurationRevision: (value) => { revision.current = value } }
 }

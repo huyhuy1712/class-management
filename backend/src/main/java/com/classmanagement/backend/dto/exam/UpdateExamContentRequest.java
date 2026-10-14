@@ -23,10 +23,14 @@ public record UpdateExamContentRequest(@NotNull @Min(0) Long revision, UUID draf
     }
     public record Question(@Positive Long id, @Size(max = 100) String clientId,
             String content, @Size(max = 20000) String explanation, UUID imageMediaId, UUID audioMediaId, BigDecimal points,
-            @NotEmpty @Size(max = 20) List<@NotNull @Valid Answer> answers) implements Node {
+            @NotEmpty @Size(max = 20) List<@NotNull @Valid Answer> answers,
+            UUID explanationImageMediaId, UUID explanationAudioMediaId) implements Node {
+        public Question(Long id, String clientId, String content, String explanation, UUID imageMediaId, UUID audioMediaId, BigDecimal points, List<Answer> answers) {
+            this(id, clientId, content, explanation, imageMediaId, audioMediaId, points, answers, null, null);
+        }
         public CreateCompleteExamRequest.Question toCreate() {
             return new CreateCompleteExamRequest.Question(content, explanation, imageMediaId, audioMediaId, points,
-                    answers.stream().map(Answer::toCreate).toList());
+                    answers.stream().map(Answer::toCreate).toList(), explanationImageMediaId, explanationAudioMediaId);
         }
     }
     public record Answer(@Positive Long id, @Size(max = 100) String clientId,

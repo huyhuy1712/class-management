@@ -31,6 +31,38 @@ public class ExamConfigurationUpdateService {
     private final ExamConfigurationService configurationService;
     private final Validator validator;
     private final EntityManager entityManager;
+    private final ExamAttemptDataRepository attemptData;
+
+    @Transactional
+    public ExamConfigurationResponse createAssignment(Long examId, String username, CreateExamAssignmentRequest request) {
+        if (examId == null || examId <= 0) throw new IllegalArgumentException("examId phải là số nguyên dương.");
+        if (request == null) fail("request", "Thiếu dữ liệu lần giao mới");
+        Map<String,String> errors = new LinkedHashMap<>();
+        validator.validate(request).forEach(v -> errors.put(v.getPropertyPath().toString(), v.getMessage()));
+        if (!errors.isEmpty()) throw new ExamValidationException(errors);
+        var exam = examRepository.findLockedByIdAndTeacher_Username(examId, username)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đề thi."));
+        if (exam.getTeacher().getRole() != UserRole.TEACHER || exam.getTeacher().getStatus() != UserStatus.ACTIVE) {
+            throw new IllegalStateException("Chỉ giáo viên đang hoạt động được giao lại đề.");
+        }
+        if (assignmentRepository.findByExam_IdAndCreationRequestId(examId, request.requestId()).isPresent()) return configurationService.get(examId,username);
+        if (exam.getStatus() != ExamStatus.PUBLISHED) throw new ConflictException("Chỉ đề đã xuất bản được mở đợt thi mới.");
+        var input = request.assignment();
+        structureValidator.validateAssignment(input);
+        if (input.answerVisibilityScore() != null && input.answerVisibilityScore().compareTo(exam.getMaxScore()) > 0) fail("assignment.answerVisibilityScore", "Ngưỡng xem đáp án vượt tổng điểm đề");
+        var now = LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
+        if (input.closeTime() != null && !input.closeTime().isAfter(now)) fail("assignment.closeTime", "Thời gian đóng đợt mới phải ở tương lai");
+        var targets = targetValidator.validate(exam.getTeacher().getId(), input);
+        var assignment = assignmentRepository.save(ExamAssignment.builder().exam(exam).creationRequestId(request.requestId())
+                .assignmentType(input.assignmentType()).timeLimit(request.timeLimit()).maxAttempts(request.maxAttempts())
+                .openTime(input.openTime()).closeTime(input.closeTime()).scoreVisibility(input.scoreVisibility()).answerVisibility(input.answerVisibility())
+                .answerVisibilityScore(input.answerVisibilityScore()).hideCorrectAnswerOnWrong(input.hideCorrectAnswerOnWrong())
+                .status(input.openTime() != null && input.openTime().isAfter(now) ? ExamAssignmentStatus.SCHEDULED : ExamAssignmentStatus.OPEN).build());
+        syncTargets(assignment, targets);
+        assignmentRepository.flush();
+        attemptData.snapshotAssignment(assignment.getId());
+        return configurationService.get(examId,username);
+    }
 
     @Transactional
     public ExamConfigurationResponse update(Long examId, String username, UpdateExamRequest request) {

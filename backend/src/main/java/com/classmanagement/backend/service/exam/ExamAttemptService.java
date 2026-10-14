@@ -24,6 +24,7 @@ public class ExamAttemptService {
     private final StudentExamReadRepository eligibility;
     private final ExamDetailService papers;
     private final ExamAttemptDataRepository data;
+    private final com.classmanagement.backend.service.StorageService storage;
     private static LocalDateTime now() { return LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")); }
     private static OffsetDateTime offset(LocalDateTime time) { return time==null?null:time.atOffset(ZoneOffset.ofHours(7)); }
 
@@ -112,6 +113,12 @@ public class ExamAttemptService {
         User teacher=user(username,UserRole.TEACHER); var attempt=lock(id,teacher,true);
         generation(attempt,request.attemptNumber()); revision(attempt,request.revision());
         if(!finished(attempt)) throw new ConflictException("Chỉ bài đã nộp được chấm");
+        if(request.grades()==null||request.grades().isEmpty()) {
+            if(request.teacherComment()==null) fail("teacherComment","Cần điểm tự luận hoặc nhận xét để cập nhật");
+            attempt.setTeacherComment(request.teacherComment().isBlank()?null:request.teacherComment().trim());
+            attempt.setUpdatedAt(now()); attempts.flush();
+            return result(attempt,true);
+        }
         var structure=papers.getStructure(attempt.getAssignment().getExam().getId());
         var groups=ExamScoringCalculator.groups(structure); var grades=data.manualScores(id); Set<Long> seen=new HashSet<>();
         for(var item:request.grades()) {
@@ -135,12 +142,21 @@ public class ExamAttemptService {
     }
 
     @Transactional(readOnly=true)
-    public ExamAttemptResponse.Page list(Long assignmentId,String username,int page,int size,ExamAttemptStatus status) {
+    public ExamAttemptResponse.Page list(Long assignmentId,String username,int page,int size,ExamAttemptStatus status,String q,String sort,Long classId) {
         positive(assignmentId); if(page<0||size<1||size>100) throw new IllegalArgumentException("page >= 0, size 1..100");
+        if(classId!=null) positive(classId);
+        q=q==null?"":q.trim(); sort=sort==null?"newest":sort;
+        if(q.length()>200||!Set.of("newest","oldest","name","score_desc","score_asc").contains(sort))
+            throw new IllegalArgumentException("q tối đa 200 ký tự; sort: newest, oldest, name, score_desc, score_asc");
         User teacher=user(username,UserRole.TEACHER);
         var a=assignments.findByIdAndExam_Teacher_Username(assignmentId,username).orElseThrow(()->missing());
         if(!a.getExam().getTeacher().getId().equals(teacher.getId())) throw missing();
-        return data.list(assignmentId,page,size,status);
+        if(classId!=null&&!data.classAllowed(assignmentId,classId)) throw missing();
+        var result=data.list(assignmentId,page,size,status,q,sort,classId);
+        var items=result.items().stream().map(s->new ExamAttemptResponse.Summary(s.attemptId(),s.studentId(),s.fullName(),s.attemptNumber(),
+                s.status(),s.tabSwitchCount(),s.totalScore(),s.avatarUrl()==null||s.avatarUrl().isBlank()?null:storage.getUrl(s.avatarUrl()),
+                s.studentCode(),s.email(),s.startedAt(),s.submittedAt(),s.durationSeconds(),s.teacherComment(),s.isFinal(),s.revision())).toList();
+        return new ExamAttemptResponse.Page(items,result.page(),result.size(),result.totalElements(),result.stats());
     }
 
     @Transactional
@@ -263,6 +279,6 @@ public class ExamAttemptService {
         return sections.stream().map(s->new ExamAttemptResponse.Section(s.id(),s.title(),s.paragraph(),s.imageMedia(),s.audioMedia(),s.questions().stream().map(q->
                 new ExamAttemptResponse.Question(q.id(),q.content(),explanationQuestions.contains(q.id())?q.explanation():null,q.points(),q.imageMedia(),q.audioMedia(),q.answers().stream().map(a->
                         new ExamAttemptResponse.Group(a.id(),a.answerType(),a.answerType()==AnswerType.SHORT_ANSWER?null:a.content(),a.points(),a.imageMedia(),a.audioMedia(),a.options().stream().map(o->
-                                new ExamAttemptResponse.Option(o.id(),o.content(),o.imageMedia(),o.audioMedia())).toList())).toList())).toList())).toList();
+                                new ExamAttemptResponse.Option(o.id(),o.content(),o.imageMedia(),o.audioMedia())).toList())).toList(), explanationQuestions.contains(q.id())?q.explanationImageMedia():null, explanationQuestions.contains(q.id())?q.explanationAudioMedia():null)).toList())).toList();
     }
 }
