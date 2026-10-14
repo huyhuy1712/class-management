@@ -1,10 +1,10 @@
+import FrogLoading from '../../../../../../utils/FrogLoading'
 import { useMutation } from '@tanstack/react-query'
 import {
   AlertCircle,
   CheckCircle2,
   Download,
   FileSpreadsheet,
-  LoaderCircle,
   Upload,
   X,
 } from 'lucide-react'
@@ -202,7 +202,7 @@ function ImportStudentsModal({ classroomId, onClose, onImported }) {
                   className="flex items-center gap-2 rounded-xl border border-green-200 bg-white px-4 py-2 text-sm font-semibold text-green-700 transition hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {downloadingTemplate ? (
-                    <LoaderCircle size={16} className="animate-spin" />
+                    <FrogLoading compact label="" className="" />
                   ) : (
                     <Download size={16} />
                   )}
@@ -398,7 +398,7 @@ function ImportStudentsModal({ classroomId, onClose, onImported }) {
               >
                 {importing ? (
                   <>
-                    <LoaderCircle size={17} className="animate-spin" />
+                    <FrogLoading compact label="" className="" />
                     Đang import...
                   </>
                 ) : (

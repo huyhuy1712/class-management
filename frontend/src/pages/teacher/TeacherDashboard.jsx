@@ -1,3 +1,4 @@
+import FrogLoading from '../../utils/FrogLoading'
 import useResourceQuery from '../../query/useResourceQuery'
 import useTeacherExamCount from './hooks/useTeacherExamCount'
 import {
@@ -116,7 +117,7 @@ function TeacherDashboard() {
 
                 <div>
                   <p className={`text-2xl font-bold ${item.valueColor}`}>
-                    {item.value}
+                    {item.value === '...' ? <FrogLoading compact label="" /> : item.value}
                   </p>
 
                   <p className="mt-0.5 text-sm text-gray-400">

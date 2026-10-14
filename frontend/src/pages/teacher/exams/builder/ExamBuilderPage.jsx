@@ -1,3 +1,4 @@
+import FrogLoading from '../../../../utils/FrogLoading'
 import { ScoringRuleTemplatesProvider } from './components/answer/ScoringRuleTemplates'
 import { ArrowLeft, Plus, Save } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -59,7 +60,7 @@ function ExamBuilderPage({ editingExam } = {}) {
                 Giữ nháp
               </button>}
               <button type="button" disabled={readOnly || saving || (!isEditing && saveExam.uncertain)} onClick={isEditing ? saveContent.save : saveExam.save} className="rounded-xl bg-[#159a68] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#11845a] disabled:opacity-50">
-                {saving ? 'Đang lưu...' : isEditing ? 'Lưu chỉnh sửa' : 'Lưu đề thi'}
+                {saving ? <FrogLoading compact label="Đang lưu..." /> : isEditing ? 'Lưu chỉnh sửa' : 'Lưu đề thi'}
               </button>
             </div>
           </header>

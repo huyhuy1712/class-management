@@ -1,3 +1,4 @@
+import FrogLoading from '../../utils/FrogLoading'
 import { useMutation } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import {
@@ -5,7 +6,6 @@ import {
   Eye,
   EyeOff,
   GraduationCap,
-  LoaderCircle,
   School,
   Leaf,
   Sprout,
@@ -389,7 +389,7 @@ function SignupPage() {
               disabled={loading}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3.5 font-semibold text-white transition hover:bg-green-700 disabled:opacity-60"
             >
-              {loading && <LoaderCircle size={18} className="animate-spin" />}
+              {loading && <FrogLoading compact label="" className="" />}
               {loading ? 'Đang đăng ký...' : 'Đăng ký'}
             </button>
           </form>

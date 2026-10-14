@@ -1,3 +1,4 @@
+import FrogLoading from '../../../../utils/FrogLoading'
 import {
   ClipboardCheck,
   Copy,
@@ -132,7 +133,7 @@ function ExamTable({
                         {['DRAFT', 'PUBLISHED'].includes(exam.status) && <button type="button" disabled={publishingId !== null}
                           onClick={(event) => { event.stopPropagation(); onPublish?.(exam) }}
                           className="inline-flex h-7 items-center whitespace-nowrap rounded-md border border-green-200 bg-green-50 px-2 text-xs font-medium leading-none text-green-700 transition hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50">
-                          {publishingId === exam.id ? 'Đang xử lý…' : exam.status === 'PUBLISHED' ? 'Về nháp' : 'Xuất bản'}
+                          {publishingId === exam.id ? <FrogLoading compact label="Đang xử lý…" /> : exam.status === 'PUBLISHED' ? 'Về nháp' : 'Xuất bản'}
                         </button>}
                         <button
                         type="button"

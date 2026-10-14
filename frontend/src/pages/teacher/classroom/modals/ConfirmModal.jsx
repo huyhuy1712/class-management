@@ -1,3 +1,4 @@
+import FrogLoading from '../../../../utils/FrogLoading'
 import { AlertTriangle } from 'lucide-react'
 
 function ConfirmModal({
@@ -72,7 +73,7 @@ function ConfirmModal({
                 : 'bg-orange-500 hover:bg-orange-600'
             }`}
           >
-            {loading ? 'Đang xử lý...' : confirmText}
+            {loading ? <FrogLoading compact label="Đang xử lý..." /> : confirmText}
           </button>
         </div>
       </div>

@@ -1,3 +1,4 @@
+import FrogLoading from '../../../utils/FrogLoading'
 import { useEffect, useState } from 'react'
 import { ClipboardCheck, X } from 'lucide-react'
 
@@ -21,7 +22,7 @@ export default function AttendancePasswordModal({ onClose, onSubmit, busy, error
         <input autoFocus id="attendance-password" type="password" autoComplete="off" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Nhập mật khẩu giáo viên cung cấp..." className="w-full rounded-xl border border-emerald-100 px-4 py-3 text-sm outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100" />
         {error && <p role="alert" className="mt-3 text-sm text-red-600">{error}</p>}
         <div className="mt-6 flex justify-end">
-          <button type="button" disabled={busy || !password} onClick={() => onSubmit(password)} className="mr-3 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Đang điểm danh...' : 'Điểm danh'}</button>
+          <button type="button" disabled={busy || !password} onClick={() => onSubmit(password)} className="mr-3 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{busy ? <FrogLoading compact label="Đang điểm danh..." /> : 'Điểm danh'}</button>
           <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-red-500 hover:bg-red-500 hover:text-white">Đóng</button>
         </div>
       </section>

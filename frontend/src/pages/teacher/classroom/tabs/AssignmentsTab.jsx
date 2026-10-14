@@ -1,3 +1,4 @@
+import FrogLoading from '../../../../utils/FrogLoading'
 import { useState } from 'react'
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { ClipboardCheck, FileText, Plus, Search, Eye, Pencil, Clock } from 'lucide-react'
@@ -75,7 +76,7 @@ export default function AssignmentsTab() {
       </div>
       {query.isError && query.data && <p role="alert" className="mt-3 text-sm text-amber-700">Chưa cập nhật được dữ liệu mới. <button type="button" onClick={() => query.refetch()} className="underline">Thử lại</button></p>}
     </div>
-    {query.isLoading ? <p role="status" className="p-8 text-center text-slate-500">Đang tải đề thi...</p>
+    {query.isLoading ? <FrogLoading label="Đang tải đề thi..." className="p-8 text-center text-slate-500" />
       : query.errorMessage ? <div role="alert" className="p-8 text-center text-red-600">{query.errorMessage}<button type="button" onClick={() => query.refetch()} className="ml-3 underline">Thử lại</button></div>
       : filtered.length === 0 ? <p className="border-t border-slate-100 p-10 text-center text-slate-500">{items.length ? 'Không có đề thi phù hợp bộ lọc.' : 'Lớp học chưa có đề thi được giao.'}</p>
         : <div className="overflow-x-auto"><table className="w-full min-w-[850px] text-sm">

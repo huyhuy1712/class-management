@@ -1,3 +1,4 @@
+import FrogLoading from '../../utils/FrogLoading'
 import { useMutation } from '@tanstack/react-query'
 import { sortByText } from '../../utils/sortByText'
 import useTeacherExamCount from '../teacher/hooks/useTeacherExamCount'
@@ -416,11 +417,11 @@ const handleChangePassword = async (event) => {
                   className="mt-2 flex items-center gap-1.5 text-xs font-medium text-green-100 transition hover:text-white hover:underline disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Trash2 size={13} />
-                  {deletingAvatar ? 'Đang gỡ ảnh...' : 'Gỡ ảnh đại diện'}
+                  {deletingAvatar ? <FrogLoading compact label="Đang gỡ ảnh..." /> : 'Gỡ ảnh đại diện'}
                 </button>
               )}
               {uploadingAvatar && (
-                <p className="mt-2 text-xs text-green-100">Đang tải ảnh lên...</p>
+                <FrogLoading label="Đang tải ảnh lên..." className="mt-2 text-xs text-green-100" />
               )}
             </div>
           </div>
@@ -575,7 +576,7 @@ const handleChangePassword = async (event) => {
                 className="flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700"
               >
                 <Save size={17} />
-                {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
+                {saving ? <FrogLoading compact label="Đang lưu..." /> : 'Lưu thay đổi'}
               </button>
              </div>
           </div>
@@ -705,7 +706,7 @@ const handleChangePassword = async (event) => {
                 {classCountError
                   ? '--'
                   : classCount === null
-                    ? '...'
+                    ? <FrogLoading compact label="" />
                     : classCount}
               </p>
 
@@ -827,7 +828,7 @@ const handleChangePassword = async (event) => {
                   disabled={changingPassword}
                   className="rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {changingPassword ? 'Đang cập nhật...' : 'Cập nhật mật khẩu'}
+                  {changingPassword ? <FrogLoading compact label="Đang cập nhật..." /> : 'Cập nhật mật khẩu'}
                 </button>
               </div>
             </form>

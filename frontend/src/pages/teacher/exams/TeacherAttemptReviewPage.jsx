@@ -1,3 +1,4 @@
+import FrogLoading from '../../../utils/FrogLoading'
 import { useRef, useState } from 'react'
 import defaultAvatar from '../../../assets/images/avatar_default.png'
 import { Link, useParams, useSearchParams, useNavigate } from 'react-router-dom'
@@ -19,7 +20,7 @@ export default function TeacherAttemptReviewPage() {
   const query = useResourceQuery('teacherAttemptReview', [attemptId], { staleTime: 0 })
   const back = `/teacher/exams/${examId}/assignments/${assignmentId}${classId ? `?classId=${classId}` : ''}`
   return <DashboardLayout><div className="mx-auto max-w-[1600px] pb-8"><Link to={back} className="mb-5 flex items-center gap-2 text-sm text-slate-500"><ArrowLeft size={18} />Quay lại kết quả đợt giao</Link>
-    {query.isLoading ? <p role="status">Đang tải bài làm...</p> : query.errorMessage ? <p role="alert" className="text-red-600">{query.errorMessage}<button type="button" onClick={() => query.refetch()} className="ml-3 underline">Thử lại</button></p>
+    {query.isLoading ? <FrogLoading label="Đang tải bài làm..." /> : query.errorMessage ? <p role="alert" className="text-red-600">{query.errorMessage}<button type="button" onClick={() => query.refetch()} className="ml-3 underline">Thử lại</button></p>
       : String(query.data.exam.id) !== examId || String(query.data.assignmentId) !== assignmentId ? <p role="alert">Bài làm không thuộc đợt giao này.</p>
         : <ReviewEditor key={`${attemptId}:${query.data.result.attemptNumber}`} query={query} back={back} />}
   </div></DashboardLayout>
@@ -78,7 +79,7 @@ function ReviewEditor({ query, back }) {
       })}</div>
       <details className="text-sm"><summary className="cursor-pointer">Nhật ký vi phạm ({result.events?.length ?? 0})</summary>{result.events?.map((event) => <p key={event.eventId} className="mt-2 text-xs text-slate-500">{event.type === 'TAB_HIDDEN' ? 'Rời tab' : 'Quay lại tab'} · {formatExamDateTime(event.receivedAt)}</p>)}</details>
       <label className="block text-sm font-semibold">Nhận xét<textarea aria-label="Nhận xét bài thi" maxLength={20000} rows={4} disabled={mutation.isPending} value={comment ?? result.teacherComment ?? ''} onChange={(event) => { setRevision((value) => value ?? result.revision); setComment(event.target.value) }} className="mt-2 w-full rounded-xl border border-slate-200 p-3 font-normal" /></label>
-      <button type="button" disabled={mutation.isPending} onClick={() => perform()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 p-3 font-semibold text-white disabled:opacity-50"><Save size={17} />{mutation.isPending ? 'Đang lưu...' : 'Lưu điểm và nhận xét'}</button>
+      <button type="button" disabled={mutation.isPending} onClick={() => perform()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 p-3 font-semibold text-white disabled:opacity-50"><Save size={17} />{mutation.isPending ? <FrogLoading compact label="Đang lưu..." /> : 'Lưu điểm và nhận xét'}</button>
       <button type="button" disabled={mutation.isPending} onClick={() => setResetMode('RETAKE')} className="flex items-center gap-2 text-sm text-red-600"><Trash2 size={16} />Xóa kết quả và cho thi lại</button>
       <button type="button" disabled={mutation.isPending} onClick={() => setResetMode('BLOCK')} className="flex items-center gap-2 text-sm text-red-600"><Trash2 size={16} />Xóa kết quả và chặn thi lại</button>
     </aside>

@@ -1,3 +1,4 @@
+import FrogLoading from '../../../utils/FrogLoading'
 import { Outlet, useParams } from 'react-router-dom'
 
 import DashboardLayout from '../../../layouts/DashboardLayout'
@@ -13,9 +14,7 @@ function ClassDetailPage() {
   return (
     <DashboardLayout>
       {loading ? (
-        <div className="flex min-h-96 items-center justify-center rounded-2xl border border-green-100 bg-white text-sm text-gray-400">
-          Đang tải thông tin lớp học...
-        </div>
+        <FrogLoading label="Đang tải thông tin lớp học..." className="flex min-h-96 items-center justify-center rounded-2xl border border-green-100 bg-white text-sm text-gray-400" />
       ) : error ? (
         <div className="flex min-h-96 items-center justify-center rounded-2xl border border-red-100 bg-white text-sm text-red-500">
           {error}

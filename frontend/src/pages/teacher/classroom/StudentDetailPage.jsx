@@ -1,3 +1,4 @@
+import FrogLoading from '../../../utils/FrogLoading'
 import useResourceQuery from '../../../query/useResourceQuery'
 import StudentExamOverview from './components/StudentExamOverview'
 import { useMemo } from 'react'
@@ -168,7 +169,7 @@ function StudentDetailPage() {
 
     <div className="flex items-baseline gap-1.5">
       <p className="text-2xl font-bold leading-none text-emerald-700">
-        {attendanceLoading ? '...' : attendanceError ? '—' : attendanceStats.present}
+        {attendanceLoading ? <FrogLoading compact label="" /> : attendanceError ? '—' : attendanceStats.present}
       </p>
       <p className="text-xs text-slate-500">buổi</p>
     </div>
@@ -185,7 +186,7 @@ function StudentDetailPage() {
 
     <div className="flex items-baseline gap-1.5">
       <p className="text-2xl font-bold leading-none text-red-600">
-        {attendanceLoading ? '...' : attendanceError ? '—' : attendanceStats.absent}
+        {attendanceLoading ? <FrogLoading compact label="" /> : attendanceError ? '—' : attendanceStats.absent}
       </p>
       <p className="text-xs text-slate-500">buổi</p>
     </div>
@@ -202,7 +203,7 @@ function StudentDetailPage() {
 
     <div className="flex items-baseline gap-1.5">
       <p className="text-2xl font-bold leading-none text-amber-600">
-        {attendanceLoading ? '...' : attendanceError ? '—' : attendanceStats.late}
+        {attendanceLoading ? <FrogLoading compact label="" /> : attendanceError ? '—' : attendanceStats.late}
       </p>
       <p className="text-xs text-slate-500">buổi</p>
     </div>

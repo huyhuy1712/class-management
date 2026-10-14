@@ -1,3 +1,4 @@
+import FrogLoading from '../../../../utils/FrogLoading'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import useResourceQuery from '../../../../query/useResourceQuery'
@@ -21,7 +22,7 @@ export default function StudentExamOverview({ classId, studentId }) {
   const query = useResourceQuery('studentClassExamResults', [classId, studentId], { staleTime: 15_000, refetchInterval: 60_000 })
   const [page, setPage] = useState(0)
   const prefetch = useRoutePrefetch()
-  if (query.isLoading) return <p role="status" className="rounded-2xl bg-white p-8 lg:col-span-2">Đang tải kết quả học tập...</p>
+  if (query.isLoading) return <FrogLoading label="Đang tải kết quả học tập..." className="rounded-2xl bg-white p-8 lg:col-span-2" />
   if (query.errorMessage) return <p role="alert" className="rounded-2xl bg-red-50 p-6 text-red-600 lg:col-span-2">{query.errorMessage}<button type="button" onClick={() => query.refetch()} className="ml-3 underline">Thử lại</button></p>
   const summary = query.data.summary
   const items = query.data.items

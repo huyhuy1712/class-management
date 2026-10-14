@@ -1,3 +1,4 @@
+import FrogLoading from '../../utils/FrogLoading'
 import useStudentDashboard from "../../pages/student/hooks/useStudentDashboard";
 import {
   ClipboardCheck,
@@ -94,7 +95,7 @@ function StudentDashboard() {
 
             <div>
               <p className="text-2xl font-bold text-emerald-700">
-                {loading ? "..." : classError ? "--" : classCount}
+                {loading ? <FrogLoading compact label="" /> : classError ? "--" : classCount}
               </p>
 
               <p className="text-sm text-gray-400">
@@ -118,7 +119,7 @@ function StudentDashboard() {
 
             <div>
               <p className="text-2xl font-bold text-violet-700">
-                {examCountLoading ? "..." : examCountError ? "--" : completedExamCount}
+                {examCountLoading ? <FrogLoading compact label="" /> : examCountError ? "--" : completedExamCount}
               </p>
 
               <p className="text-sm text-gray-400">

@@ -1,6 +1,7 @@
+import FrogLoading from '../../utils/FrogLoading'
 import { useMutation } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { ArrowLeft, Eye, EyeOff, LoaderCircle, Leaf, Sprout, Trees, BookOpen, GraduationCap } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, Leaf, Sprout, Trees, BookOpen, GraduationCap } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { login } from '../../services/authService'
@@ -283,11 +284,7 @@ function LoginPage() {
               disabled={loading}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3.5 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <LoaderCircle
-                size={18}
-                className={loading ? 'animate-spin' : 'invisible'}
-                aria-hidden="true"
-              />
+              <FrogLoading compact label="" className={loading ? '' : 'invisible'} />
               {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </button>
           </form>

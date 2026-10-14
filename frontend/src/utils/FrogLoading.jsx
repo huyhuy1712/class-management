@@ -1,7 +1,13 @@
 import { Sparkles } from 'lucide-react'
 import logo from '../assets/logos/logo.png'
 
-export default function FrogLoading({ label = 'Đang tải...', className = '' }) {
+export default function FrogLoading({ label = 'Đang tải...', className = '', compact = false }) {
+  if (compact) return (
+    <span role="status" aria-live="polite" className={`frog-loading-inline ${className}`}>
+      <img src={logo} alt="" width={24} height={24} className="frog-loading-logo" aria-hidden="true" />
+      {label && <span>{label}</span>}
+    </span>
+  )
   return (
     <div role="status" aria-live="polite" className={`frog-loading ${className}`}>
       <div className="frog-loading-art" aria-hidden="true">
