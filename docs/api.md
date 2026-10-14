@@ -2742,6 +2742,20 @@ Test: publish đề chưa có lượt thi, nhấn Về nháp nhận 200; exams/a
 
 ## API bài làm học sinh — attempt runtime
 
+### Giải thích câu hỏi (V58)
+
+`questions.explanation` là TEXT nullable, lời giải chung của một câu hỏi (không phải từng nhóm answers). Tái sử dụng POST `/api/exams` và PUT `/api/exams/{examId}/content`: gửi `sections[].questions[].explanation` là chuỗi tối đa 20000 ký tự. BE trim hai đầu, giữ xuống dòng bên trong; null/chuỗi trắng lưu null. PUT content là thay thế nội dung đầy đủ: bỏ field explanation cũng xóa lời giải, nên FE cần giữ/gửi lại field từ GET khi sửa đề. Payload cũ không có field vẫn hợp lệ.
+
+GET `/api/exams/{examId}` của giáo viên trả explanation trong từng question. GET configuration chỉ chứa cấu hình, không chứa nội dung/lời giải. Publish tái dùng validation gồm giới hạn explanation; không thêm endpoint. Ví dụ một phần question trong body tạo/sửa (giữ các field bắt buộc còn lại):
+
+```json
+{"content":"Tính 2 + 3","explanation":"Cộng 2 và 3 được 5.","points":1,"answers":[]}
+```
+
+Ví dụ trên chỉ minh họa field, answers thực tế vẫn phải có nhóm đáp án hợp lệ. Start/resume/GET bài đang thi luôn trả explanation=null. Trong submit/result, explanation chỉ trả bên trong result.sections[].questions[] khi answersVisible=true, theo NEVER/AFTER_SUBMIT/AFTER_EXAM/AFTER_SCORE hiện có. Nếu hideCorrectAnswerOnWrong=true, giải thích cấp câu bị ẩn khi có bất kỳ nhóm nào sai hoặc chưa được xác định đúng. Giáo viên chủ đề được xem đầy đủ. Không thêm SELECT hay query từng câu; dùng cột từ batch loader questions hiện có. Chấm điểm và maxScore không bị ảnh hưởng.
+
+V58 chỉ thêm cột nullable, dữ liệu cũ có explanation=null; chưa được agent chạy migration. Phần này mới triển khai BE, chưa thêm ô nhập hoặc mapping field giải thích trên FE. Sau khi rebuild/restart, kiểm tra POST/PUT → GET giữ lời giải, xóa bằng null, từ chối hơn 20000 ký tự, và xác nhận lời giải không lộ trước khi được xem đáp án.
+
 Các endpoint dưới đây dùng cookie đăng nhập hiện có. BE lấy học sinh/giáo viên từ phiên đăng nhập, không nhận userId tùy ý. Reuse API danh sách đề và GET `/api/exam-assignments/{assignmentId}` để lấy thông tin trước khi bắt đầu. FE bài làm chưa được nối trong thay đổi BE này.
 
 | Method | Endpoint | Công dụng |

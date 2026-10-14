@@ -130,7 +130,7 @@ class ExamPublishServiceTest {
     private ExamDetailResponse detail() {
         var answer = new ExamDetailResponse.Answer(1L, 0, AnswerType.ESSAY, "Write", BigDecimal.ONE,
                 ScoringType.PER_ANSWER, null, null, false, null, null, List.of(), List.of());
-        var question = new ExamDetailResponse.Question(1L, 0, "Explain", BigDecimal.ONE, null, null, List.of(answer));
+        var question = new ExamDetailResponse.Question(1L, 0, "Explain", null, BigDecimal.ONE, null, null, List.of(answer));
         var section = new ExamDetailResponse.Section(1L, 0, "Part 1", null, BigDecimal.ONE, null, null, List.of(question));
         var config = new ExamConfigurationResponse.Assignment(12L, ExamAssignmentStatus.DRAFT, ExamAssignmentType.ALL,
                 List.of(), List.of(), null, null, ScoreVisibility.NEVER, AnswerVisibility.NEVER, null, false,

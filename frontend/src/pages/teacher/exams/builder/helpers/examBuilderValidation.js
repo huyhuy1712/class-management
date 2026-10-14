@@ -19,6 +19,7 @@ export function validateExamBuilder(sections) {
       const id = `question-${question.id}`
       const name = `Câu ${questionIndex + 1} - Phần ${sectionIndex + 1}`
       if (!hasText(question.content) || question.content.length > 20000) add(id, `${name} cần nội dung từ 1 đến 20000 ký tự.`)
+      if (String(question.explanation ?? '').length > 20000) add(id, `${name}: giải thích tối đa 20000 ký tự.`)
       if (!isExamPoint(getQuestionScore(question)) || Number(getQuestionScore(question)) <= 0) add(id, `${name} cần điểm lớn hơn 0, tối đa 9999.99 và 2 chữ số thập phân.`)
       totalPoints += pointUnits(getQuestionScore(question)) || 0
       const groups = question.answerGroups ?? []

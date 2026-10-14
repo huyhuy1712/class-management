@@ -1,6 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { isQuestionAnswered, formatRemainingTime } from '../src/pages/student/exams/helpers/examPaperHelpers.js'
+import { isQuestionAnswered, formatRemainingTime, getReviewStatus } from '../src/pages/student/exams/helpers/examPaperHelpers.js'
+
+test('review leaves unanswered white, follows BE correctness and does not invent essay grades', () => {
+  assert.equal(getReviewStatus({ type: 'SINGLE' }, undefined, { correct: false }), 'EMPTY')
+  assert.equal(getReviewStatus({ type: 'SINGLE' }, 0, { correct: true }), 'CORRECT')
+  assert.equal(getReviewStatus({ type: 'SINGLE' }, 1, { correct: false }), 'WRONG')
+  assert.equal(getReviewStatus({ type: 'TRUE_FALSE' }, { 0: false }, { correct: false }), 'WRONG')
+  assert.equal(getReviewStatus({ type: 'ESSAY' }, 'Bài viết', { correct: null }), 'PENDING')
+})
 
 test('question progress handles the first choice, false answers and incomplete true/false groups', () => {
   assert.equal(isQuestionAnswered({ type: 'SINGLE' }, 0), true)

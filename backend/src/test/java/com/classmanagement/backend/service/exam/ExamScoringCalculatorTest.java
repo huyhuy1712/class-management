@@ -18,7 +18,7 @@ class ExamScoringCalculatorTest {
     }
     private List<ExamDetailResponse.Section> paper(ExamDetailResponse.Answer group) {
         return List.of(new ExamDetailResponse.Section(1L,0,"Section",null,group.points(),null,null,
-                List.of(new ExamDetailResponse.Question(11L,0,"Question",group.points(),null,null,List.of(group)))));
+                List.of(new ExamDetailResponse.Question(11L,0,"Question",null,group.points(),null,null,List.of(group)))));
     }
     private ExamAttemptPayload.Value choice(Long... ids) { return new ExamAttemptPayload.Value(101L,null,List.of(ids),List.of()); }
     private ExamScoringCalculator.Scores score(ExamDetailResponse.Answer group,ExamAttemptPayload.Value value) {

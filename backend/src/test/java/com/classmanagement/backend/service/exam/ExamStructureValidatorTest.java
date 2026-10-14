@@ -12,6 +12,15 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ExamStructureValidatorTest {
+    @Test void explanationAcceptsLimitAndRejectsOverflow() {
+        var source=request(List.of(choice()),"1",assignment()).sections().getFirst();
+        var q=source.questions().getFirst();
+        var valid=new Question(q.content(),"x".repeat(20000),null,null,q.points(),q.answers());
+        assertDoesNotThrow(()->validator.validateContent(List.of(new Section(source.title(),null,null,null,List.of(valid)))));
+        var invalid=new Question(q.content(),"x".repeat(20001),null,null,q.points(),q.answers());
+        var error=assertThrows(ExamValidationException.class,()->validator.validateContent(List.of(new Section(source.title(),null,null,null,List.of(invalid)))));
+        assertTrue(error.getValidationErrors().containsKey("sections[0].questions[0].explanation"));
+    }
     @Test void acceptsParagraphAtLimitAndRejectsOverflowWithNewFieldPath() {
         var original = request(List.of(choice()), "1", assignment());
         var s = original.sections().getFirst();
@@ -110,7 +119,7 @@ class ExamStructureValidatorTest {
     static CreateCompleteExamRequest request(List<Answer> answers, String points, Assignment assignment) {
         return new CreateCompleteExamRequest(new BasicInfo("Đề thử", 1L, "10", null, null, 60, 0),
                 assignment, null, List.of(new Section("Phần 1", null, null, null,
-                List.of(new Question("Câu hỏi", null, null, number(points), answers)))));
+                List.of(new Question("Câu hỏi", null, null, null, number(points), answers)))));
     }
     static Assignment assignment() {
         return new Assignment(ExamAssignmentType.ALL, null, null, ScoreVisibility.AFTER_SUBMIT,

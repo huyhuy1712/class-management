@@ -17,7 +17,7 @@ public record ExamDetailResponse(Long id, String code, ExamStatus status, BigDec
     public record Section(Long id, Integer orderIndex, String title, String paragraph,
             BigDecimal points, Media imageMedia, Media audioMedia, List<Question> questions) {}
 
-    public record Question(Long id, Integer orderIndex, String content, BigDecimal points,
+    public record Question(Long id, Integer orderIndex, String content, String explanation, BigDecimal points,
             Media imageMedia, Media audioMedia, List<Answer> answers) {}
 
     public record Answer(Long id, Integer orderIndex, AnswerType answerType, String content,

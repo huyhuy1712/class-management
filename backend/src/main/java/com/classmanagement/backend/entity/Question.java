@@ -28,6 +28,9 @@ public class Question {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
+    @Column(columnDefinition = "TEXT")
+    private String explanation;
+
     @Column(name = "image_url", columnDefinition = "TEXT")
     private String imageUrl;
 

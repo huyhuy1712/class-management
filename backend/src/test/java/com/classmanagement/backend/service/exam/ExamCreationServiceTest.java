@@ -33,6 +33,19 @@ class ExamCreationServiceTest {
     private List<User> students = List.of();
     private List<Long> allowedStudents = List.of();
     private List<ExamSection> savedSections = new ArrayList<>();
+    private List<Question> savedQuestions = new ArrayList<>();
+
+    @Test void storesOptionalExplanationWithoutChangingQuestionScore() {
+        var initial=request(List.of(choice()), "1", assignment());
+        var source=initial.sections().getFirst();
+        var q=source.questions().getFirst();
+        var question=new CreateCompleteExamRequest.Question(q.content(),"  Line one\nLine two  ",q.imageMediaId(),q.audioMediaId(),q.points(),q.answers());
+        var body=new CreateCompleteExamRequest(initial.basicInfo(),initial.assignment(),null,List.of(
+                new CreateCompleteExamRequest.Section(source.title(),source.paragraph(),null,null,List.of(question))));
+        service().create("teacher",body);
+        assertEquals("Line one\nLine two",savedQuestions.getFirst().getExplanation());
+        assertEquals(q.points(),savedQuestions.getFirst().getPoints());
+    }
 
     @Test void storesParagraphWithInternalLineBreaks() {
         var initial = request(List.of(choice()), "1", assignment());
@@ -125,7 +138,7 @@ class ExamCreationServiceTest {
     private CreateCompleteExamRequest manyQuestions(int count) {
         var base = request(List.of(choice()), "1", assignment());
         var questions = java.util.stream.IntStream.range(0, count)
-                .mapToObj(i -> new CreateCompleteExamRequest.Question("Câu " + i, null, null, number("1"), List.of(choice()))).toList();
+                .mapToObj(i -> new CreateCompleteExamRequest.Question("Câu " + i, "  Explanation  ", null, null, number("1"), List.of(choice()))).toList();
         return new CreateCompleteExamRequest(base.basicInfo(), base.assignment(), null,
                 List.of(new CreateCompleteExamRequest.Section("Phần 1", null, null, null, questions)));
     }
@@ -168,6 +181,7 @@ class ExamCreationServiceTest {
             if (name.equals("save")) { assignId(args[0]); return args[0]; }
             if (name.equals("saveAll")) {
                 if (label.equals("sections")) savedSections = ((List<?>) args[0]).stream().map(ExamSection.class::cast).toList();
+                if (label.equals("questions")) savedQuestions = ((List<?>) args[0]).stream().map(Question.class::cast).toList();
                 if (label.equals("questions") && failQuestionInsert) throw new IllegalStateException("Simulated child insert failure");
                 for (Object entity : (Iterable<?>) args[0]) assignId(entity);
                 return args[0];

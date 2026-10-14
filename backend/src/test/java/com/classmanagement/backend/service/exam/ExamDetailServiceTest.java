@@ -45,6 +45,7 @@ class ExamDetailServiceTest {
         assertEquals("First paragraph.\n\nSecond paragraph.", section.paragraph());
         var question = section.questions().getFirst();
         assertEquals(2L, question.id());
+        assertEquals("Explanation", question.explanation());
         var answer = question.answers().getFirst();
         assertEquals("correct text", answer.correctAnswerText());
         assertTrue(answer.caseSensitive());
@@ -105,7 +106,7 @@ class ExamDetailServiceTest {
     private void tree() {
         var section = ExamSection.builder().id(1L).orderIndex(1).imageUrl("image.png")
                 .paragraph("First paragraph.\n\nSecond paragraph.").build();
-        var question = Question.builder().id(2L).section(section).orderIndex(1).imageUrl("image.png").build();
+        var question = Question.builder().id(2L).section(section).orderIndex(1).explanation("Explanation").imageUrl("image.png").build();
         var answer = Answer.builder().id(3L).question(question).orderIndex(1).imageUrl("image.png")
                 .correctAnswerText("correct text").caseSensitive(true).build();
         sections = List.of(section); questions = List.of(question); answers = List.of(answer);

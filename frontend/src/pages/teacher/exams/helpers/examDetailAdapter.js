@@ -24,7 +24,7 @@ export function toExamBuilder(detail) {
     sections: ordered(detail.sections).map((section) => ({
       ...section,
       questions: ordered(section.questions).map((question) => ({
-        ...question, point: question.points ?? 0,
+        ...question, explanation: question.explanation ?? '', point: question.points ?? 0,
         answerGroups: ordered(question.answers).map(toGroup),
       })),
     })),

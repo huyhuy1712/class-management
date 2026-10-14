@@ -46,6 +46,7 @@ public class ExamContentWriter {
             var source = entry.input();
             var question = plan.questions.upsert(entry, Question::new, e -> {
                 e.setSection(sections.get(entry.parent())); e.setContent(source.content().trim()); e.setPoints(source.points());
+                e.setExplanation(trim(source.explanation()));
                 e.setImageUrl(path(media, source.imageMediaId())); e.setAudioUrl(path(media, source.audioMediaId()));
             }, entityManager::persist);
             questions.put(source, question);

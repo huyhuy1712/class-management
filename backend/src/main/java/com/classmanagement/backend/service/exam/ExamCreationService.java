@@ -132,7 +132,7 @@ public class ExamCreationService {
             for (int index = 0; index < section.source().questions().size(); index++) {
                 var source = section.source().questions().get(index);
                 questionNodes.add(new QuestionNode(source, Question.builder().section(section.entity())
-                        .content(source.content().trim()).points(source.points()).orderIndex(index + 1)
+                        .content(source.content().trim()).explanation(trim(source.explanation())).points(source.points()).orderIndex(index + 1)
                         .imageUrl(path(media, source.imageMediaId())).audioUrl(path(media, source.audioMediaId())).build()));
             }
         }

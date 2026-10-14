@@ -229,10 +229,19 @@ public class ExamAttemptService {
             case AFTER_SCORE->a.getStatus()==ExamAttemptStatus.GRADED&&assignment.getAnswerVisibilityScore()!=null&&a.getTotalScore().compareTo(assignment.getAnswerVisibilityScore())>=0;
         };
         List<ExamAttemptResponse.Review> review=new ArrayList<>(); List<ExamAttemptResponse.SectionScore> sectionScores=List.of();
+        Set<Long> explanationQuestions=new HashSet<>();
         if(score||answers) {
             var scores=ExamScoringCalculator.score(structure,values,data.manualScores(a.getId()));
             if(score) sectionScores=scores.sections();
             if(answers) {
+                Map<Long,Boolean> correctness=new HashMap<>();
+                scores.groups().forEach(g->correctness.put(g.answerId(),g.correct()));
+                for(var section:structure) for(var question:section.questions()) {
+                    if(teacher||!Boolean.TRUE.equals(assignment.getHideCorrectAnswerOnWrong())
+                            ||question.answers().stream().allMatch(g->Boolean.TRUE.equals(correctness.get(g.id())))) {
+                        explanationQuestions.add(question.id());
+                    }
+                }
                 var groups=ExamScoringCalculator.groups(structure);
                 for(var graded:scores.groups()) {
                     var group=groups.get(graded.answerId());
@@ -245,11 +254,14 @@ public class ExamAttemptService {
         }
         return new ExamAttemptResponse.Result(a.getId(),a.getAttemptCount(),a.getRevision(),offset(a.getSubmittedAt()),a.getDurationSeconds(),a.getStatus(),score,answers,a.getStatus()==ExamAttemptStatus.GRADED,
                 score?a.getAutoScore():null,score?a.getManualScore():null,score?a.getTotalScore():null,a.getTeacherComment(),sectionScores,
-                answers?paper(structure):List.of(),answers?new ArrayList<>(values.values()):List.of(),review,a.getTabSwitchCount(),teacher?data.readEvents(a.getId()):List.of());
+                answers?paper(structure,explanationQuestions):List.of(),answers?new ArrayList<>(values.values()):List.of(),review,a.getTabSwitchCount(),teacher?data.readEvents(a.getId()):List.of());
     }
     private static List<ExamAttemptResponse.Section> paper(List<ExamDetailResponse.Section> sections) {
+        return paper(sections,Set.of());
+    }
+    private static List<ExamAttemptResponse.Section> paper(List<ExamDetailResponse.Section> sections,Set<Long> explanationQuestions) {
         return sections.stream().map(s->new ExamAttemptResponse.Section(s.id(),s.title(),s.paragraph(),s.imageMedia(),s.audioMedia(),s.questions().stream().map(q->
-                new ExamAttemptResponse.Question(q.id(),q.content(),q.points(),q.imageMedia(),q.audioMedia(),q.answers().stream().map(a->
+                new ExamAttemptResponse.Question(q.id(),q.content(),explanationQuestions.contains(q.id())?q.explanation():null,q.points(),q.imageMedia(),q.audioMedia(),q.answers().stream().map(a->
                         new ExamAttemptResponse.Group(a.id(),a.answerType(),a.answerType()==AnswerType.SHORT_ANSWER?null:a.content(),a.points(),a.imageMedia(),a.audioMedia(),a.options().stream().map(o->
                                 new ExamAttemptResponse.Option(o.id(),o.content(),o.imageMedia(),o.audioMedia())).toList())).toList())).toList())).toList();
     }

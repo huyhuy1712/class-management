@@ -9,6 +9,7 @@ import { formatExamDateTime } from '../helpers/examHelpers'
 import ExamEmptyState from './ExamEmptyState'
 import ExamStatusBadge from './ExamStatusBadge'
 import useRoutePrefetch from '../../../../query/useRoutePrefetch'
+import { Tooltip } from 'antd'
 
 function ExamTable({
   exams = [],
@@ -72,9 +73,11 @@ function ExamTable({
                       <FileText size={20} />
                     </div>
                 <div className="min-w-0">
-                <p className="block max-w-[330px] truncate text-sm font-semibold text-[#18301D]">
+                <Tooltip title={exam.title} placement="topLeft" trigger={['hover', 'focus']}>
+                <p tabIndex={0} className="block max-w-[330px] truncate text-sm font-semibold text-[#18301D] outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-emerald-400">
                     {exam.title}
                 </p>
+                </Tooltip>
 
                 <p className="mt-1 text-xs text-slate-400">
                     Mã đề: {exam.code || '---'}

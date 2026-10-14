@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
+import { message } from 'antd'
 import {
   ArrowDownUp,
   Plus,
@@ -20,6 +21,7 @@ import DeleteExamModal from './components/DeleteExamModal'
 
 
 function ExamManagementPage() {
+  const [messageApi, messageContext] = message.useMessage()
   const deleteMutation = useMutation({ mutationFn: (args) => examService.deleteExam(...args) })
 
     const {
@@ -70,11 +72,25 @@ function ExamManagementPage() {
     setUiMessage('')
     try {
       const result = await (exam.status === 'PUBLISHED' ? unpublishExam(exam.id) : publishExam(exam.id))
-      if (result) setUiMessage(result.status === 'DRAFT' ? 'Đã đưa đề thi về nháp.' : 'Đã xuất bản đề thi.')
+      if (result) {
+        const text = result.status === 'DRAFT' ? 'Đã đưa đề thi về nháp.' : 'Đã xuất bản đề thi.'
+        setUiMessage(text)
+        messageApi.success(text)
+      }
     } catch (error) {
       const data = error.response?.data
       const validation = Object.values(data?.validationErrors ?? {}).join(' ')
-      setUiMessage(validation || data?.message || 'Không thể đổi trạng thái đề thi. Vui lòng thử lại.')
+      const text = validation || data?.message || 'Không thể đổi trạng thái đề thi. Vui lòng thử lại.'
+      setUiMessage(text)
+      if (error.response?.status === 409) {
+        messageApi.warning({
+          key: 'exam-publish-action',
+          content: text.includes('lượt thi') && exam.status === 'PUBLISHED'
+            ? 'Không thể đưa về nháp vì đã có học sinh bắt đầu làm bài. Đề vẫn giữ trạng thái xuất bản.'
+            : text,
+          duration: 6,
+        })
+      } else messageApi.error({ key: 'exam-publish-action', content: text, duration: 6 })
     }
   }
 
@@ -127,6 +143,7 @@ function ExamManagementPage() {
 
   return (
     <DashboardLayout>
+      {messageContext}
       <div className="mx-auto max-w-[1500px] pb-4 sm:pb-6 lg:pb-8">
         {state?.createdExam && <p role="status" className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">Đã lưu đề {state.createdExam.code} ở trạng thái nháp. Tổng điểm: {state.createdExam.maxScore}.</p>}
         {uiMessage && <p role="status" className="mb-4 text-sm text-slate-600">{uiMessage}</p>}

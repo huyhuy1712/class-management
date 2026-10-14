@@ -1,7 +1,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { buildExamContentPayload, applyContentIdMappings } from '../src/pages/teacher/exams/builder/helpers/examContentPayload.js'
+import { buildExamPayload } from '../src/pages/teacher/exams/builder/helpers/examPayload.js'
 const sections = [{ id: 1, title: 'Phần', paragraph: 'Đoạn văn', questions: [{ id: 'new-question', content: 'Câu hỏi', answerGroups: [{ id: 'new-answer', answerType: 'CHOICE', choiceMode: 'SINGLE', answers: [{ id: 'new-option', content: 'A', point: 1, isCorrect: true, imageMedia: { mediaId: 'media' } }], scoringRules: [] }] }] }]
+
+test('create and edit send explanation with math and send null when removed', () => {
+  const input = structuredClone(sections)
+  input[0].questions[0].explanation = '  Vì $x=2$, đáp án là B.  '
+  assert.equal(buildExamPayload({}, input).sections[0].questions[0].explanation, 'Vì $x=2$, đáp án là B.')
+  assert.equal(buildExamContentPayload(input, 4).sections[0].questions[0].explanation, 'Vì $x=2$, đáp án là B.')
+  input[0].questions[0].explanation = ''
+  assert.equal(buildExamContentPayload(input, 5).sections[0].questions[0].explanation, null)
+})
 test('content PUT preserves server IDs and sends client IDs for new nodes', () => {
   const payload = buildExamContentPayload(sections, 4, 'token')
   assert.equal(payload.revision, 4)

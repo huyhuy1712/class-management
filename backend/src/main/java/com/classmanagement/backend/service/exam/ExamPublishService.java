@@ -134,7 +134,7 @@ public class ExamPublishService {
 
     private static CreateCompleteExamRequest.Section section(ExamDetailResponse.Section s) {
         return new CreateCompleteExamRequest.Section(s.title(), s.paragraph(), media(s.imageMedia()), media(s.audioMedia()),
-                s.questions().stream().map(q -> new CreateCompleteExamRequest.Question(q.content(), media(q.imageMedia()),
+                s.questions().stream().map(q -> new CreateCompleteExamRequest.Question(q.content(), q.explanation(), media(q.imageMedia()),
                         media(q.audioMedia()), q.points(), q.answers().stream().map(a -> new CreateCompleteExamRequest.Answer(
                                 a.answerType(), a.content(), media(a.imageMedia()), media(a.audioMedia()), a.points(),
                                 a.scoringType(), a.correctAnswerText(), a.caseSensitive(), a.options().stream()

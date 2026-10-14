@@ -11,7 +11,7 @@ public record ExamAttemptResponse(Long attemptId,Long assignmentId,int attemptNu
     public record ExamInfo(Long id,String title,String code,BigDecimal maxScore,Integer timeLimit,Integer maxAttempts) {}
     public record Section(Long id,String title,String paragraph,ExamDetailResponse.Media imageMedia,
             ExamDetailResponse.Media audioMedia,List<Question> questions) {}
-    public record Question(Long id,String content,BigDecimal points,ExamDetailResponse.Media imageMedia,
+    public record Question(Long id,String content,String explanation,BigDecimal points,ExamDetailResponse.Media imageMedia,
             ExamDetailResponse.Media audioMedia,List<Group> answers) {}
     public record Group(Long id,AnswerType answerType,String content,BigDecimal points,
             ExamDetailResponse.Media imageMedia,ExamDetailResponse.Media audioMedia,List<Option> options) {}

@@ -89,7 +89,7 @@ public class ExamDetailService {
             Map<Long, List<Answer>> answers, Map<Long, List<AnswerOption>> options,
             Map<Long, List<QuestionScoringRule>> rules, MediaResolver media) {
         return new ExamDetailResponse.Question(question.getId(), question.getOrderIndex(), question.getContent(),
-                question.getPoints(), media.image(question.getImageUrl()), media.audio(question.getAudioUrl()),
+                question.getExplanation(), question.getPoints(), media.image(question.getImageUrl()), media.audio(question.getAudioUrl()),
                 answers.getOrDefault(question.getId(), List.of()).stream().map(a -> answerResponse(a,
                         options.getOrDefault(a.getId(), List.of()), rules.getOrDefault(a.getId(), List.of()), media))
                         .toList());

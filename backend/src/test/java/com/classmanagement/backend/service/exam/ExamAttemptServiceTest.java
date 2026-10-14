@@ -52,6 +52,27 @@ class ExamAttemptServiceTest {
         @Override public List<ExamAttemptResponse.Event> readEvents(Long id) { return List.of(); }
     };
     private static LocalDateTime now() { return LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")); }
+    @Test void explanationIsHiddenDuringAttemptAndReturnedOnlyWithAnswerPermission() {
+        assertNull(service().get(10L,"student").sections().getFirst().questions().getFirst().explanation());
+        var hiddenResult=service().submit(10L,"student",payload(List.of(choice(201))));
+        assertTrue(hiddenResult.sections().isEmpty());
+        assignment.setAnswerVisibility(AnswerVisibility.AFTER_SUBMIT);
+        assertEquals("Explanation secret",service().result(10L,"student").sections().getFirst().questions().getFirst().explanation());
+    }
+    @Test void hideWrongAnswersAlsoHidesQuestionExplanationButTeacherCanReadIt() {
+        assignment.setAnswerVisibility(AnswerVisibility.AFTER_SUBMIT);
+        assignment.setHideCorrectAnswerOnWrong(true);
+        var result=service().submit(10L,"student",payload(List.of(choice(202))));
+        assertNull(result.sections().getFirst().questions().getFirst().explanation());
+        assertEquals("Explanation secret",service().result(10L,"teacher").sections().getFirst().questions().getFirst().explanation());
+    }
+    @Test void explanationWaitsForAfterExamRelease() {
+        assignment.setAnswerVisibility(AnswerVisibility.AFTER_EXAM);
+        service().submit(10L,"student",payload(List.of(choice(201))));
+        assertTrue(service().result(10L,"student").sections().isEmpty());
+        released=true;
+        assertEquals("Explanation secret",service().result(10L,"student").sections().getFirst().questions().getFirst().explanation());
+    }
     private ExamAttemptPayload.Value choice(long option) { return new ExamAttemptPayload.Value(101L,null,List.of(option),List.of()); }
     private ExamAttemptPayload.Save payload(List<ExamAttemptPayload.Value> answers) { return new ExamAttemptPayload.Save(1,attempt.getRevision(),answers,List.of()); }
 
@@ -186,7 +207,7 @@ class ExamAttemptServiceTest {
         if(includeShort) groups.add(new ExamDetailResponse.Answer(103L,2,AnswerType.SHORT_ANSWER,"secret",BigDecimal.ONE,ScoringType.PER_ANSWER,"secret",null,false,null,null,List.of(),List.of()));
         var points=new BigDecimal(includeShort?"3":"2");
         return List.of(new ExamDetailResponse.Section(1L,0,"Section",null,points,null,null,
-                List.of(new ExamDetailResponse.Question(11L,0,"Question",points,null,null,groups))));
+                List.of(new ExamDetailResponse.Question(11L,0,"Question","Explanation secret",points,null,null,groups))));
     }
     private <T> T repo(Class<T> type) {
         return type.cast(Proxy.newProxyInstance(type.getClassLoader(),new Class<?>[]{type},(p,m,a)->switch(m.getName()) {
