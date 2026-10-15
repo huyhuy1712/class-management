@@ -81,6 +81,9 @@ public class SecurityConfig {
                                 "/api/auth/logout")
                         .permitAll()
 
+                        // Admin API
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
                         // TẤT CẢ API CÒN LẠI PHẢI LOGIN
                         .anyRequest().authenticated())
 

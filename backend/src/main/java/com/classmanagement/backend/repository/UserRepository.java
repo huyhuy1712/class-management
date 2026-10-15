@@ -2,6 +2,7 @@ package com.classmanagement.backend.repository;
 
 import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.entity.enums.UserRole;
+import com.classmanagement.backend.entity.enums.UserStatus;
 
 import java.util.List;
 import java.util.Optional;
@@ -20,6 +21,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByEmail(String email);
 
     boolean existsByRole(UserRole role);
+
+    long countByRole(UserRole role);
+
+    long countByStatus(UserStatus status);
 
     boolean existsByPhone(String phone);
 
