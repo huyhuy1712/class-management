@@ -81,6 +81,11 @@ public class SecurityConfig {
                                 "/api/auth/logout")
                         .permitAll()
 
+                        // Public APIs (Tra cứu học sinh không cần đăng nhập)
+                        .requestMatchers(
+                                "/api/public/**")
+                        .permitAll()
+
                         // TẤT CẢ API CÒN LẠI PHẢI LOGIN
                         .anyRequest().authenticated())
 
