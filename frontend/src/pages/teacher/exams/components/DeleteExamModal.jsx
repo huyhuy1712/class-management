@@ -1,3 +1,4 @@
+import FrogLoading from '../../../../utils/FrogLoading'
 import { AlertTriangle, X } from 'lucide-react'
 
 function DeleteExamModal({ exam, open, deleting, forceRequired, error, onClose, onConfirm }) {
@@ -9,7 +10,7 @@ function DeleteExamModal({ exam, open, deleting, forceRequired, error, onClose, 
         <h2 className="mt-4 text-lg font-bold text-slate-900">{forceRequired ? 'Đề thi đã có bài làm' : 'Xóa đề thi?'}</h2>
         <p className="mt-2 text-sm leading-6 text-slate-500">{forceRequired ? 'Xóa đề sẽ xóa toàn bộ bài làm và kết quả liên quan. Bạn có chắc muốn tiếp tục?' : <>Bạn có chắc muốn xóa <span className="font-semibold text-slate-700">“{exam.title}”</span>? Thao tác này không thể hoàn tác.</>}</p>
         {error && <p className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{error}</p>}
-        <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={onClose} disabled={deleting} className="cursor-pointer rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600">Hủy</button><button type="button" onClick={onConfirm} disabled={deleting} className="cursor-pointer rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{deleting ? 'Đang xóa...' : forceRequired ? 'Vẫn xóa đề' : 'Xóa đề thi'}</button></div>
+        <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={onClose} disabled={deleting} className="cursor-pointer rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600">Hủy</button><button type="button" onClick={onConfirm} disabled={deleting} className="cursor-pointer rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{deleting ? <FrogLoading compact label="Đang xóa..." /> : forceRequired ? 'Vẫn xóa đề' : 'Xóa đề thi'}</button></div>
       </div>
     </div>
   )

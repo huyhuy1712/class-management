@@ -39,4 +39,5 @@ public interface ExamAssignmentRepository
                         ExamAssignmentStatus status);
 
         boolean existsByExam_Id(Long examId);
+        Optional<ExamAssignment> findByExam_IdAndCreationRequestId(Long examId, java.util.UUID requestId);
 }

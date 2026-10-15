@@ -54,6 +54,19 @@ public class ExamMediaLifecycle {
         return media;
     }
 
+    // Commit the reservation separately so the cleanup worker can recover even after a process crash.
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public ExamMedia reserveCopy(ExamMedia source, UUID draftToken) {
+        UUID id = UUID.randomUUID();
+        var now = LocalDateTime.now();
+        String path = "exam-media/gv_" + source.getTeacher().getId() + "/" + draftToken + "/" + id
+                + source.getObjectPath().substring(source.getObjectPath().lastIndexOf('.'));
+        return mediaRepository.save(ExamMedia.builder().id(id).teacher(source.getTeacher()).draftToken(draftToken)
+                .objectPath(path).mediaType(source.getMediaType()).contentType(source.getContentType())
+                .sizeBytes(source.getSizeBytes()).status(ExamMediaStatus.UPLOADING).createdAt(now)
+                .expiresAt(now.plusHours(1)).nextCleanupAt(now.plusHours(1)).build());
+    }
+
     @Transactional
     public void uploadFailed(UUID id) {
         ExamMedia media = locked(id);

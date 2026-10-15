@@ -17,6 +17,16 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class ExamAttempt {
+    @Column(name="teacher_blocked",nullable=false) @Builder.Default
+    private boolean teacherBlocked=false;
+    @Column(name="attempt_limit_override")
+    private Integer attemptLimitOverride;
+    @Version @Builder.Default @Column(nullable=false)
+    private Long revision = 0L;
+    @Column(name="start_request_id")
+    private java.util.UUID startRequestId;
+    @Column(name="deadline_at")
+    private LocalDateTime deadlineAt;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -45,13 +55,13 @@ public class ExamAttempt {
     @Column(name = "duration_seconds")
     private Integer durationSeconds;
 
-    @Column(name = "auto_score", nullable = false, precision = 6, scale = 2)
+    @Column(name = "auto_score", nullable = false, precision = 7, scale = 3)
     private BigDecimal autoScore;
 
-    @Column(name = "manual_score", nullable = false, precision = 6, scale = 2)
+    @Column(name = "manual_score", nullable = false, precision = 7, scale = 3)
     private BigDecimal manualScore;
 
-    @Column(name = "total_score", nullable = false, precision = 6, scale = 2)
+    @Column(name = "total_score", nullable = false, precision = 7, scale = 3)
     private BigDecimal totalScore;
 
     @Enumerated(EnumType.STRING)

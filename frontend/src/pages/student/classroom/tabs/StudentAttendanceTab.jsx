@@ -1,3 +1,4 @@
+import FrogLoading from '../../../../utils/FrogLoading'
 import useSubmitAttendance from '../hooks/useSubmitAttendance'
 import LateAttendanceModal from '../../modals/LateAttendanceModal'
 import { CheckCircle2, Clock3, UserX, ClipboardCheck } from 'lucide-react'
@@ -28,7 +29,7 @@ export default function StudentAttendanceTab({ classId }) {
     </div>
     <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-500"><span>{data.date ? `Đang xem ngày: ${formatDate(data.date)}` : 'Đang xem tất cả ngày'}</span>{data.date && <button type="button" onClick={() => data.setDate('')} className="text-emerald-700">× Xem tất cả ngày</button>}</div>
     <div className="my-6 grid gap-3 sm:grid-cols-3">{stats.map(({ key, label, Icon, style }) => <div key={key} className={`flex items-center justify-between rounded-xl p-4 ${style}`}><span className="flex items-center gap-2"><Icon size={19} />{label}</span><strong>{data.loading || data.error ? '—' : data.counts[key]}</strong></div>)}</div>
-    {data.loading ? <p className="text-sm text-slate-500">Đang tải điểm danh...</p> : data.error ? <p role="alert" className="text-red-600">{data.error}</p> : <><p className="mb-3 text-sm text-slate-500">{data.filtered.length} bản ghi điểm danh</p><StudentAttendanceTable records={data.filtered} /></>}
+    {data.loading ? <FrogLoading label="Đang tải điểm danh..." className="text-sm text-slate-500" /> : data.error ? <p role="alert" className="text-red-600">{data.error}</p> : <><p className="mb-3 text-sm text-slate-500">{data.filtered.length} bản ghi điểm danh</p><StudentAttendanceTable records={data.filtered} /></>}
     {submission.success && <p role="status" className="mt-4 rounded-xl bg-green-50 p-3 font-semibold text-green-700">{submission.success}</p>}
     {submission.step === 'password' && <AttendancePasswordModal onClose={submission.close} onSubmit={submission.submitPassword} busy={submission.busy} error={submission.error} />}
     {submission.step === 'late' && <LateAttendanceModal onClose={submission.close} onSubmit={submission.submitReason} busy={submission.busy} error={submission.error} />}

@@ -17,7 +17,7 @@ function AnswerEditor({ answer, optionLabel, selectable = false, trueFalse = fal
           <div className="mt-2 flex flex-wrap items-end gap-2">
             <div className="w-[135px]"><MediaFilePicker type="image" file={answer.imageFile ?? answer.imageMedia} onChange={(file) => onChange({ imageFile: file })}/></div>
             <div className="w-[135px]"><MediaFilePicker type="audio" file={answer.audioFile ?? answer.audioMedia} onChange={(file) => onChange({ audioFile: file })}/></div>
-            {showPoint && <label className="w-[92px] space-y-1"><span className="text-base font-semibold text-slate-700">{trueFalse ? 'Điểm từng ý' : 'Điểm đáp án'}</span><input type="number" min="0" max="9999.99" step="0.01" value={answer.point} onChange={(e) => onChange({ point: e.target.value })} className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm outline-none focus:border-emerald-400"/></label>}
+            {showPoint && <label className="w-[92px] space-y-1"><span className="text-base font-semibold text-slate-700">{trueFalse ? 'Điểm từng ý' : 'Điểm đáp án'}</span><input type="number" min="0" max="9999.999" step="0.001" value={answer.point} onChange={(e) => onChange({ point: e.target.value })} className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm outline-none focus:border-emerald-400"/></label>}
             <label className="w-[92px] space-y-1"><span className="text-base font-semibold text-slate-700">Thứ tự</span><input type="number" min="1" value={answer.orderIndex} onChange={(e) => onChange({ orderIndex: e.target.value })} className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm outline-none focus:border-emerald-400"/></label>
           </div>
         </div>

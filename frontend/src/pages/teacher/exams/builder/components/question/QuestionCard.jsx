@@ -1,12 +1,13 @@
 import { getQuestionScore } from '../../helpers/examScoreUtils'
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, Plus, Trash2, Lightbulb } from 'lucide-react'
 import AnswerGroup from '../answer/AnswerGroup'
 import MediaFilePicker from '../common/MediaFilePicker'
 import MathContentInput from '../math/MathContentInput'
 
 function QuestionCard({ question, index, onChange, onRemove, answerActions, validationErrors = {} }) {
   const [collapsed, setCollapsed] = useState(false)
+  const [explanationOpen, setExplanationOpen] = useState(() => Boolean(question.explanation?.trim() || question.explanationImageMedia || question.explanationAudioMedia || question.explanationImageFile || question.explanationAudioFile))
   const hasError = validationErrors[`question-${question.id}`] || question.answerGroups.some((group) => validationErrors[`answer-group-${group.id}`])
   const expanded = !collapsed || Boolean(hasError)
   return (
@@ -21,6 +22,17 @@ function QuestionCard({ question, index, onChange, onRemove, answerActions, vali
       <div id={`question-body-${question.id}`} hidden={!expanded}>
       {validationErrors[`question-${question.id}`] && <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-base font-semibold text-red-600">{validationErrors[`question-${question.id}`]}</p>}
       <MathContentInput value={question.content} onChange={(content) => onChange({ content })} placeholder="Nhập nội dung câu hỏi..." />
+      {!explanationOpen && <button type="button" onClick={() => setExplanationOpen(true)} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-sm font-semibold text-amber-800 transition hover:bg-amber-100"><Lightbulb size={16} />Thêm giải thích</button>}
+      {explanationOpen && <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+        <div className="mb-2 flex items-center justify-between gap-3"><p className="flex items-center gap-2 text-sm font-semibold text-amber-800"><Lightbulb size={17} />Giải thích <span className="font-normal text-amber-700">(không bắt buộc)</span></p><span className="text-xs text-amber-700">{question.explanation?.length ?? 0}/20000</span></div>
+        <MathContentInput value={question.explanation ?? ''} onChange={(explanation) => onChange({ explanation })} placeholder="Nhập lời giải hoặc hướng dẫn giải câu hỏi..." rows={3} />
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <MediaFilePicker type="image" file={question.explanationImageFile ?? question.explanationImageMedia} onChange={(file) => onChange({ explanationImageFile: file })} />
+          <MediaFilePicker type="audio" file={question.explanationAudioFile ?? question.explanationAudioMedia} onChange={(file) => onChange({ explanationAudioFile: file })} />
+        </div>
+        <p className="mt-2 text-xs text-amber-700">Có thể dùng chữ, ảnh hoặc audio. Ảnh tối đa 5 MiB, audio MP3 tối đa 8 MiB.</p>
+        <button type="button" onClick={() => { onChange({ explanation: '', explanationImageFile: null, explanationAudioFile: null }); setExplanationOpen(false) }} className="mt-2 text-xs font-semibold text-slate-500 transition hover:text-red-600">Bỏ toàn bộ giải thích</button>
+      </div>}
       <div className="mt-3 flex flex-wrap items-end gap-2">
         <div className="w-[140px]"><MediaFilePicker type="image" file={question.imageFile ?? question.imageMedia} onChange={(file) => onChange({ imageFile: file })}/></div>
         <div className="w-[140px]"><MediaFilePicker type="audio" file={question.audioFile ?? question.audioMedia} onChange={(file) => onChange({ audioFile: file })}/></div>

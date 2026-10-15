@@ -69,7 +69,7 @@ function ExamResultSettingsSection({ form, errors = {}, onChange }) {
           </div>
 
           <div>
-            <label className="inline-flex cursor-pointer items-center gap-3">
+            <label className="relative inline-flex cursor-pointer items-center gap-3">
               <input
                 type="checkbox"
                 name="hideWrongAnswers"
@@ -77,7 +77,7 @@ function ExamResultSettingsSection({ form, errors = {}, onChange }) {
                 onChange={onChange}
                 className="peer sr-only"
               />
-              <span className="relative h-7 w-12 rounded-full bg-slate-200 transition peer-checked:bg-emerald-600">
+              <span className="relative h-7 w-12 rounded-full bg-slate-200 transition peer-checked:bg-emerald-600 peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-600 peer-focus-visible:ring-offset-2">
                 <span className={`absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${form.hideWrongAnswers ? 'translate-x-5' : 'translate-x-0'}`} />
               </span>
               <span className="text-sm font-medium text-slate-600">

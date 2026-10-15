@@ -32,7 +32,7 @@ public class StudentAnswerValue {
     @Column(name = "answer_text", columnDefinition = "TEXT")
     private String answerText;
 
-    @Column(name = "score", precision = 6, scale = 2)
+    @Column(name = "score", precision = 7, scale = 3)
     private BigDecimal score;
 
     @Column(name = "is_correct")

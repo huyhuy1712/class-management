@@ -5,6 +5,9 @@ export function getExamConfigurationForm(exam) {
   return {
     ...exam,
     ...exam.basicInfo,
+    timeLimit: assignment?.timeLimit ?? exam.basicInfo?.timeLimit ?? exam.timeLimit,
+    maxAttempts: assignment?.maxAttempts ?? exam.basicInfo?.maxAttempts ?? exam.maxAttempts,
+    threshold: exam.threshold ?? assignment?.threshold,
     accessType: exam.accessType ?? assignment?.assignmentType,
     classIds: exam.classIds ?? assignment?.classIds,
     studentIds: exam.studentIds ?? assignment?.studentIds,

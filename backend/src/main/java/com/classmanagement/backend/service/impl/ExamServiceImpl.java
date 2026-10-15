@@ -45,6 +45,17 @@ public class ExamServiceImpl implements ExamService {
     private final ExamAssignmentClassRepository examAssignmentClassRepository;
     private final ExamAttemptRepository examAttemptRepository;
     private final ExamMediaRepository examMediaRepository;
+    private final com.classmanagement.backend.repository.exam.ExamAttemptDataRepository attemptData;
+
+    @Override
+    @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    public List<com.classmanagement.backend.dto.exam.ClassExamResponse> getClassExams(String username, Long classId) {
+        if (classId == null || classId <= 0) throw new IllegalArgumentException("classId phải lớn hơn 0");
+        if (!attemptData.ownsExamClass(username, classId)) {
+            throw new com.classmanagement.backend.exception.ResourceNotFoundException("Không tìm thấy lớp học của bạn");
+        }
+        return attemptData.classExams(classId);
+    }
 
 @Override
 @Transactional(readOnly = true)

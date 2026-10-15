@@ -7,14 +7,16 @@ import {
 } from 'lucide-react'
 import { NavLink, useLocation, useParams } from 'react-router-dom'
 import useRoutePrefetch from '../../../query/useRoutePrefetch'
+import useResourceQuery from '../../../query/useResourceQuery'
 
 function ClassDetailSidebar({ studentCount = 0 }) {
   const prefetch = useRoutePrefetch()
   const { classId } = useParams()
+  const examsQuery = useResourceQuery('classExams', [classId])
   const { pathname } = useLocation()
 
   const isItemActive = (item, routeIsActive) => {
-    if (!item.showCount) return routeIsActive
+    if (!item.end) return routeIsActive
 
     return (
       pathname === item.to ||
@@ -28,12 +30,13 @@ function ClassDetailSidebar({ studentCount = 0 }) {
       icon: Users,
       to: `/teacher/classes/${classId}`,
       end: true,
-      showCount: true,
+      count: studentCount,
     },
     {
       label: 'Đề thi',
       icon: FileText,
       to: `/teacher/classes/${classId}/assignments`,
+      count: examsQuery.data?.length,
     },
     {
       label: 'Bảng tin',
@@ -92,9 +95,9 @@ function ClassDetailSidebar({ studentCount = 0 }) {
                       <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
                         <span>{item.label}</span>
 
-                        {item.showCount && (
+                        {item.count != null && (
                           <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-bold text-sky-700 shadow-sm">
-                            {studentCount}
+                            {item.count}
                           </span>
                         )}
                       </span>

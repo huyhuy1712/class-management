@@ -51,6 +51,8 @@ public class ExamStructureValidator {
                 var question = section.questions().get(qi);
                 String qp = sp + ".questions[" + qi + "]";
                 collect(media, question.imageMediaId(), question.audioMediaId(), qp);
+                put(media, question.explanationImageMediaId(), ExamMediaType.IMAGE, qp + ".explanationImageMediaId");
+                put(media, question.explanationAudioMediaId(), ExamMediaType.AUDIO, qp + ".explanationAudioMediaId");
                 BigDecimal questionTotal = BigDecimal.ZERO;
                 if (++questions > 500) fail("sections", "Đề không được vượt quá 500 câu hỏi");
                 for (int ai = 0; ai < question.answers().size(); ai++) {

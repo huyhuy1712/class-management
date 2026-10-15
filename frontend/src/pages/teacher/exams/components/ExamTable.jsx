@@ -1,21 +1,28 @@
+import FrogLoading from '../../../../utils/FrogLoading'
 import {
   ClipboardCheck,
+  Copy,
   FileText,
   Pencil,
   Trash2,
-  UsersRound,
 } from 'lucide-react'
 
 import { formatExamDateTime } from '../helpers/examHelpers'
 import ExamEmptyState from './ExamEmptyState'
 import ExamStatusBadge from './ExamStatusBadge'
 import useRoutePrefetch from '../../../../query/useRoutePrefetch'
+import { Tooltip } from 'antd'
 
 function ExamTable({
   exams = [],
   onView,
   onEdit,
   onDelete,
+  onPublish,
+  onReassign,
+  onCopy,
+  copyingId = null,
+  publishingId = null,
   
 }) {
   const prefetch = useRoutePrefetch()
@@ -30,7 +37,7 @@ function ExamTable({
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1000px]">
+        <table className="w-full min-w-[850px]">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50/70">
               <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -43,10 +50,6 @@ function ExamTable({
 
               <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Trạng thái
-              </th>
-
-              <th className="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Số lớp đã giao
               </th>
 
               <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -75,9 +78,11 @@ function ExamTable({
                       <FileText size={20} />
                     </div>
                 <div className="min-w-0">
-                <p className="block max-w-[330px] truncate text-sm font-semibold text-[#18301D]">
+                <Tooltip title={exam.title} placement="topLeft" trigger={['hover', 'focus']}>
+                <p tabIndex={0} className="block max-w-[330px] truncate text-sm font-semibold text-[#18301D] outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-emerald-400">
                     {exam.title}
                 </p>
+                </Tooltip>
 
                 <p className="mt-1 text-xs text-slate-400">
                     Mã đề: {exam.code || '---'}
@@ -105,18 +110,6 @@ function ExamTable({
                   />
                 </td>
 
-                {/* SỐ LỚP */}
-                <td className="px-5 py-5 text-center">
-                  <div className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
-                    <UsersRound
-                      size={17}
-                      className="text-slate-400"
-                    />
-
-                    {exam.assignedClassCount ?? 0}
-                  </div>
-                </td>
-
                 {/* CREATED AT */}
                 <td className="px-5 py-5">
                   <span className="text-sm font-medium text-slate-600">
@@ -129,7 +122,19 @@ function ExamTable({
                 {/* ACTION */}
                 <td className="px-6 py-5">
                     <div className="flex items-center justify-end gap-1">
-                        {['DRAFT', 'PUBLISHED'].includes(exam.status) && <button type="button" disabled title="Chức năng xuất bản đề thi đang được hoàn thiện" className="inline-flex h-7 cursor-not-allowed items-center whitespace-nowrap rounded-md border border-slate-200 bg-slate-50 px-2 text-xs font-medium leading-none text-slate-400">{exam.status === 'PUBLISHED' ? 'Về nháp' : 'Xuất bản'}</button>}
+                        <Tooltip title="Sao chép thành bản nháp mới để sửa và giao lại">
+                          <button type="button" aria-label={`Sao chép đề ${exam.title}`} disabled={copyingId !== null}
+                            onClick={(event) => { event.stopPropagation(); onCopy?.(exam) }}
+                            className="inline-flex items-center gap-1 rounded-lg p-2 text-emerald-700 hover:bg-emerald-50 disabled:opacity-50">
+                            <Copy size={18} />{copyingId === exam.id && <span className="whitespace-nowrap text-xs">Đang sao chép…</span>}
+                          </button>
+                        </Tooltip>
+                        {exam.status === 'PUBLISHED' && <button type="button" onClick={(event) => { event.stopPropagation(); onReassign?.(exam) }} className="inline-flex h-7 items-center whitespace-nowrap rounded-md border border-emerald-200 bg-emerald-50 px-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">Giao lại</button>}
+                        {['DRAFT', 'PUBLISHED'].includes(exam.status) && <button type="button" disabled={publishingId !== null}
+                          onClick={(event) => { event.stopPropagation(); onPublish?.(exam) }}
+                          className="inline-flex h-7 items-center whitespace-nowrap rounded-md border border-green-200 bg-green-50 px-2 text-xs font-medium leading-none text-green-700 transition hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50">
+                          {publishingId === exam.id ? <FrogLoading compact label="Đang xử lý…" /> : exam.status === 'PUBLISHED' ? 'Về nháp' : 'Xuất bản'}
+                        </button>}
                         <button
                         type="button"
                         title="Chỉnh sửa"

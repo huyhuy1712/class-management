@@ -1,3 +1,4 @@
+import FrogLoading from '../../../../utils/FrogLoading'
 import { sortByText } from '../../../../utils/sortByText'
 import { School } from 'lucide-react'
 
@@ -14,9 +15,7 @@ function ClassroomGrid({
 }) {
   if (loading) {
     return (
-      <div className="mt-4 flex min-h-80 items-center justify-center rounded-2xl border border-green-100 bg-white text-sm text-gray-400">
-        Đang tải danh sách lớp học...
-      </div>
+      <FrogLoading label="Đang tải danh sách lớp học..." className="mt-4 flex min-h-80 items-center justify-center rounded-2xl border border-green-100 bg-white text-sm text-gray-400" />
     )
   }
 

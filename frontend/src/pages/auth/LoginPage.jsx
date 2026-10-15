@@ -1,6 +1,7 @@
+import FrogLoading from '../../utils/FrogLoading'
 import { useMutation } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { Eye, EyeOff, LoaderCircle, Leaf, Sprout, Trees, BookOpen, GraduationCap } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, Leaf, Sprout, Trees, BookOpen, GraduationCap } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { login } from '../../services/authService'
@@ -173,6 +174,14 @@ function LoginPage() {
 
       <section className="flex w-full min-w-0 items-center justify-center">
         <div className="login-card w-full min-w-0 max-w-[420px] rounded-[28px] border border-green-100 bg-white px-6 py-8 sm:px-9 sm:py-10">
+          <Link
+            to="/"
+            className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-gray-500 transition hover:text-green-700"
+          >
+            <ArrowLeft size={17} />
+            Quay lại trang chủ
+          </Link>
+
           <div className="mb-8 text-center">
             <h1 className="text-3xl font-bold text-[#18301D]">
               Đăng nhập
@@ -275,11 +284,7 @@ function LoginPage() {
               disabled={loading}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3.5 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <LoaderCircle
-                size={18}
-                className={loading ? 'animate-spin' : 'invisible'}
-                aria-hidden="true"
-              />
+              <FrogLoading compact label="" className={loading ? '' : 'invisible'} />
               {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </button>
           </form>

@@ -13,6 +13,16 @@ import java.util.Optional;
 
 public interface ExamAttemptRepository
                 extends JpaRepository<ExamAttempt, Long> {
+        @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+        Optional<ExamAttempt> findLockedById(Long id);
+        @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+        @Query("select t from ExamAttempt t where t.id in :ids order by t.id")
+        List<ExamAttempt> findLockedBatch(@Param("ids") Collection<Long> ids);
+        @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+        Optional<ExamAttempt> findLockedByAssignment_IdAndStudent_Id(Long assignmentId, Long studentId);
+        @org.springframework.data.jpa.repository.Modifying
+        @Query(value="insert into exam_attempts(assignment_id,student_id) values (:assignmentId,:studentId) on conflict (assignment_id,student_id) do nothing",nativeQuery=true)
+        int insertIfAbsent(@Param("assignmentId") Long assignmentId,@Param("studentId") Long studentId);
 
         @Query("select count(distinct a.assignment.exam.id) from ExamAttempt a where a.student.id = :studentId and a.status in :statuses")
         long countCompletedExams(@Param("studentId") Long studentId,

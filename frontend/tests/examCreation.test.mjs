@@ -15,6 +15,25 @@ const item = (id, correct = false) => ({ id, content: `Ý ${id}`, isCorrect: cor
 const group = (id = 'g') => ({ id, answerType: 'TRUE_FALSE', point: 1, orderIndex: 1, answers: [item('a'), item('b')], scoringRules: [] })
 const sections = () => [{ id: 's', title: 'Phần 1', orderIndex: 1, questions: [{ id: 'q', content: 'Câu hỏi', point: 1, orderIndex: 1, answerGroups: [group()] }] }]
 
+test('explanation image and audio use existing upload flow and preserve progress after each upload', async () => {
+  const input = sections()
+  input[0].questions[0].explanationImageFile = new File(['image'], 'solution.png', { type: 'image/png' })
+  input[0].questions[0].explanationAudioFile = new File(['audio'], 'solution.mp3', { type: 'audio/mpeg' })
+  validateExamMedia(input)
+  const progress = []
+  const result = await uploadExamMedia(input, 'draft', (value) => progress.push(value), async (token, type) => {
+    assert.equal(token, 'draft')
+    return { mediaId: type, url: `https://example.com/${type}` }
+  })
+  assert.equal(progress.length, 2)
+  assert.equal(progress[0][0].questions[0].explanationImageFile, null)
+  assert.ok(progress[0][0].questions[0].explanationAudioFile)
+  const question = buildExamPayload(config, result).sections[0].questions[0]
+  assert.equal(question.explanation, null)
+  assert.equal(question.explanationImageMediaId, 'IMAGE')
+  assert.equal(question.explanationAudioMediaId, 'AUDIO')
+})
+
 test('ALL requires a current active classroom even when a draft has old target IDs', () => {
   assert.match(validateAllExamClasses(config.accessType, []), /Chưa có lớp nào/)
   assert.match(validateAllExamClasses('ALL', [{ id: 1, status: 'ARCHIVED' }]), /Chưa có lớp nào/)

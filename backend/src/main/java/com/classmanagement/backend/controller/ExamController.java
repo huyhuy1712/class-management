@@ -20,6 +20,9 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import com.classmanagement.backend.service.exam.ExamPublishService;
+import com.classmanagement.backend.dto.exam.PublishExamResponse;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.http.HttpStatus;
 import com.classmanagement.backend.dto.exam.CreateCompleteExamRequest;
@@ -41,6 +44,29 @@ public class ExamController {
     private final ExamDetailService detailService;
     private final ExamConfigurationUpdateService configurationUpdateService;
     private final ExamContentUpdateService contentUpdateService;
+    private final ExamPublishService publishService;
+    private final com.classmanagement.backend.service.exam.ExamCreationService creationService;
+
+    @PostMapping("/{examId}/copy")
+    public ResponseEntity<ExamDetailResponse> copyExam(@PathVariable Long examId,
+            @Valid @RequestBody com.classmanagement.backend.dto.exam.CopyExamRequest request, Authentication auth) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(creationService.copy(examId, auth.getName(), request));
+    }
+    @PostMapping("/{examId}/assignments")
+    public ResponseEntity<ExamConfigurationResponse> createAssignment(@PathVariable Long examId,
+            @Valid @RequestBody com.classmanagement.backend.dto.exam.CreateExamAssignmentRequest request, Authentication auth) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(configurationUpdateService.createAssignment(examId,auth.getName(),request));
+    }
+
+    @PatchMapping("/{examId}/publish")
+    public ResponseEntity<PublishExamResponse> publish(@PathVariable Long examId, Authentication authentication) {
+        return ResponseEntity.ok(publishService.publish(examId, authentication.getName()));
+    }
+
+    @PatchMapping("/{examId}/unpublish")
+    public ResponseEntity<PublishExamResponse> unpublish(@PathVariable Long examId, Authentication authentication) {
+        return ResponseEntity.ok(publishService.unpublish(examId, authentication.getName()));
+    }
 
     @PutMapping("/{examId}/content")
     public ResponseEntity<UpdateExamContentResponse> updateContent(@PathVariable Long examId,

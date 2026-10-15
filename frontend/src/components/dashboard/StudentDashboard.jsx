@@ -1,3 +1,4 @@
+import FrogLoading from '../../utils/FrogLoading'
 import useStudentDashboard from "../../pages/student/hooks/useStudentDashboard";
 import {
   ClipboardCheck,
@@ -8,6 +9,7 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import useRoutePrefetch from '../../query/useRoutePrefetch'
 
 const features = [
   {
@@ -38,6 +40,7 @@ const features = [
 ];
 
 function StudentDashboard() {
+  const prefetch = useRoutePrefetch()
   const { studentName, classCount, loading, classError, error, completedExamCount, examCountLoading, examCountError } = useStudentDashboard();
   const today = new Intl.DateTimeFormat("vi-VN", {
     weekday: "long",
@@ -92,7 +95,7 @@ function StudentDashboard() {
 
             <div>
               <p className="text-2xl font-bold text-emerald-700">
-                {loading ? "..." : classError ? "--" : classCount}
+                {loading ? <FrogLoading compact label="" /> : classError ? "--" : classCount}
               </p>
 
               <p className="text-sm text-gray-400">
@@ -116,7 +119,7 @@ function StudentDashboard() {
 
             <div>
               <p className="text-2xl font-bold text-violet-700">
-                {examCountLoading ? "..." : examCountError ? "--" : completedExamCount}
+                {examCountLoading ? <FrogLoading compact label="" /> : examCountError ? "--" : completedExamCount}
               </p>
 
               <p className="text-sm text-gray-400">
@@ -148,6 +151,8 @@ function StudentDashboard() {
             const isImplementedRoute = [
               "/student/classes",
               "/student/teachers",
+              "/student/exams",
+              "/student/grades",
             ].includes(feature.path);
             const FeatureLink = isImplementedRoute ? Link : "a";
             const destinationProps = isImplementedRoute
@@ -158,6 +163,8 @@ function StudentDashboard() {
               <FeatureLink
                 key={feature.title}
                 {...destinationProps}
+                onMouseEnter={() => { if (isImplementedRoute) prefetch(feature.path) }}
+                onFocus={() => { if (isImplementedRoute) prefetch(feature.path) }}
                 className="group relative rounded-2xl border border-[#dcefe3] bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-[#a9dfbe] hover:shadow-md"
               >
 

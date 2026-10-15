@@ -4,6 +4,35 @@ import { readFile } from 'node:fs/promises'
 import { runInNewContext } from 'node:vm'
 
 let api, examService, mediaService
+test('assignment export reads all recipients in class scope without display filters', async () => {
+  const signal = new AbortController().signal
+  const pages = []
+  api.handler = async (url, options) => {
+    assert.equal(url, '/exam-assignments/8/attempts')
+    assert.equal(options.params.classId, '21')
+    assert.equal(options.params.size, 100)
+    assert.equal(options.params.q, undefined)
+    assert.equal(options.params.status, undefined)
+    assert.equal(options.signal, signal)
+    pages.push(options.params.page)
+    return { data: { items: Array.from({ length: options.params.page === 0 ? 100 : 1 }, (_, i) => ({ studentId: options.params.page * 100 + i })), totalElements: 101 } }
+  }
+  assert.equal((await examService.getAssignmentExport(8, '21', { signal })).length, 101)
+  assert.deepEqual(pages, [0, 1])
+})
+test('student grades forwards filters, pagination and cancellation and preserves server aggregates', async () => {
+  const params = { classId: 21, subjectId: 1, from: '2026-10-01', to: '2026-10-31', page: 2, size: 6, includeCharts: true }
+  const signal = new AbortController().signal
+  const response = { items: [], totalElements: 13, summary: { average: 7, hiddenScoreCount: 2 }, charts: { scoreBands: [1, 2, 3, 4] } }
+  api.handler = async (url, options) => {
+    assert.equal(url, '/users/me/grades')
+    assert.equal(options.params, params)
+    assert.equal(options.signal, signal)
+    assert.equal(Object.hasOwn(options.params, 'userId'), false)
+    return { data: response }
+  }
+  assert.equal(await examService.getMyGrades(params, { signal }), response)
+})
 before(async () => {
   api = { put: (...args) => api.handler(...args), get: (...args) => api.handler(...args), post: (...args) => api.handler(...args) }
   // Evaluate the real service modules with an isolated HTTP transport.
@@ -14,6 +43,117 @@ before(async () => {
   }
   examService = await loadService('examService')
   mediaService = await loadService('examMediaService')
+})
+
+test('teacher review and destructive reset preserve attempt generation and revision', async () => {
+  const signal = new AbortController().signal
+  api.handler = async (url, options) => {
+    assert.equal(url, '/exam-attempts/42/teacher-review')
+    assert.equal(options.signal, signal)
+    return { data: { assignmentId: 8, student: { id: 23 }, result: { revision: 5 } } }
+  }
+  assert.equal((await examService.getTeacherAttemptReview(42, { signal })).result.revision, 5)
+  for (const mode of ['RETAKE', 'BLOCK']) {
+    const body = { attemptNumber: 2, revision: 5, mode }
+    api.handler = async (url, payload) => { assert.equal(url, '/exam-attempts/42/reset'); assert.equal(payload, body); return { data: undefined } }
+    await examService.resetAttempt(42, body)
+  }
+})
+
+test('student overview collects every page so score distribution covers the whole class student scope', async () => {
+  const signal = new AbortController().signal
+  const summary = { total: 101, graded: 101, averageScoreOnTen: 7 }
+  api.handler = async (url, options) => {
+    assert.equal(url, '/classes/21/students/23/exam-results')
+    assert.equal(options.signal, signal)
+    assert.equal(options.params.size, 100)
+    return { data: { items: Array.from({ length: options.params.page ? 1 : 100 }, (_, i) => ({ assignmentId: options.params.page * 100 + i })), totalElements: 101, summary } }
+  }
+  const result = await examService.getStudentClassExamResults(21, 23, { signal })
+  assert.equal(result.items.length, 101)
+  assert.equal(result.summary, summary)
+})
+
+test('assignment attempts forward class scope, search and pagination; comment writes omit grades', async () => {
+  const signal = new AbortController().signal
+  const params = { classId: 21, page: 2, size: 12, q: 'Huy', status: 'SUBMITTED', sort: 'score_desc' }
+  const response = { items: [{ attemptId: null, status: 'NOT_STARTED' }], stats: { total: 10, notStarted: 1 }, totalElements: 1 }
+  api.handler = async (url, options) => {
+    assert.equal(url, '/exam-assignments/8/attempts')
+    assert.equal(options.params, params)
+    assert.equal(options.signal, signal)
+    return { data: response }
+  }
+  assert.equal(await examService.getAssignmentAttempts(8, params, { signal }), response)
+  api.patch = async (url, body) => {
+    assert.equal(url, '/exam-attempts/42/grades')
+    assert.equal(body.attemptNumber, 2)
+    assert.equal(body.revision, 5)
+    assert.equal(body.teacherComment, '')
+    assert.equal(Object.hasOwn(body, 'grades'), false)
+    return { data: { revision: 6, teacherComment: null, totalScore: 7 } }
+  }
+  assert.equal((await examService.updateAttemptGrades(42, { attemptNumber: 2, revision: 5, teacherComment: '' })).totalScore, 7)
+})
+
+test('class exam list uses classroom scope and forwards query cancellation', async () => {
+  const signal = new AbortController().signal
+  const rows = [{ assignmentId: 12, examId: 7, gradedCount: 3, pendingGradingCount: 2 }]
+  api.handler = async (url, options) => {
+    assert.equal(url, '/classes/21/exams')
+    assert.equal(options.signal, signal)
+    return { data: rows }
+  }
+  assert.equal(await examService.getClassExams(21, { signal }), rows)
+})
+
+test('copy uses a stable request ID and returns the new independent draft', async () => {
+  const response = { id: 99, status: 'DRAFT', code: 'NEW', sections: [], assignments: [{ id: 100 }] }
+  let calls = 0
+  api.handler = async (url, body) => {
+    calls++
+    assert.equal(url, '/exams/7/copy')
+    assert.equal(body.requestId, 'same-request')
+    return { data: response }
+  }
+  assert.equal(await examService.copyExam(7, 'same-request'), response)
+  assert.equal(await examService.copyExam(7, 'same-request'), response)
+  assert.equal(calls, 2)
+  api.handler = async () => { throw new Error('Response lost') }
+  await assert.rejects(examService.copyExam(7, 'same-request'), /Response lost/)
+})
+
+test('student exam list reads every page and preserves server statistics and sort', async () => {
+  const signal = new AbortController().signal
+  const stats = { completedCount: 2, notStartedCount: 99, pendingGradingCount: 0 }
+  api.handler = async (url, options) => {
+    assert.equal(url, '/users/me/exams')
+    assert.equal(options.signal, signal)
+    assert.equal(options.params.sort, 'oldest')
+    const page = options.params.page
+    return { data: { items: Array.from({ length: page === 0 ? 100 : 1 }, (_, i) => ({ assignmentId: page * 100 + i + 1 })), totalElements: 101, stats } }
+  }
+  const result = await examService.getStudentExams({ signal }, 'oldest')
+  assert.equal(result.items.length, 101)
+  assert.equal(result.items[100].assignmentId, 101)
+  assert.equal(result.stats, stats)
+  api.handler = async (url) => { assert.equal(url, '/exam-assignments/101'); return { data: { assignmentId: 101, canResume: true } } }
+  assert.equal((await examService.getStudentAssignment(101)).canResume, true)
+})
+
+test('attempt writes preserve generation, revision, event UUIDs and answer option IDs', async () => {
+  const body = { attemptNumber: 2, revision: 7, answers: [{ answerId: 101, selectedOptionIds: [11] }], events: [{ eventId: 'same-id-for-retry', type: 'TAB_HIDDEN' }] }
+  for (const [method, path] of [['saveAttempt', '/exam-attempts/42/answers'], ['submitAttempt', '/exam-attempts/42/submit']]) {
+    api.handler = async (url, payload) => { assert.equal(url, path); assert.equal(payload, body); return { data: { attemptId: 42, revision: 8 } } }
+    assert.equal((await examService[method](42, body)).revision, 8)
+  }
+  const start = { requestId: 'stable-start-request', expectedAttemptCount: 1 }
+  api.handler = async (url, payload) => { assert.equal(url, '/exam-assignments/12/attempts'); assert.equal(payload, start); return { data: { attemptId: 42 } } }
+  assert.equal((await examService.startAttempt(12, start)).attemptId, 42)
+  api.handler = async (url) => { assert.equal(url, '/exam-attempts/42/result'); return { data: { scoreVisible: false, answersVisible: false, sections: [], totalScore: null } } }
+  const result = await examService.getAttemptResult(42)
+  assert.equal(result.scoreVisible, false)
+  assert.equal(result.answersVisible, false)
 })
 
 test('create service forwards assignment unchanged and returns BE result', async () => {

@@ -43,6 +43,14 @@ public class ExamDetailService {
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public ExamDetailResponse get(Long examId, String username) {
         var config = configurationService.get(examId, username);
+        var sections = getStructure(examId);
+        return new ExamDetailResponse(config.id(), config.code(), config.status(), config.maxScore(),
+                config.updatedAt(), config.basicInfo(), config.assignments(), sections, config.revision());
+    }
+
+    // Internal batch loader. Callers must authorize exam/attempt access before use.
+    @Transactional(readOnly = true)
+    public List<ExamDetailResponse.Section> getStructure(Long examId) {
         var sections = sectionRepository.findAllByExam_IdOrderByOrderIndexAsc(examId);
         var sectionIds = sections.stream().map(s -> s.getId()).toList();
         List<Question> questions = sectionIds.isEmpty() ? List.of()
@@ -74,18 +82,17 @@ public class ExamDetailService {
                         questionsBySection.getOrDefault(s.getId(), List.of()).stream().map(q ->
                                 questionResponse(q, answersByQuestion, optionsByAnswer, rulesByAnswer, media))
                                 .toList())).toList();
-        return new ExamDetailResponse(config.id(), config.code(), config.status(), config.maxScore(),
-                config.updatedAt(), config.basicInfo(), config.assignments(), sectionResponses, config.revision());
+        return sectionResponses;
     }
 
     private static ExamDetailResponse.Question questionResponse(Question question,
             Map<Long, List<Answer>> answers, Map<Long, List<AnswerOption>> options,
             Map<Long, List<QuestionScoringRule>> rules, MediaResolver media) {
         return new ExamDetailResponse.Question(question.getId(), question.getOrderIndex(), question.getContent(),
-                question.getPoints(), media.image(question.getImageUrl()), media.audio(question.getAudioUrl()),
+                question.getExplanation(), question.getPoints(), media.image(question.getImageUrl()), media.audio(question.getAudioUrl()),
                 answers.getOrDefault(question.getId(), List.of()).stream().map(a -> answerResponse(a,
                         options.getOrDefault(a.getId(), List.of()), rules.getOrDefault(a.getId(), List.of()), media))
-                        .toList());
+                        .toList(), media.image(question.getExplanationImageUrl()), media.audio(question.getExplanationAudioUrl()));
     }
 
     private static ExamDetailResponse.Answer answerResponse(Answer answer, List<AnswerOption> options,

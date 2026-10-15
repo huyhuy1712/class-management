@@ -15,6 +15,11 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class Exam {
+    @Column(name = "copied_from_exam_id")
+    private Long copiedFromExamId;
+
+    @Column(name = "copy_request_id")
+    private java.util.UUID copyRequestId;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -51,7 +56,7 @@ public class Exam {
     @Column(name = "max_attempts")
     private Integer maxAttempts;
 
-    @Column(name = "max_score", nullable = false, precision = 6, scale = 2)
+    @Column(name = "max_score", nullable = false, precision = 7, scale = 3)
     private BigDecimal maxScore;
 
     @Enumerated(EnumType.STRING)

@@ -1,5 +1,11 @@
 import { lazy, Suspense } from 'react'
+import FrogLoading from '../utils/FrogLoading'
 import StudentExamListPage from '../pages/student/exams/StudentExamListPage'
+import StudentExamWaitingPage from '../pages/student/exams/StudentExamWaitingPage'
+const StudentExamPaperPreviewPage = lazy(() => import('../pages/student/exams/StudentExamPaperPreviewPage'))
+const StudentExamAttemptPage = lazy(() => import('../pages/student/exams/StudentExamAttemptPage'))
+const StudentExamResultPage = lazy(() => import('../pages/student/exams/StudentExamResultPage'))
+const StudentGradesPage = lazy(() => import('../pages/student/grades/StudentGradesPage'))
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 import TeacherDashboard from '../pages/teacher/TeacherDashboard'
@@ -16,6 +22,8 @@ import StudentDetailPage from '../pages/teacher/classroom/StudentDetailPage'
 import TeacherProfilePage from '../pages/teacher/TeacherProfilePage'
 import ExamManagementPage from '../pages/teacher/exams/ExamManagementPage'
 const ExamDetailPage = lazy(() => import('../pages/teacher/exams/ExamDetailPage'))
+const TeacherAssignmentDetailPage = lazy(() => import('../pages/teacher/exams/TeacherAssignmentDetailPage'))
+const TeacherAttemptReviewPage = lazy(() => import('../pages/teacher/exams/TeacherAttemptReviewPage'))
 import CreateExamPage from '../pages/teacher/exams/create/CreateExamPage'
 const ExamBuilderPage = lazy(() => import('../pages/teacher/exams/builder/ExamBuilderPage'))
 
@@ -35,7 +43,7 @@ import LandingPage from '../pages/landing'
 
 function AppRoutes() {
   return (
-    <Suspense fallback={<div role="status" className="p-8 text-center text-slate-500">Đang mở trang...</div>}>
+    <Suspense fallback={<FrogLoading label="Đang mở trang..." />}>
     <Routes>
       {/* Landing Page — Public, không cần đăng nhập */}
       <Route path="/" element={<LandingPage />} />
@@ -69,11 +77,18 @@ function AppRoutes() {
       <Route path="/student/classes" element={<JoinClassPage />} />
       <Route path="/student/classes/:classId" element={<StudentClassDetailPage />} />
       <Route path="/student/exams" element={<StudentExamListPage />} />
+      <Route path="/student/grades" element={<StudentGradesPage />} />
+      <Route path="/student/exams/preview/paper" element={<StudentExamPaperPreviewPage />} />
+      <Route path="/student/exams/:assignmentId" element={<StudentExamWaitingPage />} />
+      <Route path="/student/exam-attempts/:attemptId" element={<StudentExamAttemptPage />} />
+      <Route path="/student/exam-attempts/:attemptId/result" element={<StudentExamResultPage />} />
       <Route path="/student/teachers" element={<JoinClassPage />} />
 
       {/* Route exam management */}
       <Route path="/teacher/exams" element={<ExamManagementPage />} />
       <Route path="/teacher/exams/:examId" element={<ExamDetailPage />} />
+      <Route path="/teacher/exams/:examId/assignments/:assignmentId" element={<TeacherAssignmentDetailPage />} />
+      <Route path="/teacher/exams/:examId/assignments/:assignmentId/attempts/:attemptId" element={<TeacherAttemptReviewPage />} />
       <Route path="/teacher/exams/create" element={<CreateExamPage />} />
       <Route path="/teacher/exams/create/online" element={<ExamBuilderPage />} />
     </Routes>

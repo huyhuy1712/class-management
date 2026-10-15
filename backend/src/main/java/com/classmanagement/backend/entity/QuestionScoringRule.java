@@ -28,7 +28,7 @@ public class QuestionScoringRule {
     @Column(name = "correct_count", nullable = false)
     private Integer correctCount;
 
-    @Column(nullable = false, precision = 6, scale = 2)
+    @Column(nullable = false, precision = 7, scale = 3)
     private BigDecimal score;
 
     @Column(name = "created_at", nullable = false)

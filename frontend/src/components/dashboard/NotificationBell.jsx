@@ -1,7 +1,8 @@
+import FrogLoading from '../../utils/FrogLoading'
 import { useMutation } from '@tanstack/react-query'
 import useResourceQuery from '../../query/useResourceQuery'
 import { sortByText } from '../../utils/sortByText'
-import { Bell, X, Users, MessageSquare, LoaderCircle } from 'lucide-react'
+import { Bell, X, Users, MessageSquare } from 'lucide-react'
 import { useState } from 'react'
 import requestService from '../../services/requestService'
 import defaultAvatar from '../../assets/images/avatar_default.png'
@@ -250,9 +251,7 @@ const handleApprove = async (request) => {
             {/* CONTENT */}
             <div className="min-h-0 flex-1 overflow-y-auto p-5">
               {loading ? (
-                <div className="py-12 text-center text-sm text-slate-400">
-                  Đang tải yêu cầu...
-                </div>
+                <FrogLoading label="Đang tải yêu cầu..." className="py-12 text-center text-sm text-slate-400" />
               ) : error ? (
                 <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-600">
                   {error}
@@ -345,10 +344,7 @@ const handleApprove = async (request) => {
                             >
                               {approvingId === request.requestId ? (
                                 <>
-                                  <LoaderCircle
-                                    size={15}
-                                    className="animate-spin"
-                                  />
+                                  <FrogLoading compact label="" className="" />
                                   Đang chấp nhận...
                                 </>
                               ) : (
@@ -364,10 +360,7 @@ const handleApprove = async (request) => {
                           >
                             {rejectingId === request.requestId ? (
                               <>
-                                <LoaderCircle
-                                  size={15}
-                                  className="animate-spin"
-                                />
+                                <FrogLoading compact label="" className="" />
                                 Đang xử lí...
                               </>
                             ) : (

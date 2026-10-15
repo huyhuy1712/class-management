@@ -1,3 +1,4 @@
+import FrogLoading from '../../../../../../utils/FrogLoading'
 import {
   CalendarDays,
   Clock3,
@@ -191,12 +192,7 @@ function CreateAttendanceSessionModal({
         <form onSubmit={handleSubmit}>
           <div className="max-h-[70vh] overflow-y-auto p-6">
             {loadingSession && (
-              <div
-                role="status"
-                className="mb-5 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700"
-              >
-                Đang kiểm tra phiên điểm danh trong ngày...
-              </div>
+              <FrogLoading label="Đang kiểm tra phiên điểm danh trong ngày..." />
             )}
 
             {existingSession && !loadingSession && (
@@ -418,8 +414,8 @@ function CreateAttendanceSessionModal({
 
               {loading
                 ? existingSession
-                  ? 'Đang cập nhật...'
-                  : 'Đang tạo...'
+                  ? <FrogLoading compact label="Đang cập nhật..." />
+                  : <FrogLoading compact label="Đang tạo..." />
                 : existingSession
                   ? 'Cập nhật điểm danh'
                   : 'Tạo điểm danh'}

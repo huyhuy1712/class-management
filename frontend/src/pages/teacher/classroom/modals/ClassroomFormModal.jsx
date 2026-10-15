@@ -1,3 +1,4 @@
+import FrogLoading from '../../../../utils/FrogLoading'
 import useResourceQuery from '../../../../query/useResourceQuery'
 import { sortByText } from '../../../../utils/sortByText'
 import { useEffect, useState } from 'react'
@@ -329,8 +330,8 @@ function ClassFormModal({
             >
               {submitting
                 ? mode === 'edit'
-                  ? 'Đang cập nhật...'
-                  : 'Đang tạo...'
+                  ? <FrogLoading compact label="Đang cập nhật..." />
+                  : <FrogLoading compact label="Đang tạo..." />
                 : mode === 'edit'
                   ? 'Lưu thay đổi'
                   : 'Tạo lớp'}

@@ -5,7 +5,8 @@ import {
   FileText,
   Sparkles,
 } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { loadExamDraft } from '../draft/examDraftStorage'
 
 import DashboardLayout from '../../../../layouts/DashboardLayout'
 
@@ -20,6 +21,8 @@ import useCreateExamForm from './hooks/useCreateExamForm'
 
 function CreateExamPage() {
   const navigate = useNavigate()
+  const { state } = useLocation()
+  const defaultClassId = Number(state?.defaultClassId)
   const { subjects, subjectsLoading, subjectsError, retrySubjects, classes, classesLoading, classesError, students, loading: targetsLoading, error: targetsError } = useExamTargetOptions()
   const {
     form,
@@ -51,6 +54,9 @@ function CreateExamPage() {
   } = useCreateExamForm({
     classes,
     students,
+    initialConfig: Number.isSafeInteger(defaultClassId) && defaultClassId > 0
+      ? { ...loadExamDraft()?.general?.form, accessType: 'CLASS', classIds: [defaultClassId], studentIds: [], classId: null }
+      : undefined,
   })
 
   const handleCreateOnline = () => {
@@ -85,7 +91,7 @@ function CreateExamPage() {
           {/* BACK */}
           <button
             type="button"
-            onClick={() => navigate('/teacher/exams')}
+            onClick={() => navigate(Number.isSafeInteger(defaultClassId) && defaultClassId > 0 ? `/teacher/classes/${defaultClassId}/assignments` : '/teacher/exams')}
             className="mb-3 flex cursor-pointer items-center gap-1.5 text-sm font-medium text-slate-500 transition hover:text-emerald-700"
           >
             <ArrowLeft size={17} />

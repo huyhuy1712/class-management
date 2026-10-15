@@ -68,7 +68,9 @@ export function buildExamPayload(config, sections, draftToken) {
     sections: sections.map((section) => ({
       title: section.title?.trim() ?? '', paragraph: section.paragraph?.trim() || null, ...mediaFields(section),
       questions: section.questions.map((question) => ({
-        content: question.content?.trim() ?? '', points: getQuestionScore(question),
+        content: question.content?.trim() ?? '', explanation: question.explanation?.trim() || null, points: getQuestionScore(question),
+        explanationImageMediaId: question.explanationImageMedia?.mediaId ?? null,
+        explanationAudioMediaId: question.explanationAudioMedia?.mediaId ?? null,
         ...mediaFields(question), answers: question.answerGroups.map(buildAnswer),
       })),
     })),

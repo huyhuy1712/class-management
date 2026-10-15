@@ -37,7 +37,7 @@ class ExamContentUpdateServiceTest {
                 .scoringType(ScoringType.PER_ANSWER).points(BigDecimal.ONE).caseSensitive(false).build());
     }
     private UpdateExamContentRequest.Question input(Long id, Long answerId) {
-        return new UpdateExamContentRequest.Question(id, id == null ? "new-question" : null, "Question", null, null,
+        return new UpdateExamContentRequest.Question(id, id == null ? "new-question" : null, "Question", "  Explanation  ", null, null,
                 BigDecimal.ONE, List.of(new UpdateExamContentRequest.Answer(answerId, answerId == null ? "new-answer" : null,
                 AnswerType.ESSAY, null, null, null, BigDecimal.ONE, ScoringType.PER_ANSWER, null, false, List.of(), List.of())));
     }
@@ -48,6 +48,7 @@ class ExamContentUpdateServiceTest {
     @Test void retainsExistingIdsAndReadsNineGroups() {
         section.setParagraph("Old passage");
         var response = service().update(7L, "teacher", request(0L, List.of(input(2L, 3L)), null));
+        assertEquals("Explanation",questions.getFirst().getExplanation());
         assertNull(section.getParagraph());
         assertEquals(1L, response.revision()); assertEquals(BigDecimal.ONE.setScale(2), response.maxScore());
         assertTrue(response.idMappings().questions().isEmpty());

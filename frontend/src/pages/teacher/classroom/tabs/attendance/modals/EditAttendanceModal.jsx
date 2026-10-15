@@ -1,7 +1,7 @@
+import FrogLoading from '../../../../../../utils/FrogLoading'
 import {
   Check,
   Clock3,
-  LoaderCircle,
   Save,
   UserRoundCheck,
   UserRoundX,
@@ -243,7 +243,7 @@ function EditAttendanceModal({
           >
             {updating ? (
               <>
-                <LoaderCircle size={17} className="animate-spin" />
+                <FrogLoading compact label="" className="" />
                 Đang lưu...
               </>
             ) : (

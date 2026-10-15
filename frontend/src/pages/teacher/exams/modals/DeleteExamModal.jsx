@@ -1,6 +1,6 @@
+import FrogLoading from '../../../../utils/FrogLoading'
 import {
   AlertTriangle,
-  LoaderCircle,
   X,
 } from 'lucide-react'
 
@@ -123,10 +123,7 @@ function DeleteExamModal({
             className="flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading && (
-              <LoaderCircle
-                size={17}
-                className="animate-spin"
-              />
+              <FrogLoading compact label="" className="" />
             )}
 
             {loading

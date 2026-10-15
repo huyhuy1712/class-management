@@ -1,5 +1,29 @@
 @import "tailwindcss";
 
+.frog-loading-inline { display: inline-flex; align-items: center; justify-content: center; gap: 8px; vertical-align: middle; }
+.frog-loading-inline .frog-loading-logo { width: 24px; height: 24px; filter: none; flex-shrink: 0; animation: frog-loading-button-hop 1.2s ease-in-out infinite; }
+@keyframes frog-loading-button-hop { 0%, 100% { transform: translateY(0) rotate(-8deg); } 50% { transform: translateY(-3px) rotate(8deg); } }
+
+.frog-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 32px 16px; color: #126b3c; }
+.frog-loading-art { position: relative; width: 160px; height: 150px; display: grid; place-items: center; }
+.frog-loading-logo { width: 120px; height: 120px; object-fit: contain; filter: drop-shadow(0 5px 0 white) drop-shadow(0 -3px 0 white); animation: frog-loading-hop 1.6s ease-in-out infinite; }
+.frog-loading-shadow { position: absolute; bottom: 1px; width: 70px; height: 9px; border-radius: 50%; background: #126b3c; opacity: 0.12; animation: frog-loading-shadow 1.6s ease-in-out infinite; }
+.frog-loading-spark { position: absolute; width: 24px; height: 24px; color: #20a84e; animation: frog-loading-spark 1.6s ease-in-out infinite; }
+.frog-loading-spark-left { left: 0; top: 28px; animation-delay: -0.4s; }
+.frog-loading-spark-right { right: 0; top: 9px; animation-delay: -1s; }
+.frog-loading-name { font: 800 20px/1.2 ui-monospace, monospace; letter-spacing: 0.12em; }
+.frog-loading-name > span { display: inline-block; animation: frog-loading-spark 1.6s ease-in-out infinite; }
+.frog-loading-track { display: flex; gap: 5px; width: min(220px, 100%); height: 30px; padding: 5px; border: 2px solid #126b3c; border-radius: 9px; background: white; }
+.frog-loading-track > span { flex: 1; border-radius: 3px; background: linear-gradient(100deg, #126b3c, #20a84e); animation: frog-loading-step 1.8s ease-in-out infinite; animation-delay: calc(var(--frog-step) * 100ms); }
+.frog-loading-label { font-size: 13px; color: #64748b; text-align: center; }
+@keyframes frog-loading-hop { 0%, 100% { transform: translateY(0) rotate(-3deg); } 45% { transform: translateY(-12px) rotate(3deg); } 65% { transform: translateY(-6px) rotate(0); } }
+@keyframes frog-loading-shadow { 0%, 100% { transform: scaleX(1); opacity: 0.12; } 45% { transform: scaleX(0.7); opacity: 0.06; } }
+@keyframes frog-loading-spark { 0%, 100% { opacity: 0.35; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.1); } }
+@keyframes frog-loading-step { 0%, 100% { opacity: 0.15; transform: scaleY(0.7); } 50% { opacity: 1; transform: scaleY(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .frog-loading-logo, .frog-loading-inline .frog-loading-logo, .frog-loading-shadow, .frog-loading-spark, .frog-loading-name > span, .frog-loading-track > span { animation: none; }
+}
+
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   color: #18301d;

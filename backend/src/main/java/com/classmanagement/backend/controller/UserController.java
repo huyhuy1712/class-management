@@ -12,6 +12,10 @@ import com.classmanagement.backend.entity.enums.UserRole;
 import com.classmanagement.backend.service.UserService;
 import com.classmanagement.backend.service.StudentProfileStatsService;
 import com.classmanagement.backend.dto.user.StudentExamCountResponse;
+import com.classmanagement.backend.dto.exam.StudentExamResponse;
+import com.classmanagement.backend.service.exam.StudentExamReadService;
+import org.springframework.format.annotation.DateTimeFormat;
+import java.time.LocalDate;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +33,28 @@ public class UserController {
 
     private final UserService userService;
     private final StudentProfileStatsService profileStats;
+    private final StudentExamReadService studentExams;
+
+    @GetMapping("/me/grades")
+    public com.classmanagement.backend.dto.exam.StudentGradesResponse getMyGrades(Authentication auth,
+            @RequestParam(required=false) Long classId,@RequestParam(required=false) Long subjectId,
+            @RequestParam(required=false) @DateTimeFormat(iso=DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required=false) @DateTimeFormat(iso=DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required=false) String q,@RequestParam(required=false) String status,
+            @RequestParam(defaultValue="newest") String sort,@RequestParam(defaultValue="0") int page,
+            @RequestParam(defaultValue="6") int size,@RequestParam(defaultValue="true") boolean includeCharts) {
+        return studentExams.grades(auth.getName(),classId,subjectId,from,to,q,status,sort,page,size,includeCharts);
+    }
+
+    @GetMapping("/me/exams")
+    public StudentExamResponse.Page getMyAssignedExams(
+            Authentication authentication,
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String q, @RequestParam(required = false) Long classId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(defaultValue = "newest") String sort) {
+        return studentExams.list(authentication.getName(), page, size, q, classId, date, sort);
+    }
 
     @GetMapping("/me/classes")
     public ResponseEntity<List<ClassroomResponse>> getMyStudentClasses(

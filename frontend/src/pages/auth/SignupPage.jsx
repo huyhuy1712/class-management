@@ -1,10 +1,11 @@
+import FrogLoading from '../../utils/FrogLoading'
 import { useMutation } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import {
+  ArrowLeft,
   Eye,
   EyeOff,
   GraduationCap,
-  LoaderCircle,
   School,
   Leaf,
   Sprout,
@@ -237,6 +238,14 @@ function SignupPage() {
 
       <section className="flex w-full min-w-0 items-center justify-center">
         <div className="login-card w-full min-w-0 max-w-[420px] rounded-[28px] border border-green-100 bg-white px-6 py-8 sm:px-9 sm:py-10">
+          <Link
+            to="/"
+            className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-gray-500 transition hover:text-green-700"
+          >
+            <ArrowLeft size={17} />
+            Quay lại trang chủ
+          </Link>
+
           <div className="mb-7 text-center">
             <h1 className="text-3xl font-bold text-[#18301D]">
                 Đăng ký tài khoản
@@ -380,7 +389,7 @@ function SignupPage() {
               disabled={loading}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3.5 font-semibold text-white transition hover:bg-green-700 disabled:opacity-60"
             >
-              {loading && <LoaderCircle size={18} className="animate-spin" />}
+              {loading && <FrogLoading compact label="" className="" />}
               {loading ? 'Đang đăng ký...' : 'Đăng ký'}
             </button>
           </form>

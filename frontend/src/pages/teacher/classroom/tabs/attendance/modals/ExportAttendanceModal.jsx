@@ -1,9 +1,9 @@
+import FrogLoading from '../../../../../../utils/FrogLoading'
 import {
   AlertCircle,
   CalendarDays,
   Download,
   FileSpreadsheet,
-  LoaderCircle,
   X,
 } from 'lucide-react'
 import { useRef } from 'react'
@@ -186,10 +186,7 @@ function ExportAttendanceModal({
           >
             {exporting ? (
               <>
-                <LoaderCircle
-                  size={17}
-                  className="animate-spin"
-                />
+                <FrogLoading compact label="" className="" />
                 Đang xuất...
               </>
             ) : (

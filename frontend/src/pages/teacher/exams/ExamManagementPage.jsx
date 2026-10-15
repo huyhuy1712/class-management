@@ -1,4 +1,6 @@
+import FrogLoading from '../../../utils/FrogLoading'
 import { useMutation } from '@tanstack/react-query'
+import { message } from 'antd'
 import {
   ArrowDownUp,
   Plus,
@@ -20,6 +22,7 @@ import DeleteExamModal from './components/DeleteExamModal'
 
 
 function ExamManagementPage() {
+  const [messageApi, messageContext] = message.useMessage()
   const deleteMutation = useMutation({ mutationFn: (args) => examService.deleteExam(...args) })
 
     const {
@@ -28,12 +31,18 @@ function ExamManagementPage() {
       error,
       refetch,
       setExams,
+      publishExam,
+      unpublishExam,
+      publishingId,
+      copyExam,
+      copyingId,
     } = useExams()
 
   const navigate = useNavigate()
   const { state } = useLocation()
   const [resumeDraftOpen, setResumeDraftOpen] = useState(false)
   const [editingExam, setEditingExam] = useState(null)
+  const [assignmentMode, setAssignmentMode] = useState('edit')
   const [deletingExam, setDeletingExam] = useState(null)
   const [uiMessage, setUiMessage] = useState('')
   const deleting = deleteMutation.isPending
@@ -62,6 +71,44 @@ function ExamManagementPage() {
     navigate('/teacher/exams/create')
   }
 
+  const handleCopy = async (exam) => {
+    try {
+      const result = await copyExam(exam.id)
+      if (!result) return
+      messageApi.success('Đã tạo bản nháp mới. Đề và kết quả cũ được giữ nguyên.')
+      navigate(`/teacher/exams/${result.id}`, { state: { copiedExam: true, sourceTitle: exam.title } })
+    } catch (error) {
+      messageApi.error(error.response?.data?.message || 'Không thể sao chép đề. Bạn có thể thử lại.')
+    }
+  }
+
+  const handlePublish = async (exam) => {
+    if (publishingId !== null) return
+    setUiMessage('')
+    try {
+      const result = await (exam.status === 'PUBLISHED' ? unpublishExam(exam.id) : publishExam(exam.id))
+      if (result) {
+        const text = result.status === 'DRAFT' ? 'Đã đưa đề thi về nháp.' : 'Đã xuất bản đề thi.'
+        setUiMessage(text)
+        messageApi.success(text)
+      }
+    } catch (error) {
+      const data = error.response?.data
+      const validation = Object.values(data?.validationErrors ?? {}).join(' ')
+      const text = validation || data?.message || 'Không thể đổi trạng thái đề thi. Vui lòng thử lại.'
+      setUiMessage(text)
+      if (error.response?.status === 409) {
+        messageApi.warning({
+          key: 'exam-publish-action',
+          content: text.includes('lượt thi') && exam.status === 'PUBLISHED'
+            ? 'Không thể đưa về nháp vì đã có học sinh bắt đầu làm bài. Đề vẫn giữ trạng thái xuất bản.'
+            : text,
+          duration: 6,
+        })
+      } else messageApi.error({ key: 'exam-publish-action', content: text, duration: 6 })
+    }
+  }
+
   const handleRestartDraft = () => {
     try {
       clearExamDraft()
@@ -78,6 +125,7 @@ function ExamManagementPage() {
 }
 
   const handleEdit = (exam) => {
+    setAssignmentMode('edit')
     setActionError('')
     setEditingExam(exam)
   }
@@ -111,6 +159,7 @@ function ExamManagementPage() {
 
   return (
     <DashboardLayout>
+      {messageContext}
       <div className="mx-auto max-w-[1500px] pb-4 sm:pb-6 lg:pb-8">
         {state?.createdExam && <p role="status" className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">Đã lưu đề {state.createdExam.code} ở trạng thái nháp. Tổng điểm: {state.createdExam.maxScore}.</p>}
         {uiMessage && <p role="status" className="mb-4 text-sm text-slate-600">{uiMessage}</p>}
@@ -231,11 +280,9 @@ function ExamManagementPage() {
           {loading ? (
             <div className="flex min-h-[300px] items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm">
               <div className="flex flex-col items-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-green-100 border-t-green-600" />
 
-                <p className="mt-3 text-sm font-medium text-slate-400">
-                  Đang tải danh sách đề thi...
-                </p>
+
+                <FrogLoading label="Đang tải danh sách đề thi..." className="mt-3 text-sm font-medium text-slate-400" />
               </div>
             </div>
           ) : error ? (
@@ -260,16 +307,22 @@ function ExamManagementPage() {
               onView={handleView}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onPublish={handlePublish}
+              onCopy={handleCopy}
+              copyingId={copyingId}
+              onReassign={(exam) => { setAssignmentMode('reassign'); setEditingExam(exam) }}
+              publishingId={publishingId}
             />
           )}
       </div>
 
       <ResumeExamDraftModal open={resumeDraftOpen} onClose={() => setResumeDraftOpen(false)} onContinue={() => { setResumeDraftOpen(false); navigate('/teacher/exams/create/online') }} onRestart={handleRestartDraft} />
       <EditExamModal
+        mode={assignmentMode}
         exam={editingExam}
         open={Boolean(editingExam)}
         onClose={() => { setEditingExam(null); setActionError('') }}
-        onSaved={(result) => { setEditingExam(null); setUiMessage('Đã lưu cấu hình đề thi.'); setExams((current = []) => current.map((item) => item.id === result.id ? { ...item, ...result.basicInfo } : item)) }}
+        onSaved={(result) => { setEditingExam(null); const text = assignmentMode === 'reassign' ? 'Đã mở đợt thi mới. Kết quả và lượt thi cũ được giữ nguyên.' : 'Đã lưu cấu hình đề thi.'; setUiMessage(text); messageApi.success(text); setExams((current = []) => current.map((item) => item.id === result.id ? { ...item, ...result.basicInfo } : item)) }}
       />
 
       <DeleteExamModal

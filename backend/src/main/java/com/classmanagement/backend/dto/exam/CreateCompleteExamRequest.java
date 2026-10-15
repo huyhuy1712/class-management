@@ -50,9 +50,15 @@ public record CreateCompleteExamRequest(
 
     public record Question(
             @NotBlank @Size(max = 20000) String content,
+            @Size(max = 20000) String explanation,
             UUID imageMediaId, UUID audioMediaId,
             @NotNull @DecimalMin("0.01") @Digits(integer = 4, fraction = 2) BigDecimal points,
-            @NotEmpty @Size(max = 20) List<@NotNull @Valid Answer> answers) {}
+            @NotEmpty @Size(max = 20) List<@NotNull @Valid Answer> answers,
+            UUID explanationImageMediaId, UUID explanationAudioMediaId) {
+        public Question(String content, String explanation, UUID imageMediaId, UUID audioMediaId, BigDecimal points, List<Answer> answers) {
+            this(content, explanation, imageMediaId, audioMediaId, points, answers, null, null);
+        }
+    }
 
     // One Answer is one independently graded FE answerGroup.
     public record Answer(

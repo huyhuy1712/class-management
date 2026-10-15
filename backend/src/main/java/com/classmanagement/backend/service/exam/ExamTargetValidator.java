@@ -1,6 +1,8 @@
 package com.classmanagement.backend.service.exam;
 
 import com.classmanagement.backend.dto.exam.CreateCompleteExamRequest;
+import com.classmanagement.backend.dto.exam.ExamConfigurationResponse;
+import java.util.stream.Collectors;
 import com.classmanagement.backend.entity.*;
 import com.classmanagement.backend.entity.enums.*;
 import com.classmanagement.backend.repository.UserRepository;
@@ -52,6 +54,39 @@ public class ExamTargetValidator {
 
     public record Targets(List<Classroom> classes, List<User> students, Classroom classroom) {
         public Targets(List<Classroom> classes, List<User> students) { this(classes, students, null); }
+    }
+
+    public void validateForPublication(Long teacherId, List<ExamConfigurationResponse.Assignment> assignments) {
+        Set<Long> classIds = new HashSet<>(), studentIds = new HashSet<>();
+        for (var a : assignments) {
+            classIds.addAll(a.classIds()); studentIds.addAll(a.studentIds());
+            a.studentClasses().stream().map(ExamConfigurationResponse.StudentClassContext::classId)
+                    .filter(Objects::nonNull).forEach(classIds::add);
+        }
+        var classes = classIds.isEmpty() ? List.<Classroom>of() : classroomRepository.findAllById(classIds);
+        if (classes.size() != classIds.size() || classes.stream().anyMatch(c ->
+                c.getStatus() != ClassroomStatus.ACTIVE || !teacherId.equals(c.getTeacher().getId()))) {
+            fail("assignments", "Lớp mục tiêu/ngữ cảnh không tồn tại, đã lưu trữ hoặc không thuộc giáo viên");
+        }
+        if (!studentIds.isEmpty()) {
+            var students = userRepository.findAllById(studentIds);
+            Set<Long> allowed = new HashSet<>(classStudentRepository.findAssignableStudentIds(teacherId, studentIds));
+            if (students.size() != studentIds.size() || students.stream().anyMatch(s ->
+                    s.getRole() != UserRole.STUDENT || s.getStatus() != UserStatus.ACTIVE || !allowed.contains(s.getId()))) {
+                fail("assignments", "Học sinh không hoạt động hoặc không thuộc lớp đang phụ trách");
+            }
+            if (!classIds.isEmpty()) {
+                record Pair(Long classId, Long studentId) {}
+                Set<Pair> pairs = classStudentRepository.findStudentClassPairs(classIds, studentIds).stream()
+                        .map(p -> new Pair(p.getClassId(), p.getStudentId())).collect(Collectors.toSet());
+                for (var a : assignments) for (var context : a.studentClasses()) {
+                    if (context.classId() != null && (!a.studentIds().contains(context.studentId())
+                            || !pairs.contains(new Pair(context.classId(), context.studentId())))) {
+                        fail("assignments", "Học sinh không còn thuộc lớp ngữ cảnh");
+                    }
+                }
+            }
+        }
     }
 }
 

@@ -1,3 +1,4 @@
+import FrogLoading from '../../../../../../utils/FrogLoading'
 import { EMPTY_LIST } from '../../../../../../query/queryKeys'
 import useResourceQuery from '../../../../../../query/useResourceQuery'
 import { CheckCircle2, Search, UserPlus, X } from 'lucide-react'
@@ -123,9 +124,7 @@ function AddStudentModal({
           </div>
 
           {loadingStudents && (
-            <p className="mt-2 text-sm text-gray-400">
-              Đang tải danh sách học sinh...
-            </p>
+            <FrogLoading label="Đang tải danh sách học sinh..." className="mt-2 text-sm text-gray-400" />
           )}
 
           {/* Student found */}
@@ -222,7 +221,7 @@ function AddStudentModal({
               <UserPlus size={17} />
 
               {loading
-                ? 'Đang thêm...'
+                ? <FrogLoading compact label="Đang thêm..." />
                 : 'Thêm học sinh'}
             </button>
           </div>

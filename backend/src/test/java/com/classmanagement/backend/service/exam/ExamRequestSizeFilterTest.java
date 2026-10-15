@@ -6,6 +6,15 @@ import org.springframework.mock.web.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ExamRequestSizeFilterTest {
+    @Test void boundsAttemptStartSaveSubmitAndTeacherGrades() throws Exception {
+        for(var endpoint:new String[][]{{"POST","/api/exam-assignments/12/attempts"},{"PUT","/api/exam-attempts/10/answers"},
+                {"POST","/api/exam-attempts/10/submit"},{"PATCH","/api/exam-attempts/10/grades"}}) {
+            var request=new MockHttpServletRequest(endpoint[0],endpoint[1]); request.setContent(new byte[11]);
+            var response=new MockHttpServletResponse();
+            new ExamRequestSizeFilter(10).doFilter(request,response,(req,res)->fail("Must reject before controller"));
+            assertEquals(413,response.getStatus());
+        }
+    }
     @Test void boundsContentPutWithoutContentLength() throws Exception {
         var request = new MockHttpServletRequest("PUT", "/api/exams/7/content") {
             public long getContentLengthLong() { return -1; }

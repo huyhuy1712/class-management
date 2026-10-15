@@ -19,6 +19,7 @@ class ExamStudentClassContextTest {
             .teacher(User.builder().id(11L).build()).build();
     private List<Long> members = List.of(21L, 22L);
     private int membershipReads;
+    private int classBatchReads, studentBatchReads, pairReads;
 
     @Test void validatesAllStudentsWithOneMembershipQuery() {
         var targets = validator().validate(11L, assignment(3L));
@@ -59,6 +60,22 @@ class ExamStudentClassContextTest {
     @Test void newStudentIsPersistedWithContext() throws Exception {
         verifySync(false, classroom);
     }
+    @Test void publicationOfOneHundredAssignmentsUsesSingleTargetBatches() {
+        validator().validateForPublication(11L, Collections.nCopies(100, publicationAssignment()));
+        assertEquals(1, classBatchReads); assertEquals(1, studentBatchReads); assertEquals(1, pairReads);
+    }
+    @Test void publicationRejectsStudentNoLongerInContext() {
+        members = List.of(21L);
+        assertThrows(ExamValidationException.class,
+                () -> validator().validateForPublication(11L, List.of(publicationAssignment())));
+    }
+    private com.classmanagement.backend.dto.exam.ExamConfigurationResponse.Assignment publicationAssignment() {
+        return new com.classmanagement.backend.dto.exam.ExamConfigurationResponse.Assignment(12L, ExamAssignmentStatus.DRAFT,
+                ExamAssignmentType.STUDENT, List.of(), List.of(21L, 22L), null, null,
+                ScoreVisibility.NEVER, AnswerVisibility.NEVER, null, false, null, null, null,
+                List.of(new com.classmanagement.backend.dto.exam.ExamConfigurationResponse.StudentClassContext(21L, 3L),
+                        new com.classmanagement.backend.dto.exam.ExamConfigurationResponse.StudentClassContext(22L, 3L)));
+    }
     private void verifySync(boolean retained, Classroom context) throws Exception {
         var row = ExamAssignmentStudent.builder().id(new ExamAssignmentStudentId(8L, 21L))
                 .classroom(Classroom.builder().id(99L).build()).build();
@@ -72,7 +89,7 @@ class ExamStudentClassContextTest {
         var em = (EntityManager) Proxy.newProxyInstance(EntityManager.class.getClassLoader(), new Class<?>[]{EntityManager.class},
                 (p,m,a) -> { assertEquals("persist", m.getName()); persisted.add((ExamAssignmentStudent)a[0]); return null; });
         var service = new ExamConfigurationUpdateService(null, null, null, classes, students, null,
-                null, null, null, null, em);
+                null, null, null, null, em, null);
         var sync = ExamConfigurationUpdateService.class.getDeclaredMethod("syncTargets", ExamAssignment.class, ExamTargetValidator.Targets.class);
         sync.setAccessible(true);
         sync.invoke(service, ExamAssignment.builder().id(8L).build(), new ExamTargetValidator.Targets(
@@ -89,11 +106,22 @@ class ExamStudentClassContextTest {
     }
     private <T> T repo(Class<T> type) {
         return type.cast(Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (p,m,a) -> switch(m.getName()) {
-            case "findAllById" -> List.of(User.builder().id(21L).role(UserRole.STUDENT).status(UserStatus.ACTIVE).build(),
-                    User.builder().id(22L).role(UserRole.STUDENT).status(UserStatus.ACTIVE).build());
+            case "findAllById" -> {
+                if (type == ClassroomRepository.class) { classBatchReads++; yield List.of(classroom); }
+                studentBatchReads++;
+                yield List.of(User.builder().id(21L).role(UserRole.STUDENT).status(UserStatus.ACTIVE).build(),
+                        User.builder().id(22L).role(UserRole.STUDENT).status(UserStatus.ACTIVE).build());
+            }
             case "findAssignableStudentIds" -> List.of(21L, 22L);
             case "findById" -> Optional.of(classroom);
             case "findStudentIdsInClass" -> { assertArrayEquals(new Object[]{3L, List.of(21L, 22L)}, a); membershipReads++; yield members; }
+            case "findStudentClassPairs" -> {
+                pairReads++;
+                yield members.stream().map(id -> new ClassStudentRepository.StudentClassPair() {
+                    public Long getClassId() { return 3L; }
+                    public Long getStudentId() { return id; }
+                }).toList();
+            }
             default -> throw new AssertionError(m.getName());
         }));
     }

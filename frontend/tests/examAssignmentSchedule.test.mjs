@@ -33,4 +33,8 @@ test('schedule accepts empty or one-sided times and rejects non-increasing endpo
   assert.equal(initial.closeTime, '')
   assert.deepEqual(initial.classIds, [21])
   assert.equal(getExamConfigurationForm({ ...exam, openTime: '' }).openTime, '')
+  const override = getExamConfigurationForm({ basicInfo: { timeLimit: 60, maxAttempts: 1 }, assignments: [{ timeLimit: 40, maxAttempts: 0, threshold: 5 }] })
+  assert.equal(override.timeLimit, 40)
+  assert.equal(override.maxAttempts, 0)
+  assert.equal(override.threshold, 5)
 })

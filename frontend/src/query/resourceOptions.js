@@ -9,6 +9,7 @@ import subjectService from '../services/subjectService'
 
 export function resourceOptions(resource, params) {
   const readers = {
+    classGradebook: ({ signal }) => classroomService.getGradebook(params[0], { page: Number(params[1] ?? 0), size: 20, q: params[2] ?? '', ...(params[3] ? { subjectId: Number(params[3]) } : {}) }, { signal }),
     profile: ({ signal }) => userService.getProfile(params[0], { signal }),
     teacherClasses: ({ signal }) => classroomService.getMyClasses({ signal }),
     studentClasses: ({ signal }) => userService.getMyClasses({ signal }),
@@ -28,11 +29,29 @@ export function resourceOptions(resource, params) {
     },
     requests: ({ signal }) => requestService.getReceivedJoinClassRequests({ signal }),
     exams: ({ signal }) => examService.getMyExams({ signal }),
+    studentGrades: ({ signal }) => examService.getMyGrades({
+      ...(params[0] ? { classId: Number(params[0]) } : {}), ...(params[1] ? { subjectId: Number(params[1]) } : {}),
+      ...(params[2] ? { from: params[2] } : {}), ...(params[3] ? { to: params[3] } : {}),
+      q: params[4] ?? '', ...(params[5] ? { status: params[5] } : {}), sort: params[6] ?? 'newest',
+      page: Number(params[7] ?? 0), size: 6, includeCharts: true,
+    }, { signal }),
+    teacherAssignmentExport: ({ signal }) => examService.getAssignmentExport(params[0], params[1], { signal }),
+    teacherAttemptReview: ({ signal }) => examService.getTeacherAttemptReview(params[0], { signal }),
+    studentClassExamResults: ({ signal }) => examService.getStudentClassExamResults(params[0], params[1], { signal }),
+    classExams: ({ signal }) => examService.getClassExams(params[0], { signal }),
+    teacherAssignmentAttempts: ({ signal }) => examService.getAssignmentAttempts(params[0], {
+      ...(params[1] ? { classId: Number(params[1]) } : {}), page: Number(params[2] ?? 0), size: Number(params[3] ?? 12),
+      q: params[4] ?? '', ...(params[5] ? { status: params[5] } : {}), sort: params[6] ?? 'newest',
+    }, { signal }),
     examDetail: ({ signal }) => examService.getExamDetail(params[0], { signal }),
     examConfiguration: ({ signal }) => examService.getExamConfiguration(params[0], { signal }),
     subjects: ({ signal }) => subjectService.getAll({ signal }),
+    studentExams: ({ signal }) => examService.getStudentExams({ signal }, params[0] === 'OLDEST' ? 'oldest' : 'newest'),
+    studentAssignment: ({ signal }) => examService.getStudentAssignment(params[0], { signal }),
+    examAttempt: ({ signal }) => examService.getAttempt(params[0], { signal }),
+    examAttemptResult: ({ signal }) => examService.getAttemptResult(params[0], { signal }),
   }
   if (!readers[resource]) throw new Error(`Unknown query resource: ${resource}`)
-  const realtime = ['notifications', 'requests', 'lessons'].includes(resource)
+  const realtime = ['notifications', 'requests', 'lessons', 'studentExams', 'studentAssignment', 'classExams', 'teacherAssignmentAttempts'].includes(resource)
   return { queryFn: readers[resource], staleTime: realtime ? 15_000 : resource === 'subjects' ? 30 * 60_000 : 60_000, ...(realtime ? { refetchInterval: 60_000 } : {}) }
 }
