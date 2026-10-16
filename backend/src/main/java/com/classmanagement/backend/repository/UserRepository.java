@@ -33,4 +33,5 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByPhoneAndIdNot(String phone, Long id);
 
     Optional<User> findByStudentCode(String studentCode);
+    Optional<User> findByStudentCodeIgnoreCase(String studentCode);
 }
