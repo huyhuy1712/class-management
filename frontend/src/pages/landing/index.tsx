@@ -33,7 +33,6 @@ import {
 // @ts-ignore
 import logo from '../../assets/logos/logo.png'
 import publicService from '../../services/publicService'
-import attendanceService from '../../services/attendanceService'
 import examService from '../../services/examService'
 
 // ==========================================
@@ -48,6 +47,12 @@ interface StudentProfile {
   avatar?: string
 }
 
+interface AbsenceDetail {
+  date: string
+  status: 'ABSENT' | 'LATE' | string
+  note?: string
+}
+
 interface ClassItem {
   id: number | string
   name: string
@@ -57,6 +62,9 @@ interface ClassItem {
   teacherName?: string
   description?: string
   status?: string
+  absentCount?: number
+  totalSessions?: number
+  absenceDetails?: AbsenceDetail[]
 }
 
 interface AttendanceRecord {
@@ -105,6 +113,12 @@ function LandingPage() {
 
   // Modal State
   const [isAbsenceModalOpen, setIsAbsenceModalOpen] = useState<boolean>(false)
+  const [modalClass, setModalClass] = useState<ClassItem | null>(null)
+
+  const openAbsenceModal = (cls: ClassItem) => {
+    setModalClass(cls)
+    setIsAbsenceModalOpen(true)
+  }
 
   const scrollToSection = (sectionId: string) => {
     setMobileMenuOpen(false)
@@ -163,7 +177,7 @@ function LandingPage() {
       }
       setStudentProfile(profile)
 
-      // 3. Lấy danh sách các lớp học phần học sinh đã tham gia từ response
+      // 3. Lấy danh sách các lớp học phần học sinh đã tham gia từ response (bao gồm dữ liệu điểm danh)
       const matchedClasses: ClassItem[] = (data.classrooms || []).map((cls: any) => ({
         id: cls.classId,
         name: cls.className,
@@ -173,6 +187,9 @@ function LandingPage() {
         teacherName: cls.teacherName,
         description: cls.description,
         status: cls.status,
+        absentCount: cls.absentCount ?? 0,
+        totalSessions: cls.totalSessions ?? 0,
+        absenceDetails: cls.absenceDetails || [],
       }))
 
       setStudentClasses(matchedClasses)
@@ -209,21 +226,7 @@ function LandingPage() {
     setExams([])
 
     try {
-      // 1. Gọi attendanceService.getByClass để lấy danh sách điểm danh
-      try {
-        const attendanceData = await attendanceService.getByClass(classItem.id)
-        if (Array.isArray(attendanceData)) {
-          const studentRecords = attendanceData.filter(
-            (a: any) =>
-              String(a.studentId) === String(student.id) ||
-              a.studentCode?.trim().toLowerCase() === student.studentCode.trim().toLowerCase()
-          )
-          setAttendances(studentRecords)
-        }
-      } catch (attErr) {
-        console.warn('Không thể tải điểm danh lớp:', attErr)
-        setAttendances([])
-      }
+      // Dữ liệu điểm danh (absentCount, absenceDetails) đã có sẵn trong classItem từ API tra cứu công khai
 
       // ============================================================
       // TODO: Tích hợp API điểm số sau khi Backend hoàn thiện module Grade
@@ -285,14 +288,13 @@ function LandingPage() {
     }
   }
 
-  // Tính toán số liệu chuyên cần từ API
-  const absentRecords = attendances.filter(
-    (a) => a.status === 'ABSENT' || a.status === 'ABSENT_UNEXCUSED' || a.status === 'ABSENT_EXCUSED'
-  )
-  const totalSessions = attendances.length
+  // Tính toán số liệu chuyên cần từ selectedClass (đã có sẵn từ API tra cứu công khai)
+  const currentAbsenceDetails = selectedClass?.absenceDetails || []
+  const currentAbsentCount = selectedClass?.absentCount ?? currentAbsenceDetails.length
+  const currentTotalSessions = selectedClass?.totalSessions || (currentAbsentCount > 0 ? currentAbsentCount : 0)
   const attendanceRate =
-    totalSessions > 0
-      ? `${(((totalSessions - absentRecords.length) / totalSessions) * 100).toFixed(1)}%`
+    currentTotalSessions > 0
+      ? `${(((currentTotalSessions - currentAbsentCount) / currentTotalSessions) * 100).toFixed(1)}%`
       : '100%'
 
   return (
@@ -659,7 +661,7 @@ function LandingPage() {
                   </p>
                 ) : (
                   <p className="mt-1 text-sm text-red-600">
-                    Vui lòng đối chiếu lại mã học viên đã được cấp hoặc kiểm tra kết nối mạng của bạn.
+                    Vui lòng đối chiếu lại mã học viên đã được cấp.
                   </p>
                 )}
               </div>
@@ -815,6 +817,32 @@ function LandingPage() {
                                   Môn: {cls.subjectName}
                                 </p>
                               )}
+
+                              {/* Hiển thị số ngày vắng & Nút xem chi tiết trực tiếp trên Card */}
+                              <div className="mt-3.5 flex items-center justify-between rounded-xl bg-white/80 px-3 py-2 ring-1 ring-emerald-900/5">
+                                <div className="flex items-center gap-1.5 text-xs font-semibold text-[#0F3822]">
+                                  <Calendar size={13} className="text-[#10B981]" />
+                                  <span>Vắng:</span>
+                                  <span
+                                    className={
+                                      (cls.absentCount ?? 0) > 0 ? 'font-bold text-red-600' : 'font-bold text-[#10B981]'
+                                    }
+                                  >
+                                    {cls.absentCount ?? 0} buổi
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    openAbsenceModal(cls)
+                                  }}
+                                  className="inline-flex items-center gap-1 rounded-lg bg-[#D8F3DC] px-2 py-0.5 text-[11px] font-bold text-[#0F3822] transition hover:bg-[#10B981] hover:text-white"
+                                >
+                                  <Eye size={12} />
+                                  <span>Chi tiết</span>
+                                </button>
+                              </div>
                             </div>
 
                             <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3 text-xs font-semibold">
@@ -916,7 +944,7 @@ function LandingPage() {
                           </p>
                           <button
                             type="button"
-                            onClick={() => setIsAbsenceModalOpen(true)}
+                            onClick={() => openAbsenceModal(selectedClass)}
                             className="inline-flex items-center gap-1 rounded-lg bg-[#D8F3DC] px-2.5 py-1 text-xs font-bold text-[#0F3822] transition hover:bg-[#10B981] hover:text-white"
                           >
                             <Eye size={13} />
@@ -924,9 +952,11 @@ function LandingPage() {
                           </button>
                         </div>
                         <p className="mt-1.5 text-base font-bold text-[#0F3822]">
-                          {absentRecords.length} buổi{' '}
+                          {selectedClass.absentCount ?? 0} buổi{' '}
                           <span className="text-xs font-normal text-gray-500">
-                            / {totalSessions > 0 ? `${totalSessions} buổi ghi nhận` : 'Chưa có buổi học'}
+                            {(selectedClass.totalSessions ?? 0) > 0
+                              ? `/ ${selectedClass.totalSessions} buổi ghi nhận`
+                              : ''}
                           </span>
                         </p>
                         <p className="mt-0.5 text-xs text-gray-500">
@@ -1244,8 +1274,8 @@ function LandingPage() {
         </div>
       </footer>
 
-      {/* ABSENCE DETAIL MODAL (Dữ liệu từ API attendanceService) */}
-      {isAbsenceModalOpen && selectedClass && studentProfile && (
+      {/* ABSENCE DETAIL MODAL (Dữ liệu trực tiếp từ API Public Lookup) */}
+      {isAbsenceModalOpen && modalClass && studentProfile && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
           onClick={() => setIsAbsenceModalOpen(false)}
@@ -1265,7 +1295,7 @@ function LandingPage() {
                     Chi tiết lịch sử chuyên cần &amp; ngày vắng
                   </h3>
                   <p className="text-xs text-[#D8F3DC]/85">
-                    {studentProfile.fullName} ({studentProfile.studentCode}) • {selectedClass.name}
+                    {studentProfile.fullName} ({studentProfile.studentCode}) • {modalClass.name}
                   </p>
                 </div>
               </div>
@@ -1284,15 +1314,15 @@ function LandingPage() {
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#F8FAF9] px-4 py-3 text-xs ring-1 ring-emerald-900/10">
                 <span className="font-semibold text-[#0F3822]">
                   Số buổi vắng ghi nhận:{' '}
-                  <strong className="text-red-600">{absentRecords.length} buổi</strong> /{' '}
-                  {totalSessions} buổi học
+                  <strong className="text-red-600">{modalClass.absentCount ?? 0} buổi</strong>
+                  {(modalClass.totalSessions ?? 0) > 0 && ` / ${modalClass.totalSessions} buổi học`}
                 </span>
                 <span className="font-semibold text-[#10B981]">
-                  Tỷ lệ tham gia: {attendanceRate}
+                  Lớp: {modalClass.name} ({modalClass.code})
                 </span>
               </div>
 
-              {absentRecords.length === 0 ? (
+              {(!modalClass.absenceDetails || modalClass.absenceDetails.length === 0) ? (
                 <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-emerald-900/20 bg-[#F8FAF9] py-8 text-center">
                   <CheckCircle2 size={32} className="text-[#10B981]" />
                   <p className="mt-2 text-sm font-bold text-[#0F3822]">
@@ -1304,13 +1334,13 @@ function LandingPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {absentRecords.map((item, idx) => {
+                  {modalClass.absenceDetails.map((item, idx) => {
                     const isExcused = item.status === 'ABSENT_EXCUSED'
                     const isLate = item.status === 'LATE'
 
                     return (
                       <div
-                        key={item.id || idx}
+                        key={idx}
                         className="rounded-2xl border border-gray-100 bg-[#F8FAF9] p-4 transition hover:border-emerald-900/20"
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1318,7 +1348,7 @@ function LandingPage() {
                             <span>Buổi {idx + 1}</span>
                             <span className="text-gray-300">•</span>
                             <span className="text-xs font-semibold text-gray-600">
-                              {item.date ? new Date(item.date).toLocaleDateString('vi-VN') : 'Chưa cập nhật ngày'}
+                              {item.date || 'Chưa cập nhật ngày'}
                             </span>
                           </div>
                           <span
@@ -1334,9 +1364,11 @@ function LandingPage() {
                           </span>
                         </div>
 
-                        <p className="mt-2 text-xs font-medium text-gray-700">
-                          {item.note || 'Không có ghi chú thêm từ giảng viên'}
-                        </p>
+                        {item.note && (
+                          <p className="mt-2 text-xs font-medium text-gray-700">
+                            Ghi chú: {item.note}
+                          </p>
+                        )}
                       </div>
                     )
                   })}

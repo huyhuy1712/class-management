@@ -41,6 +41,10 @@ List<Attendance> findAllByClassroomIdAndDate(
 
 List<Attendance> findAllByStudent_Id(Long studentId);
 
+List<Attendance> findAllByClassroom_IdAndStudent_IdOrderByDateDesc(
+        Long classroomId,
+        Long studentId);
+
 long countByStudent_IdAndStatusIn(
         Long studentId,
         List<AttendanceStatus> statuses);

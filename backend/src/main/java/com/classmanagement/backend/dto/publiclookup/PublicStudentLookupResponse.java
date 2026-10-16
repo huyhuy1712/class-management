@@ -37,6 +37,19 @@ public class PublicStudentLookupResponse {
         private String academicYear;
         private String description;
         private String status;
+        private Integer absentCount;
+        private Integer totalSessions;
+        private List<PublicAbsenceDetail> absenceDetails;
+    }
+
+    @Getter
+    @Setter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PublicAbsenceDetail {
+        private String date;
+        private String status;
+        private String note;
     }
 }
-
