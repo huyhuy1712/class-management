@@ -33,7 +33,6 @@ import {
 // @ts-ignore
 import logo from '../../assets/logos/logo.png'
 import publicService from '../../services/publicService'
-import examService from '../../services/examService'
 
 // ==========================================
 // TYPE DEFINITIONS (Ánh xạ từ DTO Backend)
@@ -53,6 +52,16 @@ interface AbsenceDetail {
   note?: string
 }
 
+interface ExamScoreItem {
+  examTitle: string
+  examType?: string
+  date?: string
+  score?: number | null
+  maxScore?: number | null
+  status?: string
+  teacherComment?: string
+}
+
 interface ClassItem {
   id: number | string
   name: string
@@ -65,6 +74,7 @@ interface ClassItem {
   absentCount?: number
   totalSessions?: number
   absenceDetails?: AbsenceDetail[]
+  examScores?: ExamScoreItem[]
 }
 
 interface AttendanceRecord {
@@ -79,13 +89,16 @@ interface AttendanceRecord {
 interface ExamRecord {
   id: number | string
   title?: string
+  examTitle?: string
+  examType?: string
   name?: string
   classroomId?: number | string
   createdAt?: string
   date?: string
-  score?: number | string
-  maxScore?: number | string
+  score?: number | string | null
+  maxScore?: number | string | null
   comment?: string
+  teacherComment?: string
   status?: string
 }
 
@@ -177,7 +190,7 @@ function LandingPage() {
       }
       setStudentProfile(profile)
 
-      // 3. Lấy danh sách các lớp học phần học sinh đã tham gia từ response (bao gồm dữ liệu điểm danh)
+      // 3. Lấy danh sách các lớp học phần học sinh đã tham gia từ response (bao gồm dữ liệu điểm danh và điểm số)
       const matchedClasses: ClassItem[] = (data.classrooms || []).map((cls: any) => ({
         id: cls.classId,
         name: cls.className,
@@ -190,6 +203,7 @@ function LandingPage() {
         absentCount: cls.absentCount ?? 0,
         totalSessions: cls.totalSessions ?? 0,
         absenceDetails: cls.absenceDetails || [],
+        examScores: cls.examScores || [],
       }))
 
       setStudentClasses(matchedClasses)
@@ -226,59 +240,19 @@ function LandingPage() {
     setExams([])
 
     try {
-      // Dữ liệu điểm danh (absentCount, absenceDetails) đã có sẵn trong classItem từ API tra cứu công khai
-
-      // ============================================================
-      // TODO: Tích hợp API điểm số sau khi Backend hoàn thiện module Grade
-      // Tạm thời giữ lại mock data cho phần bảng điểm để test giao diện
-      // ============================================================
-      let classExams: ExamRecord[] = []
-      try {
-        const examsData = await examService.getMyExams()
-        if (Array.isArray(examsData) && examsData.length > 0) {
-          const matched = examsData.filter(
-            (ex: any) => !ex.classroomId || String(ex.classroomId) === String(classItem.id)
-          )
-          if (matched.length > 0) {
-            classExams = matched
-          }
-        }
-      } catch (examErr) {
-        // Backend chưa có API điểm số hoặc chưa đăng nhập
-      }
-
-      // Tạm thời giữ mock data điểm số cho từng lớp để test các chức năng khác không bị trống
-      if (classExams.length === 0) {
-        classExams = [
-          {
-            id: `mock-${classItem.id}-1`,
-            date: '10/09/2026',
-            title: `Kiểm tra 15 phút - Đợt 1 (${classItem.name})`,
-            status: 'Đã chấm điểm',
-            score: '8.5',
-            maxScore: '10',
-            comment: 'Nắm vững kiến thức nền tảng, hoàn thành bài đúng thời gian.',
-          },
-          {
-            id: `mock-${classItem.id}-2`,
-            date: '24/09/2026',
-            title: `Kiểm tra quá trình - Đợt 2`,
-            status: 'Đã chấm điểm',
-            score: '8.0',
-            maxScore: '10',
-            comment: 'Làm bài cẩn thận, tốc độ xử lý câu hỏi tốt.',
-          },
-          {
-            id: `mock-${classItem.id}-3`,
-            date: '08/10/2026',
-            title: `Đánh giá giữa học phần`,
-            status: 'Đã chấm điểm',
-            score: '9.2',
-            maxScore: '10',
-            comment: 'Xuất sắc! Tư duy phân tích và vận dụng lý thuyết chính xác.',
-          },
-        ]
-      }
+      // Dữ liệu điểm danh và kết quả bài thi đã có sẵn trong classItem từ API tra cứu công khai
+      const classExams: ExamRecord[] = (classItem.examScores || []).map((ex: ExamScoreItem, idx: number) => ({
+        id: `exam-${classItem.id}-${idx}`,
+        title: ex.examTitle,
+        examTitle: ex.examTitle,
+        examType: ex.examType,
+        date: ex.date,
+        score: ex.score,
+        maxScore: ex.maxScore,
+        status: ex.status,
+        teacherComment: ex.teacherComment,
+        comment: ex.teacherComment,
+      }))
 
       setExams(classExams)
     } catch (err) {
@@ -1029,26 +1003,37 @@ function LandingPage() {
 
                                 <td className="px-5 py-4">
                                   <p className="font-semibold text-[#0F3822]">
-                                    {examItem.title || examItem.name || `Bài kiểm tra ${index + 1}`}
+                                    {examItem.examTitle || examItem.title || examItem.name || `Bài kiểm tra ${index + 1}`}
                                   </p>
-                                  {examItem.status && (
-                                    <span className="mt-0.5 inline-block text-[11px] font-medium text-gray-400">
-                                      Trạng thái: {examItem.status}
+                                  {(examItem.examType || examItem.status) && (
+                                    <span className="mt-0.5 inline-block text-[11px] font-medium text-gray-500">
+                                      {examItem.examType ? `Môn/Dạng bài: ${examItem.examType}` : ''}
+                                      {examItem.examType && examItem.status ? ' • ' : ''}
+                                      {examItem.status ? `Trạng thái: ${examItem.status}` : ''}
                                     </span>
                                   )}
                                 </td>
 
                                 <td className="px-4 py-4 text-center">
                                   <div className="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-xl bg-[#D8F3DC] px-3.5 py-1.5 text-sm font-extrabold text-[#0F3822] shadow-2xs">
-                                    <span>{examItem.score !== undefined ? examItem.score : '—'}</span>
+                                    <span>
+                                      {examItem.score !== undefined && examItem.score !== null
+                                        ? examItem.score
+                                        : '—'}
+                                    </span>
                                     <span className="text-xs font-medium text-gray-500">
-                                      / {examItem.maxScore !== undefined ? examItem.maxScore : '10'}
+                                      /{' '}
+                                      {examItem.maxScore !== undefined && examItem.maxScore !== null
+                                        ? examItem.maxScore
+                                        : '10'}
                                     </span>
                                   </div>
                                 </td>
 
                                 <td className="px-5 py-4 text-xs sm:text-sm text-gray-600">
-                                  {examItem.comment || 'Hoàn thành bài kiểm tra theo đúng quy định'}
+                                  {examItem.teacherComment ||
+                                    examItem.comment ||
+                                    'Hoàn thành bài kiểm tra theo đúng quy định'}
                                 </td>
                               </tr>
                             ))}

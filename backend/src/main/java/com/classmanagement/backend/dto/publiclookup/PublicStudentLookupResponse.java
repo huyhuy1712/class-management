@@ -40,6 +40,7 @@ public class PublicStudentLookupResponse {
         private Integer absentCount;
         private Integer totalSessions;
         private List<PublicAbsenceDetail> absenceDetails;
+        private List<PublicExamScoreResponse> examScores;
     }
 
     @Getter
@@ -51,5 +52,20 @@ public class PublicStudentLookupResponse {
         private String date;
         private String status;
         private String note;
+    }
+
+    @Getter
+    @Setter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PublicExamScoreResponse {
+        private String examTitle;
+        private String examType;
+        private String date;
+        private Double score;
+        private Double maxScore;
+        private String status;
+        private String teacherComment;
     }
 }
