@@ -78,9 +78,12 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/auth/signup",
                                 "/api/auth/login",
-                                "/api/auth/logout")
+                                "/api/auth/logout",
+                                "/api/auth/impersonation/stop")
                         .permitAll()
 
+                        // Admin API
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         // Public APIs (Tra cứu học sinh không cần đăng nhập)
                         .requestMatchers(
                                 "/api/public/**")

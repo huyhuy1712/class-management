@@ -7,6 +7,7 @@ const StudentExamAttemptPage = lazy(() => import('../pages/student/exams/Student
 const StudentExamResultPage = lazy(() => import('../pages/student/exams/StudentExamResultPage'))
 const StudentGradesPage = lazy(() => import('../pages/student/grades/StudentGradesPage'))
 import { Navigate, Route, Routes } from 'react-router-dom'
+import useAuthStore from '../stores/authStore'
 
 import TeacherDashboard from '../pages/teacher/TeacherDashboard'
 import ClassListPage from '../pages/teacher/classroom/ClassroomListPage'
@@ -37,9 +38,33 @@ import JoinClassPage from '../pages/student/JoinClassPage'
 import StudentClassDetailPage from '../pages/student/classroom/StudentClassDetailPage'
 
 // =============================
+// Admin
+// =============================
+
+import AdminDashboardLayout from "../layouts/AdminDashboardLayout";
+import AdminDashboard from "../components/dashboard/AdminDashboard";
+import UserManagementPage from "../pages/admin/UserManagementPage";
+import SubjectManagementPage from "../pages/admin/SubjectManagementPage";
+
+
+// =============================
 // Landing Page (Public)
 // =============================
 import LandingPage from '../pages/landing'
+
+function AdminRoute({ children }) {
+  const user = useAuthStore((state) => state.user)
+
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (user.role !== 'ADMIN') {
+    return <Navigate to={user.role === 'TEACHER' ? '/teacher' : '/student'} replace />
+  }
+
+  return children
+}
 
 function AppRoutes() {
   return (
@@ -91,6 +116,26 @@ function AppRoutes() {
       <Route path="/teacher/exams/:examId/assignments/:assignmentId/attempts/:attemptId" element={<TeacherAttemptReviewPage />} />
       <Route path="/teacher/exams/create" element={<CreateExamPage />} />
       <Route path="/teacher/exams/create/online" element={<ExamBuilderPage />} />
+
+                {/* =========================
+                        Route Admin
+                    ========================= */}
+
+      <Route
+        path="/admin"
+        element={
+          <AdminRoute>
+            <AdminDashboardLayout />
+          </AdminRoute>
+        }
+      >
+        <Route index element={<AdminDashboard />} />
+        <Route path="users" element={<UserManagementPage />} />
+        <Route path="subjects" element={<SubjectManagementPage />} />
+      </Route>
+
+
+
     </Routes>
     </Suspense>
   )

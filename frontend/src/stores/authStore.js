@@ -27,8 +27,22 @@ const getStoredUser = () => {
   }
 }
 
+const getStoredImpersonationAdmin = () => {
+  const admin = localStorage.getItem('impersonationAdmin')
+  if (!admin) return null
+
+  try {
+    const parsedAdmin = JSON.parse(admin)
+    if (!parsedAdmin) return null
+    return { ...parsedAdmin, role: normalizeRole(parsedAdmin.role) }
+  } catch {
+    return null
+  }
+}
+
 const useAuthStore = create((set, get) => ({
   user: getStoredUser(),
+  impersonationAdmin: getStoredImpersonationAdmin(),
   token: null,
 
   setAuth: (user) => {
@@ -39,10 +53,55 @@ const useAuthStore = create((set, get) => ({
     }
 
     localStorage.removeItem('accessToken')
+    localStorage.removeItem('impersonationAdmin')
     localStorage.setItem('user', JSON.stringify(normalizedUser))
 
     set({
       user: normalizedUser,
+      impersonationAdmin: null,
+      token: null,
+    })
+  },
+
+  startImpersonation: (targetUser) => {
+    const admin = get().user
+    if (admin?.role !== 'ADMIN') {
+      throw new Error('Chỉ quản trị viên mới có thể bắt đầu impersonation')
+    }
+
+    resetQuerySession()
+    const normalizedTarget = {
+      ...targetUser,
+      role: normalizeRole(targetUser?.role),
+    }
+    localStorage.setItem('impersonationAdmin', JSON.stringify(admin))
+    localStorage.setItem('user', JSON.stringify(normalizedTarget))
+    set({
+      user: normalizedTarget,
+      impersonationAdmin: admin,
+      token: null,
+    })
+  },
+
+  restoreImpersonationAdmin: () => {
+    const admin = get().impersonationAdmin
+    if (!admin) return
+
+    resetQuerySession()
+    localStorage.removeItem('impersonationAdmin')
+    localStorage.setItem('user', JSON.stringify(admin))
+    set({
+      user: admin,
+      impersonationAdmin: null,
+      token: null,
+    })
+  },
+
+  syncAuthFromStorage: () => {
+    resetQuerySession()
+    set({
+      user: getStoredUser(),
+      impersonationAdmin: getStoredImpersonationAdmin(),
       token: null,
     })
   },
@@ -71,10 +130,12 @@ const useAuthStore = create((set, get) => ({
   logout: () => {
     resetQuerySession()
     localStorage.removeItem('accessToken')
+    localStorage.removeItem('impersonationAdmin')
     localStorage.removeItem('user')
 
     set({
       user: null,
+      impersonationAdmin: null,
       token: null,
     })
   },

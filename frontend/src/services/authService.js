@@ -13,3 +13,7 @@ export const signup = async (data) => {
 export const logout = async () => {
   await api.post('/auth/logout')
 }
+
+export const stopImpersonation = async () => {
+  await api.post('/auth/impersonation/stop')
+}
