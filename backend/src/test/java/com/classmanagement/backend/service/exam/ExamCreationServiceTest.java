@@ -64,7 +64,7 @@ class ExamCreationServiceTest {
         var response = service().create("teacher", request(List.of(choice(), trueFalse()), "3", assignment()));
         assertEquals(ExamStatus.DRAFT, response.status());
         assertTrue(response.code().matches("EX-1-[A-Z]{6}"));
-        assertEquals(number("3.00"), response.maxScore());
+        assertEquals(number("3.000"), response.maxScore());
         assertEquals(1, transactions.commits);
         assertEquals(0, transactions.rollbacks);
         assertEquals(1, calls.get("options.saveAll"));

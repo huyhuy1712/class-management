@@ -46,7 +46,7 @@ class ClassGradebookTest {
         var result=new ExamAttemptDataRepository(jdbc).gradebook(new ClassGradebookResponse.ClassInfo(31L,"Class",1L,"Math"),11L,0,20,"a%_!",null);
         assertEquals(4,queries.size()); assertEquals(2,result.totalElements()); assertEquals(3,result.columns().size());
         var student=result.items().getFirst();
-        assertEquals(new BigDecimal("7.50"),student.averageScoreOnTen()); assertEquals(1,student.gradedCount());
+        assertEquals(new BigDecimal("7.500"),student.averageScoreOnTen()); assertEquals(1,student.gradedCount());
         assertFalse(student.cells().get(1).assigned()); assertNull(student.cells().get(1).attemptId()); assertNull(student.cells().get(1).scoreOnTen());
         assertNull(student.cells().get(2).scoreOnTen());
         assertTrue(queries.get(2).contains("s.class_id=c.id")); assertTrue(queries.get(2).contains("e.teacher_id=:teacherId"));

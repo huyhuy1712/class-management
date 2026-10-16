@@ -94,7 +94,8 @@ function ExamManagementPage() {
       }
     } catch (error) {
       const data = error.response?.data
-      const validation = Object.values(data?.validationErrors ?? {}).join(' ')
+      const messages = [...new Set(Object.values(data?.validationErrors ?? {}))]
+      const validation = messages.slice(0, 3).join(' ') + (messages.length > 3 ? ' Vui lòng mở chỉnh sửa để xem các lỗi còn lại.' : '')
       const text = validation || data?.message || 'Không thể đổi trạng thái đề thi. Vui lòng thử lại.'
       setUiMessage(text)
       if (error.response?.status === 409) {

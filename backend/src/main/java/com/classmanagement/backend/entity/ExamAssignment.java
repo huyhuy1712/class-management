@@ -59,7 +59,7 @@ public class ExamAssignment {
     @Column(name = "answer_visibility", nullable = false, length = 30)
     private AnswerVisibility answerVisibility;
 
-    @Column(name = "answer_visibility_score", precision = 6, scale = 2)
+    @Column(name = "answer_visibility_score", precision = 7, scale = 3)
     private BigDecimal answerVisibilityScore;
 
     @Column(name = "hide_correct_answer_on_wrong", nullable = false)

@@ -29,7 +29,7 @@ class StudentGradesTest {
     @Test void summaryUsesVisibleFinalScoresAndTableFilterDoesNotLimitCharts() {
         var p=new MapSqlParameterSource("studentId",21L);
         var result=new StudentExamReadRepository(jdbc).grades(p,"newest",0,6,true);
-        assertEquals(new BigDecimal("7.46"),result.summary().average());
+        assertEquals(new BigDecimal("7.456"),result.summary().average());
         assertEquals(new BigDecimal("91.67"),result.summary().passRate());
         assertEquals(1,result.summary().hiddenScoreCount()); assertEquals(6,result.totalElements());
         assertEquals(List.of(1L,2L,4L,5L),result.charts().scoreBands());

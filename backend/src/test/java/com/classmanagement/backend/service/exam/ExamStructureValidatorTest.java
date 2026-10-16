@@ -48,9 +48,22 @@ class ExamStructureValidatorTest {
             .configure().messageInterpolator(new ParameterMessageInterpolator()).buildValidatorFactory();
     private final ExamStructureValidator validator = new ExamStructureValidator(FACTORY.getValidator());
 
+    @Test void acceptsThreeDecimalScoresWithoutRoundingAndRejectsFour() {
+        var answer = new Answer(AnswerType.SINGLE_CHOICE, null, null, null, number("0.125"), ScoringType.PER_ANSWER,
+                null, false, List.of(option(true, null), option(false, null)), null);
+        assertEquals(number("0.125"), validator.validate(request(List.of(answer), "0.125", assignment())).totalScore());
+        var tiny = new Answer(AnswerType.SINGLE_CHOICE, null, null, null, number("0.001"), ScoringType.PER_ANSWER,
+                null, false, List.of(option(true, null), option(false, null)), null);
+        assertEquals(number("0.001"), validator.validate(request(List.of(tiny), "0.001", assignment())).totalScore());
+        assertThrows(ExamValidationException.class, () -> validator.validate(request(List.of(answer), "0.1251", assignment())));
+        var validGrade = new com.classmanagement.backend.dto.exam.ExamAttemptPayload.Grade(1L, number("0.125"));
+        var invalidGrade = new com.classmanagement.backend.dto.exam.ExamAttemptPayload.Grade(1L, number("0.1251"));
+        assertTrue(FACTORY.getValidator().validate(validGrade).isEmpty());
+        assertFalse(FACTORY.getValidator().validate(invalidGrade).isEmpty());
+    }
     @Test void acceptsMixedGroupsAndCalculatesTotal() {
         var summary = validator.validate(request(List.of(choice(), trueFalse()), "3", assignment()));
-        assertEquals(new BigDecimal("3.00"), summary.totalScore());
+        assertEquals(new BigDecimal("3.000"), summary.totalScore());
     }
     @Test void acceptsAllFalseTrueFalseGroup() {
         assertDoesNotThrow(() -> validator.validate(request(List.of(trueFalse()), "2", assignment())));
@@ -85,7 +98,7 @@ class ExamStructureValidatorTest {
         var answer = new Answer(AnswerType.TRUE_FALSE, null, null, null, number("2"), ScoringType.CORRECT_COUNT,
                 null, false, List.of(option(false, null), option(true, null)),
                 List.of(new ScoringRule(0, number("0")), new ScoringRule(1, number("0.5")), new ScoringRule(2, number("2"))));
-        assertEquals(number("2.00"), validator.validate(request(List.of(answer), "2", assignment())).totalScore());
+        assertEquals(number("2.000"), validator.validate(request(List.of(answer), "2", assignment())).totalScore());
     }
     @Test void rejectsCorrectCountOnEssay() {
         var answer = new Answer(AnswerType.ESSAY, null, null, null, number("1"), ScoringType.CORRECT_COUNT,
@@ -113,9 +126,9 @@ class ExamStructureValidatorTest {
         assertThrows(ExamValidationException.class, () -> validator.validate(request(List.of(answer), "1", assignment())));
     }
     @Test void rejectsOverPrecisionScore() {
-        var answer = new Answer(AnswerType.ESSAY, null, null, null, number("1.001"), ScoringType.PER_ANSWER,
+        var answer = new Answer(AnswerType.ESSAY, null, null, null, number("1.0001"), ScoringType.PER_ANSWER,
                 null, false, null, null);
-        assertThrows(ExamValidationException.class, () -> validator.validate(request(List.of(answer), "1.001", assignment())));
+        assertThrows(ExamValidationException.class, () -> validator.validate(request(List.of(answer), "1.0001", assignment())));
     }
     @Test void rejectsMediaUsedAsBothImageAndAudio() {
         UUID id = UUID.randomUUID();

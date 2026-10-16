@@ -150,7 +150,7 @@ public class StudentExamReadRepository {
         """;
     private static final String GRADE_CTE="with scoped as (select t.id,t.assignment_id,e.title,e.code,t.status,t.attempt_count,t.submitted_at,t.duration_seconds,t.teacher_comment,e.subject_id,sub.name subject_name,"
             +GRADE_VISIBLE+" visible,case when t.status='GRADED' and e.max_score>0 and "+GRADE_VISIBLE+
-            " then round(t.total_score*10.0/e.max_score,2) end score "+GRADE_FROM+GRADE_SCOPE+") ";
+            " then round(t.total_score*10.0/e.max_score,3) end score "+GRADE_FROM+GRADE_SCOPE+") ";
     private static final String GRADE_TABLE_FILTER="(cast(:status as varchar) is null or status=:status) and (:q='' or lower(title) like :pattern escape '!' or lower(code) like :pattern escape '!')";
 
     public StudentGradesResponse grades(MapSqlParameterSource p,String sort,int page,int size,boolean includeCharts) {
@@ -192,6 +192,6 @@ public class StudentExamReadRepository {
         }
         return new StudentGradesResponse(new StudentGradesResponse.Filters(classOptions,subjects),overview.summary(),charts,items,page,size,overview.count());
     }
-    private static BigDecimal decimal(BigDecimal value) { return value==null?null:value.setScale(2,java.math.RoundingMode.HALF_UP); }
+    private static BigDecimal decimal(BigDecimal value) { return value==null?null:value.setScale(3,java.math.RoundingMode.HALF_UP); }
     private static OffsetDateTime gradeTime(LocalDateTime value) { return value==null?null:value.atOffset(ZoneOffset.ofHours(7)); }
 }

@@ -210,7 +210,7 @@ public class ExamAttemptDataRepository {
                 "), frequencies as (select total_score,count(*) frequency from scoped where status='GRADED' and total_score is not null group by total_score) "
                 +"select count(*) filter (where matches),count(*),count(*) filter (where id is null or status='NOT_STARTED'),"
                 +"count(*) filter (where status='IN_PROGRESS'),count(*) filter (where status='SUBMITTED'),count(*) filter (where status='GRADED'),"
-                +"round(avg(total_score) filter (where status='GRADED'),2),"
+                +"round(avg(total_score) filter (where status='GRADED'),3),"
                 +"(select array_agg(total_score order by total_score) from frequencies where frequency=(select max(frequency) from frequencies) and frequency>1) from scoped";
         return jdbc.queryForObject(aggregate,p,(r,i)-> {
             var array=r.getArray(8);
@@ -279,13 +279,13 @@ public class ExamAttemptDataRepository {
             }
             if(!cell.assigned()) cell=new ClassGradebookResponse.Cell(cell.assignmentId(),false,null,0,null,null,null,null);
             else if(cell.scoreOnTen()!=null) cell=new ClassGradebookResponse.Cell(cell.assignmentId(),true,cell.attemptId(),cell.attemptNumber(),cell.status(),cell.totalScore(),
-                    cell.scoreOnTen().setScale(2,java.math.RoundingMode.HALF_UP),cell.submittedAt());
+                    cell.scoreOnTen().setScale(3,java.math.RoundingMode.HALF_UP),cell.submittedAt());
             byStudent.computeIfAbsent(entry.getKey(),id->new ArrayList<>()).add(cell);
         }
         var order=new HashMap<Long,Integer>(); for(int i=0;i<columns.size();i++) order.put(columns.get(i).assignmentId(),i);
         var rows=students.stream().map(student-> {
             long graded=counts.getOrDefault(student.studentId(),0L);
-            BigDecimal average=graded==0?null:sums.get(student.studentId()).divide(BigDecimal.valueOf(graded),2,java.math.RoundingMode.HALF_UP);
+            BigDecimal average=graded==0?null:sums.get(student.studentId()).divide(BigDecimal.valueOf(graded),3,java.math.RoundingMode.HALF_UP);
             var values=byStudent.getOrDefault(student.studentId(),new ArrayList<>()); values.sort(Comparator.comparing(c->order.get(c.assignmentId())));
             return new ClassGradebookResponse.Student(student.studentId(),student.studentCode(),student.fullName(),student.email(),student.phone(),student.avatarUrl(),student.joinedAt(),average,graded,values);
         }).toList();
@@ -307,12 +307,12 @@ public class ExamAttemptDataRepository {
                 )
                 """;
         String normalized="case when t.status='GRADED' and e.max_score>0 then t.total_score*10.0/e.max_score end";
-        var items=jdbc.query("select a.id,e.id,e.title,e.code,a.assignment_type,t.id,coalesce(t.attempt_count,0),coalesce(t.status,'NOT_STARTED'),e.max_score,case when t.status in ('SUBMITTED','GRADED') then t.total_score end,round("+normalized+",2),t.submitted_at,t.duration_seconds,t.teacher_comment "+from+
+        var items=jdbc.query("select a.id,e.id,e.title,e.code,a.assignment_type,t.id,coalesce(t.attempt_count,0),coalesce(t.status,'NOT_STARTED'),e.max_score,case when t.status in ('SUBMITTED','GRADED') then t.total_score end,round("+normalized+",3),t.submitted_at,t.duration_seconds,t.teacher_comment "+from+
                 " order by a.created_at desc,a.id desc limit :limit offset :offset",parameters,
                 (r,i)->new StudentClassExamResultsResponse.Item(r.getLong(1),r.getLong(2),r.getString(3),r.getString(4),ExamAssignmentType.valueOf(r.getString(5)),
                         r.getObject(6,Long.class),r.getInt(7),ExamAttemptStatus.valueOf(r.getString(8)),r.getBigDecimal(9),r.getBigDecimal(10),r.getBigDecimal(11),
                         "GRADED".equals(r.getString(8)),time(r.getObject(12,LocalDateTime.class)),r.getObject(13,Integer.class),r.getString(14)));
-        return jdbc.queryForObject("select count(*),count(*) filter(where t.id is null or t.status='NOT_STARTED'),count(*) filter(where t.status='IN_PROGRESS'),count(*) filter(where t.status='SUBMITTED'),count(*) filter(where t.status='GRADED'),round(avg("+normalized+"),2),round(max("+normalized+"),2),round(min("+normalized+"),2) "+from,parameters,
+        return jdbc.queryForObject("select count(*),count(*) filter(where t.id is null or t.status='NOT_STARTED'),count(*) filter(where t.status='IN_PROGRESS'),count(*) filter(where t.status='SUBMITTED'),count(*) filter(where t.status='GRADED'),round(avg("+normalized+"),3),round(max("+normalized+"),3),round(min("+normalized+"),3) "+from,parameters,
                 (r,i)->new StudentClassExamResultsResponse(classId,studentId,items,page,size,r.getLong(1),new StudentClassExamResultsResponse.Summary(
                         r.getLong(1),r.getLong(2),r.getLong(3),r.getLong(4)+r.getLong(5),r.getLong(4),r.getLong(5),r.getBigDecimal(6),r.getBigDecimal(7),r.getBigDecimal(8))));
     }

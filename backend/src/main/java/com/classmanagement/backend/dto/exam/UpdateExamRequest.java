@@ -17,7 +17,7 @@ public record UpdateExamRequest(
             @NotNull @Size(max = 2000) List<@NotNull @Positive Long> studentIds,
             @NotNull ScoreVisibility scoreVisibility,
             @NotNull AnswerVisibility answerVisibility,
-            @DecimalMin("0") @Digits(integer = 4, fraction = 2) BigDecimal threshold,
+            @DecimalMin("0") @Digits(integer = 4, fraction = 3, message = "Điểm tối đa 9999.999 và 3 chữ số thập phân.") BigDecimal threshold,
             @NotNull Boolean hideCorrectAnswerOnWrong,
             LocalDateTime openTime, LocalDateTime closeTime, @Positive Long classId) {
         public Assignment(Long id, ExamAssignmentType assignmentType, List<Long> classIds, List<Long> studentIds,

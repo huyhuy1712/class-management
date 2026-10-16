@@ -6,7 +6,7 @@ import GradeOverviewCharts from './components/GradeOverviewCharts'
 import useStudentGrades from './hooks/useStudentGrades'
 import { adaptGradeItem } from './helpers/gradeOverviewAdapter'
 
-const formatScore = (value) => value == null ? '—' : Number(Number(value).toFixed(2))
+const formatScore = (value) => value == null ? '—' : Number(Number(value).toFixed(3))
 const inputStyle = 'min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50'
 
 export default function StudentGradesPage() {

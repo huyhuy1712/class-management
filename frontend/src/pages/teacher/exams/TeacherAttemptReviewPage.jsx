@@ -74,7 +74,7 @@ function ReviewEditor({ query, back }) {
       <p className="text-sm">Thời gian: {attemptDuration(result.durationSeconds)}</p><p className="text-sm">Nộp: {formatExamDateTime(result.submittedAt)}</p><p className="text-sm">Rời tab: {result.tabSwitchCount}</p>
       <div className="space-y-2 rounded-xl bg-slate-50 p-3 text-xs"><p>Tự động: <strong>{result.autoScore}</strong> · Tự luận: <strong>{result.manualScore}</strong></p>{result.sectionScores.map((score) => {
         const section = result.sections.find((item) => item.id === score.sectionId)
-        const maximum = section ? section.questions.reduce((sum, question) => sum + Math.round(Number(question.points) * 100), 0) / 100 : null
+        const maximum = section ? section.questions.reduce((sum, question) => sum + Math.round(Number(question.points) * 1000), 0) / 1000 : null
         return <p key={score.sectionId} className="flex justify-between gap-2"><span>{section?.title || `Phần ${score.sectionId}`}</span><strong>{score.totalScore}/{maximum ?? '—'}</strong></p>
       })}</div>
       <details className="text-sm"><summary className="cursor-pointer">Nhật ký vi phạm ({result.events?.length ?? 0})</summary>{result.events?.map((event) => <p key={event.eventId} className="mt-2 text-xs text-slate-500">{event.type === 'TAB_HIDDEN' ? 'Rời tab' : 'Quay lại tab'} · {formatExamDateTime(event.receivedAt)}</p>)}</details>

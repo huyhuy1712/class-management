@@ -38,7 +38,7 @@ export default function useSaveExamConfiguration(examId, onSaved, mode = 'edit')
       const body = failure.response?.data
       const fieldErrors = mapConfigurationErrors(body?.validationErrors)
       onFieldErrors?.(fieldErrors)
-      setError(Object.keys(fieldErrors).length ? 'Vui lòng kiểm tra các ô được đánh dấu bên dưới.' : Object.values(body?.validationErrors ?? {}).join(' ') || body?.message || failure.message || 'Không thể lưu cấu hình. Vui lòng thử lại.')
+      setError(Object.keys(fieldErrors).length ? 'Vui lòng kiểm tra các ô được đánh dấu bên dưới.' : [...new Set(Object.values(body?.validationErrors ?? {}))].slice(0, 3).join(' ') || body?.message || failure.message || 'Không thể lưu cấu hình. Vui lòng thử lại.')
     } finally {
       lock.current = false
       }

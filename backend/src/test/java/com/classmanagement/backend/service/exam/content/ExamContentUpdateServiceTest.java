@@ -53,7 +53,7 @@ class ExamContentUpdateServiceTest {
         var response = service().update(7L, "teacher", request(0L, List.of(input(2L, 3L)), null));
         assertEquals("Explanation",questions.getFirst().getExplanation());
         assertNull(section.getParagraph());
-        assertEquals(1L, response.revision()); assertEquals(BigDecimal.ONE.setScale(2), response.maxScore());
+        assertEquals(1L, response.revision()); assertEquals(BigDecimal.ONE.setScale(3), response.maxScore());
         assertTrue(response.idMappings().questions().isEmpty());
         assertFalse(calls.contains("persist")); assertFalse(calls.contains("deleteAllByIdInBatch"));
         assertEquals(9, calls.stream().filter(c -> c.startsWith("find") || c.startsWith("exists")).count());

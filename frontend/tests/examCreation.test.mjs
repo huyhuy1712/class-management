@@ -117,7 +117,7 @@ test('derives decimal totals and ignores obsolete manually entered totals', () =
   assert.equal(validateExamBuilder(tree).isValid, true)
   assert.equal(getQuestionScore(question), 0.3)
   assert.equal(buildExamPayload(config, tree).sections[0].questions[0].points, 0.3)
-  question.answerGroups[0].answers[0].point = 0.001
+  question.answerGroups[0].answers[0].point = 0.0001
   assert.ok(validateExamBuilder(tree).errors['answer-group-g'])
 })
 
@@ -239,7 +239,7 @@ test('rule endpoint determines group, question and payload scores', () => {
 })
 
 
-test('migrates old draft group totals without losing cents or overwriting answer scores', () => {
+test('migrates old draft group totals without losing thousandths or overwriting answer scores', () => {
   const tree = sections()
   const oldGroup = tree[0].questions[0].answerGroups[0]
   oldGroup.answerType = 'CHOICE'
@@ -247,7 +247,7 @@ test('migrates old draft group totals without losing cents or overwriting answer
   oldGroup.answers = [item('a', true), item('b', true), item('c', true)]
   oldGroup.answers.forEach((answer) => { answer.point = 0 })
   const migrated = migrateDraftScores(tree)[0].questions[0].answerGroups[0]
-  assert.deepEqual(migrated.answers.map((answer) => answer.point), [0.33, 0.33, 0.34])
+  assert.deepEqual(migrated.answers.map((answer) => answer.point), [0.333, 0.333, 0.334])
   assert.equal(getGroupScore(migrated), 1)
   assert.equal('point' in migrated, false)
   assert.deepEqual(migrateDraftScores(migrateDraftScores(tree)), migrateDraftScores(tree))
@@ -256,13 +256,13 @@ test('migrates old draft group totals without losing cents or overwriting answer
 })
 
 
-test('sidebar score distributes exact cents and preserves relative item scores', () => {
+test('sidebar score distributes exact thousandths and preserves relative item scores', () => {
   const question = sections()[0].questions[0]
   question.answerGroups[0].answers[0].point = 1
   question.answerGroups[0].answers[1].point = 2
   const updated = distributeQuestionScore(question, '1')
   assert.equal(getQuestionScore(updated), 1)
-  assert.deepEqual(updated.answerGroups[0].answers.map((answer) => answer.point), [0.33, 0.67])
+  assert.deepEqual(updated.answerGroups[0].answers.map((answer) => answer.point), [0.333, 0.667])
   assert.equal(getQuestionScore(distributeQuestionScore(updated, '0')), 0)
   assert.equal(getQuestionScore(distributeQuestionScore(distributeQuestionScore(updated, '0'), '1')), 1)
 })

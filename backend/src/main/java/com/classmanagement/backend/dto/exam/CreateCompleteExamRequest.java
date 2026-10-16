@@ -54,7 +54,7 @@ public record CreateCompleteExamRequest(
             @Size(max = 2000) List<@NotNull @Positive Long> studentIds,
             @NotNull ScoreVisibility scoreVisibility,
             @NotNull AnswerVisibility answerVisibility,
-            @DecimalMin("0") @Digits(integer = 4, fraction = 2) BigDecimal answerVisibilityScore,
+            @DecimalMin("0") @Digits(integer = 4, fraction = 3, message = "Điểm tối đa 9999.999 và 3 chữ số thập phân.") BigDecimal answerVisibilityScore,
             @NotNull Boolean hideCorrectAnswerOnWrong,
             LocalDateTime openTime,
             LocalDateTime closeTime,
@@ -77,7 +77,7 @@ public record CreateCompleteExamRequest(
             @NotBlank @Size(max = 20000) String content,
             @Size(max = 20000) String explanation,
             UUID imageMediaId, UUID audioMediaId,
-            @NotNull @DecimalMin("0.01") @Digits(integer = 4, fraction = 2) BigDecimal points,
+            @NotNull @DecimalMin("0.001") @Digits(integer = 4, fraction = 3, message = "Điểm tối đa 9999.999 và 3 chữ số thập phân.") BigDecimal points,
             @NotEmpty @Size(max = 20) List<@NotNull @Valid Answer> answers,
             UUID explanationImageMediaId, UUID explanationAudioMediaId) {
         public Question(String content, String explanation, UUID imageMediaId, UUID audioMediaId, BigDecimal points, List<Answer> answers) {
@@ -90,7 +90,7 @@ public record CreateCompleteExamRequest(
             @NotNull AnswerType answerType,
             @Size(max = 20000) String content,
             UUID imageMediaId, UUID audioMediaId,
-            @NotNull @DecimalMin("0") @Digits(integer = 4, fraction = 2) BigDecimal points,
+            @NotNull @DecimalMin("0") @Digits(integer = 4, fraction = 3, message = "Điểm tối đa 9999.999 và 3 chữ số thập phân.") BigDecimal points,
             @NotNull ScoringType scoringType,
             @Size(max = 20000) String correctAnswerText,
             Boolean caseSensitive,
@@ -101,9 +101,9 @@ public record CreateCompleteExamRequest(
             @Size(max = 20000) String content,
             UUID imageMediaId, UUID audioMediaId,
             @NotNull Boolean isCorrect,
-            @DecimalMin("0") @Digits(integer = 4, fraction = 2) BigDecimal points) {}
+            @DecimalMin("0") @Digits(integer = 4, fraction = 3, message = "Điểm tối đa 9999.999 và 3 chữ số thập phân.") BigDecimal points) {}
 
     public record ScoringRule(
             @NotNull @Min(0) Integer correctCount,
-            @NotNull @DecimalMin("0") @Digits(integer = 4, fraction = 2) BigDecimal score) {}
+            @NotNull @DecimalMin("0") @Digits(integer = 4, fraction = 3, message = "Điểm tối đa 9999.999 và 3 chữ số thập phân.") BigDecimal score) {}
 }

@@ -18,7 +18,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class ExamStructureValidator {
     private final Validator validator;
-    private static final BigDecimal MAX_SCORE = new BigDecimal("9999.99");
+    private static final BigDecimal MAX_SCORE = new BigDecimal("9999.999");
 
     public Summary validate(CreateCompleteExamRequest request) {
         if (request == null) fail("request", "Thiếu dữ liệu đề thi");
@@ -105,11 +105,11 @@ public class ExamStructureValidator {
                 }
                 total = total.add(questionTotal);
                 if (total.compareTo(MAX_SCORE) > 0)
-                    fail("sections", "Tổng điểm đề không được vượt quá 9999.99");
+                    fail("sections", "Tổng điểm đề không được vượt quá 9999.999");
             }
         }
         if (media.size() > 500) fail("sections", "Đề không được vượt quá 500 media");
-        return new Summary(total.setScale(2), Map.copyOf(media));
+        return new Summary(total.setScale(3), Map.copyOf(media));
     }
 
     private record Content(
