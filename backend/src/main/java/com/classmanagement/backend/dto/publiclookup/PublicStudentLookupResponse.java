@@ -1,0 +1,42 @@
+package com.classmanagement.backend.dto.publiclookup;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.util.List;
+
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class PublicStudentLookupResponse {
+
+    private Long id;
+    private String studentCode;
+    private String fullName;
+    private String email;
+    private String phone;
+    private String avatar;
+    private List<PublicClassroomResponse> classrooms;
+
+    @Getter
+    @Setter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PublicClassroomResponse {
+        private Long classId;
+        private String classCode;
+        private String className;
+        private String subjectName;
+        private String teacherName;
+        private String academicYear;
+        private String description;
+        private String status;
+    }
+}
+

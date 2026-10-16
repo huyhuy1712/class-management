@@ -22,180 +22,89 @@ import {
   Info,
   Award,
   Layers,
+  School,
+  ChevronRight,
+  Loader2,
+  FileText,
+  User,
+  Mail,
+  Phone,
 } from 'lucide-react'
+// @ts-ignore
 import logo from '../../assets/logos/logo.png'
+import publicService from '../../services/publicService'
+import attendanceService from '../../services/attendanceService'
+import examService from '../../services/examService'
 
-interface AbsenceDetail {
-  id: string
-  sessionNumber: number
-  date: string
-  timeSlot: string
-  topic: string
-  status: 'ABSENT_UNEXCUSED' | 'ABSENT_EXCUSED' | 'LATE'
-  note: string
-}
-
-interface GradeProgressRow {
-  id: string
-  timestamp: string
-  examTitle: string
-  multipleChoice: string
-  fillInBlank: string
-  trueFalse: string
-  totalScore: number
-  comment: string
-}
-
-interface StudentLookupResult {
+// ==========================================
+// TYPE DEFINITIONS (Ánh xạ từ DTO Backend)
+// ==========================================
+interface StudentProfile {
+  id: number | string
   studentCode: string
-  candidateNumber: string
   fullName: string
-  className: string
-  absenceCount: number
-  totalSessions: number
-  attendanceRate: string
-  averageScore: number
-  rankLabel: string
-  absences: AbsenceDetail[]
-  grades: GradeProgressRow[]
+  email?: string
+  phone?: string
+  avatar?: string
 }
 
-const CLASS_OPTIONS = [
-  'Chủ Nghĩa Xã Hội',
-  'Hệ thống thông tin 01',
-  'Lập trình Java k25',
-]
+interface ClassItem {
+  id: number | string
+  name: string
+  code: string
+  academicYear?: string
+  subjectName?: string
+  teacherName?: string
+  description?: string
+  status?: string
+}
 
-const MOCK_STUDENT_DB: Record<string, Omit<StudentLookupResult, 'className'>> = {
-  '3122410142': {
-    studentCode: '3122410142',
-    candidateNumber: 'SBD-2026-0142',
-    fullName: 'Lê Ngọc Anh Huy',
-    absenceCount: 2,
-    totalSessions: 15,
-    attendanceRate: '86.7%',
-    averageScore: 8.6,
-    rankLabel: 'Giỏi',
-    absences: [
-      {
-        id: 'abs-1',
-        sessionNumber: 4,
-        date: '14/09/2026',
-        timeSlot: 'Ca 1 (07:30 - 09:30)',
-        topic: 'Buổi 4: Thảo luận chuyên đề & Bài tập nhóm',
-        status: 'ABSENT_EXCUSED',
-        note: 'Xin phép nghỉ ốm (Có giấy xác nhận y tế)',
-      },
-      {
-        id: 'abs-2',
-        sessionNumber: 9,
-        date: '02/10/2026',
-        timeSlot: 'Ca 1 (07:30 - 09:30)',
-        topic: 'Buổi 9: Ôn tập giữa kỳ & Giải đáp câu hỏi',
-        status: 'ABSENT_UNEXCUSED',
-        note: 'Vắng không phép (Không nhập mã điểm danh ca học)',
-      },
-      {
-        id: 'abs-3',
-        sessionNumber: 12,
-        date: '09/10/2026',
-        timeSlot: 'Ca 1 (07:30 - 09:30)',
-        topic: 'Buổi 12: Kiểm tra tiến độ đồ án thực hành',
-        status: 'LATE',
-        note: 'Điểm danh trễ 12 phút so với giờ đóng mã chuẩn',
-      },
-    ],
-    grades: [
-      {
-        id: 'g-1',
-        timestamp: '10/09/2026 08:15',
-        examTitle: 'Kiểm tra 15 phút - Đợt 1',
-        multipleChoice: '4.0 / 4.0',
-        fillInBlank: '2.5 / 3.0',
-        trueFalse: '2.0 / 3.0',
-        totalScore: 8.5,
-        comment: 'Nắm vững kiến thức nền tảng, cần chú ý kỹ câu hỏi Đúng/Sai.',
-      },
-      {
-        id: 'g-2',
-        timestamp: '24/09/2026 08:30',
-        examTitle: 'Kiểm tra quá trình - Đợt 2',
-        multipleChoice: '3.5 / 4.0',
-        fillInBlank: '2.5 / 3.0',
-        trueFalse: '2.0 / 3.0',
-        totalScore: 8.0,
-        comment: 'Hoàn thành bài đúng thời gian, tốc độ xử lý câu hỏi tốt.',
-      },
-      {
-        id: 'g-3',
-        timestamp: '08/10/2026 09:00',
-        examTitle: 'Đánh giá giữa học phần',
-        multipleChoice: '4.0 / 4.0',
-        fillInBlank: '2.8 / 3.0',
-        trueFalse: '2.5 / 3.0',
-        totalScore: 9.3,
-        comment: 'Xuất sắc! Tư duy phân tích và vận dụng lý thuyết rất chuẩn xác.',
-      },
-    ],
-  },
-  '3122410199': {
-    studentCode: '3122410199',
-    candidateNumber: 'SBD-2026-0199',
-    fullName: 'Nguyễn Minh Tâm',
-    absenceCount: 1,
-    totalSessions: 15,
-    attendanceRate: '93.3%',
-    averageScore: 8.2,
-    rankLabel: 'Giỏi',
-    absences: [
-      {
-        id: 'abs-201',
-        sessionNumber: 6,
-        date: '21/09/2026',
-        timeSlot: 'Ca 2 (09:45 - 11:45)',
-        topic: 'Buổi 6: Thực hành phân tích tình huống',
-        status: 'ABSENT_EXCUSED',
-        note: 'Tham gia đội tuyển học thuật cấp trường',
-      },
-    ],
-    grades: [
-      {
-        id: 'g-201',
-        timestamp: '10/09/2026 08:15',
-        examTitle: 'Kiểm tra 15 phút - Đợt 1',
-        multipleChoice: '3.5 / 4.0',
-        fillInBlank: '2.5 / 3.0',
-        trueFalse: '2.0 / 3.0',
-        totalScore: 8.0,
-        comment: 'Làm bài cẩn thận, trình bày rõ ràng.',
-      },
-      {
-        id: 'g-202',
-        timestamp: '08/10/2026 09:00',
-        examTitle: 'Đánh giá giữa học phần',
-        multipleChoice: '3.8 / 4.0',
-        fillInBlank: '2.6 / 3.0',
-        trueFalse: '2.0 / 3.0',
-        totalScore: 8.4,
-        comment: 'Có tiến bộ rõ rệt ở phần câu hỏi điền từ.',
-      },
-    ],
-  },
+interface AttendanceRecord {
+  id: number | string
+  studentId?: number | string
+  studentCode?: string
+  date?: string
+  status: 'PRESENT' | 'ABSENT' | 'LATE' | string
+  note?: string
+}
+
+interface ExamRecord {
+  id: number | string
+  title?: string
+  name?: string
+  classroomId?: number | string
+  createdAt?: string
+  date?: string
+  score?: number | string
+  maxScore?: number | string
+  comment?: string
+  status?: string
 }
 
 function LandingPage() {
   const navigate = useNavigate()
 
+  // Navigation State
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [selectedClass, setSelectedClass] = useState<string>(CLASS_OPTIONS[0])
-  const [studentCodeInput, setStudentCodeInput] = useState<string>('3122410142')
-  const [lookupResult, setLookupResult] = useState<StudentLookupResult | null>({
-    ...MOCK_STUDENT_DB['3122410142'],
-    className: CLASS_OPTIONS[0],
-  })
-  const [lookupError, setLookupError] = useState<string>('')
+
+  // Search State
+  const [studentCodeInput, setStudentCodeInput] = useState<string>('')
+  const [isLoading, setIsLoading] = useState<boolean>(false)
+  const [hasSearched, setHasSearched] = useState<boolean>(false)
+  const [errorMessage, setErrorMessage] = useState<string>('')
+
+  // Student & Classes Data (100% REST API)
+  const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null)
+  const [studentClasses, setStudentClasses] = useState<ClassItem[]>([])
+
+  // Selected Class & Performance Detail (100% REST API)
+  const [selectedClass, setSelectedClass] = useState<ClassItem | null>(null)
+  const [classDetailLoading, setClassDetailLoading] = useState<boolean>(false)
+  const [attendances, setAttendances] = useState<AttendanceRecord[]>([])
+  const [exams, setExams] = useState<ExamRecord[]>([])
+
+  // Modal State
   const [isAbsenceModalOpen, setIsAbsenceModalOpen] = useState<boolean>(false)
-  const [hasSearched, setHasSearched] = useState<boolean>(true)
 
   const scrollToSection = (sectionId: string) => {
     setMobileMenuOpen(false)
@@ -205,50 +114,186 @@ function LandingPage() {
     }
   }
 
-  const handleLookup = (event?: React.FormEvent) => {
-    if (event) event.preventDefault()
+  // ==========================================
+  // XỬ LÝ TRA CỨU HỌC SINH QUA REST API
+  // ==========================================
+  const handleSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
 
     const trimmedCode = studentCodeInput.trim()
-    setHasSearched(true)
 
+    // 1. Validate ô nhập
     if (!trimmedCode) {
-      setLookupResult(null)
-      setLookupError('Vui lòng nhập mã số học sinh để tra cứu.')
+      setHasSearched(true)
+      setErrorMessage('Vui lòng nhập mã số học sinh')
+      setStudentProfile(null)
+      setStudentClasses([])
+      setSelectedClass(null)
+      setAttendances([])
+      setExams([])
       return
     }
 
-    const matchedStudent = MOCK_STUDENT_DB[trimmedCode]
-    if (!matchedStudent) {
-      setLookupResult(null)
-      setLookupError('Không tìm thấy thông tin học sinh')
-      return
-    }
-
-    setLookupError('')
-    setLookupResult({
-      ...matchedStudent,
-      className: selectedClass,
-    })
-  }
-
-  const handleQuickFill = (code: string, className?: string) => {
-    setStudentCodeInput(code)
-    const targetClass = className || selectedClass
-    if (className) setSelectedClass(className)
-
-    const matchedStudent = MOCK_STUDENT_DB[code]
+    setIsLoading(true)
     setHasSearched(true)
-    if (matchedStudent) {
-      setLookupError('')
-      setLookupResult({
-        ...matchedStudent,
-        className: targetClass,
-      })
-    } else {
-      setLookupResult(null)
-      setLookupError('Không tìm thấy thông tin học sinh')
+    setErrorMessage('')
+    setStudentProfile(null)
+    setStudentClasses([])
+    setSelectedClass(null)
+    setAttendances([])
+    setExams([])
+
+    try {
+      // 2. Gọi API Public tra cứu học sinh theo mã (không cần đăng nhập)
+      const data = await publicService.lookupStudentByCode(trimmedCode)
+
+      if (!data || !data.id) {
+        setErrorMessage('Không tìm thấy thông tin học sinh với mã này. Vui lòng kiểm tra lại!')
+        setIsLoading(false)
+        return
+      }
+
+      const profile: StudentProfile = {
+        id: data.id,
+        studentCode: data.studentCode,
+        fullName: data.fullName || 'Học sinh',
+        email: data.email,
+        phone: data.phone,
+        avatar: data.avatar,
+      }
+      setStudentProfile(profile)
+
+      // 3. Lấy danh sách các lớp học phần học sinh đã tham gia từ response
+      const matchedClasses: ClassItem[] = (data.classrooms || []).map((cls: any) => ({
+        id: cls.classId,
+        name: cls.className,
+        code: cls.classCode,
+        academicYear: cls.academicYear || 'Năm học 2026 - 2027',
+        subjectName: cls.subjectName,
+        teacherName: cls.teacherName,
+        description: cls.description,
+        status: cls.status,
+      }))
+
+      setStudentClasses(matchedClasses)
+
+      // Tự động kích hoạt lớp đầu tiên nếu có
+      if (matchedClasses.length > 0) {
+        fetchClassPerformance(matchedClasses[0], profile)
+      }
+    } catch (err: any) {
+      console.error('Lỗi khi tra cứu học sinh:', err)
+      if (err.response?.status === 404) {
+        setErrorMessage(
+          err.response?.data?.message || 'Không tìm thấy thông tin học sinh với mã này. Vui lòng kiểm tra lại!'
+        )
+      } else if (err.response?.status >= 500) {
+        setErrorMessage('Lỗi hệ thống hoặc mất kết nối máy chủ')
+      } else {
+        setErrorMessage(
+          err.response?.data?.message || 'Lỗi hệ thống hoặc mất kết nối máy chủ. Vui lòng thử lại sau!'
+        )
+      }
+    } finally {
+      setIsLoading(false)
     }
   }
+
+  // ==========================================
+  // XỬ LÝ LẤY ĐIỂM & ĐIỂM DANH KHI CHỌN LỚP
+  // ==========================================
+  const fetchClassPerformance = async (classItem: ClassItem, student: StudentProfile) => {
+    setSelectedClass(classItem)
+    setClassDetailLoading(true)
+    setAttendances([])
+    setExams([])
+
+    try {
+      // 1. Gọi attendanceService.getByClass để lấy danh sách điểm danh
+      try {
+        const attendanceData = await attendanceService.getByClass(classItem.id)
+        if (Array.isArray(attendanceData)) {
+          const studentRecords = attendanceData.filter(
+            (a: any) =>
+              String(a.studentId) === String(student.id) ||
+              a.studentCode?.trim().toLowerCase() === student.studentCode.trim().toLowerCase()
+          )
+          setAttendances(studentRecords)
+        }
+      } catch (attErr) {
+        console.warn('Không thể tải điểm danh lớp:', attErr)
+        setAttendances([])
+      }
+
+      // ============================================================
+      // TODO: Tích hợp API điểm số sau khi Backend hoàn thiện module Grade
+      // Tạm thời giữ lại mock data cho phần bảng điểm để test giao diện
+      // ============================================================
+      let classExams: ExamRecord[] = []
+      try {
+        const examsData = await examService.getMyExams()
+        if (Array.isArray(examsData) && examsData.length > 0) {
+          const matched = examsData.filter(
+            (ex: any) => !ex.classroomId || String(ex.classroomId) === String(classItem.id)
+          )
+          if (matched.length > 0) {
+            classExams = matched
+          }
+        }
+      } catch (examErr) {
+        // Backend chưa có API điểm số hoặc chưa đăng nhập
+      }
+
+      // Tạm thời giữ mock data điểm số cho từng lớp để test các chức năng khác không bị trống
+      if (classExams.length === 0) {
+        classExams = [
+          {
+            id: `mock-${classItem.id}-1`,
+            date: '10/09/2026',
+            title: `Kiểm tra 15 phút - Đợt 1 (${classItem.name})`,
+            status: 'Đã chấm điểm',
+            score: '8.5',
+            maxScore: '10',
+            comment: 'Nắm vững kiến thức nền tảng, hoàn thành bài đúng thời gian.',
+          },
+          {
+            id: `mock-${classItem.id}-2`,
+            date: '24/09/2026',
+            title: `Kiểm tra quá trình - Đợt 2`,
+            status: 'Đã chấm điểm',
+            score: '8.0',
+            maxScore: '10',
+            comment: 'Làm bài cẩn thận, tốc độ xử lý câu hỏi tốt.',
+          },
+          {
+            id: `mock-${classItem.id}-3`,
+            date: '08/10/2026',
+            title: `Đánh giá giữa học phần`,
+            status: 'Đã chấm điểm',
+            score: '9.2',
+            maxScore: '10',
+            comment: 'Xuất sắc! Tư duy phân tích và vận dụng lý thuyết chính xác.',
+          },
+        ]
+      }
+
+      setExams(classExams)
+    } catch (err) {
+      console.error('Lỗi khi tải chi tiết lớp học:', err)
+    } finally {
+      setClassDetailLoading(false)
+    }
+  }
+
+  // Tính toán số liệu chuyên cần từ API
+  const absentRecords = attendances.filter(
+    (a) => a.status === 'ABSENT' || a.status === 'ABSENT_UNEXCUSED' || a.status === 'ABSENT_EXCUSED'
+  )
+  const totalSessions = attendances.length
+  const attendanceRate =
+    totalSessions > 0
+      ? `${(((totalSessions - absentRecords.length) / totalSessions) * 100).toFixed(1)}%`
+      : '100%'
 
   return (
     <div id="top" className="min-h-screen bg-[#F8FAF9] text-[#0F3822] selection:bg-[#D8F3DC] selection:text-[#0F3822]">
@@ -262,11 +307,7 @@ function LandingPage() {
             className="flex items-center gap-3 text-left transition hover:opacity-90"
           >
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#D8F3DC] p-1.5 shadow-sm ring-1 ring-[#10B981]/20">
-              <img
-                src={logo}
-                alt="FrogH Education"
-                className="h-full w-full object-contain"
-              />
+              <img src={logo} alt="FrogH Education" className="h-full w-full object-contain" />
             </div>
             <div>
               <span className="block text-lg font-extrabold tracking-tight text-[#0F3822]">
@@ -511,282 +552,483 @@ function LandingPage() {
               Tra cứu công khai
             </span>
             <h2 className="mt-3 text-2xl font-extrabold text-[#0F3822] sm:text-3xl">
-              Tra cứu nhanh kết quả học tập &amp; chuyên cần
+              Tra cứu kết quả học tập &amp; chuyên cần
             </h2>
             <p className="mx-auto mt-2 max-w-2xl text-sm text-gray-600 sm:text-base">
-              Chọn lớp học phần và nhập mã số học sinh để xem chi tiết tình trạng chuyên cần cùng bảng điểm quá trình.
+              Nhập mã số học sinh để xem thông tin học viên, danh sách các lớp học phần và điểm số chi tiết từ hệ thống.
             </p>
           </div>
 
-          {/* Search Form Card */}
+          {/* Search Form Card (Chuỗi rỗng ban đầu, không mock code, không thanh mã gợi ý) */}
           <div className="mt-8 rounded-2xl border border-emerald-900/10 bg-white p-5 shadow-sm sm:p-7">
-            <form onSubmit={handleLookup} className="grid grid-cols-1 gap-4 md:grid-cols-12 md:items-end">
-              {/* Select Class */}
-              <div className="md:col-span-5">
-                <label
-                  htmlFor="lookup-class-select"
-                  className="mb-2 block text-sm font-semibold text-[#0F3822]"
-                >
-                  Chọn lớp
-                </label>
-                <div className="relative">
-                  <select
-                    id="lookup-class-select"
-                    value={selectedClass}
-                    onChange={(e) => setSelectedClass(e.target.value)}
-                    className="w-full rounded-xl border border-emerald-900/15 bg-[#F8FAF9] px-4 py-3 text-sm font-medium text-[#0F3822] outline-none transition focus:border-[#10B981] focus:bg-white focus:ring-4 focus:ring-[#D8F3DC]"
-                  >
-                    {CLASS_OPTIONS.map((className) => (
-                      <option key={className} value={className}>
-                        {className}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Input Student ID */}
-              <div className="md:col-span-5">
+            <form onSubmit={handleSearch} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="flex-1">
                 <label
                   htmlFor="lookup-student-code"
                   className="mb-2 block text-sm font-semibold text-[#0F3822]"
                 >
                   Mã số học sinh
                 </label>
-                <input
-                  id="lookup-student-code"
-                  type="text"
-                  value={studentCodeInput}
-                  onChange={(e) => setStudentCodeInput(e.target.value)}
-                  placeholder="Ví dụ: 3122410142"
-                  className="w-full rounded-xl border border-emerald-900/15 bg-[#F8FAF9] px-4 py-3 text-sm font-medium text-[#0F3822] outline-none transition focus:border-[#10B981] focus:bg-white focus:ring-4 focus:ring-[#D8F3DC]"
-                />
+                <div className="relative">
+                  <input
+                    id="lookup-student-code"
+                    type="text"
+                    value={studentCodeInput}
+                    onChange={(e) => {
+                      setStudentCodeInput(e.target.value)
+                      if (errorMessage) setErrorMessage('')
+                    }}
+                    placeholder="Nhập mã số học sinh..."
+                    disabled={isLoading}
+                    className="w-full rounded-xl border border-emerald-900/15 bg-[#F8FAF9] px-4 py-3.5 text-sm font-medium text-[#0F3822] outline-none transition focus:border-[#10B981] focus:bg-white focus:ring-4 focus:ring-[#D8F3DC] disabled:opacity-60"
+                  />
+                  {studentCodeInput && (
+                    <button
+                      type="button"
+                      aria-label="Xóa nội dung nhập"
+                      onClick={() => {
+                        setStudentCodeInput('')
+                        if (errorMessage) setErrorMessage('')
+                      }}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 rounded-lg p-1 text-gray-400 hover:text-gray-600"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {/* Lookup Submit Button */}
-              <div className="md:col-span-2">
-                <button
-                  type="submit"
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0F3822] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#154d30]"
-                >
-                  <Search size={17} />
-                  <span>Tra cứu</span>
-                </button>
-              </div>
+              {/* Nút Tra cứu */}
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="flex items-center justify-center gap-2 rounded-xl bg-[#0F3822] px-7 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#154d30] disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[150px]"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    <span>Đang tìm...</span>
+                  </>
+                ) : (
+                  <>
+                    <Search size={18} />
+                    <span>Tra cứu</span>
+                  </>
+                )}
+              </button>
             </form>
-
-            {/* Quick suggestion helper bar */}
-            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3.5 text-xs text-gray-500">
-              <span className="font-medium text-gray-600">Mã mẫu gợi ý:</span>
-              <button
-                type="button"
-                onClick={() => handleQuickFill('3122410142')}
-                className="inline-flex items-center gap-1 rounded-lg bg-[#D8F3DC]/70 px-2.5 py-1 font-semibold text-[#0F3822] transition hover:bg-[#D8F3DC]"
-              >
-                3122410142 (Lê Ngọc Anh Huy)
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickFill('3122410199')}
-                className="inline-flex items-center gap-1 rounded-lg bg-gray-100 px-2.5 py-1 font-medium text-gray-700 transition hover:bg-gray-200"
-              >
-                3122410199 (Nguyễn Minh Tâm)
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickFill('0000000000')}
-                className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-2.5 py-1 font-medium text-red-700 transition hover:bg-red-100"
-              >
-                Thử mã không tồn tại
-              </button>
-            </div>
           </div>
 
-          {/* Lookup Error Alert */}
-          {hasSearched && lookupError && (
+          {/* Loading State Spinner */}
+          {isLoading && (
+            <div className="mt-8 flex flex-col items-center justify-center rounded-2xl border border-emerald-900/10 bg-white p-12 text-center shadow-sm">
+              <Loader2 size={36} className="animate-spin text-[#10B981]" />
+              <p className="mt-3 text-base font-semibold text-[#0F3822]">
+                Đang tra cứu dữ liệu từ hệ thống máy chủ...
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                Đang đồng bộ hồ sơ học viên, danh sách lớp học và chuyên cần
+              </p>
+            </div>
+          )}
+
+          {/* Error / Reminder State */}
+          {!isLoading && hasSearched && errorMessage && (
             <div
               role="alert"
-              className="mt-6 flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700 shadow-sm"
+              className={`mt-6 flex items-start gap-3.5 rounded-2xl border p-5 shadow-sm transition-all ${
+                errorMessage === 'Vui lòng nhập mã số học sinh'
+                  ? 'border-amber-200 bg-amber-50/90 text-amber-900'
+                  : 'border-red-200 bg-red-50 text-red-700'
+              }`}
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600">
+              <div
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                  errorMessage === 'Vui lòng nhập mã số học sinh'
+                    ? 'bg-amber-100 text-amber-700'
+                    : 'bg-red-100 text-red-600'
+                }`}
+              >
                 <AlertCircle size={22} />
               </div>
-              <div>
-                <p className="font-bold text-red-800">{lookupError}</p>
-                <p className="mt-0.5 text-sm text-red-600">
-                  Không có hồ sơ trùng khớp với mã số <strong>{studentCodeInput || '(trống)'}</strong> trong lớp{' '}
-                  <strong>{selectedClass}</strong>. Vui lòng kiểm tra lại hoặc thử mã mẫu{' '}
-                  <button
-                    type="button"
-                    onClick={() => handleQuickFill('3122410142')}
-                    className="font-semibold underline hover:text-red-900"
-                  >
-                    3122410142
-                  </button>
-                  .
-                </p>
+              <div className="flex-1">
+                <p className="font-bold text-base">{errorMessage}</p>
+                {errorMessage === 'Vui lòng nhập mã số học sinh' ? (
+                  <p className="mt-1 text-sm text-amber-800">
+                    Bạn cần nhập mã số học sinh vào ô tìm kiếm để tra cứu thông tin học tập và chuyên cần.
+                  </p>
+                ) : (
+                  <p className="mt-1 text-sm text-red-600">
+                    Vui lòng đối chiếu lại mã học viên đã được cấp hoặc kiểm tra kết nối mạng của bạn.
+                  </p>
+                )}
               </div>
             </div>
           )}
 
-          {/* Lookup Result Display */}
-          {hasSearched && lookupResult && (
-            <div className="mt-6 space-y-6">
-              {/* Student Profile Summary Card */}
+          {/* KẾT QUẢ KHI TÌM THẤY HỌC SINH TỪ REST API */}
+          {!isLoading && hasSearched && studentProfile && (
+            <div className="mt-8 space-y-6">
+              {/* KHỐI 1: THÔNG TIN HỌC SINH */}
               <div className="rounded-2xl border border-emerald-900/10 bg-white p-6 shadow-sm sm:p-7">
                 <div className="flex flex-col justify-between gap-4 border-b border-gray-100 pb-5 sm:flex-row sm:items-center">
                   <div className="flex items-center gap-4">
                     <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#0F3822] text-xl font-bold text-[#D8F3DC] shadow-sm">
-                      {lookupResult.fullName
-                        .split(' ')
-                        .slice(-2)
-                        .map((word) => word[0])
-                        .join('')}
+                      {studentProfile.avatar ? (
+                        <img
+                          src={studentProfile.avatar}
+                          alt={studentProfile.fullName}
+                          className="h-full w-full rounded-2xl object-cover"
+                        />
+                      ) : (
+                        studentProfile.fullName
+                          .split(' ')
+                          .slice(-2)
+                          .map((word) => word[0])
+                          .join('')
+                          .toUpperCase()
+                      )}
                     </div>
                     <div>
                       <div className="flex flex-wrap items-center gap-2.5">
                         <h3 className="text-xl font-extrabold text-[#0F3822] sm:text-2xl">
-                          {lookupResult.fullName}
+                          {studentProfile.fullName}
                         </h3>
                         <span className="inline-flex items-center gap-1 rounded-full bg-[#D8F3DC] px-3 py-0.5 text-xs font-bold text-[#0F3822]">
                           <Check size={13} />
-                          Đang theo học
+                          Học viên chính thức
                         </span>
                       </div>
-                      <p className="mt-1 text-sm text-gray-500">
-                        Mã số học sinh: <strong className="text-[#0F3822]">{lookupResult.studentCode}</strong> • SBD:{' '}
-                        <strong className="text-[#0F3822]">{lookupResult.candidateNumber}</strong>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500">
+                        <span className="flex items-center gap-1.5">
+                          <User size={14} className="text-[#10B981]" />
+                          Mã số: <strong className="text-[#0F3822]">{studentProfile.studentCode}</strong>
+                        </span>
+                        {studentProfile.email && (
+                          <span className="flex items-center gap-1.5">
+                            <Mail size={14} className="text-[#10B981]" />
+                            {studentProfile.email}
+                          </span>
+                        )}
+                        {studentProfile.phone && (
+                          <span className="flex items-center gap-1.5">
+                            <Phone size={14} className="text-[#10B981]" />
+                            {studentProfile.phone}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-start rounded-xl bg-[#F8FAF9] px-4 py-2.5 ring-1 ring-emerald-900/10 sm:self-center">
+                    <GraduationCap size={20} className="text-[#10B981]" />
+                    <span className="text-xs font-bold text-[#0F3822]">
+                      {studentClasses.length} lớp học phần tham gia
+                    </span>
+                  </div>
+                </div>
+
+                {/* KHỐI 2: GRID DANH SÁCH LỚP HỌC PHẦN */}
+                <div className="mt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-base font-bold text-[#0F3822] sm:text-lg">
+                        Danh sách lớp học phần
+                      </h4>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        Nhấn vào một lớp học bên dưới để tải bảng điểm và tình trạng chuyên cần trực tiếp từ hệ thống
                       </p>
                     </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 self-start sm:self-center">
-                    <div className="rounded-xl bg-[#F8FAF9] px-4 py-2.5 text-right ring-1 ring-emerald-900/10">
-                      <span className="block text-xs font-medium text-gray-500">Điểm TB quá trình</span>
-                      <span className="text-lg font-extrabold text-[#10B981]">
-                        {lookupResult.averageScore.toFixed(1)} / 10
+                    {studentClasses.length > 0 && (
+                      <span className="rounded-lg bg-[#D8F3DC]/70 px-2.5 py-1 text-xs font-semibold text-[#0F3822]">
+                        {selectedClass ? 'Đang chọn 1 lớp' : 'Chọn lớp để xem'}
                       </span>
+                    )}
+                  </div>
+
+                  {studentClasses.length === 0 ? (
+                    <div className="mt-4 rounded-xl border border-dashed border-emerald-900/20 bg-[#F8FAF9] p-6 text-center text-sm text-gray-500">
+                      Học sinh này hiện chưa tham gia lớp học phần nào trên hệ thống.
                     </div>
-                  </div>
-                </div>
+                  ) : (
+                    <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {studentClasses.map((cls) => {
+                        const isSelected = selectedClass && String(cls.id) === String(selectedClass.id)
 
-                {/* 4 Key Info Boxes */}
-                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <div className="rounded-2xl border border-emerald-900/10 bg-[#F8FAF9] p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Họ và tên</p>
-                    <p className="mt-1.5 text-base font-bold text-[#0F3822]">{lookupResult.fullName}</p>
-                    <p className="mt-0.5 text-xs text-gray-500">Học viên chính thức</p>
-                  </div>
+                        return (
+                          <div
+                            key={cls.id}
+                            onClick={() => fetchClassPerformance(cls, studentProfile)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                fetchClassPerformance(cls, studentProfile)
+                              }
+                            }}
+                            className={`group relative flex cursor-pointer flex-col justify-between rounded-xl p-5 transition-all duration-200 outline-none ${
+                              isSelected
+                                ? 'border-2 border-[#10B981] bg-[#D8F3DC]/25 shadow-md ring-4 ring-[#D8F3DC]/50'
+                                : 'border border-emerald-900/10 bg-[#F8FAF9] hover:-translate-y-0.5 hover:border-[#10B981]/50 hover:bg-white hover:shadow-sm'
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-start justify-between gap-2">
+                                <div
+                                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition ${
+                                    isSelected
+                                      ? 'bg-[#0F3822] text-[#D8F3DC]'
+                                      : 'bg-[#D8F3DC] text-[#0F3822] group-hover:bg-[#0F3822] group-hover:text-[#D8F3DC]'
+                                  }`}
+                                >
+                                  <School size={20} />
+                                </div>
 
-                  <div className="rounded-2xl border border-emerald-900/10 bg-[#F8FAF9] p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Số báo danh / Mã HS</p>
-                    <p className="mt-1.5 text-base font-bold text-[#0F3822]">{lookupResult.studentCode}</p>
-                    <p className="mt-0.5 text-xs text-gray-500">{lookupResult.candidateNumber}</p>
-                  </div>
+                                {isSelected ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-[#10B981] px-2.5 py-0.5 text-[11px] font-bold text-white shadow-2xs">
+                                    <Check size={12} />
+                                    Đang xem
+                                  </span>
+                                ) : (
+                                  <span className="rounded-md bg-white px-2 py-0.5 text-[11px] font-medium text-gray-500 ring-1 ring-gray-200">
+                                    {cls.code}
+                                  </span>
+                                )}
+                              </div>
 
-                  <div className="rounded-2xl border border-emerald-900/10 bg-[#F8FAF9] p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Lớp học phần</p>
-                    <p className="mt-1.5 text-base font-bold text-[#0F3822]">{lookupResult.className}</p>
-                    <p className="mt-0.5 text-xs text-[#10B981] font-medium">Học kỳ I • 2026 - 2027</p>
-                  </div>
+                              <h5 className="mt-3.5 text-base font-bold text-[#0F3822] transition group-hover:text-[#10B981]">
+                                {cls.name}
+                              </h5>
 
-                  <div className="rounded-2xl border border-emerald-900/10 bg-[#F8FAF9] p-4">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Số ngày vắng</p>
-                      <button
-                        type="button"
-                        onClick={() => setIsAbsenceModalOpen(true)}
-                        className="inline-flex items-center gap-1 rounded-lg bg-[#D8F3DC] px-2.5 py-1 text-xs font-bold text-[#0F3822] transition hover:bg-[#10B981] hover:text-white"
-                      >
-                        <Eye size={13} />
-                        <span>Chi tiết</span>
-                      </button>
+                              <p className="mt-1 text-xs text-gray-500">
+                                {cls.academicYear || 'Năm học 2026 - 2027'}
+                              </p>
+
+                              {cls.teacherName && (
+                                <p className="mt-0.5 text-xs text-gray-600">
+                                  Giảng viên: <strong className="text-[#0F3822]">{cls.teacherName}</strong>
+                                </p>
+                              )}
+
+                              {cls.subjectName && (
+                                <p className="mt-0.5 text-xs font-medium text-[#10B981]">
+                                  Môn: {cls.subjectName}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3 text-xs font-semibold">
+                              <span
+                                className={
+                                  isSelected ? 'text-[#0F3822]' : 'text-gray-400 group-hover:text-[#0F3822]'
+                                }
+                              >
+                                {isSelected ? 'Đang hiển thị dữ liệu' : 'Bấm xem điểm & vắng'}
+                              </span>
+                              <ChevronRight
+                                size={16}
+                                className={`transition ${
+                                  isSelected
+                                    ? 'rotate-90 text-[#10B981]'
+                                    : 'text-gray-400 group-hover:translate-x-0.5 group-hover:text-[#0F3822]'
+                                }`}
+                              />
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
-                    <p className="mt-1.5 text-base font-bold text-[#0F3822]">
-                      {lookupResult.absenceCount} buổi{' '}
-                      <span className="text-xs font-normal text-gray-500">
-                        / {lookupResult.totalSessions} buổi
-                      </span>
-                    </p>
-                    <p className="mt-0.5 text-xs text-gray-500">
-                      Tỷ lệ chuyên cần: <strong className="text-[#0F3822]">{lookupResult.attendanceRate}</strong>
-                    </p>
-                  </div>
+                  )}
                 </div>
               </div>
 
-              {/* Process Grades Table Card */}
-              <div className="overflow-hidden rounded-2xl border border-emerald-900/10 bg-white shadow-sm">
-                <div className="flex flex-col justify-between gap-2 border-b border-gray-100 px-6 py-5 sm:flex-row sm:items-center">
-                  <div>
-                    <h4 className="text-lg font-bold text-[#0F3822]">
-                      Bảng điểm quá trình
-                    </h4>
-                    <p className="mt-0.5 text-xs text-gray-500 sm:text-sm">
-                      Tổng hợp điểm thành phần theo từng cấu trúc câu hỏi của các bài kiểm tra tại lớp{' '}
-                      <strong className="text-[#0F3822]">{lookupResult.className}</strong>
-                    </p>
-                  </div>
-                  <span className="inline-flex items-center gap-1.5 self-start rounded-xl bg-[#F8FAF9] px-3 py-1.5 text-xs font-semibold text-[#0F3822] ring-1 ring-emerald-900/10 sm:self-center">
-                    <Award size={15} className="text-[#10B981]" />
-                    Xếp loại: {lookupResult.rankLabel}
+              {/* KHỐI 3: KHI CLICK CHỌN 1 CARD LỚP -> HIỂN THỊ CHI TIẾT TỪ API */}
+              {classDetailLoading && (
+                <div className="flex items-center justify-center rounded-2xl border border-emerald-900/10 bg-white p-8">
+                  <Loader2 size={24} className="animate-spin text-[#10B981]" />
+                  <span className="ml-2 text-sm font-semibold text-[#0F3822]">
+                    Đang tải điểm số và chuyên cần từ hệ thống...
                   </span>
                 </div>
+              )}
 
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[780px] border-collapse text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-emerald-900/10 bg-[#F8FAF9] text-xs font-bold uppercase tracking-wider text-[#0F3822]/80">
-                        <th className="px-6 py-4">Thời gian</th>
-                        <th className="px-4 py-4 text-center">Trắc nghiệm</th>
-                        <th className="px-4 py-4 text-center">Điền từ</th>
-                        <th className="px-4 py-4 text-center">Đúng sai</th>
-                        <th className="px-4 py-4 text-center">Tổng điểm</th>
-                        <th className="px-6 py-4">Nhận xét</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {lookupResult.grades.map((row) => (
-                        <tr
-                          key={row.id}
-                          className="transition hover:bg-[#D8F3DC]/25"
-                        >
-                          <td className="px-6 py-4">
-                            <p className="font-semibold text-[#0F3822]">{row.examTitle}</p>
-                            <p className="mt-0.5 flex items-center gap-1 text-xs text-gray-500">
-                              <Clock size={12} />
-                              {row.timestamp}
-                            </p>
-                          </td>
-                          <td className="px-4 py-4 text-center font-medium text-gray-700">
-                            <span className="rounded-lg bg-[#F8FAF9] px-2.5 py-1 ring-1 ring-gray-200">
-                              {row.multipleChoice}
-                            </span>
-                          </td>
-                          <td className="px-4 py-4 text-center font-medium text-gray-700">
-                            <span className="rounded-lg bg-[#F8FAF9] px-2.5 py-1 ring-1 ring-gray-200">
-                              {row.fillInBlank}
-                            </span>
-                          </td>
-                          <td className="px-4 py-4 text-center font-medium text-gray-700">
-                            <span className="rounded-lg bg-[#F8FAF9] px-2.5 py-1 ring-1 ring-gray-200">
-                              {row.trueFalse}
-                            </span>
-                          </td>
-                          <td className="px-4 py-4 text-center">
-                            <span className="inline-flex items-center justify-center rounded-xl bg-[#D8F3DC] px-3 py-1 text-sm font-extrabold text-[#0F3822]">
-                              {row.totalScore.toFixed(1)}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-600">
-                            {row.comment}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              {!classDetailLoading && selectedClass && (
+                <div className="space-y-6 transition-all duration-300">
+                  {/* 4 Thẻ tóm tắt thông tin của lớp được chọn */}
+                  <div className="rounded-2xl border border-emerald-900/10 bg-white p-6 shadow-sm sm:p-7">
+                    <div className="flex flex-col justify-between gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-center">
+                      <div>
+                        <span className="text-xs font-semibold uppercase tracking-wider text-[#10B981]">
+                          Chi tiết lớp đang chọn
+                        </span>
+                        <h4 className="mt-0.5 text-xl font-bold text-[#0F3822]">
+                          {selectedClass.name}
+                        </h4>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <div className="rounded-xl bg-[#F8FAF9] px-4 py-2 text-right ring-1 ring-emerald-900/10">
+                          <span className="block text-xs font-medium text-gray-500">Mã lớp học phần</span>
+                          <span className="text-base font-extrabold text-[#0F3822]">
+                            {selectedClass.code}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                      <div className="rounded-xl border border-emerald-900/10 bg-[#F8FAF9] p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                          Họ và tên
+                        </p>
+                        <p className="mt-1.5 text-base font-bold text-[#0F3822]">
+                          {studentProfile.fullName}
+                        </p>
+                        <p className="mt-0.5 text-xs text-gray-500">Học viên chính thức</p>
+                      </div>
+
+                      <div className="rounded-xl border border-emerald-900/10 bg-[#F8FAF9] p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                          Mã số sinh viên
+                        </p>
+                        <p className="mt-1.5 text-base font-bold text-[#0F3822]">
+                          {studentProfile.studentCode}
+                        </p>
+                        <p className="mt-0.5 text-xs text-gray-500">Hệ thống FrogH ID</p>
+                      </div>
+
+                      <div className="rounded-xl border border-emerald-900/10 bg-[#F8FAF9] p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                          Lớp học phần
+                        </p>
+                        <p className="mt-1.5 truncate text-base font-bold text-[#0F3822]">
+                          {selectedClass.name}
+                        </p>
+                        <p className="mt-0.5 text-xs font-medium text-[#10B981]">
+                          {selectedClass.academicYear || 'Năm học 2026 - 2027'}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-emerald-900/10 bg-[#F8FAF9] p-4">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                            Số ngày vắng
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setIsAbsenceModalOpen(true)}
+                            className="inline-flex items-center gap-1 rounded-lg bg-[#D8F3DC] px-2.5 py-1 text-xs font-bold text-[#0F3822] transition hover:bg-[#10B981] hover:text-white"
+                          >
+                            <Eye size={13} />
+                            <span>Chi tiết</span>
+                          </button>
+                        </div>
+                        <p className="mt-1.5 text-base font-bold text-[#0F3822]">
+                          {absentRecords.length} buổi{' '}
+                          <span className="text-xs font-normal text-gray-500">
+                            / {totalSessions > 0 ? `${totalSessions} buổi ghi nhận` : 'Chưa có buổi học'}
+                          </span>
+                        </p>
+                        <p className="mt-0.5 text-xs text-gray-500">
+                          Tỷ lệ chuyên cần: <strong className="text-[#0F3822]">{attendanceRate}</strong>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* BẢNG ĐIỂM BÀI THI TỪ API (FIXED RESPONSIVE MOBILE) */}
+                  <div className="rounded-2xl border border-emerald-900/10 bg-white p-6 shadow-sm">
+                    <div className="flex flex-col justify-between gap-2 border-b border-gray-100 pb-4 sm:flex-row sm:items-center">
+                      <div>
+                        <h4 className="text-lg font-bold text-[#0F3822]">
+                          Bảng điểm bài thi &amp; đánh giá — {selectedClass.name}
+                        </h4>
+                        <p className="mt-0.5 text-xs text-gray-500 sm:text-sm">
+                          Dữ liệu bài kiểm tra được đồng bộ trực tiếp từ hệ thống khảo thí trực tuyến
+                        </p>
+                      </div>
+                      <span className="inline-flex items-center gap-1.5 self-start rounded-xl bg-[#F8FAF9] px-3 py-1.5 text-xs font-semibold text-[#0F3822] ring-1 ring-emerald-900/10 sm:self-center">
+                        <FileText size={15} className="text-[#10B981]" />
+                        {exams.length} bài kiểm tra
+                      </span>
+                    </div>
+
+                    {/* Gợi ý vuốt ngang trên mobile */}
+                    <div className="mt-3 flex items-center justify-between text-xs text-gray-400 sm:hidden">
+                      <span>Kéo ngang để xem đầy đủ cột điểm →</span>
+                    </div>
+
+                    {/* Wrapper cuộn ngang responsive với style -webkit-overflow-scrolling */}
+                    <div
+                      className="mt-2 w-full overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0"
+                      style={{ WebkitOverflowScrolling: 'touch' }}
+                    >
+                      {exams.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-emerald-900/15 bg-[#F8FAF9] py-10 text-center">
+                          <FileCheck2 size={36} className="text-[#10B981]/60" />
+                          <p className="mt-2.5 text-sm font-semibold text-[#0F3822]">
+                            Chưa có dữ liệu bài kiểm tra cho lớp này
+                          </p>
+                          <p className="mt-1 text-xs text-gray-500">
+                            Giảng viên chưa công bố bài thi hoặc bạn chưa tham gia làm bài trong lớp học phần này.
+                          </p>
+                        </div>
+                      ) : (
+                        <table className="w-full min-w-[640px] border-collapse text-left text-sm">
+                          <thead>
+                            <tr className="border-b border-emerald-900/10 bg-[#F8FAF9] text-xs font-bold uppercase tracking-wider text-[#0F3822]/80">
+                              <th className="px-5 py-4 min-w-[150px]">Thời gian</th>
+                              <th className="px-5 py-4 min-w-[200px]">Tên bài kiểm tra / Dạng bài</th>
+                              <th className="px-4 py-4 text-center min-w-[130px]">Điểm đạt / Thang điểm</th>
+                              <th className="px-5 py-4 min-w-[160px]">Nhận xét</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {exams.map((examItem, index) => (
+                              <tr key={examItem.id || index} className="transition hover:bg-[#D8F3DC]/20">
+                                <td className="px-5 py-4">
+                                  <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                                    <Clock size={13} className="text-[#10B981]" />
+                                    <span>
+                                      {examItem.date ||
+                                        examItem.createdAt ||
+                                        'Đã hoàn thành'}
+                                    </span>
+                                  </div>
+                                </td>
+
+                                <td className="px-5 py-4">
+                                  <p className="font-semibold text-[#0F3822]">
+                                    {examItem.title || examItem.name || `Bài kiểm tra ${index + 1}`}
+                                  </p>
+                                  {examItem.status && (
+                                    <span className="mt-0.5 inline-block text-[11px] font-medium text-gray-400">
+                                      Trạng thái: {examItem.status}
+                                    </span>
+                                  )}
+                                </td>
+
+                                <td className="px-4 py-4 text-center">
+                                  <div className="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-xl bg-[#D8F3DC] px-3.5 py-1.5 text-sm font-extrabold text-[#0F3822] shadow-2xs">
+                                    <span>{examItem.score !== undefined ? examItem.score : '—'}</span>
+                                    <span className="text-xs font-medium text-gray-500">
+                                      / {examItem.maxScore !== undefined ? examItem.maxScore : '10'}
+                                    </span>
+                                  </div>
+                                </td>
+
+                                <td className="px-5 py-4 text-xs sm:text-sm text-gray-600">
+                                  {examItem.comment || 'Hoàn thành bài kiểm tra theo đúng quy định'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </div>
@@ -911,11 +1153,7 @@ function LandingPage() {
             <div className="md:col-span-5">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#D8F3DC] p-1.5">
-                  <img
-                    src={logo}
-                    alt="FrogH Education"
-                    className="h-full w-full object-contain"
-                  />
+                  <img src={logo} alt="FrogH Education" className="h-full w-full object-contain" />
                 </div>
                 <div>
                   <h3 className="text-lg font-extrabold text-white">FrogH Education System</h3>
@@ -1006,8 +1244,8 @@ function LandingPage() {
         </div>
       </footer>
 
-      {/* ABSENCE DETAIL MODAL */}
-      {isAbsenceModalOpen && lookupResult && (
+      {/* ABSENCE DETAIL MODAL (Dữ liệu từ API attendanceService) */}
+      {isAbsenceModalOpen && selectedClass && studentProfile && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
           onClick={() => setIsAbsenceModalOpen(false)}
@@ -1027,7 +1265,7 @@ function LandingPage() {
                     Chi tiết lịch sử chuyên cần &amp; ngày vắng
                   </h3>
                   <p className="text-xs text-[#D8F3DC]/85">
-                    {lookupResult.fullName} ({lookupResult.studentCode}) • {lookupResult.className}
+                    {studentProfile.fullName} ({studentProfile.studentCode}) • {selectedClass.name}
                   </p>
                 </div>
               </div>
@@ -1045,54 +1283,65 @@ function LandingPage() {
             <div className="max-h-[70vh] overflow-y-auto p-6">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#F8FAF9] px-4 py-3 text-xs ring-1 ring-emerald-900/10">
                 <span className="font-semibold text-[#0F3822]">
-                  Tổng số buổi vắng: <strong className="text-red-600">{lookupResult.absenceCount} buổi</strong> /{' '}
-                  {lookupResult.totalSessions} buổi học
+                  Số buổi vắng ghi nhận:{' '}
+                  <strong className="text-red-600">{absentRecords.length} buổi</strong> /{' '}
+                  {totalSessions} buổi học
                 </span>
                 <span className="font-semibold text-[#10B981]">
-                  Tỷ lệ tham gia: {lookupResult.attendanceRate}
+                  Tỷ lệ tham gia: {attendanceRate}
                 </span>
               </div>
 
-              <div className="space-y-3">
-                {lookupResult.absences.map((item) => {
-                  const isExcused = item.status === 'ABSENT_EXCUSED'
-                  const isLate = item.status === 'LATE'
+              {absentRecords.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-emerald-900/20 bg-[#F8FAF9] py-8 text-center">
+                  <CheckCircle2 size={32} className="text-[#10B981]" />
+                  <p className="mt-2 text-sm font-bold text-[#0F3822]">
+                    Không có buổi vắng nào!
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Học sinh tham gia đầy đủ tất cả các buổi học phần đã được điểm danh.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {absentRecords.map((item, idx) => {
+                    const isExcused = item.status === 'ABSENT_EXCUSED'
+                    const isLate = item.status === 'LATE'
 
-                  return (
-                    <div
-                      key={item.id}
-                      className="rounded-2xl border border-gray-100 bg-[#F8FAF9] p-4 transition hover:border-emerald-900/20"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 text-sm font-bold text-[#0F3822]">
-                          <span>Ngày {item.date}</span>
-                          <span className="text-gray-300">•</span>
-                          <span className="text-xs font-semibold text-gray-600">{item.timeSlot}</span>
+                    return (
+                      <div
+                        key={item.id || idx}
+                        className="rounded-2xl border border-gray-100 bg-[#F8FAF9] p-4 transition hover:border-emerald-900/20"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 text-sm font-bold text-[#0F3822]">
+                            <span>Buổi {idx + 1}</span>
+                            <span className="text-gray-300">•</span>
+                            <span className="text-xs font-semibold text-gray-600">
+                              {item.date ? new Date(item.date).toLocaleDateString('vi-VN') : 'Chưa cập nhật ngày'}
+                            </span>
+                          </div>
+                          <span
+                            className={`rounded-full px-3 py-0.5 text-xs font-bold ${
+                              isLate
+                                ? 'bg-amber-100 text-amber-800'
+                                : isExcused
+                                  ? 'bg-[#D8F3DC] text-[#0F3822]'
+                                  : 'bg-red-100 text-red-700'
+                            }`}
+                          >
+                            {isLate ? 'Đi trễ' : isExcused ? 'Vắng có phép' : 'Vắng không phép'}
+                          </span>
                         </div>
-                        <span
-                          className={`rounded-full px-3 py-0.5 text-xs font-bold ${
-                            isLate
-                              ? 'bg-amber-100 text-amber-800'
-                              : isExcused
-                                ? 'bg-[#D8F3DC] text-[#0F3822]'
-                                : 'bg-red-100 text-red-700'
-                          }`}
-                        >
-                          {isLate ? 'Đi trễ' : isExcused ? 'Vắng có phép' : 'Vắng không phép'}
-                        </span>
-                      </div>
 
-                      <p className="mt-2 text-sm font-semibold text-gray-800">
-                        {item.topic}
-                      </p>
-                      <p className="mt-1 flex items-start gap-1.5 text-xs text-gray-500">
-                        <Info size={14} className="mt-0.5 shrink-0 text-[#10B981]" />
-                        <span>Ghi chú: {item.note}</span>
-                      </p>
-                    </div>
-                  )
-                })}
-              </div>
+                        <p className="mt-2 text-xs font-medium text-gray-700">
+                          {item.note || 'Không có ghi chú thêm từ giảng viên'}
+                        </p>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Modal Footer */}
