@@ -20,6 +20,12 @@ backend/formula-models/
 backend/.venv-formula/
 backend/tools/formula/node_modules/
 **/__pycache__/
+*.py[cod]
+*.onnx
+*.safetensors
+*.pt
+*.pth
+*.ckpt
 **/.private/
 # ==================================
 # Frontend - React / Node
