@@ -32,6 +32,7 @@ import {
 } from 'lucide-react'
 // @ts-ignore
 import logo from '../../assets/logos/logo.png'
+import defaultAvatar from '../../assets/images/avatar_default.png'
 import publicService from '../../services/publicService'
 import attendanceService from '../../services/attendanceService'
 import examService from '../../services/examService'
@@ -159,7 +160,7 @@ function LandingPage() {
         fullName: data.fullName || 'Học sinh',
         email: data.email,
         phone: data.phone,
-        avatar: data.avatar,
+        avatar: data.avatar || data.avatarUrl,
       }
       setStudentProfile(profile)
 
@@ -356,14 +357,14 @@ function LandingPage() {
             <button
               type="button"
               onClick={() => navigate('/login')}
-              className="rounded-xl border border-[#0F3822]/20 bg-transparent px-4 py-2.5 text-sm font-semibold text-[#0F3822] transition hover:border-[#0F3822] hover:bg-[#D8F3DC]/40"
+              className="rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-green-50 px-4 py-2.5 text-sm font-semibold text-[#0F3822] transition hover:border-emerald-400 hover:from-emerald-100 hover:to-green-100"
             >
               Đăng nhập
             </button>
             <button
               type="button"
               onClick={() => navigate('/signup')}
-              className="rounded-xl bg-[#0F3822] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#144b2e]"
+              className="rounded-xl bg-gradient-to-r from-emerald-700 to-green-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:from-emerald-800 hover:to-green-700"
             >
               Đăng ký
             </button>
@@ -417,14 +418,14 @@ function LandingPage() {
               <button
                 type="button"
                 onClick={() => navigate('/login')}
-                className="rounded-xl border border-[#0F3822]/25 py-2.5 text-center text-sm font-semibold text-[#0F3822] hover:bg-[#D8F3DC]/40"
+                className="rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-green-50 py-2.5 text-center text-sm font-semibold text-[#0F3822] hover:bg-[#D8F3DC]/40"
               >
                 Đăng nhập
               </button>
               <button
                 type="button"
                 onClick={() => navigate('/signup')}
-                className="rounded-xl bg-[#0F3822] py-2.5 text-center text-sm font-semibold text-white hover:bg-[#144b2e]"
+                className="rounded-xl bg-gradient-to-r from-emerald-700 to-green-600 py-2.5 text-center text-sm font-semibold text-white hover:from-emerald-800 hover:to-green-700"
               >
                 Đăng ký
               </button>
@@ -602,7 +603,7 @@ function LandingPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="flex items-center justify-center gap-2 rounded-xl bg-[#0F3822] px-7 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#154d30] disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[150px]"
+                className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-700 to-green-600 px-7 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:from-emerald-800 hover:to-green-700 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[150px]"
               >
                 {isLoading ? (
                   <>
@@ -674,20 +675,15 @@ function LandingPage() {
                 <div className="flex flex-col justify-between gap-4 border-b border-gray-100 pb-5 sm:flex-row sm:items-center">
                   <div className="flex items-center gap-4">
                     <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#0F3822] text-xl font-bold text-[#D8F3DC] shadow-sm">
-                      {studentProfile.avatar ? (
-                        <img
-                          src={studentProfile.avatar}
-                          alt={studentProfile.fullName}
-                          className="h-full w-full rounded-2xl object-cover"
-                        />
-                      ) : (
-                        studentProfile.fullName
-                          .split(' ')
-                          .slice(-2)
-                          .map((word) => word[0])
-                          .join('')
-                          .toUpperCase()
-                      )}
+                      <img
+                        src={studentProfile.avatar || defaultAvatar}
+                        alt={`Ảnh đại diện ${studentProfile.fullName}`}
+                        onError={(event) => {
+                          event.currentTarget.onerror = null
+                          event.currentTarget.src = defaultAvatar
+                        }}
+                        className="h-full w-full rounded-2xl object-cover"
+                      />
                     </div>
                     <div>
                       <div className="flex flex-wrap items-center gap-2.5">
@@ -1349,7 +1345,7 @@ function LandingPage() {
               <button
                 type="button"
                 onClick={() => setIsAbsenceModalOpen(false)}
-                className="rounded-xl bg-[#0F3822] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#154d30]"
+                className="rounded-xl bg-gradient-to-r from-emerald-700 to-green-600 px-5 py-2 text-sm font-semibold text-white transition hover:from-emerald-800 hover:to-green-700"
               >
                 Đóng
               </button>
