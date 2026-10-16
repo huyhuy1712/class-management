@@ -38,6 +38,7 @@ public class PublicLookupServiceImpl implements PublicLookupService {
     private final AttendanceRepository attendanceRepository;
     private final ExamAttemptRepository examAttemptRepository;
     private final StudentExamReadRepository studentExamReadRepository;
+    private final StorageService storageService;
 
     @Override
     @Transactional(readOnly = true)
