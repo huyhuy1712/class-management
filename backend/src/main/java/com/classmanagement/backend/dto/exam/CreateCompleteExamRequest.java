@@ -12,7 +12,32 @@ public record CreateCompleteExamRequest(
         @NotNull @Valid BasicInfo basicInfo,
         @NotNull @Valid Assignment assignment,
         UUID draftToken,
-        @NotEmpty @Size(max = 50) List<@NotNull @Valid Section> sections) {
+        @NotEmpty @Size(max = 50) List<@NotNull @Valid Section> sections,
+        @Valid ImportReview importReview) {
+
+    public CreateCompleteExamRequest(
+            BasicInfo basicInfo, Assignment assignment, UUID draftToken, List<Section> sections) {
+        this(basicInfo, assignment, draftToken, sections, null);
+    }
+
+    /** Explicit review of the whole source, including formulas the detector may have missed. */
+    public record ImportReview(
+            @NotNull UUID importId,
+            @NotNull @AssertTrue Boolean sourceReviewed,
+            @NotNull @Size(max = 150) List<@NotNull UUID> illustrationAssetIds,
+            @Size(max = 150) List<@NotNull @Valid IllustrationTarget> illustrationTargets) {
+        public ImportReview(UUID importId, Boolean sourceReviewed, List<UUID> illustrationAssetIds) {
+            this(importId, sourceReviewed, illustrationAssetIds, null);
+        }
+    }
+
+    /** Zero-based edited destinations, required when selected source images are reordered. */
+    public record IllustrationTarget(
+            @NotNull UUID assetId,
+            @NotNull @Min(0) Integer sectionIndex,
+            @NotNull @Min(0) Integer questionIndex,
+            @Min(0) Integer answerIndex,
+            @Min(0) Integer optionIndex) {}
 
     public record BasicInfo(
             @NotBlank @Size(max = 255) String title,

@@ -10,10 +10,13 @@ import { buildExamPayload, getExamConfig, orderExamSections } from '../helpers/e
 import { validateExamBuilder } from '../helpers/examBuilderValidation.js'
 import { focusExamError, isUncertainExamSave, mapExamApiErrors } from '../helpers/examApiErrors.js'
 import { uploadExamMedia, validateExamMedia } from '../helpers/examMediaUpload.js'
+import { importIllustrationTargets } from '../../create/helpers/pdfImportAdapter.js'
 
 export default function useSaveExam({ builder, routeConfig, onValidationErrors, enabled = true }) {
   const navigate = useNavigate()
   const classesQuery = useResourceQuery('teacherClasses', [], { enabled: false })
+  const importId = enabled ? loadExamDraft()?.pdfImport?.importId : null
+  const importQuery = useResourceQuery('pdfExamImport', [importId], { enabled: false })
   const lock = useRef(false)
   const saveMutation = useMutation({ mutationFn: performSave })
   const saving = saveMutation.isPending
@@ -62,6 +65,14 @@ export default function useSaveExam({ builder, routeConfig, onValidationErrors, 
         persist({ builder: { sections: prepared } })
       }, examMediaService.upload)
       const payload = buildExamPayload(config, sections, draftToken)
+      if (draft?.pdfImport?.importId) {
+        const review = loadExamDraft()?.pdfImport
+        if (!review?.sourceReviewed) throw new Error('Vui lòng đối chiếu và xác nhận đã kiểm tra PDF nguồn trước khi lưu.')
+        const result = await importQuery.refetch({ throwOnError: true })
+        if (result.data?.status !== 'READY_FOR_REVIEW') throw new Error('Tác vụ import đã hết hạn hoặc không còn sẵn sàng để lưu.')
+        payload.importReview = { importId: review.importId, sourceReviewed: true, illustrationAssetIds: review.illustrationAssetIds ?? [],
+          illustrationTargets: importIllustrationTargets(sections, result.data.preview?.media ?? [], review.illustrationAssetIds ?? []) }
+      }
       if (new TextEncoder().encode(JSON.stringify(payload)).length > 2 * 1024 * 1024) throw new Error('Nội dung đề vượt quá giới hạn 2 MiB. Vui lòng giảm nội dung.')
       persist({ pendingSave: { title: config.title, startedAt: new Date().toISOString() } })
       requestStarted = true

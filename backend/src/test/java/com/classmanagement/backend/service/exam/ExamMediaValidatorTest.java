@@ -1,5 +1,7 @@
 package com.classmanagement.backend.service.exam;
 
+import com.classmanagement.backend.service.exam.media.ExamMediaValidator;
+
 import com.classmanagement.backend.entity.enums.ExamMediaType;
 import com.classmanagement.backend.exception.ExamMediaException;
 import org.junit.jupiter.api.Test;

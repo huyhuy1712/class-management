@@ -1,14 +1,16 @@
 package com.classmanagement.backend.controller;
 
+import com.classmanagement.backend.service.exam.ExamCreationService;
+
 import com.classmanagement.backend.dto.exam.ExamListResponse;
 import com.classmanagement.backend.dto.exam.ExamConfigurationResponse;
-import com.classmanagement.backend.service.exam.ExamConfigurationService;
+import com.classmanagement.backend.service.exam.configuration.ExamConfigurationService;
 import com.classmanagement.backend.service.exam.ExamDetailService;
-import com.classmanagement.backend.service.exam.ExamContentUpdateService;
+import com.classmanagement.backend.service.exam.content.ExamContentUpdateService;
 import com.classmanagement.backend.dto.exam.UpdateExamContentRequest;
 import com.classmanagement.backend.dto.exam.UpdateExamContentResponse;
 import com.classmanagement.backend.dto.exam.ExamDetailResponse;
-import com.classmanagement.backend.service.exam.ExamConfigurationUpdateService;
+import com.classmanagement.backend.service.exam.configuration.ExamConfigurationUpdateService;
 import com.classmanagement.backend.dto.exam.UpdateExamRequest;
 import com.classmanagement.backend.service.ExamService;
 
@@ -33,6 +35,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.UUID;
+import com.classmanagement.backend.dto.exam.PdfExamImportResponse;
+import com.classmanagement.backend.service.exam.pdf.PdfExamImportService;
+import org.springframework.http.CacheControl;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/exams")
@@ -45,7 +52,38 @@ public class ExamController {
     private final ExamConfigurationUpdateService configurationUpdateService;
     private final ExamContentUpdateService contentUpdateService;
     private final ExamPublishService publishService;
-    private final com.classmanagement.backend.service.exam.ExamCreationService creationService;
+    private final ExamCreationService creationService;
+    private final PdfExamImportService pdfImports;
+
+    @PostMapping(value = "/imports/pdf", consumes = "multipart/form-data")
+    public ResponseEntity<PdfExamImportResponse> importPdf(
+            @RequestParam MultipartFile file,
+            @RequestParam int examNumber,
+            @RequestParam UUID requestId,
+            Authentication authentication) {
+        return ResponseEntity.accepted()
+                .cacheControl(CacheControl.noStore())
+                .body(pdfImports.upload(authentication.getName(), file, examNumber, requestId));
+    }
+
+    @GetMapping("/imports/{importId}")
+    public ResponseEntity<PdfExamImportResponse> getImport(
+            @PathVariable UUID importId, Authentication authentication) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(pdfImports.get(authentication.getName(), importId));
+    }
+
+    @GetMapping(value = "/imports/{importId}/assets/{assetId}", produces = "image/png")
+    public ResponseEntity<byte[]> getImportAsset(
+            @PathVariable UUID importId,
+            @PathVariable UUID assetId,
+            Authentication authentication) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .header("X-Content-Type-Options", "nosniff")
+                .body(pdfImports.asset(authentication.getName(), importId, assetId));
+    }
 
     @PostMapping("/{examId}/copy")
     public ResponseEntity<ExamDetailResponse> copyExam(@PathVariable Long examId,
@@ -89,8 +127,11 @@ public class ExamController {
     @PostMapping
     public ResponseEntity<CreateExamResponse> createCompleteExam(
             Authentication authentication, @Valid @RequestBody CreateCompleteExamRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(
-                examService.createCompleteExam(authentication.getName(), request));
+        pdfImports.requireReviewIfImport(request);
+        var created = request.importReview() == null
+                ? examService.createCompleteExam(authentication.getName(), request)
+                : pdfImports.create(authentication.getName(), request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
 @GetMapping

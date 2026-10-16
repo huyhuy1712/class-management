@@ -14,6 +14,10 @@ backend/target/
 *.class
 *.log
 backend/uploads/
+backend/.venv-formula/
+backend/formula-models/
+backend/tools/formula/node_modules/
+**/__pycache__/
 # ==================================
 # Frontend - React / Node
 # ==================================
@@ -71,3 +75,4 @@ Thumbs.db
 *.sw?
 # Al local
 .github/copilot-instructions.md
+**/.private/

@@ -2,7 +2,7 @@ package com.classmanagement.backend.repository.exam;
 
 import com.classmanagement.backend.dto.exam.*;
 import com.classmanagement.backend.entity.enums.*;
-import com.classmanagement.backend.service.exam.ExamScoringCalculator;
+import com.classmanagement.backend.service.exam.attempt.ExamScoringCalculator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.namedparam.*;
 import org.springframework.stereotype.Repository;

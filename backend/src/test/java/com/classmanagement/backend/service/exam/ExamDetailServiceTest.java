@@ -1,5 +1,7 @@
 package com.classmanagement.backend.service.exam;
 
+import com.classmanagement.backend.service.exam.configuration.ExamConfigurationService;
+
 import com.classmanagement.backend.dto.exam.ExamConfigurationResponse;
 import com.classmanagement.backend.entity.*;
 import com.classmanagement.backend.entity.enums.*;

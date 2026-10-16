@@ -9,6 +9,8 @@ import subjectService from '../services/subjectService'
 
 export function resourceOptions(resource, params) {
   const readers = {
+    pdfExamImport: ({ signal }) => examService.getPdfImport(params[0], { signal }),
+    pdfExamImportAsset: ({ signal }) => examService.getPdfImportAsset(params[0], params[1], { signal }),
     classGradebook: ({ signal }) => classroomService.getGradebook(params[0], { page: Number(params[1] ?? 0), size: 20, q: params[2] ?? '', ...(params[3] ? { subjectId: Number(params[3]) } : {}) }, { signal }),
     profile: ({ signal }) => userService.getProfile(params[0], { signal }),
     teacherClasses: ({ signal }) => classroomService.getMyClasses({ signal }),
