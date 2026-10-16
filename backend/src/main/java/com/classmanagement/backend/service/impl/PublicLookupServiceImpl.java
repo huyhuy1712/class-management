@@ -17,6 +17,7 @@ import com.classmanagement.backend.repository.exam.ExamAttemptRepository;
 import com.classmanagement.backend.repository.exam.StudentExamReadRepository;
 import com.classmanagement.backend.repository.projection.ClassroomSummaryProjection;
 import com.classmanagement.backend.service.PublicLookupService;
+import com.classmanagement.backend.service.StorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -167,7 +168,8 @@ public class PublicLookupServiceImpl implements PublicLookupService {
                 .fullName(student.getFullName())
                 .email(student.getEmail())
                 .phone(student.getPhone())
-                .avatar(student.getAvatar())
+                .avatar(student.getAvatar() != null && !student.getAvatar().isBlank()
+                        ? storageService.getUrl(student.getAvatar()) : null)
                 .classrooms(classrooms)
                 .build();
     }

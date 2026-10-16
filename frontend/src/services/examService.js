@@ -1,6 +1,15 @@
 import api from './api'
 
 const examService = {
+  importPdf: async (file, examNumber, requestId) => {
+    const body = new FormData()
+    body.append('file', file)
+    body.append('examNumber', String(examNumber))
+    body.append('requestId', requestId)
+    return (await api.post('/exams/imports/pdf', body, { skipQueryInvalidation: true })).data
+  },
+  getPdfImport: async (id, options = {}) => (await api.get(`/exams/imports/${id}`, options)).data,
+  getPdfImportAsset: async (id, assetId, options = {}) => (await api.get(`/exams/imports/${id}/assets/${assetId}`, { ...options, responseType: 'blob' })).data,
   getMyGrades: async (params = {}, options = {}) => (await api.get('/users/me/grades', { ...options, params })).data,
   getTeacherAttemptReview: async (id, options = {}) => (await api.get(`/exam-attempts/${id}/teacher-review`, options)).data,
   resetAttempt: async (id, body) => (await api.post(`/exam-attempts/${id}/reset`, body)).data,

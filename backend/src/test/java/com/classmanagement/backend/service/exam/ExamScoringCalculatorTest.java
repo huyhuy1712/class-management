@@ -1,5 +1,7 @@
 package com.classmanagement.backend.service.exam;
 
+import com.classmanagement.backend.service.exam.attempt.ExamScoringCalculator;
+
 import com.classmanagement.backend.dto.exam.*;
 import com.classmanagement.backend.entity.enums.*;
 import com.classmanagement.backend.exception.ExamValidationException;

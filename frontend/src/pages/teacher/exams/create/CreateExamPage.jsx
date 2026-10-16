@@ -1,4 +1,7 @@
 import useExamTargetOptions from '../hooks/useExamTargetOptions'
+import { message } from 'antd'
+import { useState } from 'react'
+import PdfImportModal from './components/PdfImportModal'
 import {
   ArrowLeft,
   Check,
@@ -20,6 +23,9 @@ import ExamResultSettingsSection from './components/ExamResultSettingsSection'
 import useCreateExamForm from './hooks/useCreateExamForm'
 
 function CreateExamPage() {
+  const [importConfig, setImportConfig] = useState(null)
+  const [importOpen, setImportOpen] = useState(false)
+  const [messageApi, messageContext] = message.useMessage()
   const navigate = useNavigate()
   const { state } = useLocation()
   const defaultClassId = Number(state?.defaultClassId)
@@ -59,10 +65,31 @@ function CreateExamPage() {
       : undefined,
   })
 
-  const handleCreateOnline = () => {
-    if (targetsLoading || targetsError || !validate()) return
+  // Both creation methods must pass the same configuration checks.
+  const validatedConfiguration = () => {
+    const valid = validate()
+    if (subjectsLoading || targetsLoading) {
+      messageApi.warning('Đang tải môn học và đối tượng giao đề. Vui lòng thử lại sau.')
+      return null
+    }
+    if (subjectsError || targetsError) {
+      messageApi.error('Chưa tải được môn học hoặc đối tượng giao đề. Vui lòng thử lại trước khi tiếp tục.')
+      return null
+    }
+    if (!valid) {
+      messageApi.warning('Vui lòng hoàn tất cấu hình đề thi tại các trường được đánh dấu.')
+      return null
+    }
+    if (!subjects.some((subject) => String(subject.id) === String(form.subjectId))) {
+      messageApi.warning('Môn học đã chọn không còn khả dụng. Vui lòng chọn lại môn học.')
+      return null
+    }
+    return buildExamData()
+  }
 
-    const data = buildExamData()
+  const handleCreateOnline = () => {
+    const data = validatedConfiguration()
+    if (!data) return
 
     navigate('/teacher/exams/create/online', {
       state: { examConfig: data },
@@ -70,17 +97,16 @@ function CreateExamPage() {
   }
 
   const handleImportFile = () => {
-    if (targetsLoading || targetsError || !validate()) return
-    const data = buildExamData()
-
-    console.log(
-      'IMPORT FILE:',
-      data,
-    )
+    const config = validatedConfiguration()
+    if (!config) return
+    setImportConfig(config)
+    setImportOpen(true)
   }
 
   return (
     <DashboardLayout>
+      {messageContext}
+      {importConfig && <PdfImportModal open={importOpen} onClose={() => setImportOpen(false)} config={importConfig} />}
       <div className="min-h-[calc(100vh-72px)] bg-[radial-gradient(circle_at_top_right,_rgba(16,185,129,0.12),_transparent_32%),#F4F6F8]">
         <div className="mx-auto max-w-[1440px] px-4 pb-12 pt-5 sm:px-6 lg:px-8">
 
@@ -200,7 +226,7 @@ function CreateExamPage() {
 
           {/* CÁCH TẠO ĐỀ */}
           <CreateMethodSection
-            disabled={targetsLoading || Boolean(targetsError) || (accessType === 'ALL' && classes.length === 0)}
+            disabled={subjectsLoading || targetsLoading || Boolean(subjectsError || targetsError)}
             onCreateOnline={handleCreateOnline}
             onImportFile={handleImportFile}
           />

@@ -1,5 +1,7 @@
 package com.classmanagement.backend.service.exam;
 
+import com.classmanagement.backend.service.exam.validation.ExamStructureValidator;
+
 import com.classmanagement.backend.dto.exam.CreateCompleteExamRequest;
 import com.classmanagement.backend.dto.exam.CreateCompleteExamRequest.*;
 import com.classmanagement.backend.entity.enums.*;

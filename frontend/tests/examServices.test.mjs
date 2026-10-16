@@ -4,6 +4,22 @@ import { readFile } from 'node:fs/promises'
 import { runInNewContext } from 'node:vm'
 
 let api, examService, mediaService
+test('PDF import uses multipart, stable caller request ID and authenticated asset reads', async () => {
+  api.handler = async (url, body, options) => {
+    assert.equal(url, '/exams/imports/pdf')
+    assert.equal(body.get('examNumber'), '2')
+    assert.equal(body.get('requestId'), 'same-request')
+    assert.equal(options.skipQueryInvalidation, true)
+    return { data: { importId: 'job' } }
+  }
+  assert.equal((await examService.importPdf(new Blob(['%PDF-1.7']), 2, 'same-request')).importId, 'job')
+  api.handler = async (url, options) => {
+    assert.equal(url, '/exams/imports/job/assets/image')
+    assert.equal(options.responseType, 'blob')
+    return { data: 'private-image' }
+  }
+  assert.equal(await examService.getPdfImportAsset('job', 'image'), 'private-image')
+})
 test('assignment export reads all recipients in class scope without display filters', async () => {
   const signal = new AbortController().signal
   const pages = []

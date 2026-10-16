@@ -1,5 +1,7 @@
 package com.classmanagement.backend.controller;
 
+import com.classmanagement.backend.service.exam.ExamAttemptService;
+
 import com.classmanagement.backend.dto.classroom.AddStudentToClassroomRequest;
 import com.classmanagement.backend.dto.classroom.ClassroomResponse;
 import com.classmanagement.backend.dto.classroom.ClassroomStudentResponse;
