@@ -2,6 +2,10 @@ package com.classmanagement.backend.security;
 
 import java.io.IOException;
 
+import com.classmanagement.backend.service.ImpersonationService;
+import io.jsonwebtoken.JwtException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -21,6 +25,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         private final JwtService jwtService;
         private final CustomUserDetailsService userDetailsService;
+        private final ImpersonationService impersonationService;
 
         @Override
         protected void doFilterInternal(
@@ -28,7 +33,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         HttpServletResponse response,
                         FilterChain filterChain) throws ServletException, IOException {
 
-                String token = extractToken(request);
+                String impersonationToken = extractCookie(request, "impersonation_token");
+                String token = impersonationToken != null
+                                ? impersonationToken
+                                : extractCookie(request, "access_token");
                 if (token == null) {
                         filterChain.doFilter(request, response);
                         return;
@@ -40,43 +48,60 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         if (username != null
                                         && SecurityContextHolder.getContext().getAuthentication() == null) {
                                 String role = jwtService.extractRole(token);
+                                String sessionId = jwtService.extractImpersonationSessionId(token);
+                                Long impersonationSessionId = null;
                                 UserDetails userDetails;
 
-                                if (role == null || role.isBlank()) {
+                                if (impersonationToken != null) {
+                                        if (sessionId == null || sessionId.isBlank()) {
+                                                throw new BadCredentialsException("Missing impersonation session");
+                                        }
+                                        impersonationSessionId = Long.valueOf(sessionId);
+                                        impersonationService.validateSession(
+                                                        impersonationSessionId,
+                                                        username,
+                                                        role);
+                                        userDetails = userDetailsService.loadUserByUsername(username);
+                                } else if (sessionId != null) {
+                                        throw new BadCredentialsException(
+                                                        "Impersonation claim requires impersonation cookie");
+                                } else if (role == null || role.isBlank()) {
                                         // Support tokens issued before the role claim was added.
-                                        userDetails = userDetailsService
-                                                        .loadUserByUsername(username);
+                                        userDetails = userDetailsService.loadUserByUsername(username);
                                 } else {
-                                        userDetails =
-                                                        org.springframework.security.core.userdetails.User
-                                                                        .withUsername(username)
-                                                                        .authorities(role)
-                                                                        .password("")
-                                                                        .build();
+                                        userDetails = org.springframework.security.core.userdetails.User
+                                                        .withUsername(username)
+                                                        .authorities(role)
+                                                        .password("")
+                                                        .build();
                                 }
 
                                 if (jwtService.isTokenValid(token, userDetails)) {
-                                        SecurityContextHolder.getContext().setAuthentication(
-                                                        new UsernamePasswordAuthenticationToken(
-                                                                        userDetails,
-                                                                        null,
-                                                                        userDetails.getAuthorities()));
+                                        var authentication = new UsernamePasswordAuthenticationToken(
+                                                        userDetails,
+                                                        null,
+                                                        userDetails.getAuthorities());
+                                        if (impersonationSessionId != null) {
+                                                authentication.setDetails(new ImpersonationAuthenticationDetails(
+                                                                impersonationSessionId));
+                                        }
+                                        SecurityContextHolder.getContext().setAuthentication(authentication);
                                 }
                         }
-                } catch (Exception ignored) {
+                } catch (AuthenticationException | JwtException | IllegalArgumentException exception) {
                         SecurityContextHolder.clearContext();
                 }
 
                 filterChain.doFilter(request, response);
         }
 
-        private String extractToken(HttpServletRequest request) {
+        private String extractCookie(HttpServletRequest request, String name) {
                 if (request.getCookies() == null) {
                         return null;
                 }
 
                 for (Cookie cookie : request.getCookies()) {
-                        if ("access_token".equals(cookie.getName())) {
+                        if (name.equals(cookie.getName())) {
                                 return cookie.getValue();
                         }
                 }

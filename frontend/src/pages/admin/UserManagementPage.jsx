@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import adminService from '../../services/adminService'
+import useAuthStore from '../../stores/authStore'
 
 const statusLabels = {
   ACTIVE: 'Hoạt động',
@@ -24,6 +26,8 @@ function getErrorMessage(error, fallback) {
 
 export default function UserManagementPage() {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const startImpersonation = useAuthStore((state) => state.startImpersonation)
   const [keyword, setKeyword] = useState('')
   const [roleFilter, setRoleFilter] = useState('ALL')
   const [statusFilter, setStatusFilter] = useState('ALL')
@@ -54,6 +58,16 @@ export default function UserManagementPage() {
   const deleteMutation = useMutation({
     mutationFn: adminService.deleteUser,
     onSuccess: refreshAdminData,
+  })
+  const impersonationMutation = useMutation({
+    mutationFn: adminService.startImpersonation,
+    onSuccess: (targetUser) => {
+      startImpersonation(targetUser)
+      navigate(targetUser.role === 'TEACHER' ? '/teacher' : '/student', { replace: true })
+    },
+    onError: (mutationError) => {
+      window.alert(getErrorMessage(mutationError, 'Không thể đăng nhập với tư cách tài khoản này. Vui lòng thử lại.'))
+    },
   })
   const saving = createMutation.isPending || updateMutation.isPending
 
@@ -135,6 +149,14 @@ export default function UserManagementPage() {
         window.alert(getErrorMessage(mutationError, 'Không thể xóa tài khoản. Vui lòng thử lại.'))
       },
     })
+  }
+
+  function handleImpersonate(user) {
+    if (user.status !== 'ACTIVE' || !['STUDENT', 'TEACHER'].includes(user.role)) return
+    if (!window.confirm(`Bạn sẽ chuyển sang sử dụng hệ thống với tư cách "${user.name}". Tiếp tục?`)) return
+    const reason = window.prompt('Lý do impersonate (không bắt buộc):')
+    if (reason === null) return
+    impersonationMutation.mutate({ userId: user.id, reason: reason.trim() })
   }
 
   function handleFormChange(event) {
@@ -265,6 +287,16 @@ export default function UserManagementPage() {
                   <td>
                     <div className="admin-table-actions">
                       <button type="button" className="admin-icon-btn view" title="Xem chi tiết" aria-label={`Xem ${user.name}`} onClick={() => openUserModal(user, 'view')}>◉</button>
+                      {user.status === 'ACTIVE' && (
+                        <button
+                          type="button"
+                          className="admin-icon-btn impersonate"
+                          title="Đăng nhập với tư cách người dùng"
+                          aria-label={`Impersonate ${user.name}`}
+                          disabled={impersonationMutation.isPending}
+                          onClick={() => handleImpersonate(user)}
+                        >⇥</button>
+                      )}
                       <button type="button" className="admin-icon-btn edit" title="Chỉnh sửa" aria-label={`Sửa ${user.name}`} onClick={() => openUserModal(user, 'edit')}>✎</button>
                       <button type="button" className="admin-icon-btn delete" title="Xóa tài khoản" aria-label={`Xóa ${user.name}`} disabled={deleteMutation.isPending} onClick={() => handleDelete(user)}>♲</button>
                     </div>

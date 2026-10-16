@@ -166,7 +166,8 @@ button:disabled {
 
 .admin-layout button,
 .admin-layout input,
-.admin-layout select {
+.admin-layout select,
+.admin-layout textarea {
   font: inherit;
 }
 
@@ -880,9 +881,69 @@ button:disabled {
   color: #e05252;
 }
 
+.admin-icon-btn.impersonate {
+  color: #0f766e;
+}
+
 .admin-icon-btn:hover {
   background: #f3f3fb;
   border-color: #d5d6e6;
+}
+
+.impersonation-banner {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  min-height: 54px;
+  padding: 8px 18px;
+  color: #713f12;
+  background: #fef3c7;
+  border-bottom: 1px solid #fcd34d;
+  box-shadow: 0 2px 8px #78350f14;
+}
+
+.impersonation-banner > div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.impersonation-banner > div strong {
+  font-size: 12px;
+}
+
+.impersonation-banner > div span {
+  font-size: 12px;
+}
+
+.impersonation-banner button {
+  min-height: 34px;
+  padding: 0 12px;
+  color: #fff;
+  background: #b45309;
+  border: 0;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.impersonation-banner button:hover {
+  background: #92400e;
+}
+
+.impersonation-banner button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.impersonation-banner__error {
+  font-size: 11px;
+  color: #b91c1c;
 }
 
 .admin-no-results {
@@ -1147,6 +1208,18 @@ button:disabled {
 }
 
 @media (max-width: 760px) {
+  .impersonation-banner {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 7px 12px;
+    padding: 8px 12px;
+  }
+
+  .impersonation-banner > div {
+    flex-direction: column;
+    gap: 2px;
+  }
+
   .admin-sidebar {
     position: static;
     width: 65px;

@@ -33,6 +33,11 @@ const adminService = {
   deleteUser: async (userId) => {
     await api.delete(`/admin/users/${userId}`)
   },
+
+  startImpersonation: async ({ userId, reason }) => {
+    const response = await api.post(`/admin/impersonation/${userId}`, { reason })
+    return response.data
+  },
 }
 
 export default adminService

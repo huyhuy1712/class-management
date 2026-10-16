@@ -9,6 +9,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
+import java.time.Instant;
 import java.util.Date;
 import java.util.function.Function;
 
@@ -22,13 +23,31 @@ public class JwtService {
     private long jwtExpiration;
 
     public String generateToken(UserDetails userDetails) {
-
         Date now = new Date();
         Date expiration = new Date(
                 now.getTime() + jwtExpiration
         );
 
-        return Jwts.builder()
+        return createToken(userDetails, now, expiration, null);
+    }
+
+    public String generateImpersonationToken(
+            UserDetails userDetails,
+            Long sessionId,
+            Instant expiresAt) {
+        return createToken(
+                userDetails,
+                new Date(),
+                Date.from(expiresAt),
+                sessionId.toString());
+    }
+
+    private String createToken(
+            UserDetails userDetails,
+            Date issuedAt,
+            Date expiration,
+            String impersonationSessionId) {
+        var builder = Jwts.builder()
                 .subject(userDetails.getUsername())
                 .claim(
                         "role",
@@ -37,10 +56,12 @@ public class JwtService {
                                 .map(authority -> authority.getAuthority())
                                 .orElse("ROLE_USER")
                 )
-                .issuedAt(now)
-                .expiration(expiration)
-                .signWith(getSigningKey())
-                .compact();
+                .issuedAt(issuedAt)
+                .expiration(expiration);
+        if (impersonationSessionId != null) {
+            builder.claim("impersonation_session_id", impersonationSessionId);
+        }
+        return builder.signWith(getSigningKey()).compact();
     }
 
     public String extractUsername(String token) {
@@ -62,6 +83,10 @@ public class JwtService {
 
     public String extractRole(String token) {
         return extractClaim(token, claims -> claims.get("role", String.class));
+    }
+
+    public String extractImpersonationSessionId(String token) {
+        return extractClaim(token, claims -> claims.get("impersonation_session_id", String.class));
     }
 
     private boolean isTokenExpired(String token) {
