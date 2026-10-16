@@ -5,6 +5,7 @@ import StudentExamWaitingPage from '../pages/student/exams/StudentExamWaitingPag
 const StudentExamPaperPreviewPage = lazy(() => import('../pages/student/exams/StudentExamPaperPreviewPage'))
 const StudentExamAttemptPage = lazy(() => import('../pages/student/exams/StudentExamAttemptPage'))
 const StudentExamResultPage = lazy(() => import('../pages/student/exams/StudentExamResultPage'))
+const StudentGradesPage = lazy(() => import('../pages/student/grades/StudentGradesPage'))
 import { Navigate, Route, Routes } from 'react-router-dom'
 import useAuthStore from '../stores/authStore'
 
@@ -101,6 +102,7 @@ function AppRoutes() {
       <Route path="/student/classes" element={<JoinClassPage />} />
       <Route path="/student/classes/:classId" element={<StudentClassDetailPage />} />
       <Route path="/student/exams" element={<StudentExamListPage />} />
+      <Route path="/student/grades" element={<StudentGradesPage />} />
       <Route path="/student/exams/preview/paper" element={<StudentExamPaperPreviewPage />} />
       <Route path="/student/exams/:assignmentId" element={<StudentExamWaitingPage />} />
       <Route path="/student/exam-attempts/:attemptId" element={<StudentExamAttemptPage />} />

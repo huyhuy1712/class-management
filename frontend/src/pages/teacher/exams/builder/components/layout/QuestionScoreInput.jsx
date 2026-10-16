@@ -11,7 +11,7 @@ function QuestionScoreInput({ question, onChange }) {
   return (
     <label className="flex items-center gap-0.5">
       <input
-        type="number" min="0" max="9999.99" step="0.01"
+        type="number" min="0" max="9999.999" step="0.001"
         aria-label="Điểm câu hỏi" value={draftValue ?? String(score)} disabled={!editable}
         title={editable ? 'Nhập tổng điểm câu; điểm đáp án và rule được phân bổ theo tỷ lệ hiện tại' : 'Thêm đáp án và chọn phương án đúng hoặc tạo rule trước khi nhập điểm'}
         onChange={(event) => {

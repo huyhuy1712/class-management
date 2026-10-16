@@ -1,3 +1,4 @@
+import FrogLoading from '../../../../utils/FrogLoading'
 import { ScoringRuleTemplatesProvider } from './components/answer/ScoringRuleTemplates'
 import { ArrowLeft, Plus, Save } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -13,6 +14,7 @@ import useSaveExam from './hooks/useSaveExam'
 import ExamSaveStatus from './components/layout/ExamSaveStatus'
 import { getExamConfig } from './helpers/examPayload'
 import EditExamModal from '../components/EditExamModal'
+import PdfImportReview from './components/layout/PdfImportReview'
 
 function ExamBuilderPage({ editingExam } = {}) {
   const navigate = useNavigate()
@@ -59,7 +61,7 @@ function ExamBuilderPage({ editingExam } = {}) {
                 Giữ nháp
               </button>}
               <button type="button" disabled={readOnly || saving || (!isEditing && saveExam.uncertain)} onClick={isEditing ? saveContent.save : saveExam.save} className="rounded-xl bg-[#159a68] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#11845a] disabled:opacity-50">
-                {saving ? 'Đang lưu...' : isEditing ? 'Lưu chỉnh sửa' : 'Lưu đề thi'}
+                {saving ? <FrogLoading compact label="Đang lưu..." /> : isEditing ? 'Lưu chỉnh sửa' : 'Lưu đề thi'}
               </button>
             </div>
           </header>
@@ -71,6 +73,7 @@ function ExamBuilderPage({ editingExam } = {}) {
           {isEditing && !readOnly && <button type="button" disabled={saving} onClick={() => setConfigurationOpen(true)} className="mb-4 w-fit rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-700">Cấu hình và đối tượng giao đề</button>}
 
           {isEditing ? <div className="mb-4 text-sm text-slate-600"><p>Mã đề: {editingExam.code || '—'} · Trạng thái: {editingExam.status === 'PUBLISHED' ? 'Đã xuất bản' : 'Bản nháp'}</p>{readOnly && <p className="mt-2 font-semibold text-amber-700">Đề thi đã xuất bản hoặc không còn là bản nháp. Bạn chỉ có thể xem nội dung.</p>}{(saveContent.message || draftMessage) && <p role="status" className="mt-1">{saveContent.message || draftMessage}</p>}</div> : <ExamSaveStatus config={examConfig} message={saveExam.message || draftMessage} uncertain={saveExam.uncertain} saving={saveExam.saving} onConfirmRetry={saveExam.confirmRetry} />}
+          {!isEditing && draft?.pdfImport?.importId && <PdfImportReview importId={draft.pdfImport.importId} />}
           <fieldset disabled={readOnly || saving} className="grid min-w-0 grid-cols-1 items-start gap-3 lg:grid-cols-[285px_minmax(0,1fr)]">
             <div inert={readOnly || saving ? true : undefined}>
             <ExamStructureSidebar

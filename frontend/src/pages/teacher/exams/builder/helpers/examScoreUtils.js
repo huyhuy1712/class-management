@@ -1,18 +1,20 @@
-const units = (value) => Math.round((Number(value) || 0) * 100)
+import { SCORE_SCALE } from './examScoreConstants.js'
+
+const units = (value) => Math.round((Number(value) || 0) * SCORE_SCALE)
 
 export function getGroupScore(group) {
   if (group.answerType === 'TRUE_FALSE' && group.scoreByCorrectCount) {
     const rule = (group.scoringRules ?? []).find((item) => Number(item.correctCount) === group.answers.length)
-    return units(rule?.point) / 100
+    return units(rule?.point) / SCORE_SCALE
   }
   const items = group.answerType === 'CHOICE'
     ? group.answers.filter((item) => item.isCorrect === true)
     : group.answers
-  return items.reduce((total, item) => total + units(item.point), 0) / 100
+  return items.reduce((total, item) => total + units(item.point), 0) / SCORE_SCALE
 }
 
 export const getQuestionScore = (question) =>
-  (question.answerGroups ?? []).reduce((total, group) => total + units(getGroupScore(group)), 0) / 100
+  (question.answerGroups ?? []).reduce((total, group) => total + units(getGroupScore(group)), 0) / SCORE_SCALE
 
 export function migrateDraftScores(sections) {
   return sections.map((section) => ({
@@ -31,7 +33,7 @@ export function migrateDraftScores(sections) {
           ...rest,
           answers: group.answers.map((item) => {
             const index = scored.indexOf(item)
-            return index < 0 ? item : { ...item, point: (share + (index === scored.length - 1 ? total % scored.length : 0)) / 100 }
+            return index < 0 ? item : { ...item, point: (share + (index === scored.length - 1 ? total % scored.length : 0)) / SCORE_SCALE }
           }),
         }
       }),
@@ -40,7 +42,7 @@ export function migrateDraftScores(sections) {
 }
 
 export const getSectionScore = (section) =>
-  Number(section.questions.reduce((total, question) => total + getQuestionScore(question), 0).toFixed(2))
+  Number(section.questions.reduce((total, question) => total + getQuestionScore(question), 0).toFixed(3))
 
 export const getExamScore = (sections) =>
-  Number(sections.reduce((total, section) => total + getSectionScore(section), 0).toFixed(2))
+  Number(sections.reduce((total, section) => total + getSectionScore(section), 0).toFixed(3))

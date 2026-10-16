@@ -1,3 +1,4 @@
+import FrogLoading from '../../../../utils/FrogLoading'
 import { useMutation } from '@tanstack/react-query'
 import { EMPTY_LIST } from '../../../../query/queryKeys'
 import useResourceQuery from '../../../../query/useResourceQuery'
@@ -433,7 +434,7 @@ const handleSubmitAttendance = async ({
                     className="flex items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <Power size={18} />
-                    {activatingClass ? 'Đang kích hoạt...' : 'Kích hoạt'}
+                    {activatingClass ? <FrogLoading compact label="Đang kích hoạt..." /> : 'Kích hoạt'}
                   </button>
                 )}
 
@@ -502,7 +503,7 @@ const handleSubmitAttendance = async ({
 
         {loading ? (
           <div className="flex min-h-72 items-center justify-center">
-            <p className="text-sm text-gray-400">Đang tải danh sách học sinh...</p>
+            <FrogLoading label="Đang tải danh sách học sinh..." className="text-sm text-gray-400" />
           </div>
         ) : error ? (
           <div className="flex min-h-72 items-center justify-center px-6">

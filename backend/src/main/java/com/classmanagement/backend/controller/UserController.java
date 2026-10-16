@@ -35,6 +35,17 @@ public class UserController {
     private final StudentProfileStatsService profileStats;
     private final StudentExamReadService studentExams;
 
+    @GetMapping("/me/grades")
+    public com.classmanagement.backend.dto.exam.StudentGradesResponse getMyGrades(Authentication auth,
+            @RequestParam(required=false) Long classId,@RequestParam(required=false) Long subjectId,
+            @RequestParam(required=false) @DateTimeFormat(iso=DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required=false) @DateTimeFormat(iso=DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required=false) String q,@RequestParam(required=false) String status,
+            @RequestParam(defaultValue="newest") String sort,@RequestParam(defaultValue="0") int page,
+            @RequestParam(defaultValue="6") int size,@RequestParam(defaultValue="true") boolean includeCharts) {
+        return studentExams.grades(auth.getName(),classId,subjectId,from,to,q,status,sort,page,size,includeCharts);
+    }
+
     @GetMapping("/me/exams")
     public StudentExamResponse.Page getMyAssignedExams(
             Authentication authentication,

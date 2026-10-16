@@ -1,0 +1,11 @@
+{
+  "name": "exam-formula-checker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test latex_check.test.mjs"
+  },
+  "dependencies": {
+    "mathlive": "0.111.0"
+  }
+}

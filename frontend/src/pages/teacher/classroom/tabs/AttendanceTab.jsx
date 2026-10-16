@@ -1,3 +1,4 @@
+import FrogLoading from '../../../../utils/FrogLoading'
 import { useMutation } from '@tanstack/react-query'
 import { EMPTY_LIST } from '../../../../query/queryKeys'
 import useResourceQuery from '../../../../query/useResourceQuery'
@@ -311,7 +312,7 @@ const handleExportAttendance = async () => {
             </div>
           </div>
 
-        {attendanceQuery.isLoading && <p role="status" className="mt-4 text-sm text-slate-500">Đang tải điểm danh...</p>}
+        {attendanceQuery.isLoading && <FrogLoading label="Đang tải điểm danh..." className="mt-4 text-sm text-slate-500" />}
         {attendanceQuery.errorMessage && <p role="alert" className="mt-4 text-sm text-red-600">{attendanceQuery.errorMessage}</p>}
         {/* Filters */}
         <div className="mt-6 grid gap-3 lg:grid-cols-[1fr_190px_190px]">

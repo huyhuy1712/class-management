@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+.frog-loading-inline { display: inline-flex; align-items: center; justify-content: center; gap: 8px; vertical-align: middle; }
+.frog-loading-inline .frog-loading-logo { width: 24px; height: 24px; filter: none; flex-shrink: 0; animation: frog-loading-button-hop 1.2s ease-in-out infinite; }
+@keyframes frog-loading-button-hop { 0%, 100% { transform: translateY(0) rotate(-8deg); } 50% { transform: translateY(-3px) rotate(8deg); } }
+
 .frog-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 32px 16px; color: #126b3c; }
 .frog-loading-art { position: relative; width: 160px; height: 150px; display: grid; place-items: center; }
 .frog-loading-logo { width: 120px; height: 120px; object-fit: contain; filter: drop-shadow(0 5px 0 white) drop-shadow(0 -3px 0 white); animation: frog-loading-hop 1.6s ease-in-out infinite; }
@@ -17,7 +21,7 @@
 @keyframes frog-loading-spark { 0%, 100% { opacity: 0.35; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.1); } }
 @keyframes frog-loading-step { 0%, 100% { opacity: 0.15; transform: scaleY(0.7); } 50% { opacity: 1; transform: scaleY(1); } }
 @media (prefers-reduced-motion: reduce) {
-  .frog-loading-logo, .frog-loading-shadow, .frog-loading-spark, .frog-loading-name > span, .frog-loading-track > span { animation: none; }
+  .frog-loading-logo, .frog-loading-inline .frog-loading-logo, .frog-loading-shadow, .frog-loading-spark, .frog-loading-name > span, .frog-loading-track > span { animation: none; }
 }
 
 :root {

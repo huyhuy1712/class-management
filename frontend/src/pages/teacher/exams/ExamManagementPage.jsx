@@ -1,3 +1,4 @@
+import FrogLoading from '../../../utils/FrogLoading'
 import { useMutation } from '@tanstack/react-query'
 import { message } from 'antd'
 import {
@@ -279,11 +280,9 @@ function ExamManagementPage() {
           {loading ? (
             <div className="flex min-h-[300px] items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm">
               <div className="flex flex-col items-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-green-100 border-t-green-600" />
 
-                <p className="mt-3 text-sm font-medium text-slate-400">
-                  Đang tải danh sách đề thi...
-                </p>
+
+                <FrogLoading label="Đang tải danh sách đề thi..." className="mt-3 text-sm font-medium text-slate-400" />
               </div>
             </div>
           ) : error ? (

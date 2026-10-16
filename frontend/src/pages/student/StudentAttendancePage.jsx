@@ -1,3 +1,4 @@
+import FrogLoading from '../../utils/FrogLoading'
 import useStudentAttendanceOverview from './hooks/useStudentAttendanceOverview'
 import { sortByText } from '../../utils/sortByText'
 import { useState } from "react";
@@ -63,19 +64,19 @@ function StudentAttendancePage() {
         <section className="mb-6 grid gap-4 sm:grid-cols-3">
           <div className="rounded-xl border border-[#dcefe3] bg-white p-5">
             <p className="text-2xl font-bold text-[#102d22]">
-              {loading ? "..." : classes.length}
+              {loading ? <FrogLoading compact label="" /> : classes.length}
             </p>
             <p className="mt-1 text-sm text-gray-500">Lớp đã tham gia</p>
           </div>
           <div className="rounded-xl border border-[#dcefe3] bg-white p-5">
             <p className="text-2xl font-bold text-[#102d22]">
-              {loading ? "..." : records.length}
+              {loading ? <FrogLoading compact label="" /> : records.length}
             </p>
             <p className="mt-1 text-sm text-gray-500">Buổi đã điểm danh</p>
           </div>
           <div className="rounded-xl border border-[#dcefe3] bg-white p-5">
             <p className="text-2xl font-bold text-[#102d22]">
-              {loading ? "..." : `${attendanceRate}%`}
+              {loading ? <FrogLoading compact label="" /> : `${attendanceRate}%`}
             </p>
             <p className="mt-1 text-sm text-gray-500">Tỷ lệ có mặt</p>
           </div>
@@ -89,7 +90,7 @@ function StudentAttendancePage() {
             </div>
 
             {loading ? (
-              <p className="text-sm text-gray-500">Đang tải lớp học...</p>
+              <FrogLoading label="Đang tải lớp học..." className="text-sm text-gray-500" />
             ) : classes.length === 0 ? (
               <p className="text-sm text-gray-500">Bạn chưa tham gia lớp học nào.</p>
             ) : (
@@ -147,7 +148,7 @@ function StudentAttendancePage() {
                 </h3>
 
                 {loading ? (
-                  <p className="text-sm text-gray-500">Đang tải lịch sử...</p>
+                  <FrogLoading label="Đang tải lịch sử..." className="text-sm text-gray-500" />
                 ) : selectedRecords.length === 0 ? (
                   <div className="rounded-lg bg-[#f7fbf8] p-6 text-center">
                     <CalendarDays className="mx-auto mb-2 text-gray-400" size={24} />
@@ -194,7 +195,7 @@ function StudentAttendancePage() {
               </>
             ) : (
               <div className="flex min-h-48 items-center justify-center text-center text-sm text-gray-500">
-                {loading ? "Đang tải dữ liệu điểm danh..." : "Chưa có lớp để hiển thị."}
+                {loading ? <FrogLoading compact label="Đang tải dữ liệu điểm danh..." /> : "Chưa có lớp để hiển thị."}
               </div>
             )}
           </section>

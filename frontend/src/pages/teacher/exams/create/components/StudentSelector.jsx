@@ -1,3 +1,4 @@
+import FrogLoading from '../../../../../utils/FrogLoading'
 import { sortByText } from '../../../../../utils/sortByText'
 import {
   ArrowLeft,
@@ -62,7 +63,7 @@ function StudentSelector({
                   <span>{classroom.code} · {classroom.studentCount ?? 0} học sinh</span>
                   <span className={`inline-flex items-center gap-1 font-medium ${active ? 'text-green-600' : 'text-red-500'}`}>
                     <span className={`h-2 w-2 rounded-full ${active ? 'bg-green-500' : 'bg-red-500'}`} />
-                    {active ? 'Đang hoạt động' : 'Đã vô hiệu'}
+                    {active ? <FrogLoading compact label="Đang hoạt động" /> : 'Đã vô hiệu'}
                   </span>
                 </div>
               </div>

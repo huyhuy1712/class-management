@@ -1,6 +1,7 @@
 import api from './api'
 
 const classroomService = {
+  getGradebook: async (id, params, options = {}) => (await api.get(`/classes/${id}/gradebook`, { ...options, params })).data,
   getAll: async (options = {}) => {
     const response = await api.get('/classes', options)
     const payload = response.data

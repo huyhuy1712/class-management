@@ -1,4 +1,6 @@
-const units = (value) => Math.max(0, Math.round((Number(value) || 0) * 100))
+import { SCORE_SCALE } from './examScoreConstants.js'
+
+const units = (value) => Math.max(0, Math.round((Number(value) || 0) * SCORE_SCALE))
 
 const scoredItems = (group) => group.answerType === 'CHOICE'
   ? group.answers.filter((item) => item.isCorrect === true)
@@ -43,8 +45,8 @@ export function distributeQuestionScore(question, value) {
           ...group,
           scoringRules: group.scoringRules.map((rule) => ({
             ...rule,
-            point: Number(rule.correctCount) === group.answers.length ? maximum / 100
-              : (oldMaximum ? Math.min(maximum, Math.round(units(rule.point) * maximum / oldMaximum)) : 0) / 100,
+            point: Number(rule.correctCount) === group.answers.length ? maximum / SCORE_SCALE
+              : (oldMaximum ? Math.min(maximum, Math.round(units(rule.point) * maximum / oldMaximum)) : 0) / SCORE_SCALE,
           })),
         }
       }
@@ -52,7 +54,7 @@ export function distributeQuestionScore(question, value) {
         ...group,
         answers: group.answers.map((item) => {
           const index = targets.findIndex((target) => target.groupIndex === groupIndex && target.item === item)
-          return index < 0 ? item : { ...item, point: scores[index] / 100 }
+          return index < 0 ? item : { ...item, point: scores[index] / SCORE_SCALE }
         }),
       }
     }),

@@ -8,6 +8,9 @@ test('review leaves unanswered white, follows BE correctness and does not invent
   assert.equal(getReviewStatus({ type: 'SINGLE' }, 1, { correct: false }), 'WRONG')
   assert.equal(getReviewStatus({ type: 'TRUE_FALSE' }, { 0: false }, { correct: false }), 'WRONG')
   assert.equal(getReviewStatus({ type: 'ESSAY' }, 'Bài viết', { correct: null }), 'PENDING')
+  assert.equal(getReviewStatus({ type: 'ESSAY' }, 'Bài viết', { correct: null, score: 0 }), 'GRADED')
+  assert.equal(getReviewStatus({ type: 'ESSAY' }, 'Bài viết', { correct: null, score: 0.75 }), 'GRADED')
+  assert.equal(getReviewStatus({ type: 'ESSAY' }, 'Bài viết', { correct: null, score: null }), 'PENDING')
 })
 
 test('question progress handles the first choice, false answers and incomplete true/false groups', () => {

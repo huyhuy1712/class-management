@@ -1,8 +1,8 @@
+import FrogLoading from '../../utils/FrogLoading'
 import useResourceQuery from '../../query/useResourceQuery'
 import useTeacherExamCount from './hooks/useTeacherExamCount'
 import {
   BookOpen,
-  ChartNoAxesColumnIncreasing,
   ClipboardCheck,
   FileText,
   School,
@@ -27,12 +27,6 @@ const features = [
     description: 'Xem và quản lý học sinh trong lớp',
     icon: Users,
     path: '/teacher/students',
-  },
-  {
-    title: 'Bảng điểm',
-    description: 'Quản lý kết quả học tập',
-    icon: ChartNoAxesColumnIncreasing,
-    path: '/teacher/grades',
   },
   {
     title: 'Đề thi',
@@ -116,7 +110,7 @@ function TeacherDashboard() {
 
                 <div>
                   <p className={`text-2xl font-bold ${item.valueColor}`}>
-                    {item.value}
+                    {item.value === '...' ? <FrogLoading compact label="" /> : item.value}
                   </p>
 
                   <p className="mt-0.5 text-sm text-gray-400">

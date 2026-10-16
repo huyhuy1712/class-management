@@ -6,8 +6,9 @@ export default function ExamQuestionNavigator({ questions, answers, flags = [], 
   const [expanded, setExpanded] = useState(false)
   const percent = questions.length ? Math.round(answered / questions.length * 100) : 0
   const count = (status) => Object.values(reviewStatuses ?? {}).filter((value) => value === status).length
-  const reviewTones = { CORRECT: 'border-emerald-300 bg-emerald-50 text-emerald-700', WRONG: 'border-red-300 bg-red-50 text-red-700', EMPTY: 'border-slate-200 bg-white text-slate-500', PENDING: 'border-amber-300 bg-amber-50 text-amber-700' }
+  const reviewTones = { GRADED: 'border-emerald-300 bg-emerald-50 text-emerald-700', CORRECT: 'border-emerald-300 bg-emerald-50 text-emerald-700', WRONG: 'border-red-300 bg-red-50 text-red-700', EMPTY: 'border-slate-200 bg-white text-slate-500', PENDING: 'border-amber-300 bg-amber-50 text-amber-700' }
   const statuses = reviewStatuses ? [
+    ...(count('GRADED') ? [{ icon: CheckCircle2, label: 'Đã chấm tự luận', count: count('GRADED'), tone: 'text-emerald-700', background: 'bg-emerald-50' }] : []),
     { icon: CheckCircle2, label: 'Đúng', count: count('CORRECT'), tone: 'text-emerald-700', background: 'bg-emerald-50' },
     { icon: XCircle, label: 'Sai', count: count('WRONG'), tone: 'text-red-700', background: 'bg-red-50' },
     { icon: CircleDashed, label: 'Chưa làm', count: count('EMPTY'), tone: 'text-slate-500', background: 'bg-slate-100' },

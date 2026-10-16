@@ -476,7 +476,7 @@ function LandingPage() {
                     <div className="flex items-center justify-between rounded-xl bg-white/10 px-4 py-3">
                       <div className="flex items-center gap-3">
                         <QrCode size={18} className="text-[#D8F3DC]" />
-                        <span className="text-sm font-medium text-white">Điểm danh bằng mã ca học</span>
+                        <span className="text-sm font-medium text-white">Điểm danh buổi học</span>
                       </div>
                       <CheckCircle2 size={18} className="text-[#D8F3DC]" />
                     </div>

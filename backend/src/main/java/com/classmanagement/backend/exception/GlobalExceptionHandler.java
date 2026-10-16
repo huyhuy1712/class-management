@@ -16,6 +16,19 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleHttpStatus(
+            org.springframework.web.server.ResponseStatusException ex,
+            HttpServletRequest request) {
+        return ResponseEntity.status(ex.getStatusCode()).body(ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(ex.getStatusCode().value())
+                .error("Yêu cầu không thực hiện được")
+                .message(ex.getReason())
+                .path(request.getRequestURI())
+                .build());
+    }
+
     @ExceptionHandler({org.springframework.orm.ObjectOptimisticLockingFailureException.class,
             jakarta.persistence.OptimisticLockException.class})
     public ResponseEntity<?> handleExamRevisionConflict() {

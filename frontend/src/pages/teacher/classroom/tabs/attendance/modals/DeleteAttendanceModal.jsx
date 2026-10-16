@@ -1,4 +1,5 @@
-import { AlertTriangle, LoaderCircle } from 'lucide-react'
+import FrogLoading from '../../../../../../utils/FrogLoading'
+import { AlertTriangle } from 'lucide-react'
 import { formatDate } from '../../../../../../utils/dateUtils'
 
 function DeleteAttendanceModal({
@@ -73,7 +74,7 @@ function DeleteAttendanceModal({
           >
             {deleting ? (
               <>
-                <LoaderCircle size={16} className="animate-spin" />
+                <FrogLoading compact label="" className="" />
                 Đang xóa...
               </>
             ) : (

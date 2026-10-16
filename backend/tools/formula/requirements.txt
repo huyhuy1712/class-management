@@ -1,0 +1,7 @@
+# Python 3.10-3.12; CPU runtime only. No PyTorch/CUDA installation required.
+onnxruntime==1.20.1
+transformers==4.57.6
+pillow==11.1.0
+numpy==2.1.0
+# Explicit dependency of setup_models.py; downloads only during setup.
+huggingface-hub==0.36.0

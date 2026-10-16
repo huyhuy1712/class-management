@@ -1,4 +1,5 @@
-﻿import {
+import FrogLoading from '../../../../../../utils/FrogLoading'
+import {
   CalendarDays,
   Check,
   Clock3,
@@ -250,7 +251,7 @@ function AttendanceModal({
             className="flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <UserCheck size={17} />
-            {loading ? 'Đang lưu...' : 'Lưu điểm danh'}
+            {loading ? <FrogLoading compact label="Đang lưu..." /> : 'Lưu điểm danh'}
           </button>
         </div>
       </form>

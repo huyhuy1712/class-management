@@ -14,6 +14,19 @@ backend/target/
 *.class
 *.log
 backend/uploads/
+
+# Local PDF formula runtime and model weights
+backend/formula-models/
+backend/.venv-formula/
+backend/tools/formula/node_modules/
+**/__pycache__/
+*.py[cod]
+*.onnx
+*.safetensors
+*.pt
+*.pth
+*.ckpt
+**/.private/
 # ==================================
 # Frontend - React / Node
 # ==================================
@@ -71,3 +84,4 @@ Thumbs.db
 *.sw?
 # Al local
 .github/copilot-instructions.md
+**/.private/

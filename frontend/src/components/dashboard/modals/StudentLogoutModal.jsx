@@ -1,3 +1,4 @@
+import FrogLoading from '../../../utils/FrogLoading'
 import { LogOut } from 'lucide-react'
 
 export default function StudentLogoutModal({ onClose, onConfirm, pending = false }) {
@@ -40,7 +41,7 @@ export default function StudentLogoutModal({ onClose, onConfirm, pending = false
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-600"
             >
               <LogOut size={17} />
-              {pending ? 'Đang đăng xuất...' : 'Đăng xuất'}
+              {pending ? <FrogLoading compact label="Đang đăng xuất..." /> : 'Đăng xuất'}
             </button>
           </div>
         </div>

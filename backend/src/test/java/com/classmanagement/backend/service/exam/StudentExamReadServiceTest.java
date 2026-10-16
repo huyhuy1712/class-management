@@ -14,6 +14,14 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class StudentExamReadServiceTest {
+    @Test void gradeFiltersAreValidatedAndTeacherCannotReadStudentStatistics() {
+        assertThrows(IllegalArgumentException.class,()->service().grades("student",null,null,LocalDate.of(2026,10,15),LocalDate.of(2026,10,1),null,null,"newest",0,6,true));
+        assertThrows(IllegalArgumentException.class,()->service().grades("student",0L,null,null,null,null,null,"newest",0,6,true));
+        assertThrows(IllegalArgumentException.class,()->service().grades("student",null,null,null,null,null,"IN_PROGRESS","newest",0,6,true));
+        assertTrue(calls.isEmpty());
+        role=UserRole.TEACHER;
+        assertThrows(IllegalStateException.class,()->service().grades("teacher",null,null,null,null,null,null,"newest",0,6,true));
+    }
     private final LocalDateTime now = LocalDateTime.of(2026, 10, 13, 10, 0);
     private String examStatus = "PUBLISHED", assignmentStatus = "OPEN", attemptStatus = "NOT_STARTED";
     private LocalDateTime open, close, started;

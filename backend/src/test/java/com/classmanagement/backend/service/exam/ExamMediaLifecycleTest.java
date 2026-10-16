@@ -1,5 +1,8 @@
 package com.classmanagement.backend.service.exam;
 
+import com.classmanagement.backend.service.exam.media.ExamMediaLifecycle;
+import com.classmanagement.backend.service.exam.media.ExamMediaValidator;
+
 import com.classmanagement.backend.entity.*;
 import com.classmanagement.backend.entity.enums.*;
 import com.classmanagement.backend.exception.*;

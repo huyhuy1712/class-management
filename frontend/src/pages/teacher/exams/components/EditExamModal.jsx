@@ -1,3 +1,4 @@
+import FrogLoading from '../../../../utils/FrogLoading'
 import useExamTargetOptions from '../hooks/useExamTargetOptions'
 import { Modal } from 'antd'
 import useSaveExamConfiguration from '../hooks/useSaveExamConfiguration'
@@ -34,14 +35,14 @@ function ExamConfiguration({ exam, onClose, saveState, mode }) {
       <ExamAccessSection form={editor.form} errors={editor.errors} onChange={editor.handleChange} error={editor.errors.accessType} accessType={editor.accessType} onAccessChange={editor.handleAccessChange} classes={editor.filteredClasses} classCount={options.classes.length} classesLoading={options.classesLoading} classesError={options.classesError} selectedClasses={editor.selectedClasses} classSearch={editor.classSearch} onClassSearchChange={editor.setClassSearch} onToggleClass={editor.toggleClass} students={editor.studentsInSelectedClass} selectedStudentClassId={editor.selectedStudentClassId} selectedStudents={editor.selectedStudents} studentSearch={editor.studentSearch} onStudentSearchChange={editor.setStudentSearch} onToggleStudent={editor.toggleStudent} onStudentClassChange={editor.setSelectedStudentClassId} />
     </fieldset>
     </div>
-    <div className="mt-4 flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-slate-200 bg-white pt-4"><button type="button" onClick={onClose} disabled={saving} className="rounded-xl border border-slate-200 px-4 py-2.5">Hủy</button><button type="submit" disabled={locked || saving || loading || Boolean(error) || (editor.accessType === 'ALL' && options.classes.length === 0)} className="rounded-xl bg-emerald-600 px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">{saving ? 'Đang lưu...' : newAssignment ? 'Mở đợt thi mới' : 'Lưu cấu hình'}</button></div>
+    <div className="mt-4 flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-slate-200 bg-white pt-4"><button type="button" onClick={onClose} disabled={saving} className="rounded-xl border border-slate-200 px-4 py-2.5">Hủy</button><button type="submit" disabled={locked || saving || loading || Boolean(error) || (editor.accessType === 'ALL' && options.classes.length === 0)} className="rounded-xl bg-emerald-600 px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">{saving ? <FrogLoading compact label="Đang lưu..." /> : newAssignment ? 'Mở đợt thi mới' : 'Lưu cấu hình'}</button></div>
   </form>
 }
 
 function LoadedConfiguration({ exam, onClose, saveState, mode }) {
   const { data, loading, error, retry } = useExamResource(exam.id, 'configuration')
   const [assignmentId, setAssignmentId] = useState('')
-  if (loading) return <p role="status" className="p-6">Đang tải cấu hình đề thi...</p>
+  if (loading) return <FrogLoading label="Đang tải cấu hình đề thi..." className="p-6" />
   if (error) return <div className="p-6"><p role="alert" className="text-red-600">{error}</p><button type="button" onClick={retry} className="mt-3 text-emerald-700">Thử lại</button></div>
   const assignments = data.assignments ?? []
   const assignment = assignments.find((item) => String(item.id) === assignmentId) ?? assignments[0]

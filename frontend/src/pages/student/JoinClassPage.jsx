@@ -1,3 +1,4 @@
+import FrogLoading from '../../utils/FrogLoading'
 import { useMutation } from '@tanstack/react-query'
 import useResourceQuery from '../../query/useResourceQuery'
 import { sortByText } from '../../utils/sortByText'
@@ -241,9 +242,7 @@ function JoinClassPage() {
                 </p>
               )}
               {teachersLoading && (
-                <p className="mt-4 text-sm text-gray-500">
-                  Đang tìm giáo viên...
-                </p>
+                <FrogLoading label="Đang tìm giáo viên..." />
               )}
               {!teachersLoading && teacherSearchTerm.trim() && (
                 <div className="relative mt-5 max-w-2xl space-y-2">
@@ -267,7 +266,7 @@ function JoinClassPage() {
 
             {classCodeSearch.trim() && <section className="mt-6 rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
               <h2 className="mb-4 font-bold text-[#102d22]">Lớp học theo mã</h2>
-              {classesError ? <p role="alert" className="text-sm text-red-600">{classesError}</p> : loading ? <p role="status" className="text-sm text-slate-500">Đang tìm lớp học...</p>
+              {classesError ? <p role="alert" className="text-sm text-red-600">{classesError}</p> : loading ? <FrogLoading label="Đang tìm lớp học..." />
                 : matchingCodeClasses.length ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{matchingCodeClasses.map((classroom) => <StudentClassCard key={classroom.id} classroom={classroom} isJoined={joinedClassIds.includes(String(classroom.id))} onView={handleSelectClass} />)}</div>
                   : <p className="text-sm text-slate-500">Không tìm thấy lớp đang hoạt động với mã này.</p>}
             </section>}
@@ -292,7 +291,7 @@ function JoinClassPage() {
                     {classesError}
                   </p>
                 ) : loading ? (
-                  <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Đang tải lớp học...</p>
+                  <FrogLoading label="Đang tải lớp học..." className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600" />
                 ) : selectedTeacherClasses.length ? (
                   <div className="grid gap-3 sm:grid-cols-2">
                     {sortByText(selectedTeacherClasses, (item) => item.name).map((classroom) => (
@@ -358,7 +357,7 @@ function JoinClassPage() {
               <h2 className="font-semibold text-[#102d22]">Danh sách lớp học</h2>
               <p className="mt-1 text-xs text-gray-500">
                 {loading
-                  ? "Đang tải lớp học..."
+                  ? <FrogLoading compact label="Đang tải lớp học..." />
                   : <>Hiển thị <span className="font-semibold text-[#18301D]">{visibleClasses.length}</span> / {classes.length} lớp</>}
               </p>
             </div>
@@ -373,9 +372,7 @@ function JoinClassPage() {
               {classesError}
             </div>
           ) : loading ? (
-            <div className="rounded-2xl border border-[#dcefe3] bg-white py-16 text-center text-sm text-gray-500">
-              Đang tải danh sách lớp học...
-            </div>
+            <FrogLoading label="Đang tải danh sách lớp học..." className="rounded-2xl border border-[#dcefe3] bg-white py-16 text-center text-sm text-gray-500" />
           ) : visibleClasses.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-[#b9dfc8] bg-white py-14 text-center">
               <BookOpen className="mx-auto text-[#159447]" size={28} />
@@ -533,7 +530,7 @@ function JoinClassPage() {
                       className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#159447] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-[#117c3b] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <Send size={17} />
-                      {sendingRequest ? "Đang gửi..." : "Gửi yêu cầu vào lớp"}
+                      {sendingRequest ? <FrogLoading compact label="Đang gửi..." /> : "Gửi yêu cầu vào lớp"}
                     </button>
                   </form>
                 )}

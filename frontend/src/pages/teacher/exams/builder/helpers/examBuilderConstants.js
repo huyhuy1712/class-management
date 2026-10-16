@@ -5,6 +5,8 @@ export const ANSWER_TYPES = [
   { value: 'TEXT', label: 'Văn bản' },
 ]
 
+export const DEFAULT_CHOICE_ANSWER_COUNT = 4
+
 export const createSection = (index) => ({
   id: crypto.randomUUID(), title: `Phần ${index + 1}`, paragraph: '', imageFile: null, audioFile: null,
   orderIndex: index + 1, questions: [],

@@ -37,7 +37,7 @@ public class AnswerOption {
     @Column(name = "is_correct", nullable = false)
     private Boolean correct;
 
-    @Column(nullable = false, precision = 6, scale = 2)
+    @Column(nullable = false, precision = 7, scale = 3)
     private BigDecimal points;
 
     @Column(name = "order_index", nullable = false)
