@@ -84,6 +84,10 @@ public class SecurityConfig {
 
                         // Admin API
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        // Public APIs (Tra cứu học sinh không cần đăng nhập)
+                        .requestMatchers(
+                                "/api/public/**")
+                        .permitAll()
 
                         // TẤT CẢ API CÒN LẠI PHẢI LOGIN
                         .anyRequest().authenticated())
