@@ -1,6 +1,7 @@
 package com.classmanagement.backend.security;
 
 import java.io.IOException;
+import java.util.Date;
 
 import com.classmanagement.backend.service.ImpersonationService;
 import io.jsonwebtoken.JwtException;
@@ -65,15 +66,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                 } else if (sessionId != null) {
                                         throw new BadCredentialsException(
                                                         "Impersonation claim requires impersonation cookie");
-                                } else if (role == null || role.isBlank()) {
-                                        // Support tokens issued before the role claim was added.
-                                        userDetails = userDetailsService.loadUserByUsername(username);
                                 } else {
-                                        userDetails = org.springframework.security.core.userdetails.User
-                                                        .withUsername(username)
-                                                        .authorities(role)
-                                                        .password("")
-                                                        .build();
+                                        userDetails = userDetailsService.loadUserByUsername(username);
+                                }
+
+                                if (!userDetails.isEnabled()) {
+                                        throw new BadCredentialsException("User account is blocked");
                                 }
 
                                 if (jwtService.isTokenValid(token, userDetails)) {
@@ -84,6 +82,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                         if (impersonationSessionId != null) {
                                                 authentication.setDetails(new ImpersonationAuthenticationDetails(
                                                                 impersonationSessionId));
+                                        } else {
+                                                Date issuedAt = jwtService.extractIssuedAt(token);
+                                                if (issuedAt != null) {
+                                                        authentication.setDetails(new UserAuthenticationDetails(
+                                                                        issuedAt.toInstant()));
+                                                }
                                         }
                                         SecurityContextHolder.getContext().setAuthentication(authentication);
                                 }

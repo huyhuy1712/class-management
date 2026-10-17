@@ -10,6 +10,7 @@ import com.classmanagement.backend.repository.ImpersonationSessionRepository;
 import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.security.ImpersonationAuthenticationDetails;
 import com.classmanagement.backend.security.JwtService;
+import com.classmanagement.backend.security.UserAuthenticationDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -89,6 +90,21 @@ public class ImpersonationService {
                 && authentication.getDetails() instanceof ImpersonationAuthenticationDetails details) {
             end(details.sessionId(), endReason);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public boolean wasUserSessionDisplaced(Authentication authentication) {
+        if (authentication == null
+                || !(authentication.getDetails() instanceof UserAuthenticationDetails details)) {
+            return false;
+        }
+
+        return userRepository.findByUsername(authentication.getName())
+                .filter(user -> user.getRole() == UserRole.STUDENT || user.getRole() == UserRole.TEACHER)
+                .map(user -> sessionRepository.existsByTargetUserIdAndStartedAtAfter(
+                        user.getId(),
+                        details.tokenIssuedAt()))
+                .orElse(false);
     }
 
     private UserResponse toResponse(User user) {

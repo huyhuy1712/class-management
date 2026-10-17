@@ -15,6 +15,7 @@ function LoginPage() {
   const signupResult = location.state?.signupSuccess
     ? location.state
     : null
+  const sessionNotice = location.state?.sessionNotice
 
   const [form, setForm] = useState({
     username: '',
@@ -205,6 +206,12 @@ function LoginPage() {
                   <strong>{signupResult.signupCode}</strong>
                 </p>
               )}
+            </div>
+          )}
+
+          {sessionNotice && (
+            <div role="alert" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+              {sessionNotice}
             </div>
           )}
 

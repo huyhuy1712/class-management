@@ -66,16 +66,8 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(Authentication authentication) {
         impersonationService.endCurrentSession(authentication, "LOGOUT");
-        ResponseCookie accessCookie = ResponseCookie.from("access_token", "")
-                .httpOnly(true)
-                .secure(cookieSecure)
-                .sameSite(cookieSameSite)
-                .path("/")
-                .maxAge(Duration.ZERO)
-                .build();
-
         return ResponseEntity.noContent()
-                .header("Set-Cookie", accessCookie.toString())
+                .header("Set-Cookie", clearAccessCookie().toString())
                 .header("Set-Cookie", clearImpersonationCookie().toString())
                 .build();
     }
@@ -85,6 +77,26 @@ public class AuthController {
         impersonationService.endCurrentSession(authentication, "STOPPED");
         return ResponseEntity.noContent()
                 .header("Set-Cookie", clearImpersonationCookie().toString())
+                .build();
+    }
+
+    @GetMapping("/impersonation/status")
+    public ResponseEntity<Boolean> impersonationStatus(Authentication authentication) {
+        boolean displaced = impersonationService.wasUserSessionDisplaced(authentication);
+        ResponseEntity.BodyBuilder response = ResponseEntity.ok();
+        if (displaced) {
+            response.header("Set-Cookie", clearAccessCookie().toString());
+        }
+        return response.body(displaced);
+    }
+
+    private ResponseCookie clearAccessCookie() {
+        return ResponseCookie.from("access_token", "")
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
+                .path("/")
+                .maxAge(Duration.ZERO)
                 .build();
     }
 

@@ -4,6 +4,7 @@ import com.classmanagement.backend.dto.user.AdminUserRequest;
 import com.classmanagement.backend.dto.user.UserResponse;
 import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.entity.enums.UserRole;
+import com.classmanagement.backend.entity.enums.UserStatus;
 import com.classmanagement.backend.exception.ResourceNotFoundException;
 import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.service.StorageService;
@@ -84,6 +85,31 @@ public class AdminUserService {
         }
 
         assignRoleCode(user, request.getRole(), previousRole);
+        return toResponse(userRepository.save(user));
+    }
+
+    @Transactional
+    public UserResponse approveUser(Long userId) {
+        User user = findUser(userId);
+        if (user.getStatus() != UserStatus.PENDING) {
+            throw new IllegalStateException("Chỉ có thể duyệt tài khoản đang chờ duyệt");
+        }
+
+        user.setStatus(UserStatus.ACTIVE);
+        return toResponse(userRepository.save(user));
+    }
+
+    @Transactional
+    public UserResponse setBlocked(Long userId, boolean blocked) {
+        User user = findUser(userId);
+        if (blocked) {
+            user.setStatus(UserStatus.BANNED);
+        } else {
+            if (user.getStatus() != UserStatus.BANNED) {
+                throw new IllegalStateException("Tài khoản này không bị khóa");
+            }
+            user.setStatus(UserStatus.ACTIVE);
+        }
         return toResponse(userRepository.save(user));
     }
 

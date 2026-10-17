@@ -20,6 +20,8 @@ class ClassGradebookTest {
         @Override public <T> List<T> query(String sql,SqlParameterSource p,RowMapper<T> mapper) {
             queries.add(sql);
             if(sql.startsWith("select u.id,u.student_code")) {
+                assertTrue(sql.contains("order by lower(u.full_name),u.id limit :limit offset :offset"));
+                assertFalse(sql.contains("grade_average"));
                 assertEquals("%a!%!_!!%",p.getValue("pattern"));
                 if(empty) return List.of();
                 return List.of(map(mapper,new Object[]{21L,"ST-21","Student","mail","phone",null,null}));

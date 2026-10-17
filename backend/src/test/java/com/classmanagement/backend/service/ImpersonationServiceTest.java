@@ -6,6 +6,7 @@ import com.classmanagement.backend.entity.enums.UserRole;
 import com.classmanagement.backend.entity.enums.UserStatus;
 import com.classmanagement.backend.repository.ImpersonationSessionRepository;
 import com.classmanagement.backend.repository.UserRepository;
+import com.classmanagement.backend.security.UserAuthenticationDetails;
 import com.classmanagement.backend.security.JwtService;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -17,7 +18,9 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ImpersonationServiceTest {
 
@@ -101,6 +104,42 @@ class ImpersonationServiceTest {
                 7L,
                 "student",
                 "ROLE_STUDENT"));
+    }
+
+    @Test
+    void impersonationDisplacesOnlySessionsIssuedBeforeItStarted() {
+        Instant impersonationStartedAt = Instant.parse("2026-10-17T04:00:00Z");
+        User target = user(2L, "student", UserRole.STUDENT, UserStatus.ACTIVE);
+        ImpersonationSessionRepository sessions = proxy(
+                ImpersonationSessionRepository.class,
+                (method, args) -> {
+                    if ("existsByTargetUserIdAndStartedAtAfter".equals(method)) {
+                        return impersonationStartedAt.isAfter((Instant) args[1]);
+                    }
+                    throw new UnsupportedOperationException(method);
+                });
+        ImpersonationService service = new ImpersonationService(
+                proxy(UserRepository.class, (method, args) -> {
+                    if ("findByUsername".equals(method)) {
+                        return Optional.of(target);
+                    }
+                    throw new UnsupportedOperationException(method);
+                }),
+                sessions,
+                new JwtService(),
+                proxy(StorageService.class, (method, args) -> null));
+
+        UsernamePasswordAuthenticationToken displacedSession =
+                new UsernamePasswordAuthenticationToken("student", null, List.of());
+        displacedSession.setDetails(new UserAuthenticationDetails(
+                impersonationStartedAt.minusSeconds(60)));
+        UsernamePasswordAuthenticationToken subsequentLogin =
+                new UsernamePasswordAuthenticationToken("student", null, List.of());
+        subsequentLogin.setDetails(new UserAuthenticationDetails(
+                impersonationStartedAt.plusSeconds(60)));
+
+        assertTrue(service.wasUserSessionDisplaced(displacedSession));
+        assertFalse(service.wasUserSessionDisplaced(subsequentLogin));
     }
 
     private static UserRepository userRepository(User admin, User target) {

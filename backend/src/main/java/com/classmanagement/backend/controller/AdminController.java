@@ -27,11 +27,11 @@ public class AdminController {
     @GetMapping("/dashboard")
     public ResponseEntity<AdminDashboardResponse> getDashboard() {
         return ResponseEntity.ok(AdminDashboardResponse.builder()
-                .totalUsers(userRepository.count())
+                .totalUsers(userRepository.countByRoleNot(UserRole.ADMIN))
                 .studentCount(userRepository.countByRole(UserRole.STUDENT))
                 .teacherCount(userRepository.countByRole(UserRole.TEACHER))
-                .pendingCount(userRepository.countByStatus(UserStatus.PENDING))
-                .bannedCount(userRepository.countByStatus(UserStatus.BANNED))
+                .pendingCount(userRepository.countByRoleNotAndStatus(UserRole.ADMIN, UserStatus.PENDING))
+                .bannedCount(userRepository.countByRoleNotAndStatus(UserRole.ADMIN, UserStatus.BANNED))
                 .build());
     }
 
@@ -53,6 +53,21 @@ public class AdminController {
             @PathVariable Long userId,
             @Valid @RequestBody AdminUserRequest request) {
         return ResponseEntity.ok(adminUserService.updateUser(userId, request));
+    }
+
+    @PatchMapping("/users/{userId}/approve")
+    public ResponseEntity<UserResponse> approveUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(adminUserService.approveUser(userId));
+    }
+
+    @PatchMapping("/users/{userId}/block")
+    public ResponseEntity<UserResponse> blockUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(adminUserService.setBlocked(userId, true));
+    }
+
+    @PatchMapping("/users/{userId}/unblock")
+    public ResponseEntity<UserResponse> unblockUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(adminUserService.setBlocked(userId, false));
     }
 
     @DeleteMapping("/users/{userId}")

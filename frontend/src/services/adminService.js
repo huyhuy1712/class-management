@@ -30,6 +30,21 @@ const adminService = {
     return { ...response.data, name: response.data.fullName }
   },
 
+  approveUser: async (userId) => {
+    const response = await api.patch(`/admin/users/${userId}/approve`)
+    return { ...response.data, name: response.data.fullName }
+  },
+
+  blockUser: async (userId) => {
+    const response = await api.patch(`/admin/users/${userId}/block`)
+    return { ...response.data, name: response.data.fullName }
+  },
+
+  unblockUser: async (userId) => {
+    const response = await api.patch(`/admin/users/${userId}/unblock`)
+    return { ...response.data, name: response.data.fullName }
+  },
+
   deleteUser: async (userId) => {
     await api.delete(`/admin/users/${userId}`)
   },

@@ -1,32 +1,33 @@
 import { useMutation } from "@tanstack/react-query";
-import { LogOut } from "lucide-react";
+import { BookOpen, House, LogOut, Users } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { logout as logoutRequest } from "../../services/authService";
 import useAuthStore from "../../stores/authStore";
+import logo from "../../assets/logos/logo.png";
 
 const menuItems = [
   {
     path: "/admin",
     label: "Tổng quan",
-    icon: "⌂",
+    icon: House,
     end: true,
   },
   {
     path: "/admin/users",
     label: "Quản lý tài khoản",
-    icon: "♙",
+    icon: Users,
     end: false,
   },
   {
     path: "/admin/subjects",
     label: "Quản lý môn học",
-    icon: "◇",
+    icon: BookOpen,
     end: false,
   },
 ];
 
-export default function AdminSidebar() {
+export default function AdminSidebar({ isOpen, onClose }) {
   const navigate = useNavigate();
   const logout = useAuthStore((state) => state.logout);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -44,45 +45,66 @@ export default function AdminSidebar() {
   }
 
   return (
-    <aside className="admin-sidebar">
-      <div className="admin-sidebar__brand">
-        <div className="admin-sidebar__logo">A</div>
-        <div>
-          <h2>ClassManager</h2>
-          <span>ADMIN PANEL</span>
-        </div>
-      </div>
+    <>
+      <button
+        type="button"
+        aria-label="Đóng menu"
+        onClick={onClose}
+        className={`admin-sidebar-overlay ${isOpen ? "is-open" : ""}`}
+      />
 
-      <div className="admin-sidebar__section">QUẢN LÝ HỆ THỐNG</div>
-
-      <nav className="admin-sidebar__nav">
-        {menuItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            end={item.end}
-            className={({ isActive }) =>
-              `admin-sidebar__link ${isActive ? "active" : ""}`
-            }
-          >
-            <span className="admin-sidebar__icon">{item.icon}</span>
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
-      </nav>
-
-      <div className="admin-sidebar__footer">        
-        <button
-          type="button"
-          className="admin-sidebar__logout"
-          onClick={() => setShowLogoutModal(true)}
-          aria-label="Đăng xuất"
-          title="Đăng xuất"
+      <aside className={`admin-sidebar ${isOpen ? "admin-sidebar--open" : ""}`}>
+        <NavLink
+          to="/admin"
+          onClick={onClose}
+          aria-label="Về tổng quan quản trị"
+          className="admin-sidebar__brand"
         >
-          <LogOut size={19} />
-          <span>Đăng xuất</span>
-        </button>
-      </div>
+          <div className="admin-sidebar__logo">
+            <img src={logo} alt="" />
+          </div>
+          <div>
+            <h2>FrogH</h2>
+            <span>ADMIN PANEL</span>
+          </div>
+        </NavLink>
+
+        <div className="admin-sidebar__section">QUẢN LÝ HỆ THỐNG</div>
+
+        <nav className="admin-sidebar__nav" aria-label="Điều hướng quản trị">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                end={item.end}
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `admin-sidebar__link ${isActive ? "active" : ""}`
+                }
+              >
+                <Icon className="admin-sidebar__icon" size={20} strokeWidth={1.8} />
+                <span>{item.label}</span>
+              </NavLink>
+            );
+          })}
+        </nav>
+
+        <div className="admin-sidebar__footer">
+          <button
+            type="button"
+            className="admin-sidebar__logout"
+            onClick={() => setShowLogoutModal(true)}
+            aria-label="Đăng xuất"
+            title="Đăng xuất"
+          >
+            <LogOut size={19} />
+            <span>Đăng xuất</span>
+          </button>
+        </div>
+      </aside>
 
       {showLogoutModal && (
         <div
@@ -128,6 +150,6 @@ export default function AdminSidebar() {
           </section>
         </div>
       )}
-    </aside>
+    </>
   );
 }

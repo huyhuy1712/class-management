@@ -17,3 +17,8 @@ export const logout = async () => {
 export const stopImpersonation = async () => {
   await api.post('/auth/impersonation/stop')
 }
+
+export const checkImpersonationStatus = async () => {
+  const response = await api.get('/auth/impersonation/status')
+  return response.data === true
+}

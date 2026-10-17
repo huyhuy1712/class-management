@@ -7,6 +7,7 @@ import com.classmanagement.backend.dto.auth.SignupResponse;
 import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.entity.enums.UserRole;
 import com.classmanagement.backend.entity.enums.UserStatus;
+import com.classmanagement.backend.repository.ImpersonationSessionRepository;
 import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.security.JwtService;
 import com.classmanagement.backend.service.AuthService;
@@ -19,11 +20,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
+    private final ImpersonationSessionRepository impersonationSessionRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final StorageService storageService;
@@ -182,7 +186,16 @@ public LoginResponse login(LoginRequest request) {
 
     if (user.getStatus() == UserStatus.BANNED) {
         throw new IllegalStateException(
-                "Tài khoản của bạn đã bị khóa"
+                "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên để được mở lại."
+        );
+    }
+
+    if ((user.getRole() == UserRole.STUDENT || user.getRole() == UserRole.TEACHER)
+            && impersonationSessionRepository.existsByTargetUserIdAndEndedAtIsNullAndExpiresAtAfter(
+                    user.getId(),
+                    Instant.now())) {
+        throw new IllegalStateException(
+                "Quản trị viên đang truy cập tài khoản của bạn. Vui lòng thử lại sau khi phiên truy cập kết thúc."
         );
     }
 

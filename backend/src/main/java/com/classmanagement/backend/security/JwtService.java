@@ -89,6 +89,10 @@ public class JwtService {
         return extractClaim(token, claims -> claims.get("impersonation_session_id", String.class));
     }
 
+    public Date extractIssuedAt(String token) {
+        return extractClaim(token, Claims::getIssuedAt);
+    }
+
     private boolean isTokenExpired(String token) {
         return extractExpiration(token)
                 .before(new Date());

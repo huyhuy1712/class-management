@@ -1,4 +1,5 @@
 import { Flag } from 'lucide-react'
+import MathContentInput from '../../../teacher/exams/builder/components/math/MathContentInput'
 import MathRenderer from '../../../teacher/exams/builder/components/math/MathRenderer'
 import ExamMedia from './ExamMedia'
 
@@ -17,8 +18,8 @@ export default function StudentQuestionCard({ question, number, value, flagged, 
       })}
       {question.optionRecords?.map((option, index) => (option.imageMedia || option.audioMedia) && <div key={option.id} className="pl-8"><p className="text-xs text-slate-500">Đáp án {String.fromCharCode(65 + index)}</p><ExamMedia {...option} /></div>)}
       {question.type === 'TRUE_FALSE' && question.statements.map((statement, index) => <div key={index} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"><p className="min-w-0 flex-1 text-sm">{String.fromCharCode(97 + index)}. <MathRenderer content={statement} /></p><div className="flex gap-3">{[true, false].map((choice) => <label key={String(choice)} className="flex items-center gap-1.5 text-sm"><input type="radio" name={`${question.id}-${index}`} checked={value?.[index] === choice} onChange={() => onChange({ ...value, [index]: choice })} className="accent-green-600" />{choice ? 'Đúng' : 'Sai'}</label>)}</div></div>)}
-      {question.type === 'SHORT' && <input aria-label={`Đáp án câu ${number}`} value={value ?? ''} onChange={(event) => onChange(event.target.value)} maxLength={20000} placeholder="Nhập đáp án của bạn..." className="w-full rounded-xl border border-slate-200 p-3 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" />}
-      {question.type === 'ESSAY' && <><textarea aria-label={`Bài viết câu ${number}`} value={value ?? ''} onChange={(event) => onChange(event.target.value)} rows={6} maxLength={10000} placeholder="Viết câu trả lời tại đây..." className="w-full resize-y rounded-xl border border-slate-200 p-3 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" /><p className="text-right text-xs text-slate-400">{value?.length ?? 0}/10000 ký tự</p></>}
+      {question.type === 'SHORT' && <MathContentInput ariaLabel={`Đáp án câu ${number}`} value={value ?? ''} onChange={onChange} rows={1} maxLength={20000} readOnly={locked} placeholder="Nhập đáp án của bạn..." />}
+      {question.type === 'ESSAY' && <><MathContentInput ariaLabel={`Bài viết câu ${number}`} value={value ?? ''} onChange={onChange} rows={6} maxLength={10000} readOnly={locked} placeholder="Viết câu trả lời tại đây..." /><p className="text-right text-xs text-slate-400">{value?.length ?? 0}/10000 ký tự</p></>}
     </fieldset>
   </article>
 }

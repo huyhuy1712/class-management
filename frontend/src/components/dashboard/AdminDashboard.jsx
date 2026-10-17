@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { GraduationCap, Presentation, UsersRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import adminService from '../../services/adminService'
 
@@ -6,6 +7,10 @@ export default function AdminDashboard() {
   const { data, isPending, error } = useQuery({
     queryKey: ['adminDashboard'],
     queryFn: adminService.getDashboard,
+    staleTime: 0,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   })
 
   return (
@@ -30,21 +35,21 @@ export default function AdminDashboard() {
 
       <div className="admin-stats">
         <div className="admin-stat-card">
-          <div className="admin-stat-card__icon blue">♙</div>
+          <div className="admin-stat-card__icon blue"><UsersRound size={21} strokeWidth={1.8} /></div>
           <span>Tổng tài khoản</span>
           <strong>{isPending ? '...' : data?.totalUsers ?? '-'}</strong>
           <small>Toàn bộ tài khoản trong hệ thống</small>
         </div>
 
         <div className="admin-stat-card">
-          <div className="admin-stat-card__icon purple">♧</div>
+          <div className="admin-stat-card__icon purple"><GraduationCap size={21} strokeWidth={1.8} /></div>
           <span>Học sinh</span>
           <strong>{isPending ? '...' : data?.studentCount ?? '-'}</strong>
           <small>Tài khoản học sinh</small>
         </div>
 
         <div className="admin-stat-card">
-          <div className="admin-stat-card__icon orange">♙</div>
+          <div className="admin-stat-card__icon orange"><Presentation size={21} strokeWidth={1.8} /></div>
           <span>Giáo viên</span>
           <strong>{isPending ? '...' : data?.teacherCount ?? '-'}</strong>
           <small>Tài khoản giáo viên</small>

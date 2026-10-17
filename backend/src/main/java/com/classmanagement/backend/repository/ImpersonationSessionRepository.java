@@ -11,4 +11,8 @@ public interface ImpersonationSessionRepository extends JpaRepository<Impersonat
     Optional<ImpersonationSession> findByIdAndEndedAtIsNullAndExpiresAtAfter(
             Long id,
             Instant now);
+
+    boolean existsByTargetUserIdAndStartedAtAfter(Long targetUserId, Instant startedAt);
+
+    boolean existsByTargetUserIdAndEndedAtIsNullAndExpiresAtAfter(Long targetUserId, Instant now);
 }

@@ -29,6 +29,9 @@ import {
   User,
   Mail,
   Phone,
+  Leaf,
+  Sprout,
+  Trees,
 } from 'lucide-react'
 // @ts-ignore
 import logo from '../../assets/logos/logo.png'
@@ -273,7 +276,17 @@ function LandingPage() {
       : '100%'
 
   return (
-    <div id="top" className="min-h-screen bg-[#F8FAF9] text-[#0F3822] selection:bg-[#D8F3DC] selection:text-[#0F3822]">
+    <div id="top" className="relative isolate min-h-screen bg-[#F5FAF4] text-[#0F3822] selection:bg-[#D8F3DC] selection:text-[#0F3822]">
+      <div aria-hidden="true" className="login-scene pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[#F5FAF4]">
+        <div className="login-canopy login-canopy-top" />
+        <div className="login-canopy login-canopy-bottom" />
+        <Leaf className="login-float login-leaf-one" strokeWidth={1.3} />
+        <Sprout className="login-float login-sprout" strokeWidth={1.3} />
+        <Trees className="login-float login-trees" strokeWidth={1.2} />
+        <BookOpen className="login-float login-book" strokeWidth={1.3} />
+        <GraduationCap className="login-float login-cap" strokeWidth={1.3} />
+        <Leaf className="login-float login-leaf-two" strokeWidth={1.3} />
+      </div>
       {/* 1. HEADER (Top Navigation) */}
       <header className="sticky top-0 z-40 border-b border-emerald-900/10 bg-white/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6 lg:px-8">
@@ -862,15 +875,6 @@ function LandingPage() {
                         <h4 className="mt-0.5 text-xl font-bold text-[#0F3822]">
                           {selectedClass.name}
                         </h4>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <div className="rounded-xl bg-[#F8FAF9] px-4 py-2 text-right ring-1 ring-emerald-900/10">
-                          <span className="block text-xs font-medium text-gray-500">Mã lớp học phần</span>
-                          <span className="text-base font-extrabold text-[#0F3822]">
-                            {selectedClass.code}
-                          </span>
-                        </div>
                       </div>
                     </div>
 

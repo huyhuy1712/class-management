@@ -1,6 +1,7 @@
 package com.classmanagement.backend.security;
 
 import com.classmanagement.backend.entity.User;
+import com.classmanagement.backend.entity.enums.UserStatus;
 import com.classmanagement.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -27,6 +28,7 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .withUsername(user.getUsername())
                 .password(user.getPasswordHash())
                 .authorities("ROLE_" + user.getRole().name())
+                .disabled(user.getStatus() == UserStatus.BANNED)
                 .build();
     }
 }

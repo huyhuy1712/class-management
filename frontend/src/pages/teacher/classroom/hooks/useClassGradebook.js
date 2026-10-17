@@ -7,7 +7,7 @@ import { resourceKey } from '../../../../query/queryKeys'
 export default function useClassGradebook(classId, filters) {
   const [search, setSearch] = useState(filters.q)
   useEffect(() => { const timer = setTimeout(() => setSearch(filters.q), 300); return () => clearTimeout(timer) }, [filters.q])
-  const params = [classId, filters.page, search, filters.subjectId]
+  const params = [classId, filters.page, search, '']
   const query = useResourceQuery('classGradebook', params)
   const client = useQueryClient()
   const prefetchNext = () => {
