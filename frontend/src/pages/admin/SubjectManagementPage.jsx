@@ -3,6 +3,7 @@ import AdminSubjectFormModal from './components/subjects/AdminSubjectFormModal'
 import AdminSubjectStats from './components/subjects/AdminSubjectStats'
 import AdminSubjectTable from './components/subjects/AdminSubjectTable'
 import useAdminSubjectManagement from './hooks/useAdminSubjectManagement'
+import FrogLoading from '../../utils/FrogLoading'
 
 export default function SubjectManagementPage() {
   const management = useAdminSubjectManagement()
@@ -35,7 +36,9 @@ export default function SubjectManagementPage() {
             <p>Tìm kiếm theo tên, mã hoặc mô tả môn học.</p>
           </div>
           <span className="admin-result-count">
-            {management.isPending ? 'Đang tải...' : `${management.filteredSubjects.length} môn học`}
+            {management.isPending
+              ? <FrogLoading compact label="Đang tải môn học..." />
+              : `${management.filteredSubjects.length} môn học`}
           </span>
         </div>
 

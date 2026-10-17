@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { GraduationCap, Presentation, UsersRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import adminService from '../../services/adminService'
+import FrogLoading from '../../utils/FrogLoading'
 
 export default function AdminDashboard() {
   const { data, isPending, error } = useQuery({
@@ -37,21 +38,21 @@ export default function AdminDashboard() {
         <div className="admin-stat-card">
           <div className="admin-stat-card__icon blue"><UsersRound size={21} strokeWidth={1.8} /></div>
           <span>Tổng tài khoản</span>
-          <strong>{isPending ? '...' : data?.totalUsers ?? '-'}</strong>
+          <strong>{isPending ? <FrogLoading compact label="" /> : data?.totalUsers ?? '-'}</strong>
           <small>Toàn bộ tài khoản trong hệ thống</small>
         </div>
 
         <div className="admin-stat-card">
           <div className="admin-stat-card__icon purple"><GraduationCap size={21} strokeWidth={1.8} /></div>
           <span>Học sinh</span>
-          <strong>{isPending ? '...' : data?.studentCount ?? '-'}</strong>
+          <strong>{isPending ? <FrogLoading compact label="" /> : data?.studentCount ?? '-'}</strong>
           <small>Tài khoản học sinh</small>
         </div>
 
         <div className="admin-stat-card">
           <div className="admin-stat-card__icon orange"><Presentation size={21} strokeWidth={1.8} /></div>
           <span>Giáo viên</span>
-          <strong>{isPending ? '...' : data?.teacherCount ?? '-'}</strong>
+          <strong>{isPending ? <FrogLoading compact label="" /> : data?.teacherCount ?? '-'}</strong>
           <small>Tài khoản giáo viên</small>
         </div>
       </div>
@@ -75,15 +76,19 @@ export default function AdminDashboard() {
             </>
           ) : (
             <>
-              <h3>{isPending ? 'Đang tải dữ liệu...' : 'Tổng quan trạng thái'}</h3>
-              <p>
-                {isPending
-                  ? 'Đang đọc dữ liệu tài khoản từ hệ thống.'
-                  : `Đang chờ duyệt: ${data?.pendingCount ?? 0} · Đã khóa: ${data?.bannedCount ?? 0}`}
-              </p>
-              <Link to="/admin/users" className="admin-primary-btn">
-                Mở danh sách tài khoản
-              </Link>
+              {isPending ? (
+                <FrogLoading label="Đang tải dữ liệu tài khoản..." />
+              ) : (
+                <>
+                  <h3>Tổng quan trạng thái</h3>
+                  <p>
+                    Đang chờ duyệt: {data?.pendingCount ?? 0} · Đã khóa: {data?.bannedCount ?? 0}
+                  </p>
+                  <Link to="/admin/users" className="admin-primary-btn">
+                    Mở danh sách tài khoản
+                  </Link>
+                </>
+              )}
             </>
           )}
         </div>

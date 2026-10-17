@@ -1,3 +1,5 @@
+import FrogLoading from '../../../../utils/FrogLoading'
+
 export default function AdminSubjectFormModal({
   mode,
   form,
@@ -55,7 +57,11 @@ export default function AdminSubjectFormModal({
           <div className="admin-modal__footer">
             <button type="button" className="admin-secondary-btn" onClick={onClose}>Hủy</button>
             <button type="submit" className="admin-primary-btn" disabled={saving}>
-              {saving ? 'Đang lưu...' : mode === 'create' ? '＋ Tạo môn học' : 'Lưu thay đổi'}
+              {saving
+                ? <FrogLoading compact label="Đang lưu..." />
+                : mode === 'create'
+                  ? '＋ Tạo môn học'
+                  : 'Lưu thay đổi'}
             </button>
           </div>
         </form>

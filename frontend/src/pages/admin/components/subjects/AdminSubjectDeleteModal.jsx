@@ -1,3 +1,5 @@
+import FrogLoading from '../../../../utils/FrogLoading'
+
 export default function AdminSubjectDeleteModal({ subject, isPending, onClose, onConfirm }) {
   if (!subject) return null
 
@@ -30,7 +32,7 @@ export default function AdminSubjectDeleteModal({ subject, isPending, onClose, o
         <div className="admin-modal__footer">
           <button type="button" className="admin-secondary-btn" onClick={onClose} disabled={isPending}>Hủy</button>
           <button type="button" className="admin-danger-btn" onClick={onConfirm} disabled={isPending}>
-            {isPending ? 'Đang xóa...' : 'Xóa môn học'}
+            {isPending ? <FrogLoading compact label="Đang xóa..." /> : 'Xóa môn học'}
           </button>
         </div>
       </section>

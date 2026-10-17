@@ -1,4 +1,5 @@
 import { Pencil, Trash2 } from 'lucide-react'
+import FrogLoading from '../../../../utils/FrogLoading'
 
 export default function AdminSubjectTable({
   subjects,
@@ -21,7 +22,13 @@ export default function AdminSubjectTable({
           </tr>
         </thead>
         <tbody>
-          {isPending && <tr><td colSpan={4}>Đang tải dữ liệu môn học...</td></tr>}
+          {isPending && (
+            <tr>
+              <td colSpan={4}>
+                <FrogLoading label="Đang tải danh sách môn học..." />
+              </td>
+            </tr>
+          )}
           {!isPending && subjects.map((subject) => (
             <tr key={subject.id}>
               <td><strong>{subject.name}</strong></td>

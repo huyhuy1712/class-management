@@ -1,4 +1,5 @@
 import defaultAvatar from '../../../../assets/images/avatar_default.png'
+import FrogLoading from '../../../../utils/FrogLoading'
 import { statusLabels } from '../../helpers/userManagementHelpers'
 
 export default function AdminUserModal({
@@ -121,7 +122,11 @@ export default function AdminUserModal({
             </button>
             {mode !== 'view' && (
               <button type="submit" className="admin-primary-btn" disabled={saving}>
-                {saving ? 'Đang lưu...' : mode === 'create' ? '＋ Tạo tài khoản' : 'Lưu thay đổi'}
+                {saving
+                  ? <FrogLoading compact label="Đang lưu..." />
+                  : mode === 'create'
+                    ? '＋ Tạo tài khoản'
+                    : 'Lưu thay đổi'}
               </button>
             )}
           </div>

@@ -5,6 +5,7 @@ import AdminUserStats from './components/users/AdminUserStats'
 import AdminUserTable from './components/users/AdminUserTable'
 import AdminActionToast from './components/AdminActionToast'
 import useAdminUserManagement from './hooks/useAdminUserManagement'
+import FrogLoading from '../../utils/FrogLoading'
 
 export default function UserManagementPage() {
   const management = useAdminUserManagement()
@@ -42,7 +43,9 @@ export default function UserManagementPage() {
             <p>Tìm kiếm, xem và quản lý tài khoản học sinh, giáo viên.</p>
           </div>
           <span className="admin-result-count">
-            {management.isPending ? 'Đang tải...' : `${management.filteredUsers.length} tài khoản`}
+            {management.isPending
+              ? <FrogLoading compact label="Đang tải tài khoản..." />
+              : `${management.filteredUsers.length} tài khoản`}
           </span>
         </div>
 

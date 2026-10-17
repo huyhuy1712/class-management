@@ -1,3 +1,5 @@
+import FrogLoading from '../../../../utils/FrogLoading'
+
 export default function AdminUserActionModal({
   action,
   impersonationReason,
@@ -62,7 +64,11 @@ export default function AdminUserActionModal({
             Hủy
           </button>
           <button type="button" className={isDelete ? 'admin-danger-btn' : 'admin-primary-btn'} onClick={onConfirm} disabled={isPending}>
-            {isPending ? 'Đang xử lý...' : isDelete ? 'Xóa tài khoản' : 'Tiếp tục'}
+            {isPending
+              ? <FrogLoading compact label="Đang xử lý..." />
+              : isDelete
+                ? 'Xóa tài khoản'
+                : 'Tiếp tục'}
           </button>
         </div>
       </section>

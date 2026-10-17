@@ -1,5 +1,6 @@
 import { Check, LockKeyhole, LogIn, Pencil, Trash2, UnlockKeyhole } from 'lucide-react'
 import defaultAvatar from '../../../../assets/images/avatar_default.png'
+import FrogLoading from '../../../../utils/FrogLoading'
 import { getRoleLabel, statusLabels } from '../../helpers/userManagementHelpers'
 
 export default function AdminUserTable({
@@ -29,7 +30,13 @@ export default function AdminUserTable({
           </tr>
         </thead>
         <tbody>
-          {isPending && <tr><td colSpan={5}>Đang tải dữ liệu tài khoản...</td></tr>}
+          {isPending && (
+            <tr>
+              <td colSpan={5}>
+                <FrogLoading label="Đang tải danh sách tài khoản..." />
+              </td>
+            </tr>
+          )}
           {!isPending && users.map((user) => (
             <tr key={user.id}>
               <td>
@@ -76,7 +83,7 @@ export default function AdminUserTable({
                       : <LockKeyhole size={17} strokeWidth={2} />}
                     <span>
                       {blockPending
-                        ? 'Đang xử lý...'
+                        ? <FrogLoading compact label="" />
                         : user.status === 'BANNED'
                           ? 'Mở khóa'
                           : 'Khóa'}
@@ -115,7 +122,7 @@ export default function AdminUserTable({
                       onClick={() => onApprove(user)}
                     >
                       <Check size={17} strokeWidth={2.2} />
-                      <span>{approvePending ? 'Đang duyệt...' : 'Duyệt'}</span>
+                      <span>{approvePending ? <FrogLoading compact label="" /> : 'Duyệt'}</span>
                     </button>
                   )}
                   <button
