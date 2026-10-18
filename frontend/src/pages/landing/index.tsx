@@ -48,8 +48,9 @@ interface StudentProfile {
 }
 
 interface AbsenceDetail {
+  sessionName?: string
   date: string
-  status: 'ABSENT' | 'LATE' | string
+  status: 'PRESENT' | 'LATE' | 'ABSENT' | string
   note?: string
 }
 
@@ -265,8 +266,9 @@ function LandingPage() {
 
   // Tính toán số liệu chuyên cần từ selectedClass (đã có sẵn từ API tra cứu công khai)
   const currentAbsenceDetails = selectedClass?.absenceDetails || []
-  const currentAbsentCount = selectedClass?.absentCount ?? currentAbsenceDetails.length
-  const currentTotalSessions = selectedClass?.totalSessions || (currentAbsentCount > 0 ? currentAbsentCount : 0)
+  const currentAbsentCount =
+    selectedClass?.absentCount ?? currentAbsenceDetails.filter((d) => d.status === 'ABSENT').length
+  const currentTotalSessions = selectedClass?.totalSessions || currentAbsenceDetails.length
   const attendanceRate =
     currentTotalSessions > 0
       ? `${(((currentTotalSessions - currentAbsentCount) / currentTotalSessions) * 100).toFixed(1)}%`
@@ -1273,7 +1275,7 @@ function LandingPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold">
-                    Chi tiết lịch sử chuyên cần &amp; ngày vắng
+                    Chi tiết lịch sử chuyên cần
                   </h3>
                   <p className="text-xs text-[#D8F3DC]/85">
                     {studentProfile.fullName} ({studentProfile.studentCode}) • {modalClass.name}
@@ -1292,69 +1294,117 @@ function LandingPage() {
 
             {/* Modal Body */}
             <div className="max-h-[70vh] overflow-y-auto p-6">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#F8FAF9] px-4 py-3 text-xs ring-1 ring-emerald-900/10">
-                <span className="font-semibold text-[#0F3822]">
-                  Số buổi vắng ghi nhận:{' '}
-                  <strong className="text-red-600">{modalClass.absentCount ?? 0} buổi</strong>
-                  {(modalClass.totalSessions ?? 0) > 0 && ` / ${modalClass.totalSessions} buổi học`}
-                </span>
-                <span className="font-semibold text-[#10B981]">
-                  Lớp: {modalClass.name} ({modalClass.code})
-                </span>
-              </div>
+              {(() => {
+                const details = modalClass.absenceDetails || []
+                const totalSessions = modalClass.totalSessions || details.length
+                const presentSessions = details.filter((d) => d.status === 'PRESENT').length
+                const lateSessions = details.filter((d) => d.status === 'LATE').length
+                const absentSessions =
+                  modalClass.absentCount ?? details.filter((d) => d.status === 'ABSENT').length
 
-              {(!modalClass.absenceDetails || modalClass.absenceDetails.length === 0) ? (
-                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-emerald-900/20 bg-[#F8FAF9] py-8 text-center">
-                  <CheckCircle2 size={32} className="text-[#10B981]" />
-                  <p className="mt-2 text-sm font-bold text-[#0F3822]">
-                    Không có buổi vắng nào!
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Học sinh tham gia đầy đủ tất cả các buổi học phần đã được điểm danh.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {modalClass.absenceDetails.map((item, idx) => {
-                    const isExcused = item.status === 'ABSENT_EXCUSED'
-                    const isLate = item.status === 'LATE'
+                return (
+                  <>
+                    {/* Khối tóm tắt tổng quan: Tổng số buổi, Có mặt, Đi trễ, Vắng mặt */}
+                    <div className="mb-5 space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#F8FAF9] px-4 py-3 text-xs ring-1 ring-emerald-900/10">
+                        <span className="font-semibold text-[#0F3822]">
+                          Lớp học phần: <strong className="text-[#0F3822]">{modalClass.name}</strong>
+                        </span>
+                        <span className="font-bold text-[#10B981]">
+                          Mã lớp: {modalClass.code}
+                        </span>
+                      </div>
 
-                    return (
-                      <div
-                        key={idx}
-                        className="rounded-2xl border border-gray-100 bg-[#F8FAF9] p-4 transition hover:border-emerald-900/20"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 text-sm font-bold text-[#0F3822]">
-                            <span>Buổi {idx + 1}</span>
-                            <span className="text-gray-300">•</span>
-                            <span className="text-xs font-semibold text-gray-600">
-                              {item.date || 'Chưa cập nhật ngày'}
-                            </span>
-                          </div>
-                          <span
-                            className={`rounded-full px-3 py-0.5 text-xs font-bold ${
-                              isLate
-                                ? 'bg-amber-100 text-amber-800'
-                                : isExcused
-                                  ? 'bg-[#D8F3DC] text-[#0F3822]'
-                                  : 'bg-red-100 text-red-700'
-                            }`}
-                          >
-                            {isLate ? 'Đi trễ' : isExcused ? 'Vắng có phép' : 'Vắng không phép'}
+                      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                        <div className="rounded-xl border border-gray-100 bg-[#F8FAF9] p-3 text-center">
+                          <span className="block text-[11px] font-medium text-gray-500">Tổng số buổi</span>
+                          <span className="mt-1 block text-base font-extrabold text-[#0F3822]">
+                            {totalSessions}
                           </span>
                         </div>
-
-                        {item.note && (
-                          <p className="mt-2 text-xs font-medium text-gray-700">
-                            Ghi chú: {item.note}
-                          </p>
-                        )}
+                        <div className="rounded-xl border border-emerald-100 bg-[#D8F3DC]/50 p-3 text-center">
+                          <span className="block text-[11px] font-medium text-emerald-800">Có mặt</span>
+                          <span className="mt-1 block text-base font-extrabold text-[#0F3822]">
+                            {presentSessions}
+                          </span>
+                        </div>
+                        <div className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-center">
+                          <span className="block text-[11px] font-medium text-amber-800">Đi trễ</span>
+                          <span className="mt-1 block text-base font-extrabold text-amber-700">
+                            {lateSessions}
+                          </span>
+                        </div>
+                        <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-center">
+                          <span className="block text-[11px] font-medium text-red-800">Vắng mặt</span>
+                          <span className="mt-1 block text-base font-extrabold text-red-600">
+                            {absentSessions}
+                          </span>
+                        </div>
                       </div>
-                    )
-                  })}
-                </div>
-              )}
+                    </div>
+
+                    {/* Danh sách các buổi học */}
+                    {details.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-emerald-900/20 bg-[#F8FAF9] py-8 text-center">
+                        <Calendar size={32} className="text-gray-400" />
+                        <p className="mt-2 text-sm font-bold text-[#0F3822]">
+                          Chưa có dữ liệu điểm danh cho lớp học phần này.
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Lớp học phần chưa ghi nhận buổi điểm danh nào trên hệ thống.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {details.map((item, idx) => {
+                          const isPresent = item.status === 'PRESENT'
+                          const isLate = item.status === 'LATE'
+                          const isAbsent = !isPresent && !isLate
+
+                          return (
+                            <div
+                              key={idx}
+                              className="rounded-2xl border border-gray-100 bg-[#F8FAF9] p-4 transition hover:border-emerald-900/20"
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 text-sm font-bold text-[#0F3822]">
+                                  <span>{item.sessionName || `Buổi ${idx + 1}`}</span>
+                                  <span className="text-gray-300">•</span>
+                                  <span className="text-xs font-semibold text-gray-600">
+                                    {item.date || 'Chưa cập nhật ngày'}
+                                  </span>
+                                </div>
+
+                                {isPresent && (
+                                  <span className="rounded-full bg-[#D8F3DC] px-3 py-0.5 text-xs font-bold text-[#0F3822] ring-1 ring-emerald-600/20">
+                                    Có mặt
+                                  </span>
+                                )}
+                                {isLate && (
+                                  <span className="rounded-full bg-amber-50 px-3 py-0.5 text-xs font-bold text-amber-700 ring-1 ring-amber-500/20">
+                                    Đi trễ
+                                  </span>
+                                )}
+                                {isAbsent && (
+                                  <span className="rounded-full bg-red-50 px-3 py-0.5 text-xs font-bold text-red-600 ring-1 ring-red-500/20">
+                                    Vắng mặt
+                                  </span>
+                                )}
+                              </div>
+
+                              {item.note && (
+                                <p className="mt-2 text-xs font-medium text-gray-700">
+                                  Ghi chú: {item.note}
+                                </p>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
             </div>
 
             {/* Modal Footer */}
