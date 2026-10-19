@@ -79,20 +79,32 @@ public class PublicLookupServiceImpl implements PublicLookupService {
 
         List<PublicStudentLookupResponse.PublicClassroomResponse> classrooms = summaries.stream()
                 .map(c -> {
-                    // Xử lý điểm danh
+                    // Xử lý điểm danh (toàn bộ các buổi học đã được điểm danh: PRESENT, LATE, ABSENT)
                     List<Attendance> classAttendances = attendancesByClassId.getOrDefault(c.getId(), Collections.emptyList());
 
-                    List<PublicStudentLookupResponse.PublicAbsenceDetail> absenceDetails = classAttendances.stream()
-                            .filter(a -> a.getStatus() != AttendanceStatus.PRESENT)
-                            .sorted(Comparator.comparing(Attendance::getDate, Comparator.nullsLast(Comparator.reverseOrder())))
-                            .map(a -> PublicStudentLookupResponse.PublicAbsenceDetail.builder()
-                                    .date(a.getDate() != null ? a.getDate().format(DATE_FORMATTER) : "")
-                                    .status(a.getStatus() != null ? a.getStatus().name() : "")
-                                    .note(a.getNote())
-                                    .build())
+                    List<Attendance> sortedAttendances = classAttendances.stream()
+                            .sorted(Comparator.comparing(Attendance::getDate, Comparator.nullsLast(Comparator.naturalOrder()))
+                                    .thenComparing(Attendance::getId, Comparator.nullsLast(Comparator.naturalOrder())))
                             .toList();
 
-                    int absentCount = absenceDetails.size();
+                    List<PublicStudentLookupResponse.PublicAbsenceDetail> absenceDetails = new ArrayList<>();
+                    for (int i = 0; i < sortedAttendances.size(); i++) {
+                        Attendance a = sortedAttendances.get(i);
+                        String sessionName = (a.getLesson() != null && a.getLesson().getTitle() != null && !a.getLesson().getTitle().isBlank())
+                                ? a.getLesson().getTitle()
+                                : "Buổi " + (i + 1);
+
+                        absenceDetails.add(PublicStudentLookupResponse.PublicAbsenceDetail.builder()
+                                .sessionName(sessionName)
+                                .date(a.getDate() != null ? a.getDate().format(DATE_FORMATTER) : "")
+                                .status(a.getStatus() != null ? a.getStatus().name() : "")
+                                .note(a.getNote())
+                                .build());
+                    }
+
+                    int absentCount = (int) classAttendances.stream()
+                            .filter(a -> a.getStatus() == AttendanceStatus.ABSENT)
+                            .count();
                     int totalSessions = classAttendances.size();
 
                     // Xử lý kết quả điểm số các bài kiểm tra của lớp này

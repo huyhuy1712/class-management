@@ -49,6 +49,7 @@ public class PublicStudentLookupResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class PublicAbsenceDetail {
+        private String sessionName;
         private String date;
         private String status;
         private String note;
