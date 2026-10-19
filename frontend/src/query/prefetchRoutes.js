@@ -16,6 +16,7 @@ export function routeQueries(path, userId, date) {
     '/teacher/classes': ['teacherClasses'],
     '/teacher/exams': ['exams'],
     '/teacher/exams/create': ['subjects', 'teacherClasses', 'teacherStudents'],
+    '/teacher/materials': ['teacherMaterials', 'teacherClasses', 'teacherStudents'],
     '/student': ['studentClasses', 'dashboard', 'examCount'],
     '/student/classes': ['studentClasses', 'dashboard'],
     '/student/teachers': ['studentClasses', 'allClasses', 'teachers'],

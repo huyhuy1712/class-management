@@ -13,6 +13,7 @@ import TeacherDashboard from '../pages/teacher/TeacherDashboard'
 import ClassListPage from '../pages/teacher/classroom/ClassroomListPage'
 import LoginPage from '../pages/auth/LoginPage'
 import SignupPage from '../pages/auth/SignupPage'
+import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage'
 import ClassDetailPage from '../pages/teacher/classroom/ClassroomDetailPage'
 import StudentsTab from '../pages/teacher/classroom/tabs/StudentsTab'
 import AssignmentsTab from '../pages/teacher/classroom/tabs/AssignmentsTab'
@@ -22,6 +23,7 @@ import AttendanceTab from '../pages/teacher/classroom/tabs/AttendanceTab'
 import ClassDocumentsTab from '../components/classroom/detail/ClassDocumentsTab'
 import StudentDetailPage from '../pages/teacher/classroom/StudentDetailPage'
 import TeacherProfilePage from '../pages/teacher/TeacherProfilePage'
+import TeacherMaterialsPage from '../pages/teacher/materials/TeacherMaterialsPage'
 import ExamManagementPage from '../pages/teacher/exams/ExamManagementPage'
 const ExamDetailPage = lazy(() => import('../pages/teacher/exams/ExamDetailPage'))
 const TeacherAssignmentDetailPage = lazy(() => import('../pages/teacher/exams/TeacherAssignmentDetailPage'))
@@ -78,11 +80,13 @@ function AppRoutes() {
       {/* Route Auth */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
       {/* Route teacher */}
       <Route path="/teacher" element={<TeacherDashboard />} />
       <Route path="/teacher/classes" element={<ClassListPage />} />
       <Route path="/teacher/profile" element={<TeacherProfilePage />} />
+      <Route path="/teacher/materials" element={<TeacherMaterialsPage />} />
 
       {/* Nested Route classDetail */}
       <Route path="/teacher/classes/:classId" element={<ClassDetailPage />}>

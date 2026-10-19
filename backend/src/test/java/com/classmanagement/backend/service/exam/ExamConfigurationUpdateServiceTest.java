@@ -28,8 +28,11 @@ class ExamConfigurationUpdateServiceTest {
     private final Exam exam = Exam.builder().id(7L).teacher(teacher).status(ExamStatus.DRAFT)
             .title("old").code("EX-11-ABCDEF").maxScore(BigDecimal.TEN).build();
     private final ExamAssignment assignment = ExamAssignment.builder().id(8L).exam(exam)
-            .status(ExamAssignmentStatus.DRAFT).timeLimit(5).maxAttempts(2).build();
+            .status(ExamAssignmentStatus.DRAFT).timeLimit(5).maxAttempts(2)
+            .scoreVisibility(ScoreVisibility.NEVER).answerVisibility(AnswerVisibility.NEVER)
+            .hideCorrectAnswerOnWrong(false).build();
     private boolean missing, attempts, persistFailure;
+    private boolean existingAssignments;
     private ExamAssignment created;
 
     @Test void opensSeparateRoundAndRetryDoesNotCreateAnotherOrTouchOldRound() {
@@ -63,6 +66,87 @@ class ExamConfigurationUpdateServiceTest {
         assertNull(assignment.getTimeLimit()); assertNull(assignment.getMaxAttempts());
         assertEquals(1, Collections.frequency(calls, "persist"));
         assertTrue(calls.indexOf("flush") < calls.indexOf("response"));
+    }
+    @Test void updatesOnlyResultVisibilitySettingsForPublishedAssignment() {
+        exam.setStatus(ExamStatus.PUBLISHED);
+        assignment.setStatus(ExamAssignmentStatus.CLOSED);
+        var request = new UpdateAssignmentResultSettingsRequest(
+                ScoreVisibility.AFTER_SUBMIT, AnswerVisibility.AFTER_EXAM, true);
+
+        service().updateResultSettings(7L, 8L, "teacher", request);
+
+        assertEquals(ScoreVisibility.AFTER_SUBMIT, assignment.getScoreVisibility());
+        assertEquals(AnswerVisibility.AFTER_EXAM, assignment.getAnswerVisibility());
+        assertTrue(assignment.getHideCorrectAnswerOnWrong());
+        assertEquals(5, assignment.getTimeLimit());
+        assertEquals(2, assignment.getMaxAttempts());
+        assertEquals(ExamAssignmentStatus.CLOSED, assignment.getStatus());
+        assertTrue(calls.contains("flush"));
+        assertTrue(calls.indexOf("flush") < calls.indexOf("response"));
+    }
+    @Test void resultSettingsRequirePublishedExamAndOwnedAssignment() {
+        var request = new UpdateAssignmentResultSettingsRequest(
+                ScoreVisibility.AFTER_SUBMIT, AnswerVisibility.AFTER_SUBMIT, false);
+        assertThrows(ConflictException.class,
+                () -> service().updateResultSettings(7L, 8L, "teacher", request));
+
+        exam.setStatus(ExamStatus.PUBLISHED);
+        missing = true;
+        assertThrows(ResourceNotFoundException.class,
+                () -> service().updateResultSettings(7L, 8L, "teacher", request));
+        assertFalse(calls.contains("flush"));
+    }
+    @Test void createsDraftAssignmentWhenDraftExamHasNoAssignments() {
+        var original = request(AnswerVisibility.AFTER_SUBMIT, null);
+        var noAssignment = new UpdateExamRequest(
+                original.basicInfo(),
+                new UpdateExamRequest.Assignment(
+                        null,
+                        original.assignment().assignmentType(),
+                        original.assignment().classIds(),
+                        original.assignment().studentIds(),
+                        original.assignment().scoreVisibility(),
+                        original.assignment().answerVisibility(),
+                        original.assignment().threshold(),
+                        original.assignment().hideCorrectAnswerOnWrong(),
+                        original.assignment().openTime(),
+                        original.assignment().closeTime()),
+                null);
+
+        service().update(7L, "teacher", noAssignment);
+
+        assertNotNull(created);
+        assertEquals(ExamAssignmentStatus.DRAFT, created.getStatus());
+        assertEquals(ExamAssignmentType.CLASS, created.getAssignmentType());
+        assertEquals("new title", exam.getTitle());
+        assertTrue(calls.contains("existsByExam_Id"));
+        assertTrue(calls.indexOf("save") < calls.indexOf("persist"));
+        assertTrue(calls.indexOf("flush") < calls.indexOf("response"));
+    }
+    @Test void cannotCreateMissingAssignmentWhenExamAlreadyHasAssignments() {
+        existingAssignments = true;
+        var original = request(AnswerVisibility.NEVER, null);
+        var noAssignment = new UpdateExamRequest(
+                original.basicInfo(),
+                new UpdateExamRequest.Assignment(
+                        null,
+                        original.assignment().assignmentType(),
+                        original.assignment().classIds(),
+                        original.assignment().studentIds(),
+                        original.assignment().scoreVisibility(),
+                        original.assignment().answerVisibility(),
+                        original.assignment().threshold(),
+                        original.assignment().hideCorrectAnswerOnWrong(),
+                        original.assignment().openTime(),
+                        original.assignment().closeTime()),
+                null);
+
+        assertThrows(
+                ConflictException.class,
+                () -> service().update(7L, "teacher", noAssignment));
+
+        assertEquals("old", exam.getTitle());
+        assertFalse(calls.contains("save"));
     }
     @Test void otherOwnerCannotWrite() {
         missing = true;
@@ -147,7 +231,13 @@ class ExamConfigurationUpdateServiceTest {
             return switch (method.getName()) {
                 case "findLockedByIdAndTeacher_Username" -> missing ? Optional.empty() : Optional.of(exam);
                 case "findByExam_IdAndCreationRequestId" -> created != null && created.getCreationRequestId().equals(args[1]) ? Optional.of(created) : Optional.empty();
-                case "save" -> { created=(ExamAssignment)args[0]; created.setId(9L); yield created; }
+                case "existsByExam_Id" -> existingAssignments;
+                case "save" -> {
+                    created = (ExamAssignment) args[0];
+                    assertNotNull(created.getAssignmentType(), "assignment_type must be set before insert");
+                    created.setId(9L);
+                    yield created;
+                }
                 case "findLockedByIdAndExam_Id" -> { assertEquals(8L, args[0]); assertEquals(7L, args[1]); yield Optional.of(assignment); }
                 case "existsByAssignment_Id" -> attempts;
                 case "findById" -> Optional.of(Subject.builder().id(1L).build());

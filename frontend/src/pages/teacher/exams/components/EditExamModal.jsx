@@ -16,17 +16,24 @@ function ExamConfiguration({ exam, onClose, saveState, mode }) {
   const newAssignment = mode === 'reassign'
   const formRef = useRef(null)
   const published = exam.status === 'PUBLISHED'
-  const locked = newAssignment ? exam.status !== 'PUBLISHED' : exam.status !== 'DRAFT' || exam.assignment?.status !== 'DRAFT'
+  const missingAssignment = !newAssignment && exam.assignments?.length === 0
+  const locked = newAssignment
+    ? exam.status !== 'PUBLISHED'
+    : exam.status !== 'DRAFT' || (!missingAssignment && exam.assignment?.status !== 'DRAFT')
   const { saving, save, error: saveError } = saveState
   const { loading, error, ...options } = useExamTargetOptions()
-  const initialConfig = getExamConfigurationForm(exam)
+  const initialConfig = {
+    ...getExamConfigurationForm(exam),
+    ...(missingAssignment ? { accessType: 'CLASS', classIds: [] } : {}),
+  }
   const editor = useCreateExamForm({ ...options, initialConfig: newAssignment ? { ...initialConfig, threshold: exam.assignment?.threshold, timeLimit: exam.assignment?.timeLimit ?? initialConfig.timeLimit, maxAttempts: exam.assignment?.maxAttempts ?? initialConfig.maxAttempts, openTime: '', closeTime: '' } : initialConfig, persistDraft: false })
   return <form ref={formRef} className="flex min-h-0 flex-col overflow-hidden" style={{ height: 'min(720px, calc(100dvh - 160px))' }} onSubmit={(event) => { event.preventDefault(); if (!locked && !saving && !loading && !error && editor.validate()) save(editor.buildExamData(), exam, (errors) => { editor.setErrors(errors); focusConfigurationError(formRef.current, errors) }) }}>
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-2" style={{ scrollbarGutter: 'stable' }}>
     {published && !newAssignment && <p role="note" className="mb-3 shrink-0 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">Bài thi đã xuất bản không thể chỉnh sửa.</p>}
     {newAssignment && <p role="note" className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">Mở đợt mới cho đề <strong>{initialConfig.title}</strong>. Đợt mới có lượt làm và kết quả riêng; các đợt cũ được giữ nguyên. HS đã xem đáp án ở đợt cũ có thể biết lời giải.</p>}
+    {missingAssignment && <p role="note" className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">Đề nháp chưa có lần giao. Khi lưu, hệ thống sẽ tạo một lần giao nháp mới; đề chưa được giao cho học sinh cho đến khi bạn chọn đối tượng và xuất bản.</p>}
+    {locked && !published && !missingAssignment && <p role="note" className="mb-3 text-sm text-amber-700">Đề đang ở trạng thái nháp nhưng lần giao đang ở trạng thái {exam.assignment?.status ?? 'không xác định'}. Chỉ lần giao nháp mới được sửa cấu hình.</p>}
     {saveError && <p role="alert" className="mb-4 text-red-600">{saveError}</p>}
-    {locked && !published && <p className="mb-3 text-sm text-amber-700">Chỉ đề và lần giao ở trạng thái nháp mới được sửa cấu hình.</p>}
     {error && <p role="alert" className="mb-4 text-red-600">{error}</p>}
     <fieldset disabled={locked || saving} className="m-0 min-w-0 space-y-4 border-0 p-0 disabled:opacity-75">
       {!newAssignment && <ExamBasicInfoSection form={editor.form} errors={editor.errors} onChange={editor.handleChange} subjects={options.subjects} subjectsLoading={options.subjectsLoading} subjectsError={options.subjectsError} onRetrySubjects={options.retrySubjects} />}
@@ -45,8 +52,10 @@ function LoadedConfiguration({ exam, onClose, saveState, mode }) {
   if (loading) return <FrogLoading label="Đang tải cấu hình đề thi..." className="p-6" />
   if (error) return <div className="p-6"><p role="alert" className="text-red-600">{error}</p><button type="button" onClick={retry} className="mt-3 text-emerald-700">Thử lại</button></div>
   const assignments = data.assignments ?? []
-  const assignment = assignments.find((item) => String(item.id) === assignmentId) ?? assignments[0]
-  const configuration = { ...data, assignment, status: data.status === 'PUBLISHED' || exam.status === 'PUBLISHED' ? 'PUBLISHED' : data.status }
+  const assignment = assignments.find((item) => String(item.id) === assignmentId)
+    ?? assignments.find((item) => item.status === 'DRAFT')
+    ?? assignments[0]
+  const configuration = { ...data, assignments, assignment, status: data.status === 'PUBLISHED' || exam.status === 'PUBLISHED' ? 'PUBLISHED' : data.status }
   return <>{assignments.length > 1 && <label className="mb-3 block text-sm font-semibold">{mode === 'reassign' ? 'Sao chép cấu hình từ' : 'Lần giao đề'}<select value={assignment?.id ?? ''} disabled={saveState.saving} onChange={(event) => setAssignmentId(event.target.value)} className="ml-3 rounded-lg border border-slate-200 p-2">{assignments.map((item, index) => <option key={item.id} value={item.id}>Lần {index + 1} · {item.assignmentType}</option>)}</select></label>}<ExamConfiguration key={assignment?.id ?? data.id} exam={configuration} onClose={onClose} saveState={saveState} mode={mode} /></>
 }
 

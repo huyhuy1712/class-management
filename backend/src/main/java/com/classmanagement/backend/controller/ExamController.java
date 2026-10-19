@@ -104,6 +104,16 @@ public class ExamController {
         return ResponseEntity.status(HttpStatus.CREATED).body(configurationUpdateService.createAssignment(examId,auth.getName(),request));
     }
 
+    @PatchMapping("/{examId}/assignments/{assignmentId}/result-settings")
+    public ResponseEntity<ExamConfigurationResponse> updateAssignmentResultSettings(
+            @PathVariable Long examId,
+            @PathVariable Long assignmentId,
+            @Valid @RequestBody com.classmanagement.backend.dto.exam.UpdateAssignmentResultSettingsRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(configurationUpdateService.updateResultSettings(
+                examId, assignmentId, authentication.getName(), request));
+    }
+
     @PatchMapping("/{examId}/publish")
     public ResponseEntity<PublishExamResponse> publish(@PathVariable Long examId, Authentication authentication) {
         return ResponseEntity.ok(publishService.publish(examId, authentication.getName()));

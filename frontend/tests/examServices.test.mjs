@@ -128,6 +128,17 @@ test('class exam list uses classroom scope and forwards query cancellation', asy
   assert.equal(await examService.getClassExams(21, { signal }), rows)
 })
 
+test('assignment result settings update only the selected round', async () => {
+  const body = { scoreVisibility: 'AFTER_SUBMIT', answerVisibility: 'AFTER_EXAM', hideCorrectAnswerOnWrong: true }
+  const response = { assignments: [{ id: 8, scoreVisibility: body.scoreVisibility }] }
+  api.patch = async (url, payload) => {
+    assert.equal(url, '/exams/7/assignments/8/result-settings')
+    assert.equal(payload, body)
+    return { data: response }
+  }
+  assert.equal(await examService.updateAssignmentResultSettings(7, 8, body), response)
+})
+
 test('copy uses a stable request ID and returns the new independent draft', async () => {
   const response = { id: 99, status: 'DRAFT', code: 'NEW', sections: [], assignments: [{ id: 100 }] }
   let calls = 0
@@ -151,10 +162,11 @@ test('student exam list reads every page and preserves server statistics and sor
     assert.equal(url, '/users/me/exams')
     assert.equal(options.signal, signal)
     assert.equal(options.params.sort, 'oldest')
+    assert.equal(options.params.classId, 21)
     const page = options.params.page
     return { data: { items: Array.from({ length: page === 0 ? 100 : 1 }, (_, i) => ({ assignmentId: page * 100 + i + 1 })), totalElements: 101, stats } }
   }
-  const result = await examService.getStudentExams({ signal }, 'oldest')
+  const result = await examService.getStudentExams({ signal, params: { classId: 21 } }, 'oldest')
   assert.equal(result.items.length, 101)
   assert.equal(result.items[100].assignmentId, 101)
   assert.equal(result.stats, stats)

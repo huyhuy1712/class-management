@@ -38,6 +38,10 @@ export function canEnterAssignment(exam, now = Date.now()) {
   return Boolean(exam.canResume || exam.maxAttempts === 0 || exam.attemptsUsed < exam.maxAttempts)
 }
 
+export function getUnstartedAvailableExams(items, now = Date.now()) {
+  return items.filter((exam) => exam.attemptStatus === 'NOT_STARTED' && exam.canStart && canEnterAssignment(exam, now))
+}
+
 export function getExamAssignmentDate(value) {
   const timestamp = dateTimestamp(value)
   if (timestamp === null) return ''

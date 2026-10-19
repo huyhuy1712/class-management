@@ -8,6 +8,7 @@ import com.classmanagement.backend.entity.enums.UserStatus;
 import com.classmanagement.backend.exception.ResourceNotFoundException;
 import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.service.StorageService;
+import com.classmanagement.backend.service.MaterialService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ public class AdminUserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final StorageService storageService;
+    private final MaterialService materialService;
 
     @Transactional(readOnly = true)
     public List<UserResponse> getUsers(UserRole role) {
@@ -115,7 +117,13 @@ public class AdminUserService {
 
     @Transactional
     public void deleteUser(Long userId) {
-        userRepository.delete(findUser(userId));
+        User user = findUser(userId);
+        if (user.getRole() == UserRole.STUDENT) {
+            materialService.cleanupStudentAssignments(userId);
+        } else if (user.getRole() == UserRole.TEACHER) {
+            materialService.cleanupTeacherDocuments(userId);
+        }
+        userRepository.delete(user);
         userRepository.flush();
     }
 

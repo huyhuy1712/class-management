@@ -3,6 +3,7 @@ package com.classmanagement.backend.dto.exam;
 import com.classmanagement.backend.entity.enums.ExamStatus;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record ExamListResponse(
         Long id,
@@ -16,5 +17,6 @@ public record ExamListResponse(
         long submittedCount,
         ExamStatus status,
         long assignedClassCount,
-        LocalDateTime createdAt) {
+        LocalDateTime createdAt,
+        List<String> assignedTo) {
 }

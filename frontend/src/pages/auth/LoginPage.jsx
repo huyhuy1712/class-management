@@ -196,9 +196,15 @@ function LoginPage() {
           {signupResult && (
             <div role="status" className="mb-5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
               <p className="font-semibold">
-                {signupResult.signupRole === 'TEACHER'
-                  ? 'Đăng ký thành công. Tài khoản đang chờ quản trị viên duyệt.'
-                  : 'Đăng ký thành công.'}
+                {signupResult.emailVerified
+                  ? signupResult.signupRole === 'TEACHER'
+                    ? 'Email đã xác nhận thành công. Tài khoản đang chờ quản trị viên duyệt.'
+                    : signupResult.signupRole === 'STUDENT'
+                      ? 'Email đã xác nhận thành công. Bạn có thể đăng nhập.'
+                      : 'Email đã xác nhận thành công.'
+                  : signupResult.signupRole === 'TEACHER'
+                    ? 'Đăng ký thành công. Tài khoản đang chờ quản trị viên duyệt.'
+                    : 'Đăng ký thành công.'}
               </p>
               {signupResult.signupCode && (
                 <p className="mt-1">
@@ -295,6 +301,12 @@ function LoginPage() {
               {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </button>
           </form>
+
+          <p className="mt-4 text-right text-sm">
+            <Link to="/forgot-password" className="font-semibold text-green-700 hover:text-green-800">
+              Quên mật khẩu?
+            </Link>
+          </p>
 
           <p className="mt-7 text-center text-sm text-gray-500">
             Chưa có tài khoản?{' '}

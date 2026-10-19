@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -78,10 +79,24 @@ public class LocalStorageService implements StorageService {
             }
 
             Files.deleteIfExists(target);
+            deleteEmptyMaterialFolders(root, target.getParent());
 
         } catch (IOException e) {
             throw new IllegalStateException(
                     "Không thể xóa file");
+        }
+    }
+
+    private void deleteEmptyMaterialFolders(Path root, Path directory) throws IOException {
+        Path materialsRoot = root.resolve("materials").resolve("teachers").normalize();
+        Path current = directory;
+        while (current != null && current.startsWith(materialsRoot) && !current.equals(materialsRoot)) {
+            try {
+                Files.deleteIfExists(current);
+                current = current.getParent();
+            } catch (DirectoryNotEmptyException e) {
+                break;
+            }
         }
     }
 

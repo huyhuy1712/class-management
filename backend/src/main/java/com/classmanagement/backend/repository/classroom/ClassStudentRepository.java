@@ -75,6 +75,9 @@ public interface ClassStudentRepository
 
     List<ClassStudent> findAllByClassroomId(Long classroomId);
 
+    @Query("select cs.student.id from ClassStudent cs where cs.classroom.id = :classroomId")
+    List<Long> findStudentIdsByClassroomId(@Param("classroomId") Long classroomId);
+
     @Modifying
     @Query(value = """
             with removed as (

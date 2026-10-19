@@ -10,20 +10,25 @@ import useAuthStore from '../../../../stores/authStore'
 const tabs = [
   { id: 'students', label: 'Học sinh', Icon: Users },
   { id: 'attendance', label: 'Điểm danh', Icon: ClipboardCheck },
-  { id: 'grades', label: 'Điểm số', Icon: FileText },
+  { id: 'grades', label: 'Bài kiểm tra', Icon: FileText },
   { id: 'materials', label: 'Tài liệu', Icon: BookOpen },
   { id: 'announcements', label: 'Bảng tin', Icon: Bell },
 ]
 
 export default function StudentClassTabs({ selected, onSelect, classId }) {
   const prefetch = useRoutePrefetch()
-  const examsQuery = useResourceQuery('studentExams', [])
+  const examsQuery = useResourceQuery('studentExams', ['CLASS', classId])
   const studentsQuery = useResourceQuery('classStudents', [classId])
   const attendanceQuery = useResourceQuery('attendances', [classId])
+  const materialsQuery = useResourceQuery('classDocuments', [classId], {
+    staleTime: 0,
+    refetchInterval: 15_000,
+  })
   const userId = useAuthStore((state) => state.user?.id)
   const examCount = examsQuery.data?.items.filter((exam) => exam.classes?.some((item) => String(item.id) === String(classId))).length
   const counts = { students: studentsQuery.data?.length, grades: examCount,
-    attendance: attendanceQuery.data?.filter((item) => userId != null && String(item.studentId) === String(userId)).length }
+    attendance: attendanceQuery.data?.filter((item) => userId != null && String(item.studentId) === String(userId)).length,
+    materials: materialsQuery.data?.length }
   const current = tabs.find((item) => item.id === selected)
   return (
     <div className="grid items-start gap-5 lg:grid-cols-[220px_1fr]">

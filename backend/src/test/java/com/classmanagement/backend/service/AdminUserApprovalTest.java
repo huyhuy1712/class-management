@@ -23,7 +23,7 @@ class AdminUserApprovalTest {
         User pendingUser = user(UserStatus.PENDING);
         when(users.findById(42L)).thenReturn(Optional.of(pendingUser));
         when(users.save(pendingUser)).thenReturn(pendingUser);
-        AdminUserService service = new AdminUserService(users, null, null);
+        AdminUserService service = new AdminUserService(users, null, null, null);
 
         var response = service.approveUser(42L);
 
@@ -37,7 +37,7 @@ class AdminUserApprovalTest {
     void doesNotApproveAccountThatIsNotPending() {
         UserRepository users = mock(UserRepository.class);
         when(users.findById(42L)).thenReturn(Optional.of(user(UserStatus.BANNED)));
-        AdminUserService service = new AdminUserService(users, null, null);
+        AdminUserService service = new AdminUserService(users, null, null, null);
 
         assertThrows(IllegalStateException.class, () -> service.approveUser(42L));
 
@@ -50,7 +50,7 @@ class AdminUserApprovalTest {
         User activeUser = user(UserStatus.ACTIVE);
         when(users.findById(42L)).thenReturn(Optional.of(activeUser));
         when(users.save(activeUser)).thenReturn(activeUser);
-        AdminUserService service = new AdminUserService(users, null, null);
+        AdminUserService service = new AdminUserService(users, null, null, null);
 
         var blocked = service.setBlocked(42L, true);
         assertEquals(UserStatus.BANNED, blocked.getStatus());

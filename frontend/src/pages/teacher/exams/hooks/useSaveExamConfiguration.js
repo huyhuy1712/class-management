@@ -23,7 +23,9 @@ export default function useSaveExamConfiguration(examId, onSaved, mode = 'edit')
   const saving = saveMutation.isPending
   const [error, setError] = useState('')
   const save = async (form, exam, onFieldErrors) => {
-    if (lock.current || (newAssignment ? exam.status !== 'PUBLISHED' : exam.status !== 'DRAFT' || exam.assignment?.status !== 'DRAFT')) return
+    const canEdit = exam.status === 'DRAFT'
+      && (exam.assignment?.status === 'DRAFT' || exam.assignments?.length === 0)
+    if (lock.current || (newAssignment ? exam.status !== 'PUBLISHED' : !canEdit)) return
     lock.current = true
     setError('')
     try {

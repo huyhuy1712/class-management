@@ -99,6 +99,38 @@ public class ExamConfigurationUpdateService {
     }
 
     @Transactional
+    public ExamConfigurationResponse updateResultSettings(
+            Long examId,
+            Long assignmentId,
+            String username,
+            UpdateAssignmentResultSettingsRequest request) {
+        if (examId == null || examId <= 0 || assignmentId == null || assignmentId <= 0)
+            throw new IllegalArgumentException("examId và assignmentId phải là số nguyên dương.");
+        if (request == null) fail("request", "Thiếu cài đặt hiển thị kết quả");
+        Map<String, String> errors = new LinkedHashMap<>();
+        validator.validate(request)
+                .forEach(v -> errors.put(v.getPropertyPath().toString(), v.getMessage()));
+        if (!errors.isEmpty()) throw new ExamValidationException(errors);
+
+        var exam = examRepository.findLockedByIdAndTeacher_Username(examId, username)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đề thi."));
+        if (exam.getTeacher().getRole() != UserRole.TEACHER
+                || exam.getTeacher().getStatus() != UserStatus.ACTIVE) {
+            throw new IllegalStateException("Chỉ giáo viên đang hoạt động được sửa cài đặt kết quả.");
+        }
+        if (exam.getStatus() != ExamStatus.PUBLISHED)
+            throw new ConflictException("Chỉ đề thi đã xuất bản được sửa cài đặt kết quả.");
+
+        var assignment = assignmentRepository.findLockedByIdAndExam_Id(assignmentId, examId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy lần giao của đề thi."));
+        assignment.setScoreVisibility(request.scoreVisibility());
+        assignment.setAnswerVisibility(request.answerVisibility());
+        assignment.setHideCorrectAnswerOnWrong(request.hideCorrectAnswerOnWrong());
+        assignmentRepository.flush();
+        return configurationService.get(examId, username);
+    }
+
+    @Transactional
     public ExamConfigurationResponse update(
             Long examId, String username, UpdateExamRequest request) {
         if (examId == null || examId <= 0)
@@ -119,17 +151,25 @@ public class ExamConfigurationUpdateService {
             throw new ConflictException("Đề thi đã thay đổi, vui lòng tải lại trước khi lưu.");
         }
         var source = request.assignment();
-        var assignment =
-                assignmentRepository
-                        .findLockedByIdAndExam_Id(source.id(), examId)
-                        .orElseThrow(
-                                () ->
-                                        new ResourceNotFoundException(
-                                                "Không tìm thấy lần giao của đề thi."));
-        if (assignment.getStatus() != ExamAssignmentStatus.DRAFT
-                || attemptRepository.existsByAssignment_Id(source.id())) {
-            throw new ConflictException(
-                    "Lần giao đã hoạt động hoặc có lượt làm, không thể sửa cấu hình.");
+        ExamAssignment assignment = null;
+        if (source.id() == null) {
+            if (assignmentRepository.existsByExam_Id(examId)) {
+                throw new ConflictException(
+                        "Đề đã có lần giao. Vui lòng tải lại cấu hình trước khi lưu.");
+            }
+        } else {
+            assignment =
+                    assignmentRepository
+                            .findLockedByIdAndExam_Id(source.id(), examId)
+                            .orElseThrow(
+                                    () ->
+                                            new ResourceNotFoundException(
+                                                    "Không tìm thấy lần giao của đề thi."));
+            if (assignment.getStatus() != ExamAssignmentStatus.DRAFT
+                    || attemptRepository.existsByAssignment_Id(source.id())) {
+                throw new ConflictException(
+                        "Lần giao đã hoạt động hoặc có lượt làm, không thể sửa cấu hình.");
+            }
         }
         var teacher = exam.getTeacher();
         if (teacher.getRole() != UserRole.TEACHER || teacher.getStatus() != UserStatus.ACTIVE) {
@@ -166,6 +206,16 @@ public class ExamConfigurationUpdateService {
         exam.setTimeLimit(basic.timeLimit());
         exam.setMaxAttempts(basic.maxAttempts());
         exam.setUpdatedAt(LocalDateTime.now());
+        boolean createAssignment = assignment == null;
+        if (createAssignment) {
+            assignment =
+                    assignmentRepository.save(
+                            ExamAssignment.builder()
+                                    .exam(exam)
+                                    .assignmentType(source.assignmentType())
+                                    .status(ExamAssignmentStatus.DRAFT)
+                                    .build());
+        }
         assignment.setAssignmentType(source.assignmentType());
         assignment.setTimeLimit(null);
         assignment.setMaxAttempts(null);

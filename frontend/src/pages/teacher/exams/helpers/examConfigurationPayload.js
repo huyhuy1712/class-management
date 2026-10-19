@@ -12,14 +12,13 @@ function assignmentFields(form) {
 }
 
 export function buildExamConfigurationPayload(form, assignment) {
-  if (!assignment?.id) throw new Error('Đề thi chưa có lần giao để sửa cấu hình.')
   return {
     basicInfo: {
       title: form.title.trim(), subjectId: Number(form.subjectId),
       gradeLevel: form.gradeLevel, purpose: form.purpose, description: form.description,
       timeLimit: Number(form.timeLimit), maxAttempts: Number(form.maxAttempts),
     },
-    assignment: { ...assignmentFields(form), id: assignment.id, threshold: assignment.threshold ?? null },
+    assignment: { ...assignmentFields(form), id: assignment?.id ?? null, threshold: assignment?.threshold ?? null },
   }
 }
 export function buildNewAssignmentPayload(form, requestId) {

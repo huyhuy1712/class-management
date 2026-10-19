@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import useResourceQuery from '../../../query/useResourceQuery'
 import useAuthStore from '../../../stores/authStore'
+import { getUnstartedAvailableExams } from '../exams/helpers/studentExamHelpers'
 
 export default function useStudentDashboard() {
   const user = useAuthStore((state) => state.user)
@@ -8,6 +9,8 @@ export default function useStudentDashboard() {
   const dashboard = useResourceQuery('dashboard')
   const classes = useResourceQuery('studentClasses')
   const exams = useResourceQuery('examCount')
+  const assignedExams = useResourceQuery('studentExams')
+  const unstartedExams = getUnstartedAvailableExams(assignedExams.data?.items ?? [])
   useEffect(() => {
     if (dashboard.data?.fullName && dashboard.data.fullName !== user?.fullName) updateUser({ fullName: dashboard.data.fullName })
   }, [dashboard.data?.fullName, user?.fullName, updateUser])
@@ -18,5 +21,6 @@ export default function useStudentDashboard() {
     error: dashboard.errorMessage,
     completedExamCount: exams.data?.completedExamCount ?? null,
     examCountLoading: exams.isLoading, examCountError: Boolean(exams.errorMessage),
+    unstartedExams, unstartedExamsError: assignedExams.errorMessage,
   }
 }

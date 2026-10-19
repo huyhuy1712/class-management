@@ -11,7 +11,7 @@ public record UpdateExamRequest(
         @NotNull @Valid CreateCompleteExamRequest.BasicInfo basicInfo,
         @NotNull @Valid Assignment assignment, @Min(0) Long revision) {
     public record Assignment(
-            @NotNull @Positive Long id,
+            @Positive Long id,
             @NotNull ExamAssignmentType assignmentType,
             @NotNull @Size(max = 500) List<@NotNull @Positive Long> classIds,
             @NotNull @Size(max = 2000) List<@NotNull @Positive Long> studentIds,
