@@ -8,7 +8,10 @@
             "mainClass": "com.classmanagement.backend.BackendApplication",
             "projectName": "backend",
             "cwd": "${workspaceFolder}/backend",
-            "envFile": "${workspaceFolder}/backend/.env"
+            "envFile": "${workspaceFolder}/backend/.env",
+            "env": {
+                "EXAM_IMPORT_BACKEND_DIR": "${workspaceFolder}/backend"
+            }
         }
     ]
 }

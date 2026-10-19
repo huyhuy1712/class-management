@@ -1,5 +1,6 @@
 import {
   Bell,
+  BookOpen,
   ClipboardCheck,
   FileText,
   GraduationCap,
@@ -37,6 +38,11 @@ function ClassDetailSidebar({ studentCount = 0 }) {
       icon: FileText,
       to: `/teacher/classes/${classId}/assignments`,
       count: examsQuery.data?.length,
+    },
+    {
+      label: 'Tài liệu',
+      icon: BookOpen,
+      to: `/teacher/classes/${classId}/materials`,
     },
     {
       label: 'Bảng tin',

@@ -17,6 +17,7 @@ export function resourceOptions(resource, params) {
     studentClasses: ({ signal }) => userService.getMyClasses({ signal }),
     allClasses: ({ signal }) => classroomService.getAll({ signal }),
     classStudents: ({ signal }) => classroomService.getStudents(params[0], { signal }),
+    classDocuments: ({ signal }) => classroomService.getDocuments(params[0], { signal }),
     teachers: ({ signal }) => userService.getTeachers({ signal }),
     studentDirectory: ({ signal }) => userService.getStudents({ signal }),
     teacherStudents: ({ signal }) => userService.getMyStudents({ signal }),

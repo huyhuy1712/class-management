@@ -124,8 +124,49 @@ class PdfExamImportServiceTest {
         assertNull(first.preview());
         assertEquals(0, recognitionCalls);
         assertEquals(1, files().directories().size());
+
+        var current = service.upload("owner", file(), 1, UUID.randomUUID());
+        assertEquals("CANCELLED", service.get("owner", first.importId()).status());
+        assertEquals("QUEUED", current.status());
         assertThrows(ConflictException.class, () -> service.upload("owner", file(), 2, request));
-        assertEquals(1, files().directories().size());
+        assertEquals(2, files().directories().size());
+    }
+
+    @Test
+    void newUploadCancelsAllOldUnsubmittedJobsButPreservesSavedJobsAndOtherOwners() throws Exception {
+        var service = service();
+        var now = PdfExamImportService.now();
+        var states = List.of("QUEUED", "PROCESSING", "READY_FOR_REVIEW", "FAILED");
+        var oldJobs = new ArrayList<Job>();
+        for (String state : states) {
+            UUID id = UUID.randomUUID();
+            var job = new Job(id, 1L, UUID.randomUUID(), "source", 20, 1, state, state,
+                    UUID.randomUUID(), "preview", null, null,
+                    "PROCESSING".equals(state) ? UUID.randomUUID() : null,
+                    now, now, now.plusHours(24));
+            jobs.rows.put(id, job);
+            oldJobs.add(job);
+        }
+        UUID savedId = UUID.randomUUID();
+        var saved = new Job(savedId, 1L, UUID.randomUUID(), "source", 20, 1,
+                "READY_FOR_REVIEW", "SAVED", UUID.randomUUID(), "preview", null, null,
+                null, now, now, now.plusHours(24), "{\"id\":91}");
+        jobs.rows.put(savedId, saved);
+        UUID otherId = UUID.randomUUID();
+        var other = new Job(otherId, 2L, UUID.randomUUID(), "source", 20, 1,
+                "PROCESSING", "PROCESSING", UUID.randomUUID(), null, null, null,
+                UUID.randomUUID(), now, now, now.plusHours(24));
+        jobs.rows.put(otherId, other);
+
+        var next = service.upload("owner", file(), 1, UUID.randomUUID());
+
+        for (Job old : oldJobs) {
+            assertEquals("CANCELLED", jobs.owned(old.id(), 1L).orElseThrow().status());
+        }
+        assertEquals("READY_FOR_REVIEW", jobs.owned(savedId, 1L).orElseThrow().status());
+        assertEquals("{\"id\":91}", jobs.owned(savedId, 1L).orElseThrow().savedResponse());
+        assertEquals("PROCESSING", jobs.owned(otherId, 2L).orElseThrow().status());
+        assertEquals("QUEUED", next.status());
     }
 
     @Test
@@ -139,6 +180,32 @@ class PdfExamImportServiceTest {
         role = UserRole.TEACHER;
         status = UserStatus.INACTIVE;
         assertThrows(IllegalStateException.class, () -> service.get("owner", job.importId()));
+    }
+
+    @Test
+    void cancelsOwnedJobsAndRejectsOtherOwnersOrImportsAlreadySavedAsExams() throws Exception {
+        var service = service();
+        var queued = service.upload("owner", file(), 1, UUID.randomUUID());
+        assertEquals("CANCELLED", service.cancel("owner", queued.importId()).status());
+        assertEquals("CANCELLED", service.cancel("owner", queued.importId()).status());
+        assertThrows(ResourceNotFoundException.class,
+                () -> service.cancel("other", queued.importId()));
+
+        var processing = service.upload("owner", file(), 1, UUID.randomUUID());
+        jobs.claim(PdfExamImportService.now()).orElseThrow();
+        var claimed = jobs.owned(processing.importId(), 1L).orElseThrow();
+        assertEquals("CANCELLED", service.cancel("owner", processing.importId()).status());
+        assertFalse(jobs.progress(claimed, "READING_QUESTIONS", PdfExamImportService.now()));
+
+        var ready = service.upload("owner", validPdf(), 1, UUID.randomUUID());
+        var readyJob = jobs.claim(PdfExamImportService.now()).orElseThrow();
+        service.process(readyJob);
+        assertEquals("CANCELLED", service.cancel("owner", ready.importId()).status());
+
+        saving(service);
+        var saved = ready(service);
+        service.create("owner", reviewRequest(saved, true));
+        assertThrows(ConflictException.class, () -> service.cancel("owner", saved.id()));
     }
 
     @Test
@@ -416,6 +483,17 @@ class PdfExamImportServiceTest {
                     return job;
                 }
             }
+            rows.replaceAll((jobId, job) -> {
+                if (job.ownerId() == owner && job.expiresAt().isAfter(now)
+                        && !List.of("CANCELLED", "EXPIRED").contains(job.status())
+                        && job.savedResponse() == null) {
+                    return new Job(job.id(), job.ownerId(), job.requestId(), job.sourceHash(),
+                            job.sourceSize(), job.examNumber(), "CANCELLED", "CANCELLED",
+                            job.draftToken(), null, null, null, null, job.createdAt(), now,
+                            job.expiresAt(), null);
+                }
+                return job;
+            });
             var job = new Job(id, owner, request, hash, size, exam, "QUEUED", "WAITING",
                     UUID.randomUUID(), null, null, null, null, now, now, now.plusHours(24));
             rows.put(id, job);
@@ -425,6 +503,17 @@ class PdfExamImportServiceTest {
         @Override
         public Optional<Job> owned(UUID id, long owner) {
             return Optional.ofNullable(rows.get(id)).filter(job -> job.ownerId() == owner);
+        }
+
+        @Override
+        public boolean cancel(UUID id, long owner, LocalDateTime now) {
+            var job = owned(id, owner).orElse(null);
+            if (job == null || !List.of("QUEUED", "PROCESSING", "READY_FOR_REVIEW", "FAILED")
+                    .contains(job.status()) || job.savedResponse() != null) return false;
+            rows.put(id, new Job(job.id(), job.ownerId(), job.requestId(), job.sourceHash(),
+                    job.sourceSize(), job.examNumber(), "CANCELLED", "CANCELLED", job.draftToken(),
+                    null, null, null, null, job.createdAt(), now, job.expiresAt()));
+            return true;
         }
 
         @Override
@@ -487,7 +576,9 @@ class PdfExamImportServiceTest {
 
         @Override
         public boolean progress(Job job, String stage, LocalDateTime now) {
-            return rows.get(job.id()).leaseToken().equals(job.leaseToken());
+            var current = rows.get(job.id());
+            return current != null && "PROCESSING".equals(current.status())
+                    && current.leaseToken() != null && current.leaseToken().equals(job.leaseToken());
         }
 
         @Override

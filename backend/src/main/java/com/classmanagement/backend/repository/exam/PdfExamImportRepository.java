@@ -66,13 +66,21 @@ public class PdfExamImportRepository {
             return job;
         }
 
+        jdbc.update("""
+                update exam_import_jobs set status='CANCELLED',stage='CANCELLED',
+                    result_payload=null,error_code=null,error_message=null,
+                    lease_token=null,lease_until=null,updated_at=:now
+                where owner_id=:owner and expires_at>:now
+                    and status not in ('CANCELLED','EXPIRED') and saved_response is null
+                """, Map.of("owner", ownerId, "now", now));
+
         var counts = jdbc.queryForMap("""
                 select count(*) total,
                     count(*) filter (where owner_id=:owner) owned,
                     count(*) filter (where status in ('QUEUED','PROCESSING')) pending,
                     count(*) filter (where owner_id=:owner and status in ('QUEUED','PROCESSING')) owned_pending
                 from exam_import_jobs
-                where expires_at>:now and status<>'EXPIRED'
+                where expires_at>:now and status not in ('EXPIRED','CANCELLED')
                 """, Map.of("owner", ownerId, "now", now));
         if (((Number) counts.get("total")).longValue() >= 50
                 || ((Number) counts.get("owned")).longValue() >= 5
@@ -97,6 +105,17 @@ public class PdfExamImportRepository {
     public Optional<Job> owned(UUID id, long ownerId) {
         return jdbc.query("select * from exam_import_jobs where id=:id and owner_id=:owner",
                 Map.of("id", id, "owner", ownerId), this::map).stream().findFirst();
+    }
+
+    public boolean cancel(UUID id, long ownerId, LocalDateTime now) {
+        return jdbc.update("""
+                update exam_import_jobs set status='CANCELLED',stage='CANCELLED',
+                    result_payload=null,error_code=null,error_message=null,
+                    lease_token=null,lease_until=null,updated_at=:now
+                where id=:id and owner_id=:owner
+                    and status in ('QUEUED','PROCESSING','READY_FOR_REVIEW','FAILED')
+                    and expires_at>:now and saved_response is null
+                """, Map.of("id", id, "owner", ownerId, "now", now)) == 1;
     }
 
     /** Image requests must not reload the complete (up to 4 MiB) preview JSON. */
@@ -171,7 +190,7 @@ public class PdfExamImportRepository {
         jdbc.update("""
                 update exam_import_jobs set status='EXPIRED',stage='EXPIRED',result_payload=null,
                     lease_token=null,lease_until=null,updated_at=:now
-                where expires_at<=:now and status<>'EXPIRED'
+                where expires_at<=:now and status not in ('EXPIRED','CANCELLED')
                 """, Map.of("now", now));
     }
 
@@ -180,7 +199,8 @@ public class PdfExamImportRepository {
             return Set.of();
         }
         return Set.copyOf(jdbc.query("""
-                select id from exam_import_jobs where id in (:ids) and expires_at>:now
+                select id from exam_import_jobs
+                where id in (:ids) and expires_at>:now and status<>'CANCELLED'
                 """, Map.of("ids", ids, "now", now),
                 (row, index) -> row.getObject("id", UUID.class)));
     }

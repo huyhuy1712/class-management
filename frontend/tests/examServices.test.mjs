@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { runInNewContext } from 'node:vm'
 
 let api, examService, mediaService
-test('PDF import uses multipart, stable caller request ID and authenticated asset reads', async () => {
+test('PDF import uses multipart, stable caller request ID, cancellation and authenticated asset reads', async () => {
   api.handler = async (url, body, options) => {
     assert.equal(url, '/exams/imports/pdf')
     assert.equal(body.get('examNumber'), '2')
@@ -13,6 +13,11 @@ test('PDF import uses multipart, stable caller request ID and authenticated asse
     return { data: { importId: 'job' } }
   }
   assert.equal((await examService.importPdf(new Blob(['%PDF-1.7']), 2, 'same-request')).importId, 'job')
+  api.delete = async (url) => {
+    assert.equal(url, '/exams/imports/job')
+    return { data: { importId: 'job', status: 'CANCELLED' } }
+  }
+  assert.equal((await examService.cancelPdfImport('job')).status, 'CANCELLED')
   api.handler = async (url, options) => {
     assert.equal(url, '/exams/imports/job/assets/image')
     assert.equal(options.responseType, 'blob')
@@ -50,7 +55,7 @@ test('student grades forwards filters, pagination and cancellation and preserves
   assert.equal(await examService.getMyGrades(params, { signal }), response)
 })
 before(async () => {
-  api = { put: (...args) => api.handler(...args), get: (...args) => api.handler(...args), post: (...args) => api.handler(...args) }
+  api = { put: (...args) => api.handler(...args), get: (...args) => api.handler(...args), post: (...args) => api.handler(...args), delete: (...args) => api.handler(...args) }
   // Evaluate the real service modules with an isolated HTTP transport.
   // The shared Axios client remains unchanged; no network or credentials are used.
   const loadService = async (name) => {

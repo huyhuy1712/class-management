@@ -1,6 +1,11 @@
 import api from './api'
 
 const classroomService = {
+  getDocuments: async (classroomId, options = {}) => {
+    const response = await api.get(`/classes/${classroomId}/materials`, options)
+    return response.data
+  },
+
   getGradebook: async (id, params, options = {}) => (await api.get(`/classes/${id}/gradebook`, { ...options, params })).data,
   getAll: async (options = {}) => {
     const response = await api.get('/classes', options)

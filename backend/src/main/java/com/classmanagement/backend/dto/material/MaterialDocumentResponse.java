@@ -1,0 +1,16 @@
+package com.classmanagement.backend.dto.material;
+
+import lombok.Builder;
+import lombok.Getter;
+
+import java.time.LocalDateTime;
+
+@Getter
+@Builder
+public class MaterialDocumentResponse {
+    private Long id;
+    private String title;
+    private String content;
+    private String fileUrl;
+    private LocalDateTime createdAt;
+}

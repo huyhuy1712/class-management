@@ -9,6 +9,7 @@ const examService = {
     return (await api.post('/exams/imports/pdf', body, { skipQueryInvalidation: true })).data
   },
   getPdfImport: async (id, options = {}) => (await api.get(`/exams/imports/${id}`, options)).data,
+  cancelPdfImport: async (id) => (await api.delete(`/exams/imports/${id}`)).data,
   getPdfImportAsset: async (id, assetId, options = {}) => (await api.get(`/exams/imports/${id}/assets/${assetId}`, { ...options, responseType: 'blob' })).data,
   getMyGrades: async (params = {}, options = {}) => (await api.get('/users/me/grades', { ...options, params })).data,
   getTeacherAttemptReview: async (id, options = {}) => (await api.get(`/exam-attempts/${id}/teacher-review`, options)).data,

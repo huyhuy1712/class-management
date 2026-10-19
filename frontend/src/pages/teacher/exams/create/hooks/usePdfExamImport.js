@@ -60,6 +60,40 @@ export default function usePdfExamImport() {
       )
     },
   })
+  const cancelMutation = useMutation({
+    mutationFn: async () => {
+      const version = getSessionVersion()
+      const response = await examService.cancelPdfImport(importId)
+      if (version !== getSessionVersion()) return null
+      return response
+    },
+    onMutate: async () => {
+      const queryKey = query.queryKey
+      await client.cancelQueries({ queryKey, exact: true })
+      const previous = client.getQueryData(queryKey)
+      if (previous) {
+        client.setQueryData(queryKey, {
+          ...previous,
+          status: 'CANCELLED',
+          stage: 'CANCELLED',
+        })
+      }
+      return { queryKey, previous, version: getSessionVersion() }
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.version === getSessionVersion() && context.previous) {
+        client.setQueryData(context.queryKey, context.previous)
+      }
+      if (context?.version === getSessionVersion()) {
+        void client.invalidateQueries({ queryKey: context.queryKey, exact: true })
+      }
+    },
+    onSuccess: (response, _variables, context) => {
+      if (response && context?.version === getSessionVersion()) {
+        client.setQueryData(context.queryKey, response)
+      }
+    },
+  })
 
   const upload = async (values) => {
     if (lock.current) return
@@ -72,12 +106,24 @@ export default function usePdfExamImport() {
   }
 
   const reset = () => {
-    if (lock.current) return
+    if (lock.current || cancelMutation.isPending) return
 
     request.current = null
     setImportId('')
     mutation.reset()
   }
 
-  return { query, upload, uploading: mutation.isPending, uploadError: mutation.error, importId, reset }
+  const cancel = () => cancelMutation.mutateAsync()
+
+  return {
+    query,
+    upload,
+    uploading: mutation.isPending,
+    uploadError: mutation.error,
+    importId,
+    reset,
+    cancel,
+    cancelling: cancelMutation.isPending,
+    cancelError: cancelMutation.error,
+  }
 }

@@ -1,6 +1,7 @@
-import { Bell, ClipboardCheck, FileText, Users } from 'lucide-react'
+import { Bell, BookOpen, ClipboardCheck, FileText, Users } from 'lucide-react'
 import StudentAttendanceTab from '../tabs/StudentAttendanceTab'
 import StudentClassGradesTab from '../tabs/StudentClassGradesTab'
+import ClassDocumentsTab from '../../../../components/classroom/detail/ClassDocumentsTab'
 import useRoutePrefetch from '../../../../query/useRoutePrefetch'
 import useResourceQuery from '../../../../query/useResourceQuery'
 import StudentClassStudentsTab from '../tabs/StudentClassStudentsTab'
@@ -10,6 +11,7 @@ const tabs = [
   { id: 'students', label: 'Học sinh', Icon: Users },
   { id: 'attendance', label: 'Điểm danh', Icon: ClipboardCheck },
   { id: 'grades', label: 'Điểm số', Icon: FileText },
+  { id: 'materials', label: 'Tài liệu', Icon: BookOpen },
   { id: 'announcements', label: 'Bảng tin', Icon: Bell },
 ]
 
@@ -34,7 +36,7 @@ export default function StudentClassTabs({ selected, onSelect, classId }) {
         ))}
       </nav>
       <section className="min-w-0 rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm">
-        {selected === 'students' ? <StudentClassStudentsTab key={classId} classId={classId} /> : selected === 'attendance' ? <StudentAttendanceTab key={classId} classId={classId} /> : selected === 'grades' ? <StudentClassGradesTab key={classId} classId={classId} /> : <>
+        {selected === 'students' ? <StudentClassStudentsTab key={classId} classId={classId} /> : selected === 'attendance' ? <StudentAttendanceTab key={classId} classId={classId} /> : selected === 'grades' ? <StudentClassGradesTab key={classId} classId={classId} /> : selected === 'materials' ? <ClassDocumentsTab key={classId} classId={classId} /> : <>
         <h2 className="text-xl font-bold text-[#18301D]">{current.label}</h2>
         <p className="py-12 text-center text-sm text-slate-400">Nội dung sẽ được bổ sung sau.</p>
         </>}

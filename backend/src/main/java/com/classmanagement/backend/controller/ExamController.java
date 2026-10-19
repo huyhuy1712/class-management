@@ -74,6 +74,14 @@ public class ExamController {
                 .body(pdfImports.get(authentication.getName(), importId));
     }
 
+    @DeleteMapping("/imports/{importId}")
+    public ResponseEntity<PdfExamImportResponse> cancelImport(
+            @PathVariable UUID importId, Authentication authentication) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(pdfImports.cancel(authentication.getName(), importId));
+    }
+
     @GetMapping(value = "/imports/{importId}/assets/{assetId}", produces = "image/png")
     public ResponseEntity<byte[]> getImportAsset(
             @PathVariable UUID importId,
