@@ -26,6 +26,7 @@ import defaultAvatar from '../../assets/images/avatar_default.png'
 import useProfileActivity from './hooks/useProfileActivity'
 import { optimizeAvatar } from '../teacher/helpers/avatarImageUtils'
 import useProfileSync from './hooks/useProfileSync'
+import GoogleAuthButton from '../../components/auth/GoogleAuthButton'
 
 function AccountProfilePage({ student = false }) {
   const profile = useProfileSync()
@@ -429,6 +430,19 @@ const handleChangePassword = async (event) => {
           <span className="w-fit rounded-full bg-white/15 px-4 py-2 text-sm font-semibold text-white ring-1 ring-white/20">
             {roleLabel}
           </span>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-green-100 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-bold text-[#18301D]">Đăng nhập và bảo mật</h2>
+        <p className="mt-1 text-sm text-gray-500">
+          Liên kết Google để lần sau có thể đăng nhập nhanh bằng tài khoản Google của bạn.
+        </p>
+        <div className="mt-4 max-w-md">
+          <GoogleAuthButton
+            intent="link"
+            returnTo={student ? '/student/profile' : '/teacher/profile'}
+          />
         </div>
       </section>
 

@@ -5,6 +5,11 @@ export const login = async (data) => {
   return response.data
 }
 
+export const getGoogleSession = async () => {
+  const response = await api.get('/auth/google/session')
+  return response.data
+}
+
 export const signup = async (data) => {
   const response = await api.post('/auth/signup', data)
   return response.data

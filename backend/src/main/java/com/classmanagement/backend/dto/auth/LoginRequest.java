@@ -8,7 +8,7 @@ import lombok.Setter;
 @Setter
 public class LoginRequest {
 
-    @NotBlank(message = "Vui lòng nhập tên đăng nhập")
+    @NotBlank(message = "Vui lòng nhập tên đăng nhập hoặc email")
     private String username;
 
     @NotBlank(message = "Vui lòng nhập mật khẩu")

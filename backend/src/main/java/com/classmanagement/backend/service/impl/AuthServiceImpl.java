@@ -13,12 +13,14 @@ import com.classmanagement.backend.dto.auth.CompletePasswordResetRequest;
 import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.entity.PendingSignup;
 import com.classmanagement.backend.entity.PasswordResetChallenge;
+import com.classmanagement.backend.entity.EmailOutboxMessage;
 import com.classmanagement.backend.entity.enums.UserRole;
 import com.classmanagement.backend.entity.enums.UserStatus;
 import com.classmanagement.backend.repository.ImpersonationSessionRepository;
 import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.repository.PendingSignupRepository;
 import com.classmanagement.backend.repository.PasswordResetChallengeRepository;
+import com.classmanagement.backend.repository.EmailOutboxRepository;
 import com.classmanagement.backend.security.JwtService;
 import com.classmanagement.backend.service.AuthService;
 import com.classmanagement.backend.service.StorageService;
@@ -31,9 +33,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -76,7 +75,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final StorageService storageService;
-    private final ObjectProvider<JavaMailSender> mailSenderProvider;
+    private final EmailOutboxRepository emailOutboxRepository;
 
     @Value("${app.mail.provider:smtp}")
     private String mailProvider;
@@ -331,16 +330,13 @@ public class AuthServiceImpl implements AuthService {
         }
 
         if ("smtp".equalsIgnoreCase(mailProvider)) {
-            JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
-            if (mailSender == null) {
-                throw new IllegalStateException("Chưa cấu hình Spring Mail SMTP.");
-            }
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(mailFrom);
-            message.setTo(recipient);
-            message.setSubject(subject);
-            message.setText(text);
-            mailSender.send(message);
+            emailOutboxRepository.save(EmailOutboxMessage.builder()
+                    .recipient(recipient)
+                    .subject(subject)
+                    .body(text)
+                    .status("PENDING")
+                    .attemptCount(0)
+                    .build());
             return;
         }
 
@@ -542,20 +538,18 @@ public class AuthServiceImpl implements AuthService {
 @Override
 public LoginResponse login(LoginRequest request) {
 
-    // 1. Tìm user
-    User user = userRepository
-            .findByUsername(request.getUsername())
+    String loginIdentifier = request.getUsername().trim();
+    User user = userRepository.findByUsername(loginIdentifier)
+            .or(() -> userRepository.findByEmailIgnoreCase(loginIdentifier))
             .orElseThrow(() ->
                     new IllegalArgumentException(
-                            "Tên đăng nhập không tồn tại"
+                            "Tên đăng nhập hoặc email không tồn tại"
                     )
             );
 
     // 2. Kiểm tra trực tiếp BCrypt
-    boolean passwordMatches = passwordEncoder.matches(
-            request.getPassword(),
-            user.getPasswordHash()
-    );
+    boolean passwordMatches = user.getPasswordHash() != null
+            && passwordEncoder.matches(request.getPassword(), user.getPasswordHash());
 
         if (!passwordMatches) {
                 throw new IllegalArgumentException(
@@ -589,7 +583,7 @@ public LoginResponse login(LoginRequest request) {
     UserDetails userDetails =
             org.springframework.security.core.userdetails.User
                     .withUsername(user.getUsername())
-                    .password(user.getPasswordHash())
+                    .password(user.getPasswordHash() == null ? "" : user.getPasswordHash())
                     .authorities("ROLE_" + user.getRole().name())
                     .build();
 
@@ -598,7 +592,19 @@ public LoginResponse login(LoginRequest request) {
             jwtService.generateToken(userDetails);
 
     // 6. Response
-    return LoginResponse.builder()
+    return toLoginResponse(user, accessToken);
+}
+
+    @Override
+    @Transactional(readOnly = true)
+    public LoginResponse getCurrentUser(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng."));
+        return toLoginResponse(user, null);
+    }
+
+    private LoginResponse toLoginResponse(User user, String accessToken) {
+        return LoginResponse.builder()
             .id(user.getId())
             .username(user.getUsername())
             .email(user.getEmail())

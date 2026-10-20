@@ -17,6 +17,7 @@ import { Link, useNavigate } from 'react-router-dom'
 
 import { resendEmailVerificationCode, signup, updatePendingSignup, verifyEmail } from '../../services/authService'
 import logo from '../../assets/logos/logo.png'
+import GoogleAuthButton from '../../components/auth/GoogleAuthButton'
 
 function SignupPage() {
   const navigate = useNavigate()
@@ -596,6 +597,17 @@ function SignupPage() {
               {loading ? editingPending ? 'Đang lưu...' : 'Đang đăng ký...' : editingPending ? 'Lưu thông tin & quay lại OTP' : 'Đăng ký'}
             </button>
           </form>
+
+          {!editingPending && (
+            <>
+              <div className="my-5 flex items-center gap-3 text-xs text-gray-400">
+                <span className="h-px flex-1 bg-gray-200" />
+                HOẶC
+                <span className="h-px flex-1 bg-gray-200" />
+              </div>
+              <GoogleAuthButton intent="signup" role={role} />
+            </>
+          )}
 
           {editingPending ? (
             <button type="button" onClick={() => { setEditingPending(false); setVerificationPending(true); setCurrentPassword(''); setError('') }} className="mt-6 w-full text-center text-sm font-semibold text-green-700 hover:text-green-800">

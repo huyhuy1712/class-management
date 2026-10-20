@@ -17,6 +17,7 @@ public interface AuthService {
 
     SignupResponse signup(SignupRequest request);
     LoginResponse login(LoginRequest request);
+    LoginResponse getCurrentUser(String username);
     SignupResponse verifyEmail(EmailVerificationRequest request);
     void resendEmailVerificationCode(ResendEmailVerificationRequest request);
     SignupResponse updatePendingSignup(UpdatePendingSignupRequest request);

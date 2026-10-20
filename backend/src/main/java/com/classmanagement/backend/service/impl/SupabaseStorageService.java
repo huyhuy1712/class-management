@@ -99,6 +99,9 @@ public class SupabaseStorageService implements StorageService {
         if (objectPath == null || objectPath.isBlank()) {
             return;
         }
+        if (StorageService.isAbsoluteUrl(objectPath)) {
+            return;
+        }
 
         String url = supabaseUrl
                 + "/storage/v1/object/"
@@ -130,6 +133,9 @@ public class SupabaseStorageService implements StorageService {
 
         if (objectPath == null || objectPath.isBlank()) {
             return null;
+        }
+        if (StorageService.isAbsoluteUrl(objectPath)) {
+            return objectPath;
         }
 
         return supabaseUrl

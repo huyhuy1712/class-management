@@ -63,6 +63,9 @@ public class LocalStorageService implements StorageService {
         if (objectPath == null || objectPath.isBlank()) {
             return;
         }
+        if (StorageService.isAbsoluteUrl(objectPath)) {
+            return;
+        }
 
         try {
             Path root = Paths.get(localDir)
@@ -105,6 +108,9 @@ public class LocalStorageService implements StorageService {
 
         if (objectPath == null || objectPath.isBlank()) {
             return null;
+        }
+        if (StorageService.isAbsoluteUrl(objectPath)) {
+            return objectPath;
         }
 
         return baseUrl

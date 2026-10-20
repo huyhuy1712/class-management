@@ -6,12 +6,14 @@ import com.classmanagement.backend.dto.auth.VerifyPasswordResetCodeRequest;
 import com.classmanagement.backend.dto.auth.CompletePasswordResetRequest;
 import com.classmanagement.backend.dto.auth.LoginRequest;
 import com.classmanagement.backend.dto.auth.SignupRequest;
+import com.classmanagement.backend.entity.EmailOutboxMessage;
 import com.classmanagement.backend.entity.PendingSignup;
 import com.classmanagement.backend.entity.PasswordResetChallenge;
 import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.entity.enums.UserRole;
 import com.classmanagement.backend.entity.enums.UserStatus;
 import com.classmanagement.backend.repository.ImpersonationSessionRepository;
+import com.classmanagement.backend.repository.EmailOutboxRepository;
 import com.classmanagement.backend.repository.PendingSignupRepository;
 import com.classmanagement.backend.repository.PasswordResetChallengeRepository;
 import com.classmanagement.backend.repository.UserRepository;
@@ -22,10 +24,6 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import com.sun.net.httpserver.HttpServer;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.lang.reflect.Proxy;
@@ -89,7 +87,7 @@ class AuthServiceImplTest {
     @Test
     void signupDoesNotCreateUserAndOnlyValidOtpCreatesOne() {
         AtomicReference<PendingSignup> pendingSignup = new AtomicReference<>();
-        AtomicReference<SimpleMailMessage> sentMessage = new AtomicReference<>();
+        AtomicReference<EmailOutboxMessage> queuedEmail = new AtomicReference<>();
         AtomicInteger userSaveCount = new AtomicInteger();
         UserRepository users = proxy(UserRepository.class, (method, args) -> {
             if (method.startsWith("existsBy")) return false;
@@ -122,14 +120,14 @@ class AuthServiceImplTest {
             if ("matches".equals(method)) return ("hashed:" + args[0]).equals(args[1]);
             throw new UnsupportedOperationException(method);
         });
-        JavaMailSender javaMailSender = proxy(JavaMailSender.class, (method, args) -> {
-            if ("send".equals(method) && args[0] instanceof SimpleMailMessage message) {
-                sentMessage.set(message);
-                return null;
+        EmailOutboxRepository outbox = proxy(EmailOutboxRepository.class, (method, args) -> {
+            if ("save".equals(method) && args[0] instanceof EmailOutboxMessage message) {
+                queuedEmail.set(message);
+                return message;
             }
             throw new UnsupportedOperationException(method);
         });
-        AuthServiceImpl service = service(users, pending, encoder, javaMailSender);
+        AuthServiceImpl service = service(users, pending, encoder, outbox);
         setField(service, "mailProvider", "smtp");
 
         SignupRequest request = new SignupRequest();
@@ -142,8 +140,9 @@ class AuthServiceImplTest {
         service.signup(request);
         assertEquals(0, userSaveCount.get());
         assertNotNull(pendingSignup.get());
-        assertEquals("newstudent@gmail.com", sentMessage.get().getTo()[0]);
-        Matcher matcher = Pattern.compile("\\b(\\d{6})\\b").matcher(sentMessage.get().getText());
+        assertEquals("newstudent@gmail.com", queuedEmail.get().getRecipient());
+        assertEquals("PENDING", queuedEmail.get().getStatus());
+        Matcher matcher = Pattern.compile("\\b(\\d{6})\\b").matcher(queuedEmail.get().getBody());
         assertTrue(matcher.find());
         rawCode.set(matcher.group(1));
         assertTrue(pendingSignup.get().getVerificationCodeHash().startsWith("hashed:"));
@@ -188,18 +187,49 @@ class AuthServiceImplTest {
         User student = User.builder()
                 .id(12L)
                 .username("student")
+                .email("student@example.com")
                 .passwordHash("hashed:password")
                 .role(UserRole.STUDENT)
                 .status(UserStatus.ACTIVE)
                 .build();
         UserRepository users = proxy(UserRepository.class, (method, args) ->
-                "findByUsername".equals(method) ? Optional.of(student) : null);
+                "findByUsername".equals(method) ? Optional.of(student)
+                        : "findByEmailIgnoreCase".equals(method) ? Optional.empty() : null);
         AuthServiceImpl service = service(users,
                 proxy(PendingSignupRepository.class, (method, args) -> null),
                 proxy(PasswordEncoder.class, (method, args) ->
                         "matches".equals(method) && "password".equals(args[0])));
         LoginRequest request = new LoginRequest();
         request.setUsername("student");
+        request.setPassword("password");
+
+        assertNotNull(service.login(request).getAccessToken());
+    }
+
+    @Test
+    void loginSucceedsWithEmailRegardlessOfEmailCase() {
+        User student = User.builder()
+                .id(12L)
+                .username("student")
+                .email("student@example.com")
+                .passwordHash("hashed:password")
+                .role(UserRole.STUDENT)
+                .status(UserStatus.ACTIVE)
+                .build();
+        UserRepository users = proxy(UserRepository.class, (method, args) -> {
+            if ("findByUsername".equals(method)) return Optional.empty();
+            if ("findByEmailIgnoreCase".equals(method)) {
+                assertEquals("STUDENT@EXAMPLE.COM", args[0]);
+                return Optional.of(student);
+            }
+            return null;
+        });
+        AuthServiceImpl service = service(users,
+                proxy(PendingSignupRepository.class, (method, args) -> null),
+                proxy(PasswordEncoder.class, (method, args) ->
+                        "matches".equals(method) && "password".equals(args[0])));
+        LoginRequest request = new LoginRequest();
+        request.setUsername("STUDENT@EXAMPLE.COM");
         request.setPassword("password");
 
         assertNotNull(service.login(request).getAccessToken());
@@ -326,10 +356,10 @@ class AuthServiceImplTest {
             UserRepository users,
             PendingSignupRepository pending,
             PasswordEncoder encoder,
-            JavaMailSender mailSender) {
+            EmailOutboxRepository outbox) {
         return service(users, pending,
                 proxy(PasswordResetChallengeRepository.class, (method, args) -> null),
-                encoder, mailSender);
+                encoder, outbox);
     }
 
     private static AuthServiceImpl service(
@@ -337,7 +367,9 @@ class AuthServiceImplTest {
             PendingSignupRepository pending,
             PasswordResetChallengeRepository resetChallenges,
             PasswordEncoder encoder) {
-        return service(users, pending, resetChallenges, encoder, null);
+        return service(users, pending, resetChallenges, encoder,
+                proxy(EmailOutboxRepository.class, (method, args) ->
+                        "save".equals(method) ? args[0] : null));
     }
 
     private static AuthServiceImpl service(
@@ -345,7 +377,7 @@ class AuthServiceImplTest {
             PendingSignupRepository pending,
             PasswordResetChallengeRepository resetChallenges,
             PasswordEncoder encoder,
-            JavaMailSender mailSender) {
+            EmailOutboxRepository outbox) {
         JwtService jwtService = new JwtService();
         setField(jwtService, "jwtSecret", Base64.getEncoder().encodeToString(
                 "class-management-test-jwt-secret".getBytes(StandardCharsets.UTF_8)));
@@ -358,23 +390,13 @@ class AuthServiceImplTest {
                 encoder,
                 jwtService,
                 proxy(StorageService.class, (method, args) -> null),
-                mailSenderProvider(mailSender));
+                outbox);
         setField(service, "mailFrom", "FrogH <sender@example.com>");
         setField(service, "mailApiKey", "test-api-key");
         setField(service, "mailApiSecret", "test-api-secret");
         setField(service, "mailApiUrl", emailApiUrl);
         setField(service, "mailProvider", "https");
         return service;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static ObjectProvider<JavaMailSender> mailSenderProvider(JavaMailSender mailSender) {
-        return (ObjectProvider<JavaMailSender>) proxy(ObjectProvider.class, (method, args) -> {
-            if ("getIfAvailable".equals(method) || "getIfUnique".equals(method) || "getObject".equals(method)) {
-                return mailSender;
-            }
-            return null;
-        });
     }
 
     private static void setField(Object instance, String name, Object value) {

@@ -1,6 +1,10 @@
 package com.classmanagement.backend.config;
 
 import com.classmanagement.backend.security.JwtAuthenticationFilter;
+import com.classmanagement.backend.security.GoogleAuthorizationRequestResolver;
+import com.classmanagement.backend.security.GoogleOAuthAuthorizationRequestRepository;
+import com.classmanagement.backend.security.GoogleOAuthFailureHandler;
+import com.classmanagement.backend.security.GoogleOAuthSuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,7 +17,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -27,6 +31,10 @@ public class SecurityConfig {
     private final UserDetailsService userDetailsService;
     private final PasswordEncoder passwordEncoder;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final GoogleAuthorizationRequestResolver googleAuthorizationRequestResolver;
+    private final GoogleOAuthAuthorizationRequestRepository googleAuthorizationRequestRepository;
+    private final GoogleOAuthSuccessHandler googleOAuthSuccessHandler;
+    private final GoogleOAuthFailureHandler googleOAuthFailureHandler;
 
     // =========================
     // AUTHENTICATION PROVIDER
@@ -59,9 +67,9 @@ public class SecurityConfig {
                 // REST API + JWT nên không dùng CSRF
                 .csrf(csrf -> csrf.disable())
 
-                // JWT không dùng HTTP Session
+                // HTTP session is used only to preserve OAuth2 state during Google's redirect.
                 .sessionManagement(session -> session.sessionCreationPolicy(
-                        SessionCreationPolicy.STATELESS))
+                        SessionCreationPolicy.IF_REQUIRED))
 
                 // Authorization rules
                 .authorizeHttpRequests(auth -> auth
@@ -83,7 +91,10 @@ public class SecurityConfig {
                                 "/api/auth/password-reset/**",
                                 "/api/auth/login",
                                 "/api/auth/logout",
-                                "/api/auth/impersonation/stop")
+                                "/api/auth/impersonation/stop",
+                                "/api/auth/google/enabled",
+                                "/oauth2/**",
+                                "/login/oauth2/**")
                         .permitAll()
 
                         // Admin API
@@ -96,10 +107,17 @@ public class SecurityConfig {
                         // TẤT CẢ API CÒN LẠI PHẢI LOGIN
                         .anyRequest().authenticated())
 
-                // JWT Filter chạy trước UsernamePasswordAuthenticationFilter
+                .oauth2Login(oauth2 -> oauth2
+                        .authorizationEndpoint(endpoint -> endpoint
+                                .authorizationRequestResolver(googleAuthorizationRequestResolver)
+                                .authorizationRequestRepository(googleAuthorizationRequestRepository))
+                        .successHandler(googleOAuthSuccessHandler)
+                        .failureHandler(googleOAuthFailureHandler))
+
+                // Authenticate the existing application cookie before a link flow starts OAuth.
                 .addFilterBefore(
                         jwtAuthenticationFilter,
-                        UsernamePasswordAuthenticationFilter.class);
+                        OAuth2AuthorizationRequestRedirectFilter.class);
 
         return http.build();
     }

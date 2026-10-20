@@ -4,6 +4,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface StorageService {
 
+    static boolean isAbsoluteUrl(String value) {
+        return value != null
+                && (value.regionMatches(true, 0, "https://", 0, 8)
+                        || value.regionMatches(true, 0, "http://", 0, 7));
+    }
+
     String upload(
             String folder,
             String fileName,

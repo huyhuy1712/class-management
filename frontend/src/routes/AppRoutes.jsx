@@ -14,6 +14,7 @@ import ClassListPage from '../pages/teacher/classroom/ClassroomListPage'
 import LoginPage from '../pages/auth/LoginPage'
 import SignupPage from '../pages/auth/SignupPage'
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage'
+import GoogleOAuthCallbackPage from '../pages/auth/GoogleOAuthCallbackPage'
 import ClassDetailPage from '../pages/teacher/classroom/ClassroomDetailPage'
 import StudentsTab from '../pages/teacher/classroom/tabs/StudentsTab'
 import AssignmentsTab from '../pages/teacher/classroom/tabs/AssignmentsTab'
@@ -81,6 +82,7 @@ function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/oauth/callback" element={<GoogleOAuthCallbackPage />} />
 
       {/* Route teacher */}
       <Route path="/teacher" element={<TeacherDashboard />} />

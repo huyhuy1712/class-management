@@ -19,14 +19,17 @@ class ClassGradebookTest {
         @Override public <T> T queryForObject(String sql,SqlParameterSource p,Class<T> type) { queries.add(sql); return type.cast(2L); }
         @Override public <T> List<T> query(String sql,SqlParameterSource p,RowMapper<T> mapper) {
             queries.add(sql);
-            if(sql.startsWith("select u.id,u.student_code")) {
-                assertTrue(sql.contains("order by lower(u.full_name),u.id limit :limit offset :offset"));
+            if(sql.contains("select u.id") && sql.contains("u.student_code") && sql.contains("order by lower(u.full_name), u.id")) {
+                assertTrue(sql.contains("order by lower(u.full_name), u.id"));
+                assertTrue(sql.contains("limit :limit offset :offset"));
                 assertFalse(sql.contains("grade_average"));
                 assertEquals("%a!%!_!!%",p.getValue("pattern"));
                 if(empty) return List.of();
                 return List.of(map(mapper,new Object[]{21L,"ST-21","Student","mail","phone",null,null}));
             }
-            if(sql.contains("select a.id,e.id,e.title")) return List.of(
+            if(sql.contains("from exam_assignments a")
+                    && sql.contains("join exams e on e.id = a.exam_id")
+                    && sql.contains("order by a.created_at, a.id")) return List.of(
                     map(mapper,new Object[]{12L,5L,"Exam","EX-5","ALL",new BigDecimal("20")}),
                     map(mapper,new Object[]{13L,6L,"Private","EX-6","STUDENT",BigDecimal.TEN}),
                     map(mapper,new Object[]{14L,7L,"Pending","EX-7","CLASS",BigDecimal.TEN}));
@@ -51,7 +54,7 @@ class ClassGradebookTest {
         assertEquals(new BigDecimal("7.500"),student.averageScoreOnTen()); assertEquals(1,student.gradedCount());
         assertFalse(student.cells().get(1).assigned()); assertNull(student.cells().get(1).attemptId()); assertNull(student.cells().get(1).scoreOnTen());
         assertNull(student.cells().get(2).scoreOnTen());
-        assertTrue(queries.get(2).contains("s.class_id=c.id")); assertTrue(queries.get(2).contains("e.teacher_id=:teacherId"));
+        assertTrue(queries.get(2).contains("s.class_id = c.id")); assertTrue(queries.get(2).contains("e.teacher_id = :teacherId"));
         assertTrue(queries.getLast().contains("u.id in (:students)"));
     }
     @Test void emptyStudentPageDoesNotReadAnyScores() {
