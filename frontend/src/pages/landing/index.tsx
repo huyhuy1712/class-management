@@ -37,6 +37,7 @@ import {
 import logo from '../../assets/logos/logo.png'
 import defaultAvatar from '../../assets/images/avatar_default.png'
 import publicService from '../../services/publicService'
+import AiChatWidget from '../../components/AiChatWidget'
 
 // ==========================================
 // TYPE DEFINITIONS (Ánh xạ từ DTO Backend)
@@ -1374,6 +1375,9 @@ function LandingPage() {
           </div>
         </div>
       )}
+
+      {/* TRỢ LÝ HỌC TẬP AI DÙNG THỬ */}
+      <AiChatWidget />
     </div>
   )
 }
