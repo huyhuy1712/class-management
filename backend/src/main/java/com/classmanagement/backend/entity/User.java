@@ -30,7 +30,7 @@ public class User {
 
     @Column(
         name = "password_hash",
-        nullable = false,
+        nullable = true,
         length = 255
     )
     private String passwordHash;

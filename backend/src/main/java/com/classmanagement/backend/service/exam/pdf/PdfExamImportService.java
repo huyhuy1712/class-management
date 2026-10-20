@@ -138,6 +138,30 @@ public class PdfExamImportService {
         return response(owned(username, importId), true);
     }
 
+    public PdfExamImportResponse cancel(String username, UUID importId) {
+        long ownerId = teacher(username);
+        var job = jobs.owned(importId, ownerId).orElseThrow(this::missing);
+        if ("CANCELLED".equals(job.status())) {
+            return response(job, false);
+        }
+        if (!job.expiresAt().isAfter(now())) {
+            throw new ConflictException("Job import đã hết hạn");
+        }
+        if (!List.of("QUEUED", "PROCESSING", "READY_FOR_REVIEW", "FAILED").contains(job.status())
+                || job.savedResponse() != null) {
+            throw new ConflictException("Job đã lưu thành đề hoặc không còn ở trạng thái có thể hủy");
+        }
+        if (!jobs.cancel(importId, ownerId, now())) {
+            job = jobs.owned(importId, ownerId).orElseThrow(this::missing);
+            if (!"CANCELLED".equals(job.status())) {
+                throw new ConflictException("Job đã đổi trạng thái và không thể hủy");
+            }
+        } else {
+            job = jobs.owned(importId, ownerId).orElseThrow(this::missing);
+        }
+        return response(job, false);
+    }
+
     public void requireReviewIfImport(CreateCompleteExamRequest request) {
         if (request.importReview() == null && request.draftToken() != null
                 && jobs.isImportDraft(request.draftToken())) {

@@ -1,6 +1,9 @@
 import FrogLoading from '../../utils/FrogLoading'
 import useStudentDashboard from "../../pages/student/hooks/useStudentDashboard";
 import {
+  AlarmClock,
+  ChevronLeft,
+  ChevronRight,
   ClipboardCheck,
   BookOpen,
   Search,
@@ -8,8 +11,10 @@ import {
   FileCheck,
   ArrowUpRight,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import useRoutePrefetch from '../../query/useRoutePrefetch'
+import { formatExamDateTime } from "../../pages/teacher/exams/helpers/examHelpers";
 
 const features = [
   {
@@ -41,7 +46,19 @@ const features = [
 
 function StudentDashboard() {
   const prefetch = useRoutePrefetch()
-  const { studentName, classCount, loading, classError, error, completedExamCount, examCountLoading, examCountError } = useStudentDashboard();
+  const navigate = useNavigate()
+  const { studentName, classCount, loading, classError, error, completedExamCount, examCountLoading, examCountError, unstartedExams, unstartedExamsError } = useStudentDashboard();
+  const [activeExamIndex, setActiveExamIndex] = useState(0)
+  const [paused, setPaused] = useState(false)
+  const activeExams = unstartedExams
+  const currentExamIndex = activeExams.length ? activeExamIndex % activeExams.length : 0
+  useEffect(() => {
+    if (paused || activeExams.length < 2) return undefined
+    const timer = window.setInterval(() => {
+      setActiveExamIndex((index) => (index + 1) % activeExams.length)
+    }, 5000)
+    return () => window.clearInterval(timer)
+  }, [activeExams.length, paused])
   const today = new Intl.DateTimeFormat("vi-VN", {
     weekday: "long",
     day: "numeric",
@@ -78,6 +95,71 @@ function StudentDashboard() {
 
         </div>
       </section>
+
+      {!unstartedExamsError && activeExams.length > 0 && (
+        <section
+          aria-label="Bài kiểm tra chưa làm"
+          aria-roledescription="carousel"
+          className="mb-8 overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 via-white to-orange-50 shadow-sm"
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+          onFocus={() => setPaused(true)}
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false)
+          }}
+        >
+          <div className="flex items-center justify-between gap-4 border-b border-amber-100 px-5 py-4 sm:px-6">
+            <div className="flex items-center gap-3">
+              <span className="rounded-xl bg-amber-100 p-2.5 text-amber-700"><AlarmClock size={21} /></span>
+              <div>
+                <h2 className="font-bold text-amber-950">Bạn có bài kiểm tra chưa làm</h2>
+                <p className="text-sm text-amber-800/75">{unstartedExams.length} bài đang trong thời gian có thể làm</p>
+              </div>
+            </div>
+            {activeExams.length > 1 && (
+              <div className="flex items-center gap-1">
+                <button type="button" aria-label="Bài kiểm tra trước" onClick={() => setActiveExamIndex((index) => (index - 1 + activeExams.length) % activeExams.length)} className="rounded-lg p-2 text-amber-800 hover:bg-amber-100"><ChevronLeft size={20} /></button>
+                <span className="min-w-12 text-center text-xs font-semibold text-amber-800">{currentExamIndex + 1} / {activeExams.length}</span>
+                <button type="button" aria-label="Bài kiểm tra tiếp theo" onClick={() => setActiveExamIndex((index) => (index + 1) % activeExams.length)} className="rounded-lg p-2 text-amber-800 hover:bg-amber-100"><ChevronRight size={20} /></button>
+              </div>
+            )}
+          </div>
+          <div className="overflow-hidden">
+            <div className="flex transition-transform duration-700 ease-in-out motion-reduce:transition-none" style={{ transform: `translateX(-${currentExamIndex * 100}%)` }}>
+              {activeExams.map((exam) => {
+                const target = `/student/exams/${exam.assignmentId}`
+                return (
+                  <article key={exam.assignmentId} aria-roledescription="slide" className="flex w-full flex-none flex-col justify-between gap-4 px-5 py-5 sm:flex-row sm:items-center sm:px-6">
+                    <div className="min-w-0">
+                      <h3 className="truncate text-lg font-semibold text-slate-900">{exam.title}</h3>
+                      <p className="mt-1 text-sm text-slate-600">{exam.classes?.map((item) => item.name).join(", ") || "Bài kiểm tra được giao riêng"}</p>
+                      <p className="mt-2 text-xs font-medium text-amber-800">
+                        {exam.closeTime ? `Hạn làm bài: ${formatExamDateTime(exam.closeTime)}` : "Không giới hạn thời gian làm bài"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => navigate(target)}
+                      onMouseEnter={() => prefetch(target)}
+                      onFocus={() => prefetch(target)}
+                      className="shrink-0 rounded-xl bg-amber-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+                    >
+                      Làm bài ngay
+                    </button>
+                  </article>
+                )
+              })}
+            </div>
+          </div>
+          {activeExams.length > 1 && (
+            <div className="flex justify-center gap-1.5 pb-4" aria-label="Chọn bài kiểm tra">
+              {activeExams.map((exam, index) => (
+                <button key={exam.assignmentId} type="button" aria-label={`Hiện bài ${index + 1}: ${exam.title}`} aria-current={index === currentExamIndex ? "true" : undefined} onClick={() => setActiveExamIndex(index)} className={`h-1.5 rounded-full transition-all ${index === currentExamIndex ? "w-6 bg-amber-600" : "w-1.5 bg-amber-300 hover:bg-amber-400"}`} />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Statistics */}
       <section className="mb-10 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -201,9 +283,9 @@ function StudentDashboard() {
 
       </section>
 
-      {(error || classError || examCountError) && (
+      {(error || classError || examCountError || unstartedExamsError) && (
         <p role="alert" className="mt-8 text-sm text-red-600">
-          {error || (classError ? "Không thể tải số lớp đang tham gia." : "Không thể tải số bài kiểm tra đã nộp.")}
+          {error || (classError ? "Không thể tải số lớp đang tham gia." : examCountError ? "Không thể tải số bài kiểm tra đã nộp." : "Không thể kiểm tra bài thi chưa làm.")}
         </p>
       )}
 

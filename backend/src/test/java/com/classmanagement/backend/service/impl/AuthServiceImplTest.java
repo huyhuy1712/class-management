@@ -1,113 +1,402 @@
 package com.classmanagement.backend.service.impl;
 
+import com.classmanagement.backend.dto.auth.EmailVerificationRequest;
+import com.classmanagement.backend.dto.auth.PasswordResetRequest;
+import com.classmanagement.backend.dto.auth.VerifyPasswordResetCodeRequest;
+import com.classmanagement.backend.dto.auth.CompletePasswordResetRequest;
 import com.classmanagement.backend.dto.auth.LoginRequest;
+import com.classmanagement.backend.dto.auth.SignupRequest;
+import com.classmanagement.backend.entity.EmailOutboxMessage;
+import com.classmanagement.backend.entity.PendingSignup;
+import com.classmanagement.backend.entity.PasswordResetChallenge;
 import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.entity.enums.UserRole;
 import com.classmanagement.backend.entity.enums.UserStatus;
 import com.classmanagement.backend.repository.ImpersonationSessionRepository;
+import com.classmanagement.backend.repository.EmailOutboxRepository;
+import com.classmanagement.backend.repository.PendingSignupRepository;
+import com.classmanagement.backend.repository.PasswordResetChallengeRepository;
 import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.security.JwtService;
 import com.classmanagement.backend.service.StorageService;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.springframework.security.crypto.password.PasswordEncoder;
-
+import com.sun.net.httpserver.HttpServer;
+import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 class AuthServiceImplTest {
+    private static HttpServer emailApi;
+    private static String emailApiUrl;
+    private static final AtomicReference<String> LAST_EMAIL_REQUEST = new AtomicReference<>();
+    private static final AtomicReference<String> LAST_EMAIL_AUTHORIZATION = new AtomicReference<>();
 
-    @Test
-    void loginIsBlockedWhileAnAdminImpersonationSessionIsActive() {
-        AuthServiceImpl service = service(true);
-        LoginRequest request = loginRequest();
+    @BeforeAll
+    static void startEmailApiStub() throws IOException {
+        emailApi = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        emailApi.createContext("/emails", exchange -> {
+            LAST_EMAIL_REQUEST.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            LAST_EMAIL_AUTHORIZATION.set(exchange.getRequestHeaders().getFirst("Authorization"));
+            byte[] response = "{\"Messages\":[{\"Status\":\"success\"}]}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, response.length);
+            try (var output = exchange.getResponseBody()) {
+                output.write(response);
+            }
+        });
+        emailApi.start();
+        emailApiUrl = "http://127.0.0.1:" + emailApi.getAddress().getPort() + "/emails";
+    }
 
-        IllegalStateException exception = assertThrows(
-                IllegalStateException.class,
-                () -> service.login(request));
-
-        assertEquals(
-                "Quản trị viên đang truy cập tài khoản của bạn. Vui lòng thử lại sau khi phiên truy cập kết thúc.",
-                exception.getMessage());
+    @AfterAll
+    static void stopEmailApiStub() {
+        if (emailApi != null) emailApi.stop(0);
     }
 
     @Test
-    void loginIsAllowedWhenNoActiveImpersonationSessionExists() {
-        LoginRequest responseRequest = loginRequest();
+    void mailjetErrorSummaryIncludesProviderReasonWithoutDumpingOtherFields() {
+        String summary = AuthServiceImpl.mailjetErrorSummary("""
+                {
+                  "ErrorIdentifier": "authentication",
+                  "ErrorCode": "mj-001",
+                  "StatusCode": 401,
+                  "ErrorMessage": "Invalid API key",
+                  "Authorization": "must-not-be-logged"
+                }
+                """);
 
-        assertNotNull(service(false).login(responseRequest).getAccessToken());
+        assertTrue(summary.contains("ErrorIdentifier=authentication"));
+        assertTrue(summary.contains("ErrorCode=mj-001"));
+        assertTrue(summary.contains("StatusCode=401"));
+        assertTrue(summary.contains("ErrorMessage=Invalid API key"));
+        assertFalse(summary.contains("must-not-be-logged"));
     }
 
     @Test
-    void loginShowsBlockedAccountMessageWhenAccountIsBanned() {
-        AuthServiceImpl service = service(false, UserStatus.BANNED);
-
-        IllegalStateException exception = assertThrows(
-                IllegalStateException.class,
-                () -> service.login(loginRequest()));
-
-        assertEquals(
-                "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên để được mở lại.",
-                exception.getMessage());
-    }
-
-    private static AuthServiceImpl service(boolean activeImpersonation) {
-        return service(activeImpersonation, UserStatus.ACTIVE);
-    }
-
-    private static AuthServiceImpl service(boolean activeImpersonation, UserStatus status) {
-        User user = User.builder()
-                .id(12L)
-                .username("student")
-                .passwordHash("encoded-password")
-                .email("student@example.com")
-                .fullName("Student User")
-                .role(UserRole.STUDENT)
-                .status(status)
-                .build();
-
+    void signupDoesNotCreateUserAndOnlyValidOtpCreatesOne() {
+        AtomicReference<PendingSignup> pendingSignup = new AtomicReference<>();
+        AtomicReference<EmailOutboxMessage> queuedEmail = new AtomicReference<>();
+        AtomicInteger userSaveCount = new AtomicInteger();
         UserRepository users = proxy(UserRepository.class, (method, args) -> {
-            if ("findByUsername".equals(method)) {
-                return Optional.of(user);
+            if (method.startsWith("existsBy")) return false;
+            if ("save".equals(method)) {
+                User user = (User) args[0];
+                userSaveCount.incrementAndGet();
+                if (user.getId() == null) user.setId(21L);
+                return user;
             }
             throw new UnsupportedOperationException(method);
         });
-        ImpersonationSessionRepository sessions = proxy(
-                ImpersonationSessionRepository.class,
-                (method, args) -> {
-                    if ("existsByTargetUserIdAndEndedAtIsNullAndExpiresAtAfter".equals(method)) {
-                        assertEquals(12L, args[0]);
-                        assertNotNull(args[1]);
-                        return activeImpersonation;
-                    }
-                    throw new UnsupportedOperationException(method);
-                });
-        PasswordEncoder passwordEncoder = proxy(
-                PasswordEncoder.class,
-                (method, args) -> "matches".equals(method));
+        PendingSignupRepository pending = proxy(PendingSignupRepository.class, (method, args) -> {
+            if (method.startsWith("existsBy")) return false;
+            if ("save".equals(method)) {
+                PendingSignup value = (PendingSignup) args[0];
+                if (value.getId() == null) value.setId(31L);
+                pendingSignup.set(value);
+                return value;
+            }
+            if ("findByEmailForUpdate".equals(method)) return Optional.ofNullable(pendingSignup.get());
+            if ("delete".equals(method)) {
+                pendingSignup.set(null);
+                return null;
+            }
+            throw new UnsupportedOperationException(method);
+        });
+        AtomicReference<String> rawCode = new AtomicReference<>();
+        PasswordEncoder encoder = proxy(PasswordEncoder.class, (method, args) -> {
+            if ("encode".equals(method)) return "hashed:" + args[0];
+            if ("matches".equals(method)) return ("hashed:" + args[0]).equals(args[1]);
+            throw new UnsupportedOperationException(method);
+        });
+        EmailOutboxRepository outbox = proxy(EmailOutboxRepository.class, (method, args) -> {
+            if ("save".equals(method) && args[0] instanceof EmailOutboxMessage message) {
+                queuedEmail.set(message);
+                return message;
+            }
+            throw new UnsupportedOperationException(method);
+        });
+        AuthServiceImpl service = service(users, pending, encoder, outbox);
+        setField(service, "mailProvider", "smtp");
+
+        SignupRequest request = new SignupRequest();
+        request.setUsername("newstudent");
+        request.setPassword("strong-password");
+        request.setEmail("newstudent@gmail.com");
+        request.setFullName("New Student");
+        request.setRole(UserRole.STUDENT);
+
+        service.signup(request);
+        assertEquals(0, userSaveCount.get());
+        assertNotNull(pendingSignup.get());
+        assertEquals("newstudent@gmail.com", queuedEmail.get().getRecipient());
+        assertEquals("PENDING", queuedEmail.get().getStatus());
+        Matcher matcher = Pattern.compile("\\b(\\d{6})\\b").matcher(queuedEmail.get().getBody());
+        assertTrue(matcher.find());
+        rawCode.set(matcher.group(1));
+        assertTrue(pendingSignup.get().getVerificationCodeHash().startsWith("hashed:"));
+
+        assertThrows(IllegalArgumentException.class, () -> service.verifyEmail(
+                new EmailVerificationRequest(request.getEmail(), "000000")));
+        assertEquals(0, userSaveCount.get());
+        assertEquals(1, pendingSignup.get().getVerificationAttempts());
+
+        var verified = service.verifyEmail(new EmailVerificationRequest(request.getEmail(), rawCode.get()));
+        assertEquals(2, userSaveCount.get());
+        assertNull(pendingSignup.get());
+        assertEquals("ST-21", verified.getStudentCode());
+        assertEquals(UserRole.STUDENT, verified.getRole());
+    }
+
+    @Test
+    void loginRemainsBlockedForTeacherAwaitingApproval() {
+        User teacher = User.builder()
+                .id(12L)
+                .username("teacher")
+                .passwordHash("hashed:password")
+                .role(UserRole.TEACHER)
+                .status(UserStatus.PENDING)
+                .build();
+        UserRepository users = proxy(UserRepository.class, (method, args) ->
+                "findByUsername".equals(method) ? Optional.of(teacher) : null);
+        AuthServiceImpl service = service(users,
+                proxy(PendingSignupRepository.class, (method, args) -> null),
+                proxy(PasswordEncoder.class, (method, args) ->
+                        "matches".equals(method) && "password".equals(args[0])));
+        LoginRequest request = new LoginRequest();
+        request.setUsername("teacher");
+        request.setPassword("password");
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> service.login(request));
+        assertEquals("Tài khoản của bạn đang chờ quản trị viên phê duyệt", exception.getMessage());
+    }
+
+    @Test
+    void loginSucceedsForAnExistingVerifiedUser() {
+        User student = User.builder()
+                .id(12L)
+                .username("student")
+                .email("student@example.com")
+                .passwordHash("hashed:password")
+                .role(UserRole.STUDENT)
+                .status(UserStatus.ACTIVE)
+                .build();
+        UserRepository users = proxy(UserRepository.class, (method, args) ->
+                "findByUsername".equals(method) ? Optional.of(student)
+                        : "findByEmailIgnoreCase".equals(method) ? Optional.empty() : null);
+        AuthServiceImpl service = service(users,
+                proxy(PendingSignupRepository.class, (method, args) -> null),
+                proxy(PasswordEncoder.class, (method, args) ->
+                        "matches".equals(method) && "password".equals(args[0])));
+        LoginRequest request = new LoginRequest();
+        request.setUsername("student");
+        request.setPassword("password");
+
+        assertNotNull(service.login(request).getAccessToken());
+    }
+
+    @Test
+    void loginSucceedsWithEmailRegardlessOfEmailCase() {
+        User student = User.builder()
+                .id(12L)
+                .username("student")
+                .email("student@example.com")
+                .passwordHash("hashed:password")
+                .role(UserRole.STUDENT)
+                .status(UserStatus.ACTIVE)
+                .build();
+        UserRepository users = proxy(UserRepository.class, (method, args) -> {
+            if ("findByUsername".equals(method)) return Optional.empty();
+            if ("findByEmailIgnoreCase".equals(method)) {
+                assertEquals("STUDENT@EXAMPLE.COM", args[0]);
+                return Optional.of(student);
+            }
+            return null;
+        });
+        AuthServiceImpl service = service(users,
+                proxy(PendingSignupRepository.class, (method, args) -> null),
+                proxy(PasswordEncoder.class, (method, args) ->
+                        "matches".equals(method) && "password".equals(args[0])));
+        LoginRequest request = new LoginRequest();
+        request.setUsername("STUDENT@EXAMPLE.COM");
+        request.setPassword("password");
+
+        assertNotNull(service.login(request).getAccessToken());
+    }
+
+    @Test
+    void pendingSignupCanBeEditedWithoutCreatingAUserOrResendingOtp() {
+        PendingSignup pendingValue = PendingSignup.builder()
+                .id(31L)
+                .username("student")
+                .passwordHash("old-hash")
+                .email("student@example.com")
+                .fullName("Student User")
+                .role(UserRole.STUDENT)
+                .build();
+        AtomicReference<PendingSignup> pending = new AtomicReference<>(pendingValue);
+        UserRepository users = proxy(UserRepository.class, (method, args) -> {
+            if (method.startsWith("existsBy")) return false;
+            throw new UnsupportedOperationException(method);
+        });
+        PendingSignupRepository pendingRepository = proxy(PendingSignupRepository.class, (method, args) -> {
+            if (method.startsWith("existsBy")) return false;
+            if ("findByEmailForUpdate".equals(method)) return Optional.of(pending.get());
+            if ("save".equals(method)) {
+                pending.set((PendingSignup) args[0]);
+                return args[0];
+            }
+            throw new UnsupportedOperationException(method);
+        });
+        PasswordEncoder encoder = proxy(PasswordEncoder.class, (method, args) -> {
+            if ("matches".equals(method)) return true;
+            if ("encode".equals(method)) return "new-password-hash";
+            throw new UnsupportedOperationException(method);
+        });
+        AuthServiceImpl service = service(users, pendingRepository, encoder);
+        SignupRequest updated = new SignupRequest();
+        updated.setUsername("updated-student");
+        updated.setPassword("new-password");
+        updated.setEmail("student@example.com");
+        updated.setFullName("Updated Student");
+        updated.setRole(UserRole.STUDENT);
+
+        var response = service.updatePendingSignup(new com.classmanagement.backend.dto.auth.UpdatePendingSignupRequest(
+                "student@example.com", "current-password", updated));
+
+        assertEquals("updated-student", pending.get().getUsername());
+        assertEquals("new-password-hash", pending.get().getPasswordHash());
+        assertEquals("Updated Student", response.getFullName());
+    }
+
+    @Test
+    void passwordResetRequiresValidOtpAndConsumesItsResetToken() {
+        User user = User.builder()
+                .id(45L)
+                .email("student@gmail.com")
+                .fullName("Student")
+                .passwordHash("hashed:old-password")
+                .role(UserRole.STUDENT)
+                .status(UserStatus.ACTIVE)
+                .build();
+        AtomicReference<PasswordResetChallenge> challenge = new AtomicReference<>();
+        UserRepository users = proxy(UserRepository.class, (method, args) -> {
+            if ("findByEmailForUpdate".equals(method)) return Optional.of(user);
+            if ("save".equals(method)) return args[0];
+            throw new UnsupportedOperationException(method);
+        });
+        PasswordResetChallengeRepository challenges = proxy(PasswordResetChallengeRepository.class, (method, args) -> {
+            if ("findByUserIdForUpdate".equals(method)) return Optional.ofNullable(challenge.get());
+            if ("save".equals(method)) {
+                challenge.set((PasswordResetChallenge) args[0]);
+                return args[0];
+            }
+            if ("delete".equals(method)) {
+                challenge.set(null);
+                return null;
+            }
+            throw new UnsupportedOperationException(method);
+        });
+        PasswordEncoder encoder = proxy(PasswordEncoder.class, (method, args) -> {
+            if ("encode".equals(method)) return "hashed:" + args[0];
+            if ("matches".equals(method)) return ("hashed:" + args[0]).equals(args[1]);
+            throw new UnsupportedOperationException(method);
+        });
+        AuthServiceImpl service = service(
+                users,
+                proxy(PendingSignupRepository.class, (method, args) -> null),
+                challenges,
+                encoder);
+
+        service.requestPasswordReset(new PasswordResetRequest(user.getEmail()));
+        assertTrue(LAST_EMAIL_REQUEST.get().contains("\"Email\":\"student@gmail.com\""));
+        assertTrue(LAST_EMAIL_REQUEST.get().contains("\"TextPart\""));
+        assertTrue(LAST_EMAIL_REQUEST.get().contains("\"Name\":\"FrogH\""));
+        String expectedAuth = "Basic " + Base64.getEncoder().encodeToString(
+                "test-api-key:test-api-secret".getBytes(StandardCharsets.UTF_8));
+        assertEquals(expectedAuth, LAST_EMAIL_AUTHORIZATION.get());
+        var matcher = Pattern.compile("\\b(\\d{6})\\b").matcher(LAST_EMAIL_REQUEST.get());
+        assertTrue(matcher.find());
+        String code = matcher.group(1);
+
+        assertThrows(IllegalArgumentException.class, () -> service.verifyPasswordResetCode(
+                new VerifyPasswordResetCodeRequest(user.getEmail(), "000000")));
+        assertEquals(1, challenge.get().getVerificationAttempts());
+        String resetToken = service.verifyPasswordResetCode(
+                new VerifyPasswordResetCodeRequest(user.getEmail(), code));
+
+        service.completePasswordReset(new CompletePasswordResetRequest(
+                user.getEmail(), resetToken, "new-password", "new-password"));
+
+        assertEquals("hashed:new-password", user.getPasswordHash());
+        assertNull(challenge.get());
+    }
+
+    private static AuthServiceImpl service(
+            UserRepository users,
+            PendingSignupRepository pending,
+            PasswordEncoder encoder) {
+        return service(users, pending,
+                proxy(PasswordResetChallengeRepository.class, (method, args) -> null),
+                encoder);
+    }
+
+    private static AuthServiceImpl service(
+            UserRepository users,
+            PendingSignupRepository pending,
+            PasswordEncoder encoder,
+            EmailOutboxRepository outbox) {
+        return service(users, pending,
+                proxy(PasswordResetChallengeRepository.class, (method, args) -> null),
+                encoder, outbox);
+    }
+
+    private static AuthServiceImpl service(
+            UserRepository users,
+            PendingSignupRepository pending,
+            PasswordResetChallengeRepository resetChallenges,
+            PasswordEncoder encoder) {
+        return service(users, pending, resetChallenges, encoder,
+                proxy(EmailOutboxRepository.class, (method, args) ->
+                        "save".equals(method) ? args[0] : null));
+    }
+
+    private static AuthServiceImpl service(
+            UserRepository users,
+            PendingSignupRepository pending,
+            PasswordResetChallengeRepository resetChallenges,
+            PasswordEncoder encoder,
+            EmailOutboxRepository outbox) {
         JwtService jwtService = new JwtService();
         setField(jwtService, "jwtSecret", Base64.getEncoder().encodeToString(
                 "class-management-test-jwt-secret".getBytes(StandardCharsets.UTF_8)));
         setField(jwtService, "jwtExpiration", 60_000L);
-
-        return new AuthServiceImpl(
+        AuthServiceImpl service = new AuthServiceImpl(
                 users,
-                sessions,
-                passwordEncoder,
+                pending,
+                resetChallenges,
+                proxy(ImpersonationSessionRepository.class, (method, args) -> false),
+                encoder,
                 jwtService,
-                proxy(StorageService.class, (method, args) -> null));
-    }
-
-    private static LoginRequest loginRequest() {
-        LoginRequest request = new LoginRequest();
-        request.setUsername("student");
-        request.setPassword("password");
-        return request;
+                proxy(StorageService.class, (method, args) -> null),
+                outbox);
+        setField(service, "mailFrom", "FrogH <sender@example.com>");
+        setField(service, "mailApiKey", "test-api-key");
+        setField(service, "mailApiSecret", "test-api-secret");
+        setField(service, "mailApiUrl", emailApiUrl);
+        setField(service, "mailProvider", "https");
+        return service;
     }
 
     private static void setField(Object instance, String name, Object value) {

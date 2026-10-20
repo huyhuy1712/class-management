@@ -74,6 +74,14 @@ public class ExamController {
                 .body(pdfImports.get(authentication.getName(), importId));
     }
 
+    @DeleteMapping("/imports/{importId}")
+    public ResponseEntity<PdfExamImportResponse> cancelImport(
+            @PathVariable UUID importId, Authentication authentication) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(pdfImports.cancel(authentication.getName(), importId));
+    }
+
     @GetMapping(value = "/imports/{importId}/assets/{assetId}", produces = "image/png")
     public ResponseEntity<byte[]> getImportAsset(
             @PathVariable UUID importId,
@@ -94,6 +102,16 @@ public class ExamController {
     public ResponseEntity<ExamConfigurationResponse> createAssignment(@PathVariable Long examId,
             @Valid @RequestBody com.classmanagement.backend.dto.exam.CreateExamAssignmentRequest request, Authentication auth) {
         return ResponseEntity.status(HttpStatus.CREATED).body(configurationUpdateService.createAssignment(examId,auth.getName(),request));
+    }
+
+    @PatchMapping("/{examId}/assignments/{assignmentId}/result-settings")
+    public ResponseEntity<ExamConfigurationResponse> updateAssignmentResultSettings(
+            @PathVariable Long examId,
+            @PathVariable Long assignmentId,
+            @Valid @RequestBody com.classmanagement.backend.dto.exam.UpdateAssignmentResultSettingsRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(configurationUpdateService.updateResultSettings(
+                examId, assignmentId, authentication.getName(), request));
     }
 
     @PatchMapping("/{examId}/publish")

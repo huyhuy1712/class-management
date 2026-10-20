@@ -17,7 +17,7 @@ function ExamStatusBadge({ status }) {
 
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${
+      className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold ${
         styles[status] ||
         styles[EXAM_STATUS.DRAFT]
       }`}

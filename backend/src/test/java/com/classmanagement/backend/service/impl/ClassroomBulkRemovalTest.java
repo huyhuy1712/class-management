@@ -4,6 +4,8 @@ import com.classmanagement.backend.entity.*;
 import com.classmanagement.backend.entity.enums.UserRole;
 import com.classmanagement.backend.exception.ResourceNotFoundException;
 import com.classmanagement.backend.repository.classroom.*;
+import com.classmanagement.backend.repository.exam.ExamAssignmentClassRepository;
+import com.classmanagement.backend.service.MaterialService;
 import org.junit.jupiter.api.Test;
 import java.lang.reflect.Proxy;
 import java.util.*;
@@ -17,12 +19,15 @@ class ClassroomBulkRemovalTest {
 
     @Test void bulkRemovalUsesTwoCallsRegardlessOfClassSize() {
         service().removeAllStudentsFromClassroom(3L, "teacher");
-        assertEquals(List.of("findByIdForUpdate", "removeAllAndNotify"), calls);
+        assertEquals(List.of(
+                "findByIdForUpdate",
+                "deleteStudentExamDataForClass",
+                "removeAllAndNotify"), calls);
     }
     @Test void emptyClassAlsoSucceedsWithoutPerStudentWork() {
         affected = 0;
         service().removeAllStudentsFromClassroom(3L, "teacher");
-        assertEquals(2, calls.size());
+        assertEquals(3, calls.size());
     }
     @Test void anotherTeacherCannotDeleteOrNotify() {
         assertThrows(IllegalStateException.class, () -> service().removeAllStudentsFromClassroom(3L, "other"));
@@ -40,11 +45,12 @@ class ClassroomBulkRemovalTest {
     @Test void databaseFailurePropagatesForRollback() {
         fails = true;
         assertThrows(IllegalStateException.class, () -> service().removeAllStudentsFromClassroom(3L, "teacher"));
-        assertEquals(2, calls.size());
+        assertEquals(3, calls.size());
     }
     private ClassroomServiceImpl service() {
         return new ClassroomServiceImpl(repo(ClassroomRepository.class), null, null,
-                repo(ClassStudentRepository.class), null, null, null, null, null);
+                repo(ClassStudentRepository.class), repo(ExamAssignmentClassRepository.class),
+                null, null, null, null, null, org.mockito.Mockito.mock(MaterialService.class));
     }
     private <T> T repo(Class<T> type) {
         return type.cast(Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (p, m, a) -> {
@@ -56,6 +62,10 @@ class ClassroomBulkRemovalTest {
                 case "removeAllAndNotify" -> {
                     assertArrayEquals(new Object[]{3L, "Bạn đã bị xóa khỏi lớp Anh 12A5"}, a);
                     if (fails) throw new IllegalStateException("DB failure");
+                    yield affected;
+                }
+                case "deleteStudentExamDataForClass" -> {
+                    assertArrayEquals(new Object[]{3L, null}, a);
                     yield affected;
                 }
                 default -> throw new AssertionError(m.getName());

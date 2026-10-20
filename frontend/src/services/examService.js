@@ -9,6 +9,7 @@ const examService = {
     return (await api.post('/exams/imports/pdf', body, { skipQueryInvalidation: true })).data
   },
   getPdfImport: async (id, options = {}) => (await api.get(`/exams/imports/${id}`, options)).data,
+  cancelPdfImport: async (id) => (await api.delete(`/exams/imports/${id}`)).data,
   getPdfImportAsset: async (id, assetId, options = {}) => (await api.get(`/exams/imports/${id}/assets/${assetId}`, { ...options, responseType: 'blob' })).data,
   getMyGrades: async (params = {}, options = {}) => (await api.get('/users/me/grades', { ...options, params })).data,
   getTeacherAttemptReview: async (id, options = {}) => (await api.get(`/exam-attempts/${id}/teacher-review`, options)).data,
@@ -42,6 +43,7 @@ const examService = {
   getClassExams: async (classId, options = {}) => (await api.get(`/classes/${classId}/exams`, options)).data,
   copyExam: async (examId, requestId) => (await api.post(`/exams/${examId}/copy`, { requestId })).data,
   createAssignment: async (examId, body) => (await api.post(`/exams/${examId}/assignments`, body)).data,
+  updateAssignmentResultSettings: async (examId, assignmentId, body) => (await api.patch(`/exams/${examId}/assignments/${assignmentId}/result-settings`, body)).data,
   startAttempt: async (id, body) => (await api.post(`/exam-assignments/${id}/attempts`, body)).data,
   getAttempt: async (id, options = {}) => (await api.get(`/exam-attempts/${id}`, options)).data,
   saveAttempt: async (id, body) => (await api.put(`/exam-attempts/${id}/answers`, body)).data,
@@ -58,8 +60,12 @@ const examService = {
   getStudentExams: async (options = {}, sort = 'newest') => {
     const items = []
     let result
+    const { params: queryParams = {}, ...requestOptions } = options
     for (let page = 0; ; page++) {
-      const response = await api.get('/users/me/exams', { ...options, params: { page, size: 100, sort } })
+      const response = await api.get('/users/me/exams', {
+        ...requestOptions,
+        params: { ...queryParams, page, size: 100, sort },
+      })
       result = response.data
       if (!Array.isArray(result?.items) || !Number.isFinite(result.totalElements)) throw new Error('Dữ liệu đề được giao không hợp lệ.')
       items.push(...result.items)

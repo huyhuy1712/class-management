@@ -23,10 +23,12 @@ import com.classmanagement.backend.repository.SubjectRepository;
 import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.repository.classroom.ClassStudentRepository;
 import com.classmanagement.backend.repository.classroom.ClassroomRepository;
+import com.classmanagement.backend.repository.exam.ExamAssignmentClassRepository;
 import com.classmanagement.backend.repository.projection.ClassroomSummaryProjection;
 import com.classmanagement.backend.repository.request.ClassJoinRequestDetailRepository;
 import com.classmanagement.backend.repository.request.RequestRepository;
 import com.classmanagement.backend.service.ClassroomService;
+import com.classmanagement.backend.service.MaterialService;
 import com.classmanagement.backend.service.mapper.ClassroomResponseMapper;
 import com.classmanagement.backend.service.StorageService;
 import com.classmanagement.backend.service.excel.StudentExcelReader;
@@ -54,11 +56,13 @@ public class ClassroomServiceImpl implements ClassroomService {
     private final SubjectRepository subjectRepository;
     private final UserRepository userRepository;
     private final ClassStudentRepository classStudentRepository;
+    private final ExamAssignmentClassRepository examAssignmentClassRepository;
     private final ClassJoinRequestDetailRepository classJoinRequestDetailRepository;
     private final RequestRepository requestRepository;
     private final StorageService storageService;
     private final StudentExcelReader studentExcelReader;
     private final NotificationRepository notificationRepository;
+    private final MaterialService materialService;
 
 @Override
 @Transactional
@@ -289,19 +293,18 @@ public void deleteClassroom(Long id) {
 
         // Requests are parents of class_join_request_details, so this
         // relationship cannot cascade upward through a foreign key.
-        List<Long> requestIds = classJoinRequestDetailRepository
-                .findAllByClassroomId(id)
-                .stream()
-                .map(detail -> detail.getRequest().getId())
-                .toList();
-
         // Delete managed details first, then their parent requests. This
         // keeps Hibernate's persistence context consistent with the database.
         List<ClassJoinRequestDetail> details =
                 classJoinRequestDetailRepository.findAllByClassroomId(id);
+        List<Long> requestIds = details.stream()
+                .map(detail -> detail.getRequest().getId())
+                .toList();
         classJoinRequestDetailRepository.deleteAll(details);
         classJoinRequestDetailRepository.flush();
         requestRepository.deleteAllById(requestIds);
+        materialService.cleanupClassAssignments(id);
+        examAssignmentClassRepository.deleteAssignmentsAndResetExamsForDeletedClass(id);
         classroomRepository.delete(classroom);
         }
 
@@ -431,6 +434,8 @@ public void removeStudentFromClassroom(
         if (teacher.getRole() != UserRole.TEACHER || !teacher.getUsername().equals(username)) {
                 throw new IllegalStateException("Chỉ giáo viên sở hữu lớp mới được xóa học sinh");
         }
+        examAssignmentClassRepository.deleteStudentExamDataForClass(classroomId, studentId);
+        materialService.cleanupStudentAssignmentsForMembership(classroomId, studentId);
         classStudentRepository.delete(membership);
         classStudentRepository.flush();
         notificationRepository.save(Notification.builder()
@@ -456,6 +461,8 @@ public void removeAllStudentsFromClassroom(Long classroomId, String username) {
         if (teacher.getRole() != UserRole.TEACHER || !teacher.getUsername().equals(username)) {
                 throw new IllegalStateException("Chỉ giáo viên sở hữu lớp mới được xóa học sinh");
         }
+        examAssignmentClassRepository.deleteStudentExamDataForClass(classroomId, null);
+        materialService.cleanupStudentAssignmentsForClass(classroomId);
         // DELETE RETURNING identifies exactly which students need a notification.
         classStudentRepository.removeAllAndNotify(classroomId,
                 "Bạn đã bị xóa khỏi lớp " + classroom.getName());

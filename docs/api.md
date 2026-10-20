@@ -7,9 +7,19 @@
 
 ## Danh sách API
 
+`POST /api/auth/verify-email` và `POST /api/auth/resend-verification-code` cũng là API public. Signup được lưu tạm riêng; user chỉ được tạo trong `users` sau khi OTP hợp lệ.
+Các API `/api/auth/password-reset/**` là public để phục vụ luồng khôi phục mật khẩu.
+
 | STT | Method | Endpoint | Chức năng |
 |---:|---|---|---|
 | 1 | POST | `/api/auth/signup` | Đăng ký |
+| 1a | POST | `/api/auth/verify-email` | Xác nhận email bằng mã OTP |
+| 1b | POST | `/api/auth/resend-verification-code` | Gửi lại mã xác nhận |
+| 1c | PUT | `/api/auth/signup/pending` | Cập nhật đăng ký chưa xác nhận |
+| 1d | POST | `/api/auth/password-reset/request` | Yêu cầu OTP đặt lại mật khẩu |
+| 1e | POST | `/api/auth/password-reset/verify` | Xác minh OTP đặt lại mật khẩu |
+| 1f | POST | `/api/auth/password-reset/complete` | Đặt mật khẩu mới |
+| 1g | GET | `/api/auth/password-reset/contact` | Lấy thông tin liên hệ hỗ trợ |
 | 2 | POST | `/api/auth/login` | Đăng nhập |
 | 3 | GET | `/api/classes` | Lấy tất cả lớp |
 | 4 | GET | `/api/classes/my` | Lấy lớp của giáo viên hiện tại |
@@ -51,6 +61,7 @@
 | 42 | GET | `/api/exams/{examId}` | Lấy cấu hình và toàn bộ nội dung đề của giáo viên hiện tại |
 | 43 | PUT | `/api/exams/{examId}` | Cập nhật đầy đủ cấu hình chính và một lần giao của đề |
 | 44 | PUT | `/api/exams/{examId}/content` | Cập nhật toàn bộ cây nội dung, điểm và media của đề |
+| 45 | PATCH | `/api/exams/{examId}/assignments/{assignmentId}/result-settings` | Cập nhật cài đặt hiển thị điểm/đáp án của một lần giao đã xuất bản |
 | 46 | GET | `/api/users/me/classes` | Lấy các lớp học sinh hiện tại đã tham gia |
 | 47 | GET | `/api/notifications` | Lấy toàn bộ thông báo của người dùng hiện tại |
 | 48 | DELETE | `/api/notifications/{notificationId}` | Xóa thông báo của người dùng hiện tại |
@@ -124,6 +135,59 @@ Tài khoản có role `STUDENT` được tạo với status `ACTIVE` và mã `st
 - Phone đã tồn tại: Sử dụng số điện thoại khác hoặc bỏ qua trường `phone`.
 - Role không hợp lệ hoặc là `ADMIN`: Chỉ sử dụng `TEACHER` hoặc `STUDENT`.
 
+Sau khi đăng ký, backend chỉ lưu thông tin trong bảng `pending_signups` (mật khẩu đã hash) và gửi mã OTP 6 chữ số đến email. Chỉ khi xác nhận OTP hợp lệ, backend mới tạo tài khoản trong `users`; đăng ký chưa xác nhận không phải là user trong DB. OTP chỉ lưu dưới dạng hash, hết hạn sau 10 phút và tối đa 5 lần nhập sai.
+
+### POST `/api/auth/verify-email` | Xác nhận email
+
+**Request body:**
+
+```json
+{
+  "email": "nguyenvana@gmail.com",
+  "code": "123456"
+}
+```
+
+Trả `200 OK` cùng thông tin tài khoản sau khi xác nhận. OTP chỉ dùng một lần; khi xác nhận thành công, backend tạo user và xóa đăng ký tạm. OTP hết hạn hoặc nhập sai trả `400 Bad Request`.
+
+### POST `/api/auth/resend-verification-code` | Gửi lại OTP
+
+**Request body:**
+
+```json
+{
+  "email": "nguyenvana@gmail.com"
+}
+```
+
+Endpoint trả cùng một thông báo dù email không tồn tại, đã xác nhận, hoặc đang trong thời gian chờ gửi lại (60 giây), tránh tiết lộ trạng thái tài khoản.
+
+### PUT `/api/auth/signup/pending` | Cập nhật đăng ký chưa xác nhận
+
+Chỉ dùng được khi email của đăng ký chưa được xác nhận. Request cần email cũ và mật khẩu hiện tại để xác minh quyền cập nhật; trường `signup` chứa thông tin đăng ký mới theo cùng cấu trúc với API signup. Vai trò không thể đổi sau khi đăng ký. Nếu đổi email, backend gửi mã OTP mới tới email mới; nếu giữ nguyên email, OTP hiện tại vẫn có hiệu lực.
+
+### Khôi phục mật khẩu
+
+1. `POST /api/auth/password-reset/request` nhận `{ "email": "user@gmail.com" }`. Phản hồi luôn giống nhau để tránh tiết lộ email có tài khoản hay không. Nếu email thuộc tài khoản, OTP được gửi đến email; mã hết hạn sau 10 phút, tối đa 5 lần nhập sai và có cooldown gửi lại 60 giây.
+2. `POST /api/auth/password-reset/verify` nhận email và mã OTP, trả `{ "resetToken": "..." }` nếu hợp lệ. Token này chỉ lưu tạm trong UI, hết hạn sau 10 phút và chỉ dùng một lần.
+3. `POST /api/auth/password-reset/complete` nhận email, reset token, mật khẩu mới và xác nhận mật khẩu; backend kiểm tra khớp rồi cập nhật hash mật khẩu. UI thông báo thành công và đưa user về đăng nhập.
+4. `GET /api/auth/password-reset/contact` trả email admin từ `ADMIN_EMAIL` và số điện thoại từ `ADMIN_PHONE` cho lựa chọn “Thử cách khác”.
+
+Migration V76 tạo bảng `password_reset_challenges`; dữ liệu OTP/reset token chỉ lưu dưới dạng hash.
+
+### Cấu hình email theo môi trường
+
+Luồng OTP dùng chung `AuthServiceImpl`; provider được chọn bằng `MAIL_PROVIDER`:
+
+- **Local/dev:** `MAIL_PROVIDER=smtp`, Spring Boot `JavaMailSender` gửi qua SMTP. Ví dụ Gmail dùng `MAIL_HOST=smtp.gmail.com`, `MAIL_PORT=587`, `MAIL_USERNAME`, `MAIL_PASSWORD` là Google App Password, `MAIL_SMTP_AUTH=true`, `MAIL_SMTP_STARTTLS=true`, và `MAIL_FROM` là địa chỉ Gmail gửi.
+- **Production trên Railway Free/Hobby:** `MAIL_PROVIDER=https`, gửi qua Mailjet HTTPS API để tránh outbound SMTP bị chặn. Cấu hình `MAILJET_API_KEY`, `MAILJET_API_SECRET`, `MAIL_FROM` (phải là sender đang active/đã xác minh trong Mailjet); `MAILJET_API_URL` là tùy chọn, mặc định `https://api.mailjet.com/v3.1/send`.
+- `application-prod.properties` mặc định provider là `https`; profile `prod` cần được bật khi deploy production. `MAIL_PROVIDER` vẫn có thể override cấu hình.
+- `ADMIN_PHONE`: số hỗ trợ hiển thị trong lựa chọn “Thử cách khác”; `ADMIN_EMAIL` được dùng làm email liên hệ.
+
+Trước khi gửi, xác minh email kích hoạt tài khoản Mailjet, sau đó thêm và xác minh sender trong Mailjet. Trên Railway, đặt các biến cho backend service, bật profile `prod`, rồi redeploy. Không commit API key/secret hay mật khẩu SMTP.
+
+Khi Mailjet từ chối request, backend ghi HTTP status, `ErrorIdentifier`, `ErrorCode`, `StatusCode`, `ErrorMessage` (nếu provider trả về) và request ID vào Railway runtime logs; API key/secret không được ghi log. Dùng các chi tiết này để chẩn đoán lỗi gửi email.
+
 ### 2. POST `/api/auth/login` | Đăng nhập
 
 **Headers:**
@@ -140,6 +204,8 @@ Content-Type: application/json
 	"password": "matkhau123"
 }
 ```
+
+Email đăng ký cần được xác nhận trước khi endpoint này cấp cookie đăng nhập. Các tài khoản đã tồn tại trước migration xác thực email được giữ trạng thái đã xác nhận.
 
 **Cách test bằng cURL:**
 
@@ -223,7 +289,8 @@ curl -X GET http://localhost:8080/api/exams \
 		"submittedCount": 18,
 		"status": "PUBLISHED",
 		"assignedClassCount": 2,
-		"createdAt": "2026-10-06T20:30:00"
+		"createdAt": "2026-10-06T20:30:00",
+		"assignedTo": ["Lớp 12A"]
 	}
 ]
 ```
@@ -242,6 +309,7 @@ Trong đó:
 - `status`: Trạng thái đề thi, nhận một trong `DRAFT`, `PUBLISHED` hoặc `CLOSED`.
 - `assignedClassCount`: Số lớp được giao đề; mỗi lớp chỉ được tính một lần.
 - `createdAt`: Thời điểm tạo đề thi, định dạng `YYYY-MM-DDTHH:mm:ss`.
+- `assignedTo`: Danh sách tên đối tượng của assignment mới nhất; `ALL` trả về `["Tất cả"]`, `CLASS` trả tên lớp, `STUDENT` trả tên học sinh. Bảng giáo viên hiển thị danh sách này trong cột **Giao cho**.
 
 Nếu giáo viên chưa có đề thi, API trả về `200 OK` với danh sách rỗng:
 
@@ -544,6 +612,10 @@ Authorization: Bearer <accessToken>
 
 Xóa vĩnh viễn lớp học khỏi database.
 
+Trong cùng transaction, nếu đề liên quan đến lớp bị xóa qua assignment `CLASS`, học sinh được giao trực tiếp trong lớp (`STUDENT`) hoặc assignment `ALL` của giáo viên sở hữu lớp, hệ thống xóa toàn bộ assignment của đề. Các attempts, đáp án, điểm, target và cohort liên quan bị xóa theo quan hệ cascade; bản thân exam được giữ lại và chuyển về `DRAFT` để giáo viên cấu hình/giao lại. Vì assignment `ALL` áp dụng các lớp của giáo viên, xóa một lớp cũng xóa toàn bộ các lần giao và lịch sử của exam `ALL` liên quan.
+
+Migration V70 xóa toàn bộ assignment của đề có `CLASS` không còn target hoặc có target `STUDENT` không còn ngữ cảnh lớp (`class_id IS NULL`). V71 xử lý thêm đề `ALL` của giáo viên không còn lớp nào. Dữ liệu lịch sử liên quan bị xóa theo cascade, còn exam được giữ và chuyển về `DRAFT`. Không tạo assignment placeholder; giáo viên chọn lại phạm vi giao khi chỉnh sửa đề.
+
 **Response thành công `204 No Content`:**
 
 **Một số trường hợp lỗi:**
@@ -831,7 +903,7 @@ curl -X DELETE http://localhost:8080/api/classes/1/students/5 \
 
 **Response thành công `204 No Content`:**
 
-Học sinh bị gỡ khỏi lớp; tài khoản vẫn tồn tại. BE đồng thời tạo một notification cho học sinh trong cùng transaction: type `CLASS_REMOVED`, title `Bạn đã bị xóa khỏi lớp`, message `Bạn đã bị xóa khỏi lớp <tên lớp>`, referenceType `CLASS`, referenceId là classroomId, `is_read = false` (GET trả `read: false`). FE chỉ gọi DELETE hiện có, không gọi thêm API tạo thông báo. Nếu xóa hoặc tạo notification lỗi, toàn bộ transaction rollback. Khóa membership ngăn hai lượt xóa đồng thời cùng tạo thông báo; một query fetch dữ liệu cần dùng, không có N+1.
+Học sinh bị gỡ khỏi lớp; tài khoản vẫn tồn tại. Cùng transaction, hệ thống xóa attempts và completion-cohort của học sinh trong các assignment `ALL`/`CLASS` áp dụng cho lớp đó; nếu được giao trực tiếp `STUDENT` theo ngữ cảnh lớp này thì xóa cả target tương ứng. Assignment, trạng thái đề và dữ liệu của học sinh khác được giữ nguyên. BE đồng thời tạo một notification cho học sinh trong cùng transaction: type `CLASS_REMOVED`, title `Bạn đã bị xóa khỏi lớp`, message `Bạn đã bị xóa khỏi lớp <tên lớp>`, referenceType `CLASS`, referenceId là classroomId, `is_read = false` (GET trả `read: false`). FE chỉ gọi DELETE hiện có, không gọi thêm API tạo thông báo. Nếu cleanup, xóa membership hoặc tạo notification lỗi, toàn bộ transaction rollback. Khóa membership ngăn hai lượt xóa đồng thời cùng tạo thông báo; cleanup bài thi là một bulk query, không có N+1.
 
 **Một số trường hợp lỗi:**
 
@@ -2167,7 +2239,7 @@ Chưa nối FE và chưa thêm chức năng lưu thay đổi cây nội dung tro
 
 **PUT** `/api/exams/{examId}` — mở rộng endpoint PUT đã có, thay contract metadata dạng phẳng cũ.
 
-Cookie `access_token` của giáo viên ACTIVE sở hữu đề. Đề và assignment đang sửa phải DRAFT; assignment chưa có lượt làm. Lấy `examId` và `assignment.id` từ GET configuration (mục 41). Nếu có nhiều assignment, phải chọn đúng lần giao, không tự lấy phần tử đầu.
+Cookie `access_token` của giáo viên ACTIVE sở hữu đề. Đề và assignment đang sửa phải DRAFT; assignment chưa có lượt làm. Lấy `examId` và `assignment.id` từ GET configuration (mục 41). Nếu có nhiều assignment, phải chọn một lần giao DRAFT. Nếu đề DRAFT không còn assignment, gửi `assignment.id: null`; request sẽ tạo một assignment DRAFT cùng transaction với cập nhật cấu hình. Trường hợp này chỉ được phép khi đề thực sự chưa có assignment nào.
 
 ```json
 {
@@ -2198,7 +2270,7 @@ Cookie `access_token` của giáo viên ACTIVE sở hữu đề. Đề và assig
 **Request:** `Content-Type: application/json`. basicInfo và assignment bắt buộc; contract cũ `{title,subjectId,...}` không còn dùng được. Không gửi section/media/draftToken. Không cập nhật code/status/maxScore qua endpoint này.
 
 - basicInfo dùng cùng validation với POST: title không trắng, tối đa 255 ký tự; subjectId dương và môn tồn tại; gradeLevel không trắng tối đa 30; description tối đa 20000; purpose tối đa 50; timeLimit >= 1; maxAttempts >= 0, 0 là không giới hạn.
-- assignment.id phải thuộc đề trong URL. classIds và studentIds đều phải là mảng, gửi [] cho danh sách không dùng. CLASS: ít nhất một lớp của giáo viên đang ACTIVE, studentIds rỗng. STUDENT: ít nhất một học sinh ACTIVE thuộc lớp ACTIVE giáo viên phụ trách, classIds rỗng. ALL: cả hai mảng rỗng, cùng ý nghĩa với POST.
+- Nếu assignment.id có giá trị, ID phải thuộc đề trong URL và lần giao phải DRAFT, chưa có lượt làm. Nếu assignment.id là null, chỉ tạo mới khi đề không có assignment nào; lần giao được tạo ở DRAFT. classIds và studentIds đều phải là mảng, gửi [] cho danh sách không dùng. CLASS: ít nhất một lớp của giáo viên đang ACTIVE, studentIds rỗng. STUDENT: ít nhất một học sinh ACTIVE thuộc lớp ACTIVE giáo viên phụ trách, classIds rỗng. ALL: cả hai mảng rỗng, cùng ý nghĩa với POST.
 - Không trùng ID; tối đa 500 lớp/2000 học sinh. Validation và việc kiểm tra quyền mục tiêu dùng chung với POST.
 - scoreVisibility: NEVER/AFTER_SUBMIT/AFTER_EXAM. answerVisibility: NEVER/AFTER_SUBMIT/AFTER_EXAM/AFTER_SCORE. AFTER_EXAM giữ quy ước đã chốt ở mục 39: khi tất cả học sinh trong phạm vi đã thi xong, không thay bằng closeTime.
 - AFTER_SCORE bắt buộc threshold >= 0, tối đa 2 chữ số thập phân, không lớn hơn maxScore đang lưu. Chế độ khác phải threshold null. PUT dùng tên threshold như GET configuration; POST hiện vẫn dùng answerVisibilityScore.
@@ -2228,7 +2300,28 @@ Cookie `access_token` của giáo viên ACTIVE sở hữu đề. Đề và assig
 7. Dùng assignment.id của đề khác hoặc tài khoản giáo viên khác: 404. Đề PUBLISHED/ARCHIVED, assignment đã hoạt động/có lượt làm: 409, không ghi.
 8. Kiểm tra title trắng/timeLimit=0/maxAttempts=-1, ID mục tiêu trùng, thiếu basicInfo/assignment: 400.
 
-Unit test đã kiểm tra Spring gọi rollback khi persist target thất bại; rollback thực tế PostgreSQL khi lỗi ghi vẫn cần kiểm tra integration trên môi trường test. FE hiện chưa nối nút Lưu cấu hình; phần này chỉ đổi BE và tài liệu.
+Unit test đã kiểm tra Spring gọi rollback khi persist target thất bại; rollback thực tế PostgreSQL khi lỗi ghi vẫn cần kiểm tra integration trên môi trường test.
+
+### PATCH `/api/exams/{examId}/assignments/{assignmentId}/result-settings`
+
+Cập nhật riêng cách học sinh xem điểm và đáp án của một assignment, kể cả khi assignment đã có lượt làm/điểm. Chỉ giáo viên ACTIVE sở hữu đề đã xuất bản được gọi; assignment phải thuộc đúng đề. Thay đổi không sửa điểm, nội dung đề, đối tượng nhận, thời gian, trạng thái hoặc assignment khác.
+
+```json
+{
+  "scoreVisibility": "AFTER_SUBMIT",
+  "answerVisibility": "AFTER_EXAM",
+  "hideCorrectAnswerOnWrong": true
+}
+```
+
+`scoreVisibility`: `NEVER`, `AFTER_SUBMIT`, `AFTER_EXAM`. `answerVisibility`: `NEVER`, `AFTER_SUBMIT`, `AFTER_EXAM`, `AFTER_SCORE`. Cả ba trường đều bắt buộc. Thành công trả về cấu hình đầy đủ như GET configuration để FE cập nhật cache.
+
+- 400: enum không hợp lệ hoặc thiếu trường bắt buộc.
+- 404: đề không thuộc giáo viên hiện tại hoặc assignment không thuộc đề.
+- 409: đề chưa xuất bản.
+- 403: giáo viên không còn ACTIVE.
+
+Lưu thay đổi và đọc lại cấu hình trong cùng transaction; chỉ flush assignment đang chọn. Lượt làm/điểm hiện có được giữ nguyên.
 
 ## 44. Cập nhật toàn bộ cây nội dung đề thi
 
@@ -2406,8 +2499,65 @@ Ví dụ trên chỉ minh họa field section; khi POST/PUT thực tế phải c
 
 Đã cập nhật BE và tài liệu; chưa sửa FE và chưa chạy migration/DB thật. FE cũ cần đổi mapping từ description sang paragraph trước khi dùng POST/PUT mới.
 
+## Tài liệu (materials)
 
-### Student completed exam count
+Tất cả endpoint bên dưới yêu cầu đăng nhập. API quản lý kho dùng quyền giáo viên; file được lưu qua `StorageService`, không lưu byte trong database:
+
+- Local: mặc định `STORAGE_TYPE=local`, tệp nằm trong `STORAGE_LOCAL_DIR/materials/teachers/{teacherId}/{uploadId}/`.
+- Production chạy với `SPRING_PROFILES_ACTIVE=prod` sẽ mặc định dùng Supabase; cần cấu hình `SUPABASE_URL`, `SUPABASE_SECRET_KEY` và `SUPABASE_BUCKET`. Có thể override bằng `STORAGE_TYPE`; bucket URL được trả về cho FE, còn database chỉ lưu object path.
+- Upload hỗ trợ PDF, Word, PowerPoint, Excel, TXT và ZIP; tối đa 10 MB.
+
+### Lấy tài liệu trong kho của giáo viên
+
+`GET /api/materials`
+
+Trả danh sách tài liệu mới nhất trước, gồm metadata tệp và phạm vi phân phối (`ALL`, `CLASS`, `STUDENT`) cùng ID đích:
+
+```json
+[
+  {
+    "id": 12,
+    "title": "Bài giảng chương 1",
+    "content": "Nội dung giới thiệu",
+    "fileUrl": "https://storage.example/...",
+    "fileName": "chuong-1.pdf",
+    "fileSize": 238401,
+    "fileContentType": "application/pdf",
+    "source": "UPLOAD",
+    "targetType": "CLASS",
+    "classIds": [3, 4],
+    "excludedClassIds": [],
+    "studentIds": [],
+    "studentClassIds": {},
+    "createdAt": "2026-10-19T10:30:00"
+  }
+]
+```
+
+### Đăng tài liệu
+
+`POST /api/materials` với `multipart/form-data`:
+
+| Trường | Bắt buộc | Nội dung |
+|---|---|---|
+| `title` | Có | Tên tài liệu, tối đa 255 ký tự |
+| `content` | Không | Mô tả |
+| `file` | Có | Tệp tài liệu, tối đa 10 MB |
+| `assignmentType` | Có | `ALL`, `CLASS` hoặc `STUDENT` |
+| `classIds` | Với `CLASS` | ID lớp được chọn; lặp trường cho nhiều lớp |
+| `studentIds` | Với `STUDENT` | ID học sinh được chọn; lặp trường cho nhiều học sinh |
+
+BE kiểm tra giáo viên sở hữu lớp/học sinh trước khi ghi tệp. `ALL` phân phối cho các lớp hiện có và lớp sau này của giáo viên; `CLASS`/`STUDENT` chỉ lưu target đã chọn. Trả về đối tượng tài liệu vừa tạo với HTTP 201.
+
+### Cập nhật hoặc xóa tài liệu
+
+- `PUT /api/materials/{materialId}`: multipart theo cùng contract upload; bỏ `file` để giữ tệp hiện tại, gửi `file` để thay tệp.
+- `DELETE /api/materials/{materialId}`: xóa tài liệu, assignment và object file.
+- `DELETE /api/materials/{materialId}/classes/{classroomId}`: gỡ phân phối khỏi lớp; với assignment `ALL`, tạo ngoại lệ cho lớp đó; nếu gỡ đích cuối cùng của assignment `CLASS`/`STUDENT`, xóa tài liệu và file.
+
+`GET /api/classes/{classroomId}/materials` trả tài liệu thực sự được phân phối cho lớp, dành cho giáo viên sở hữu lớp và học sinh đang là thành viên. Khi xóa lớp hoặc gỡ/xóa học sinh, BE cũng dọn target assignment liên quan; material/file được xóa nếu assignment không còn đích nhận nào.
+
+## Student completed exam count
 
 `GET /api/users/me/student-exam-count` uses the authenticated student, with no user ID parameter.
 
@@ -2555,9 +2705,9 @@ Nút Xóa toàn bộ ở StudentsTab đang gọi API này; giữ nguyên URL, me
 curl -X DELETE http://localhost:8080/api/classes/3/students --cookie "access_token=<token>"
 ```
 
-BE xóa membership trong class_students, tạo một notification cho mỗi học sinh thực sự bị gỡ: type CLASS_REMOVED, title `Bạn đã bị xóa khỏi lớp`, message `Bạn đã bị xóa khỏi lớp <tên lớp>`, referenceType CLASS, referenceId classroomId, is_read=false. Tài khoản học sinh và lớp vẫn tồn tại.
+BE xóa attempts và completion-cohort của học sinh thuộc lớp trong các assignment `ALL`/`CLASS` áp dụng cho lớp đó; target `STUDENT` có ngữ cảnh lớp này cũng bị xóa. Assignment, trạng thái đề và dữ liệu của học sinh khác được giữ nguyên. Sau đó BE xóa membership trong class_students, tạo một notification cho mỗi học sinh thực sự bị gỡ: type CLASS_REMOVED, title `Bạn đã bị xóa khỏi lớp`, message `Bạn đã bị xóa khỏi lớp <tên lớp>`, referenceType CLASS, referenceId classroomId, is_read=false. Tài khoản học sinh và lớp vẫn tồn tại.
 
-Cùng transaction: lỗi tạo thông báo hoặc lỗi xóa rollback toàn bộ. Một query khóa lớp và tải giáo viên để kiểm tra quyền, một native SQL dùng DELETE RETURNING và INSERT SELECT để xóa và tạo thông báo theo lô; không tải danh sách học sinh và không có N+1. Lớp rỗng/gọi lại sau khi xóa hết vẫn trả 204, không tạo thêm thông báo.
+Cùng transaction: lỗi cleanup, tạo thông báo hoặc lỗi xóa rollback toàn bộ. Một query khóa lớp và tải giáo viên để kiểm tra quyền, một bulk query cleanup exam theo cả lớp và danh sách thành viên hiện tại, sau đó một native SQL dùng DELETE RETURNING và INSERT SELECT để xóa membership và tạo thông báo theo lô; không tải danh sách học sinh và không có N+1. Lớp rỗng/gọi lại sau khi xóa hết vẫn trả 204, không tạo thêm thông báo.
 
 400: classroomId không phải số nguyên dương. 401: chưa đăng nhập. 403: không phải giáo viên sở hữu lớp. 404: lớp không tồn tại. Không cần migration hoặc API notification bổ sung.
 
@@ -2740,6 +2890,10 @@ Lỗi: 400 examId không dương; 403 sai role/tài khoản giáo viên không A
 
 Test: publish đề chưa có lượt thi, nhấn Về nháp nhận 200; exams/assignments đều DRAFT, nội dung/target giữ nguyên; GET học sinh không còn đề. Mở chỉnh sửa cấu hình rồi xuất bản lại. Gọi unpublish lại khi đã nháp không đổi dữ liệu. Đề có attempt phải 409 và trạng thái không đổi. Chưa chạy kiểm chứng transaction trên DB thật trong quá trình kiểm tra local.
 
+## Trang thông tin điểm số của học sinh
+
+`GET /api/users/me/grades` chỉ trả bài đã chấm khi `score_visibility` cho phép xem: `AFTER_SUBMIT` hiển thị sau khi nộp; `AFTER_EXAM` chỉ sau khi `results_released_at` được ghi nhận khi toàn bộ nhóm thi đã hoàn tất; `NEVER` không trả bài đã chấm ở trang điểm số. Các bài `SUBMITTED` đang chờ chấm vẫn có thể xuất hiện như tiến độ nhưng không kèm điểm. Điểm chưa được công bố không được đưa vào danh sách, thống kê, biểu đồ hoặc tùy chọn lọc.
+
 ## API bài làm học sinh — attempt runtime
 
 ### Kết quả và tổng quan điểm một học sinh trong lớp (giáo viên)
@@ -2768,7 +2922,7 @@ Một response phục vụ cả ô Kết quả học tập và Tổng quan đi�
 
 Một item cho một assignment, chỉ lượt cuối theo schema hiện tại. Sắp xếp assignment.created_at giảm, assignmentId giảm; không trả lịch sử các lượt. totalElements/summary tính trên toàn tập, không chỉ trang hiện tại. Trang vượt phạm vi trả items=[] nhưng summary vẫn đầy đủ. Chưa có attempt: attemptId/totalScore/scoreOnTen/submittedAt/durationSeconds/teacherComment=null, attemptNumber=0, status=NOT_STARTED, isFinal=false. Giáo viên mở bài bằng GET /api/exam-attempts/{attemptId}/result hiện có; không gọi GET result cho từng item để dựng trang.
 
-Phạm vi: chỉ đề/assignment không còn DRAFT do giáo viên chủ lớp tạo. ALL áp dụng lớp ACTIVE hiện tại của giáo viên; CLASS phải target đúng classId; STUDENT phải target đúng studentId và lớp ngữ cảnh s.class_id=classId. ALL/CLASS tại lớp đã archive chỉ giữ item đã có attempt; không tạo thêm bài chưa làm cho lớp archive. STUDENT legacy thiếu class_id không được gán đoán sang lớp này. Đây là dữ liệu giáo viên, không áp dụng chính sách ẩn điểm của học sinh. Quyền truy cập và phạm vi dựa cấu trúc hiện tại, không phục dựng lịch sử lớp/target đã xóa.
+Phạm vi: chỉ assignment không còn DRAFT do giáo viên chủ lớp tạo và gắn rõ với lớp đang xem: CLASS phải target đúng classId; STUDENT phải target đúng studentId và lớp ngữ cảnh s.class_id=classId. ALL áp dụng cho nhiều lớp nên không được tính vào thống kê lớp cụ thể; có thể hiển thị trong trang hồ sơ học sinh toàn cục. CLASS tại lớp đã archive chỉ giữ item đã có attempt; không tạo thêm bài chưa làm cho lớp archive. STUDENT legacy thiếu class_id không được gán đoán sang lớp này. Đây là dữ liệu giáo viên, không áp dụng chính sách ẩn điểm của học sinh. Quyền truy cập và phạm vi dựa cấu trúc hiện tại, không phục dựng lịch sử lớp/target đã xóa.
 
 submitted = SUBMITTED + GRADED; pendingGrading = SUBMITTED; graded = GRADED. Chỉ GRADED và maxScore>0 được dùng cho thống kê điểm: scoreOnTen = totalScore/maxScore*10, làm tròn 2 số lẻ. Điểm trung bình lấy trung bình các điểm quy đổi chưa làm tròn, mỗi assignment trọng số bằng nhau; không cộng các điểm thô khác thang. SUBMITTED có thể trả totalScore tạm thời nhưng scoreOnTen=null/isFinal=false; FE cần hiện chờ chấm. Chưa có điểm hợp lệ thì ba thống kê điểm là null, không phải 0. Điểm 0 đã chấm hợp lệ vẫn tham gia trung bình.
 

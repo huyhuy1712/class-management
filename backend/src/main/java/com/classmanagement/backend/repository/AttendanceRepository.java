@@ -39,6 +39,10 @@ List<Attendance> findAllByClassroomIdAndDate(
                 Long classroomId,
                 LocalDate date);
 
+@EntityGraph(attributePaths = {
+        "classroom",
+        "lesson"
+})
 List<Attendance> findAllByStudent_Id(Long studentId);
 
 List<Attendance> findAllByClassroom_IdAndStudent_IdOrderByDateDesc(

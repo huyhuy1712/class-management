@@ -6,6 +6,7 @@ import notificationService from '../services/notificationService'
 import requestService from '../services/requestService'
 import examService from '../services/examService'
 import subjectService from '../services/subjectService'
+import materialService from '../services/materialService'
 
 export function resourceOptions(resource, params) {
   const readers = {
@@ -17,6 +18,8 @@ export function resourceOptions(resource, params) {
     studentClasses: ({ signal }) => userService.getMyClasses({ signal }),
     allClasses: ({ signal }) => classroomService.getAll({ signal }),
     classStudents: ({ signal }) => classroomService.getStudents(params[0], { signal }),
+    classDocuments: ({ signal }) => classroomService.getDocuments(params[0], { signal }),
+    teacherMaterials: ({ signal }) => materialService.getTeacherMaterials({ signal }),
     teachers: ({ signal }) => userService.getTeachers({ signal }),
     studentDirectory: ({ signal }) => userService.getStudents({ signal }),
     teacherStudents: ({ signal }) => userService.getMyStudents({ signal }),
@@ -48,12 +51,22 @@ export function resourceOptions(resource, params) {
     examDetail: ({ signal }) => examService.getExamDetail(params[0], { signal }),
     examConfiguration: ({ signal }) => examService.getExamConfiguration(params[0], { signal }),
     subjects: ({ signal }) => subjectService.getAll({ signal }),
-    studentExams: ({ signal }) => examService.getStudentExams({ signal }, params[0] === 'OLDEST' ? 'oldest' : 'newest'),
+    studentExams: ({ signal }) => examService.getStudentExams({
+      signal,
+      ...(params[0] === 'CLASS' ? { params: { classId: params[1] } } : {}),
+    }, params[0] === 'OLDEST' ? 'oldest' : 'newest'),
     studentAssignment: ({ signal }) => examService.getStudentAssignment(params[0], { signal }),
     examAttempt: ({ signal }) => examService.getAttempt(params[0], { signal }),
     examAttemptResult: ({ signal }) => examService.getAttemptResult(params[0], { signal }),
   }
   if (!readers[resource]) throw new Error(`Unknown query resource: ${resource}`)
+  const classroomMembership = ['studentClasses', 'classStudents'].includes(resource)
   const realtime = ['notifications', 'requests', 'lessons', 'studentExams', 'studentAssignment', 'classExams', 'teacherAssignmentAttempts'].includes(resource)
-  return { queryFn: readers[resource], staleTime: realtime ? 15_000 : resource === 'subjects' ? 30 * 60_000 : 60_000, ...(realtime ? { refetchInterval: 60_000 } : {}) }
+  return {
+    queryFn: readers[resource],
+    staleTime: classroomMembership ? 10_000 : realtime ? 15_000 : resource === 'teacherMaterials' ? 15_000 : resource === 'subjects' ? 30 * 60_000 : 60_000,
+    ...(classroomMembership
+      ? { refetchInterval: 10_000 }
+      : realtime ? { refetchInterval: 60_000 } : {}),
+  }
 }

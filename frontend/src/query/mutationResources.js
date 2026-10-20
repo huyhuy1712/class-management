@@ -8,7 +8,13 @@ export function mutationResources(url, method) {
   if (/^\/requests(?:\/|$)/.test(path)) return ['requests', 'studentGrades', 'notifications', 'studentClasses', 'teacherClasses', 'classStudents', 'teacherStudents', 'dashboard']
   if (/^\/classes\/[^/]+\/attendances(?:\/|$)/.test(path)) return ['attendances', 'dashboard']
   if (/^\/classes\/[^/]+\/lessons(?:\/|$)/.test(path)) return ['lessons']
-  if (/^\/classes(?:\/|$)/.test(path)) return ['teacherClasses', 'studentClasses', 'allClasses', 'classStudents', 'teacherStudents', 'dashboard', 'exams', 'studentExams', 'studentAssignment', 'classExams', 'studentClassExamResults', 'classGradebook', 'teacherAttemptReview', 'studentGrades']
+  if (/^\/materials(?:\/|$)/.test(path)) return ['teacherMaterials', 'classDocuments']
+  if (/^\/classes(?:\/|$)/.test(path)) {
+    const resources = ['teacherClasses', 'studentClasses', 'allClasses', 'classStudents', 'teacherStudents', 'dashboard', 'exams', 'studentExams', 'studentAssignment', 'classExams', 'studentClassExamResults', 'classGradebook', 'teacherAttemptReview', 'studentGrades']
+    const removesClassStudents = String(method).toLowerCase() === 'delete'
+      && /^\/classes\/[^/]+\/students(?:\/[^/]+)?$/.test(path)
+    return removesClassStudents ? [...resources, 'teacherMaterials'] : resources
+  }
   if (/^\/exams(?:\/|$)/.test(path)) return ['exams', 'examDetail', 'examConfiguration', 'examCount', 'dashboard', 'studentExams', 'studentAssignment', 'classExams', 'teacherAssignmentAttempts', 'teacherAssignmentExport', 'studentClassExamResults', 'classGradebook', 'teacherAttemptReview', 'studentGrades']
   if (/^\/users(?:\/|$)/.test(path)) return ['profile', 'teacherStudents', 'classStudents', 'studentDirectory', 'teachers', 'dashboard']
   return []

@@ -28,14 +28,14 @@ test('new update payload preserves assignment identity and threshold while mappi
   assert.equal(result.assignment.hideCorrectAnswerOnWrong, true)
   assert.deepEqual(Object.keys(result), ['basicInfo', 'assignment'])
 })
-test('target types clear inapplicable targets and missing assignment cannot be saved', () => {
+test('target types clear inapplicable targets and missing assignment is created on save', () => {
   const student = buildExamConfigurationPayload({ ...form, accessType: 'STUDENT' }, { id: 3 })
   assert.deepEqual(student.assignment.classIds, [])
   assert.deepEqual(student.assignment.studentIds, [7])
   const all = buildExamConfigurationPayload({ ...form, accessType: 'ALL' }, { id: 3 })
   assert.deepEqual(all.assignment.classIds, [])
   assert.deepEqual(all.assignment.studentIds, [])
-  assert.throws(() => buildExamConfigurationPayload(form, null), /lần giao/)
+  assert.equal(buildExamConfigurationPayload(form, null).assignment.id, null)
 })
 
 test('student update sends the classroom context as a numeric classId', () => {

@@ -1,5 +1,6 @@
 import {
   Bell,
+  BookOpen,
   ClipboardCheck,
   FileText,
   GraduationCap,
@@ -13,6 +14,7 @@ function ClassDetailSidebar({ studentCount = 0 }) {
   const prefetch = useRoutePrefetch()
   const { classId } = useParams()
   const examsQuery = useResourceQuery('classExams', [classId])
+  const materialsQuery = useResourceQuery('classDocuments', [classId])
   const { pathname } = useLocation()
 
   const isItemActive = (item, routeIsActive) => {
@@ -37,6 +39,12 @@ function ClassDetailSidebar({ studentCount = 0 }) {
       icon: FileText,
       to: `/teacher/classes/${classId}/assignments`,
       count: examsQuery.data?.length,
+    },
+    {
+      label: 'Tài liệu',
+      icon: BookOpen,
+      to: `/teacher/classes/${classId}/materials`,
+      count: materialsQuery.data?.length,
     },
     {
       label: 'Bảng tin',

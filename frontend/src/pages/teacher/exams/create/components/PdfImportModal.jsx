@@ -11,7 +11,16 @@ export default function PdfImportModal({ open, onClose, config }) {
   const [file, setFile] = useState(null)
   const [examNumber, setExamNumber] = useState('1')
   const [error, setError] = useState('')
-  const { query, upload, uploading, uploadError, reset } = usePdfExamImport()
+  const {
+    query,
+    upload,
+    uploading,
+    uploadError,
+    reset,
+    cancel,
+    cancelling,
+    cancelError,
+  } = usePdfExamImport()
   const job = query.data
   const busy = uploading || ['QUEUED', 'PROCESSING'].includes(job?.status)
 
@@ -77,6 +86,11 @@ export default function PdfImportModal({ open, onClose, config }) {
           Chọn file và xác định đề bạn muốn lấy trong file. Mỗi lần chỉ import
           một đề. Hệ thống chưa tự lưu thành đề thi.
         </p>
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          Khi bắt đầu import mới, các tác vụ import trước chưa lưu của bạn sẽ tự
+          hủy, kể cả preview đã sẵn sàng hoặc tác vụ đang xử lý. Đề đã lưu không
+          bị ảnh hưởng.
+        </p>
 
         <label className="block font-semibold">
           File PDF (tối đa 10 MiB)
@@ -110,9 +124,11 @@ export default function PdfImportModal({ open, onClose, config }) {
           lượng đề cần import.
         </p>
 
-        {(error || uploadError || query.isError) && (
+        {(error || uploadError || cancelError || query.isError) && (
           <p role="alert" className="text-red-600">
             {error ||
+              cancelError?.response?.data?.message ||
+              cancelError?.message ||
               uploadError?.response?.data?.message ||
               uploadError?.message ||
               query.errorMessage}
@@ -144,7 +160,9 @@ export default function PdfImportModal({ open, onClose, config }) {
                   ? 'Import thất bại'
                   : job.status === 'EXPIRED'
                     ? 'Tác vụ đã hết hạn'
-                    : 'Đang xử lý'}
+                    : job.status === 'CANCELLED'
+                      ? 'Đã hủy tác vụ'
+                      : 'Đang xử lý'}
             </p>
             <p className="mt-1 text-xs text-slate-500">{job.stage}</p>
             {job.errorMessage && (
@@ -183,7 +201,30 @@ export default function PdfImportModal({ open, onClose, config }) {
           </button>
         )}
 
-        {job && !busy && (
+        {['QUEUED', 'PROCESSING', 'READY_FOR_REVIEW', 'FAILED'].includes(job?.status) &&
+          !job?.createdExam && (
+          <button
+            disabled={cancelling}
+            onClick={() => {
+              if (
+                job.status === 'READY_FOR_REVIEW' &&
+                !window.confirm('Bỏ preview này và giải phóng quota import?')
+              ) {
+                return
+              }
+              cancel().catch(() => {})
+            }}
+            className="ml-3 rounded-xl border border-red-200 px-4 py-3 text-red-700 disabled:opacity-50"
+          >
+            {cancelling
+              ? 'Đang hủy...'
+              : ['QUEUED', 'PROCESSING'].includes(job.status)
+                ? 'Hủy tác vụ'
+                : 'Bỏ job, giải phóng quota'}
+          </button>
+        )}
+
+        {job && !busy && !cancelling && (
           <button
             onClick={() => {
               reset()

@@ -11,6 +11,7 @@ import com.classmanagement.backend.entity.ExamAssignment;
 import com.classmanagement.backend.entity.ExamAssignmentClass;
 import com.classmanagement.backend.entity.ExamAttempt;
 import com.classmanagement.backend.entity.enums.ExamAttemptStatus;
+import com.classmanagement.backend.entity.enums.ExamAssignmentType;
 import com.classmanagement.backend.exception.ConflictException;
 import com.classmanagement.backend.repository.exam.ExamAssignmentClassRepository;
 import com.classmanagement.backend.repository.exam.ExamAssignmentRepository;
@@ -27,6 +28,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.time.LocalDateTime;
 
 @Service
@@ -77,7 +79,7 @@ public List<ExamListResponse> getMyExams(String username) {
 
         if (assignments.isEmpty()) {
             return exams.stream()
-                    .map(exam -> toResponse(exam, 0L, 0L))
+                    .map(exam -> toResponse(exam, 0L, 0L, List.of()))
                     .toList();
         }
 
@@ -100,6 +102,27 @@ public List<ExamListResponse> getMyExams(String username) {
                     assignment.getId(),
                     assignment.getExam().getId());
         }
+
+        Map<Long, ExamAssignment> latestAssignmentByExamId = new HashMap<>();
+        for (ExamAssignment assignment : assignments) {
+            latestAssignmentByExamId.merge(
+                    assignment.getExam().getId(),
+                    assignment,
+                    (current, candidate) -> candidate.getId() > current.getId() ? candidate : current);
+        }
+
+        List<Long> latestAssignmentIds = latestAssignmentByExamId.values().stream()
+                .map(ExamAssignment::getId)
+                .sorted()
+                .toList();
+        Map<Long, List<String>> targetNamesByAssignmentId = examAssignmentClassRepository
+                .findTargetNames(latestAssignmentIds)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        ExamAssignmentClassRepository.AssignmentTargetName::getAssignmentId,
+                        Collectors.mapping(
+                                ExamAssignmentClassRepository.AssignmentTargetName::getName,
+                                Collectors.toList())));
 
         // Query 3: batch load toàn bộ class assignment
         List<ExamAssignmentClass> assignmentClasses = examAssignmentClassRepository
@@ -172,19 +195,36 @@ public List<ExamListResponse> getMyExams(String username) {
                                     exam.getId(),
                                     Set.of())
                             .size();
+                    List<String> assignedTo = assignedTo(
+                            latestAssignmentByExamId.get(exam.getId()),
+                            targetNamesByAssignmentId);
 
                     return toResponse(
                             exam,
                             submittedCount,
-                            assignedClassCount);
+                            assignedClassCount,
+                            assignedTo);
                 })
                 .toList();
+    }
+
+    private List<String> assignedTo(
+            ExamAssignment assignment,
+            Map<Long, List<String>> targetNamesByAssignmentId) {
+        if (assignment == null) {
+            return List.of();
+        }
+        if (assignment.getAssignmentType() == ExamAssignmentType.ALL) {
+            return List.of("Tất cả");
+        }
+        return targetNamesByAssignmentId.getOrDefault(assignment.getId(), List.of());
     }
 
     private ExamListResponse toResponse(
             Exam exam,
             long submittedCount,
-            long assignedClassCount) {
+            long assignedClassCount,
+            List<String> assignedTo) {
         return new ExamListResponse(
                 exam.getId(),
                 exam.getSubject() != null
@@ -201,7 +241,8 @@ public List<ExamListResponse> getMyExams(String username) {
                 submittedCount,
                 exam.getStatus(),
                 assignedClassCount,
-                exam.getCreatedAt());
+                exam.getCreatedAt(),
+                assignedTo);
     }
 
 @Override

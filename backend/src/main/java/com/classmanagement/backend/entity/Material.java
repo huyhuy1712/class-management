@@ -19,9 +19,9 @@ public class Material {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "class_id", nullable = false)
-    private Classroom classroom;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "teacher_id", nullable = false)
+    private User teacher;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 20)
@@ -35,6 +35,15 @@ public class Material {
 
     @Column(name = "file_url", length = 500)
     private String fileUrl;
+
+    @Column(name = "file_name", length = 255)
+    private String fileName;
+
+    @Column(name = "file_size")
+    private Long fileSize;
+
+    @Column(name = "file_content_type", length = 255)
+    private String fileContentType;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

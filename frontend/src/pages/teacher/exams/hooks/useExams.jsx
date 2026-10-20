@@ -15,6 +15,7 @@ export default function useExams() {
     if (copying.current) return null
     copying.current = true
     const version = getSessionVersion()
+    const sourceExam = query.data?.find((item) => item.id === examId)
     const requestKey = `exam-copy:${useAuthStore.getState().user?.id}:${examId}`
     try {
       const requestId = sessionStorage.getItem(requestKey) || crypto.randomUUID()
@@ -23,9 +24,21 @@ export default function useExams() {
       if (version !== getSessionVersion()) return null
       sessionStorage.removeItem(requestKey)
       setSessionQueryData(resourceKey(query.queryKey[1], 'examDetail', [result.id]), result, version)
-      query.setData((current = []) => [{ ...result.basicInfo, id: result.id, code: result.code, status: result.status,
-        revision: result.revision, maxScore: result.maxScore, createdAt: result.updatedAt, updatedAt: result.updatedAt,
-        submittedCount: 0 }, ...current.filter((item) => item.id !== result.id)])
+      query.setData((current = []) => [
+        {
+          ...result.basicInfo,
+          id: result.id,
+          code: result.code,
+          status: result.status,
+          revision: result.revision,
+          maxScore: result.maxScore,
+          createdAt: result.updatedAt,
+          updatedAt: result.updatedAt,
+          submittedCount: 0,
+          assignedTo: sourceExam?.assignedTo ?? [],
+        },
+        ...current.filter((item) => item.id !== result.id),
+      ])
       return result
     } catch (error) {
       if (version !== getSessionVersion()) return null

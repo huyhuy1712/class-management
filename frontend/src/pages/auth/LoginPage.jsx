@@ -7,6 +7,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { login } from '../../services/authService'
 import useAuthStore from '../../stores/authStore'
 import logo from '../../assets/logos/logo.png'
+import GoogleAuthButton from '../../components/auth/GoogleAuthButton'
 
 function LoginPage() {
   const navigate = useNavigate()
@@ -51,7 +52,7 @@ function LoginPage() {
     const nextFieldErrors = {}
 
     if (!form.username.trim()) {
-      nextFieldErrors.username = 'Vui lòng nhập tên đăng nhập.'
+      nextFieldErrors.username = 'Vui lòng nhập tên đăng nhập hoặc email.'
     }
 
     if (!form.password) {
@@ -106,7 +107,7 @@ function LoginPage() {
     } catch (error) {
       const message =
         error.response?.data?.message ||
-        'Tên đăng nhập hoặc mật khẩu không chính xác.'
+        'Tên đăng nhập/email hoặc mật khẩu không chính xác.'
 
       if (error.response?.status === 400 || error.response?.status === 401) {
         const normalizedMessage = message.toLowerCase()
@@ -196,9 +197,15 @@ function LoginPage() {
           {signupResult && (
             <div role="status" className="mb-5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
               <p className="font-semibold">
-                {signupResult.signupRole === 'TEACHER'
-                  ? 'Đăng ký thành công. Tài khoản đang chờ quản trị viên duyệt.'
-                  : 'Đăng ký thành công.'}
+                {signupResult.emailVerified
+                  ? signupResult.signupRole === 'TEACHER'
+                    ? 'Email đã xác nhận thành công. Tài khoản đang chờ quản trị viên duyệt.'
+                    : signupResult.signupRole === 'STUDENT'
+                      ? 'Email đã xác nhận thành công. Bạn có thể đăng nhập.'
+                      : 'Email đã xác nhận thành công.'
+                  : signupResult.signupRole === 'TEACHER'
+                    ? 'Đăng ký thành công. Tài khoản đang chờ quản trị viên duyệt.'
+                    : 'Đăng ký thành công.'}
               </p>
               {signupResult.signupCode && (
                 <p className="mt-1">
@@ -218,7 +225,7 @@ function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label htmlFor="login-username" className="mb-2 block text-sm font-semibold text-gray-700">
-                Tên đăng nhập
+                Tên đăng nhập hoặc email
               </label>
 
               <input
@@ -227,7 +234,7 @@ function LoginPage() {
                 name="username"
                 value={form.username}
                 onChange={handleChange}
-                placeholder="Nhập tên đăng nhập"
+                placeholder="Nhập tên đăng nhập hoặc email"
                 className={`w-full rounded-xl border bg-white px-4 py-3.5 outline-none transition focus:ring-4 ${
                   fieldErrors.username
                     ? 'border-red-400 focus:border-red-500 focus:ring-red-100'
@@ -295,6 +302,19 @@ function LoginPage() {
               {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </button>
           </form>
+
+          <div className="my-5 flex items-center gap-3 text-xs text-gray-400">
+            <span className="h-px flex-1 bg-gray-200" />
+            HOẶC
+            <span className="h-px flex-1 bg-gray-200" />
+          </div>
+          <GoogleAuthButton />
+
+          <p className="mt-4 text-right text-sm">
+            <Link to="/forgot-password" className="font-semibold text-green-700 hover:text-green-800">
+              Quên mật khẩu?
+            </Link>
+          </p>
 
           <p className="mt-7 text-center text-sm text-gray-500">
             Chưa có tài khoản?{' '}

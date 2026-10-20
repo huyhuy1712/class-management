@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { runInNewContext } from 'node:vm'
 
 let api, examService, mediaService
-test('PDF import uses multipart, stable caller request ID and authenticated asset reads', async () => {
+test('PDF import uses multipart, stable caller request ID, cancellation and authenticated asset reads', async () => {
   api.handler = async (url, body, options) => {
     assert.equal(url, '/exams/imports/pdf')
     assert.equal(body.get('examNumber'), '2')
@@ -13,6 +13,11 @@ test('PDF import uses multipart, stable caller request ID and authenticated asse
     return { data: { importId: 'job' } }
   }
   assert.equal((await examService.importPdf(new Blob(['%PDF-1.7']), 2, 'same-request')).importId, 'job')
+  api.delete = async (url) => {
+    assert.equal(url, '/exams/imports/job')
+    return { data: { importId: 'job', status: 'CANCELLED' } }
+  }
+  assert.equal((await examService.cancelPdfImport('job')).status, 'CANCELLED')
   api.handler = async (url, options) => {
     assert.equal(url, '/exams/imports/job/assets/image')
     assert.equal(options.responseType, 'blob')
@@ -50,7 +55,7 @@ test('student grades forwards filters, pagination and cancellation and preserves
   assert.equal(await examService.getMyGrades(params, { signal }), response)
 })
 before(async () => {
-  api = { put: (...args) => api.handler(...args), get: (...args) => api.handler(...args), post: (...args) => api.handler(...args) }
+  api = { put: (...args) => api.handler(...args), get: (...args) => api.handler(...args), post: (...args) => api.handler(...args), delete: (...args) => api.handler(...args) }
   // Evaluate the real service modules with an isolated HTTP transport.
   // The shared Axios client remains unchanged; no network or credentials are used.
   const loadService = async (name) => {
@@ -123,6 +128,17 @@ test('class exam list uses classroom scope and forwards query cancellation', asy
   assert.equal(await examService.getClassExams(21, { signal }), rows)
 })
 
+test('assignment result settings update only the selected round', async () => {
+  const body = { scoreVisibility: 'AFTER_SUBMIT', answerVisibility: 'AFTER_EXAM', hideCorrectAnswerOnWrong: true }
+  const response = { assignments: [{ id: 8, scoreVisibility: body.scoreVisibility }] }
+  api.patch = async (url, payload) => {
+    assert.equal(url, '/exams/7/assignments/8/result-settings')
+    assert.equal(payload, body)
+    return { data: response }
+  }
+  assert.equal(await examService.updateAssignmentResultSettings(7, 8, body), response)
+})
+
 test('copy uses a stable request ID and returns the new independent draft', async () => {
   const response = { id: 99, status: 'DRAFT', code: 'NEW', sections: [], assignments: [{ id: 100 }] }
   let calls = 0
@@ -146,10 +162,11 @@ test('student exam list reads every page and preserves server statistics and sor
     assert.equal(url, '/users/me/exams')
     assert.equal(options.signal, signal)
     assert.equal(options.params.sort, 'oldest')
+    assert.equal(options.params.classId, 21)
     const page = options.params.page
     return { data: { items: Array.from({ length: page === 0 ? 100 : 1 }, (_, i) => ({ assignmentId: page * 100 + i + 1 })), totalElements: 101, stats } }
   }
-  const result = await examService.getStudentExams({ signal }, 'oldest')
+  const result = await examService.getStudentExams({ signal, params: { classId: 21 } }, 'oldest')
   assert.equal(result.items.length, 101)
   assert.equal(result.items[100].assignmentId, 101)
   assert.equal(result.stats, stats)

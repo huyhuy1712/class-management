@@ -191,7 +191,7 @@ const handleApprove = async (request) => {
                   </div>
 
                   <p className="mt-0.5 text-sm text-slate-400">
-                    Yêu cầu và thông báo của bạn
+                    Yêu cầu tham gia lớp
                   </p>
                 </div>
               </div>
@@ -221,13 +221,6 @@ const handleApprove = async (request) => {
                   )}
 
                   <span className="absolute bottom-0 left-0 h-0.5 w-full rounded-full bg-green-600" />
-                </button>
-
-                <button
-                  type="button"
-                  className="py-4 text-sm font-medium text-slate-400"
-                >
-                  Thông báo
                 </button>
               </div>
             </div>

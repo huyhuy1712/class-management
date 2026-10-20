@@ -5,6 +5,8 @@ import com.classmanagement.backend.entity.enums.*;
 import com.classmanagement.backend.exception.ResourceNotFoundException;
 import com.classmanagement.backend.repository.NotificationRepository;
 import com.classmanagement.backend.repository.classroom.ClassStudentRepository;
+import com.classmanagement.backend.repository.exam.ExamAssignmentClassRepository;
+import com.classmanagement.backend.service.MaterialService;
 import org.junit.jupiter.api.Test;
 import java.lang.reflect.Proxy;
 import java.util.*;
@@ -23,7 +25,12 @@ class ClassroomRemovalNotificationTest {
 
     @Test void removalCreatesOneUnreadNotificationForStudentWithClassReference() {
         service().removeStudentFromClassroom(3L, 21L, "teacher");
-        assertEquals(List.of("findMembershipForUpdate", "delete", "flush", "save"), calls);
+        assertEquals(List.of(
+                "findMembershipForUpdate",
+                "deleteStudentExamDataForClass",
+                "delete",
+                "flush",
+                "save"), calls);
         assertSame(membership.getStudent(), notification.getUser());
         assertEquals(NotificationType.CLASS_REMOVED, notification.getType());
         assertFalse(notification.isRead());
@@ -52,11 +59,17 @@ class ClassroomRemovalNotificationTest {
     @Test void notificationFailurePropagatesForTransactionRollback() {
         notificationFails = true;
         assertThrows(IllegalStateException.class, () -> service().removeStudentFromClassroom(3L, 21L, "teacher"));
-        assertEquals(List.of("findMembershipForUpdate", "delete", "flush", "save"), calls);
+        assertEquals(List.of(
+                "findMembershipForUpdate",
+                "deleteStudentExamDataForClass",
+                "delete",
+                "flush",
+                "save"), calls);
     }
     private ClassroomServiceImpl service() {
         return new ClassroomServiceImpl(null, null, null, repo(ClassStudentRepository.class),
-                null, null, null, null, repo(NotificationRepository.class));
+                repo(ExamAssignmentClassRepository.class), null, null, null, null,
+                repo(NotificationRepository.class), org.mockito.Mockito.mock(MaterialService.class));
     }
     private <T> T repo(Class<T> type) {
         return type.cast(Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (p, m, a) -> {
@@ -65,6 +78,10 @@ class ClassroomRemovalNotificationTest {
                 case "findMembershipForUpdate" -> {
                     assertArrayEquals(new Object[]{3L, 21L}, a);
                     yield missing ? Optional.empty() : Optional.of(membership);
+                }
+                case "deleteStudentExamDataForClass" -> {
+                    assertArrayEquals(new Object[]{3L, 21L}, a);
+                    yield 1;
                 }
                 case "delete" -> { assertSame(membership, a[0]); yield null; }
                 case "flush" -> { if (deleteFails) throw new IllegalStateException("DB failure"); yield null; }

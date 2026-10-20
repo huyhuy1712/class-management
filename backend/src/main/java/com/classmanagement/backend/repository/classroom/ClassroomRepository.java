@@ -4,6 +4,7 @@ import com.classmanagement.backend.entity.Classroom;
 import com.classmanagement.backend.repository.projection.ClassroomSummaryProjection;
 
 import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Lock;
@@ -42,4 +43,5 @@ public interface ClassroomRepository extends JpaRepository<Classroom, Long> {
     @EntityGraph(attributePaths = {"subject", "teacher"})
     List<Classroom> findAllByTeacher_Id(Long teacherId);
 
+    List<Classroom> findAllByIdInAndTeacher_Id(Collection<Long> ids, Long teacherId);
 }

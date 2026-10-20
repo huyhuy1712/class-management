@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { filterStudentExams, getExamStatus, getExamAssignmentDate } from '../src/pages/student/exams/helpers/studentExamHelpers.js'
+import { filterStudentExams, getExamStatus, getExamAssignmentDate, getUnstartedAvailableExams } from '../src/pages/student/exams/helpers/studentExamHelpers.js'
 
 test('maps submitted and graded attempts to separate student statuses', () => {
   assert.equal(getExamStatus({ attemptStatus: 'SUBMITTED' }), 'PENDING')
@@ -53,4 +53,17 @@ test('waiting page respects Vietnam time, exclusive closing, remaining attempts 
   assert.equal(canEnterAssignment({ ...exam, maxAttempts: 0, attemptsUsed: 20 }, now), true)
   assert.equal(canEnterAssignment({ ...exam, canStart: false }, now), false)
   assert.equal(canEnterAssignment({ ...exam, blockedReason: 'TIME_EXPIRED', canResume: true }, now), false)
+})
+
+test('dashboard reminders include only unstarted assignments currently available to start', () => {
+  const now = Date.parse('2026-10-19T17:30:00+07:00')
+  const exams = [
+    { assignmentId: 1, attemptStatus: 'NOT_STARTED', canStart: true, attemptsUsed: 0, maxAttempts: 2, openTime: '2026-10-19T10:00:00', closeTime: '2026-10-19T18:00:00' },
+    { assignmentId: 2, attemptStatus: 'NOT_STARTED', canStart: true, attemptsUsed: 0, maxAttempts: 2, openTime: '2026-10-19T18:00:00', closeTime: '2026-10-19T19:00:00' },
+    { assignmentId: 3, attemptStatus: 'NOT_STARTED', canStart: false, attemptsUsed: 0, maxAttempts: 2, closeTime: '2026-10-19T18:00:00' },
+    { assignmentId: 4, attemptStatus: 'IN_PROGRESS', canStart: true, canResume: true, attemptsUsed: 1, maxAttempts: 2, closeTime: '2026-10-19T18:00:00' },
+    { assignmentId: 5, attemptStatus: 'NOT_STARTED', canStart: true, attemptsUsed: 0, maxAttempts: 2, closeTime: '2026-10-19T16:00:00' },
+    { assignmentId: 6, attemptStatus: 'NOT_STARTED', canStart: true, attemptsUsed: 0, maxAttempts: 2, closeTime: null },
+  ]
+  assert.deepEqual(getUnstartedAvailableExams(exams, now).map((exam) => exam.assignmentId), [1, 6])
 })

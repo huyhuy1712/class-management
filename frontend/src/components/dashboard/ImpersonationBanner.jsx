@@ -22,7 +22,7 @@ export default function ImpersonationBanner() {
   return (
     <div className="impersonation-banner" role="status">
       <div>
-        <strong>Đang impersonate tài khoản</strong>
+        <strong>Đang mạo danh tài khoản</strong>
         <span>{user?.fullName || user?.username} · {user?.role === 'TEACHER' ? 'Giáo viên' : 'Học sinh'}</span>
       </div>
       <button
@@ -30,7 +30,7 @@ export default function ImpersonationBanner() {
         onClick={() => stopMutation.mutate()}
         disabled={stopMutation.isPending}
       >
-        {stopMutation.isPending ? 'Đang quay lại...' : 'Thoát impersonation'}
+        {stopMutation.isPending ? 'Đang quay lại...' : 'Thoát mạo danh'}
       </button>
       {stopMutation.isError && (
         <span className="impersonation-banner__error" role="alert">
