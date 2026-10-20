@@ -22,6 +22,8 @@ import com.classmanagement.backend.repository.PasswordResetChallengeRepository;
 import com.classmanagement.backend.security.JwtService;
 import com.classmanagement.backend.service.AuthService;
 import com.classmanagement.backend.service.StorageService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
 
@@ -30,23 +32,36 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Locale;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final Logger LOGGER = Logger.getLogger(AuthServiceImpl.class.getName());
+    private static final HttpClient EMAIL_HTTP_CLIENT = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .build();
     private static final Duration VERIFICATION_CODE_LIFETIME = Duration.ofMinutes(10);
     private static final Duration VERIFICATION_RESEND_COOLDOWN = Duration.ofSeconds(60);
     private static final int MAX_VERIFICATION_ATTEMPTS = 5;
@@ -58,10 +73,23 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final StorageService storageService;
-    private final JavaMailSender mailSender;
+    private final ObjectMapper objectMapper;
+    private final ObjectProvider<JavaMailSender> mailSenderProvider;
+
+    @Value("${app.mail.provider:smtp}")
+    private String mailProvider;
 
     @Value("${app.mail.from:}")
     private String mailFrom;
+
+    @Value("${app.mail.api-key:}")
+    private String mailApiKey;
+
+    @Value("${app.mail.api-secret:}")
+    private String mailApiSecret;
+
+    @Value("${app.mail.api-url:https://api.mailjet.com/v3.1/send}")
+    private String mailApiUrl;
 
     @Value("${app.admin.email:}")
     private String supportEmail;
@@ -238,14 +266,10 @@ public class AuthServiceImpl implements AuthService {
         pending.setVerificationAttempts(0);
         pendingSignupRepository.save(pending);
 
-        SimpleMailMessage message = new SimpleMailMessage();
-        if (mailFrom == null || mailFrom.isBlank()) {
-            throw new IllegalStateException("Chưa cấu hình địa chỉ gửi email (MAIL_FROM).");
-        }
-        message.setFrom(mailFrom);
-        message.setTo(pending.getEmail());
-        message.setSubject("Mã xác nhận tài khoản FrogH");
-        message.setText("""
+        sendEmail(
+                pending.getEmail(),
+                "Mã xác nhận tài khoản FrogH",
+                """
                 Xin chào %s,
 
                 Mã xác nhận email của bạn là: %s
@@ -253,7 +277,6 @@ public class AuthServiceImpl implements AuthService {
                 Mã có hiệu lực trong 10 phút và chỉ được nhập tối đa 5 lần.
                 Nếu bạn không thực hiện đăng ký, hãy bỏ qua email này.
                 """.formatted(pending.getFullName(), code));
-        mailSender.send(message);
     }
 
     private void clearVerificationCode(PendingSignup pending) {
@@ -287,11 +310,10 @@ public class AuthServiceImpl implements AuthService {
         if (mailFrom == null || mailFrom.isBlank()) {
             throw new IllegalStateException("Chưa cấu hình địa chỉ gửi email (MAIL_FROM).");
         }
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(mailFrom);
-        message.setTo(user.getEmail());
-        message.setSubject("Mã xác nhận đặt lại mật khẩu FrogH");
-        message.setText("""
+        sendEmail(
+                user.getEmail(),
+                "Mã xác nhận đặt lại mật khẩu FrogH",
+                """
                 Xin chào %s,
 
                 Mã xác nhận đặt lại mật khẩu của bạn là: %s
@@ -299,7 +321,103 @@ public class AuthServiceImpl implements AuthService {
                 Mã có hiệu lực trong 10 phút và chỉ được nhập tối đa 5 lần.
                 Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này.
                 """.formatted(user.getFullName(), code));
-        mailSender.send(message);
+    }
+
+    private void sendEmail(String recipient, String subject, String text) {
+        if (mailFrom == null || mailFrom.isBlank()) {
+            throw new IllegalStateException("Chưa cấu hình địa chỉ gửi email (MAIL_FROM).");
+        }
+
+        if ("smtp".equalsIgnoreCase(mailProvider)) {
+            JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
+            if (mailSender == null) {
+                throw new IllegalStateException("Chưa cấu hình Spring Mail SMTP.");
+            }
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(mailFrom);
+            message.setTo(recipient);
+            message.setSubject(subject);
+            message.setText(text);
+            mailSender.send(message);
+            return;
+        }
+
+        if (!"https".equalsIgnoreCase(mailProvider)) {
+            throw new IllegalStateException("MAIL_PROVIDER chỉ nhận smtp hoặc https.");
+        }
+        if (mailApiKey == null || mailApiKey.isBlank()) {
+            throw new IllegalStateException("Chưa cấu hình MAILJET_API_KEY.");
+        }
+        if (mailApiSecret == null || mailApiSecret.isBlank()) {
+            throw new IllegalStateException("Chưa cấu hình MAILJET_API_SECRET.");
+        }
+
+        Map<String, String> sender = parseMailFrom(mailFrom);
+        String requestBody;
+        try {
+            Map<String, Object> message = Map.of(
+                    "From", Map.of("Email", sender.get("email"), "Name", sender.getOrDefault("name", "FrogH")),
+                    "To", List.of(Map.of("Email", recipient)),
+                    "Subject", subject,
+                    "TextPart", text);
+            requestBody = objectMapper.writeValueAsString(Map.of("Messages", List.of(message)));
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Không thể tạo nội dung email.", exception);
+        }
+
+        String credentials = mailApiKey + ":" + mailApiSecret;
+        String authorization = Base64.getEncoder()
+                .encodeToString(credentials.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        HttpRequest request = HttpRequest.newBuilder(URI.create(mailApiUrl))
+                .timeout(Duration.ofSeconds(20))
+                .header("Authorization", "Basic " + authorization)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .build();
+        try {
+            HttpResponse<String> response = EMAIL_HTTP_CLIENT.send(
+                    request,
+                    HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                LOGGER.warning("Email provider returned HTTP " + response.statusCode());
+                throw new IllegalStateException(
+                        "Dịch vụ email từ chối gửi thư (HTTP " + response.statusCode() + ").");
+            }
+            try {
+                String status = objectMapper.readTree(response.body())
+                        .path("Messages").path(0).path("Status").asText();
+                if (!"success".equalsIgnoreCase(status)) {
+                    LOGGER.warning("Mailjet did not accept the email request.");
+                    throw new IllegalStateException("Mailjet không chấp nhận yêu cầu gửi email.");
+                }
+            } catch (JsonProcessingException exception) {
+                throw new IllegalStateException("Không đọc được phản hồi từ Mailjet.", exception);
+            }
+        } catch (IOException exception) {
+            LOGGER.log(Level.SEVERE, "Could not connect to the email provider API.", exception);
+            throw new IllegalStateException("Không thể kết nối dịch vụ gửi email. Vui lòng thử lại sau.", exception);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            LOGGER.log(Level.SEVERE, "Email provider request was interrupted.", exception);
+            throw new IllegalStateException("Yêu cầu gửi email bị gián đoạn. Vui lòng thử lại sau.", exception);
+        }
+    }
+
+    private Map<String, String> parseMailFrom(String from) {
+        String value = from.trim();
+        int nameStart = value.lastIndexOf('<');
+        if (nameStart >= 0 && value.endsWith(">")) {
+            String name = value.substring(0, nameStart).trim();
+            String email = value.substring(nameStart + 1, value.length() - 1).trim();
+            if (name.isEmpty() || email.isEmpty()) {
+                throw new IllegalStateException("MAIL_FROM phải có định dạng Tên <email@domain.com> hoặc email@domain.com.");
+            }
+            return Map.of("name", name, "email", email);
+        }
+        if (value.contains("<") || value.contains(">")) {
+            throw new IllegalStateException("MAIL_FROM phải có định dạng Tên <email@domain.com> hoặc email@domain.com.");
+        }
+        return Map.of("email", value);
     }
 
     @Override

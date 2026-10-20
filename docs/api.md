@@ -175,18 +175,16 @@ Chỉ dùng được khi email của đăng ký chưa được xác nhận. Requ
 
 Migration V76 tạo bảng `password_reset_challenges`; dữ liệu OTP/reset token chỉ lưu dưới dạng hash.
 
-### Cấu hình Spring Email khi chạy local
+### Cấu hình email theo môi trường
 
-Spring Boot tự tạo `JavaMailSender` từ dependency `spring-boot-starter-mail`. Cấu hình SMTP qua biến môi trường, không ghi mật khẩu email vào source code:
+Luồng OTP dùng chung `AuthServiceImpl`; provider được chọn bằng `MAIL_PROVIDER`:
 
-- `MAIL_HOST`: máy chủ SMTP, ví dụ `smtp.gmail.com`.
-- `MAIL_PORT`: cổng SMTP, thường là `587`.
-- `MAIL_USERNAME`: địa chỉ Gmail gửi email.
-- `MAIL_PASSWORD`: App Password của Google (không phải mật khẩu đăng nhập Gmail).
-- `MAIL_FROM`: địa chỉ người gửi, thường đặt giống `MAIL_USERNAME`.
-- `ADMIN_PHONE`: số điện thoại hỗ trợ hiển thị trong lựa chọn “Thử cách khác”; `ADMIN_EMAIL` được dùng làm email liên hệ.
+- **Local/dev:** `MAIL_PROVIDER=smtp`, Spring Boot `JavaMailSender` gửi qua SMTP. Ví dụ Gmail dùng `MAIL_HOST=smtp.gmail.com`, `MAIL_PORT=587`, `MAIL_USERNAME`, `MAIL_PASSWORD` là Google App Password, `MAIL_SMTP_AUTH=true`, `MAIL_SMTP_STARTTLS=true`, và `MAIL_FROM` là địa chỉ Gmail gửi.
+- **Production trên Railway Free/Hobby:** `MAIL_PROVIDER=https`, gửi qua Mailjet HTTPS API để tránh outbound SMTP bị chặn. Cấu hình `MAILJET_API_KEY`, `MAILJET_API_SECRET`, `MAIL_FROM` (phải là sender đang active/đã xác minh trong Mailjet); `MAILJET_API_URL` là tùy chọn, mặc định `https://api.mailjet.com/v3.1/send`.
+- `application-prod.properties` mặc định provider là `https`; profile `prod` cần được bật khi deploy production. `MAIL_PROVIDER` vẫn có thể override cấu hình.
+- `ADMIN_PHONE`: số hỗ trợ hiển thị trong lựa chọn “Thử cách khác”; `ADMIN_EMAIL` được dùng làm email liên hệ.
 
-Với Gmail, bật xác minh 2 bước rồi tạo App Password trong Google Account. Đặt các biến này trong cấu hình chạy của IDE hoặc môi trường trước khi chạy backend.
+Trước khi gửi, xác minh email kích hoạt tài khoản Mailjet, sau đó thêm và xác minh sender trong Mailjet. Trên Railway, đặt các biến cho backend service, bật profile `prod`, rồi redeploy. Không commit API key/secret hay mật khẩu SMTP.
 
 ### 2. POST `/api/auth/login` | Đăng nhập
 

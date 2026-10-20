@@ -18,10 +18,17 @@ import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.security.JwtService;
 import com.classmanagement.backend.service.StorageService;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sun.net.httpserver.HttpServer;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -34,6 +41,33 @@ import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.*;
 
 class AuthServiceImplTest {
+    private static HttpServer emailApi;
+    private static String emailApiUrl;
+    private static final AtomicReference<String> LAST_EMAIL_REQUEST = new AtomicReference<>();
+    private static final AtomicReference<String> LAST_EMAIL_AUTHORIZATION = new AtomicReference<>();
+
+    @BeforeAll
+    static void startEmailApiStub() throws IOException {
+        emailApi = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        emailApi.createContext("/emails", exchange -> {
+            LAST_EMAIL_REQUEST.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            LAST_EMAIL_AUTHORIZATION.set(exchange.getRequestHeaders().getFirst("Authorization"));
+            byte[] response = "{\"Messages\":[{\"Status\":\"success\"}]}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, response.length);
+            try (var output = exchange.getResponseBody()) {
+                output.write(response);
+            }
+        });
+        emailApi.start();
+        emailApiUrl = "http://127.0.0.1:" + emailApi.getAddress().getPort() + "/emails";
+    }
+
+    @AfterAll
+    static void stopEmailApiStub() {
+        if (emailApi != null) emailApi.stop(0);
+    }
+
     @Test
     void signupDoesNotCreateUserAndOnlyValidOtpCreatesOne() {
         AtomicReference<PendingSignup> pendingSignup = new AtomicReference<>();
@@ -70,17 +104,15 @@ class AuthServiceImplTest {
             if ("matches".equals(method)) return ("hashed:" + args[0]).equals(args[1]);
             throw new UnsupportedOperationException(method);
         });
-        JavaMailSender mailSender = proxy(JavaMailSender.class, (method, args) -> {
+        JavaMailSender javaMailSender = proxy(JavaMailSender.class, (method, args) -> {
             if ("send".equals(method) && args[0] instanceof SimpleMailMessage message) {
                 sentMessage.set(message);
-                Matcher matcher = Pattern.compile("\\b(\\d{6})\\b").matcher(message.getText());
-                assertTrue(matcher.find());
-                rawCode.set(matcher.group(1));
                 return null;
             }
             throw new UnsupportedOperationException(method);
         });
-        AuthServiceImpl service = service(users, pending, encoder, mailSender);
+        AuthServiceImpl service = service(users, pending, encoder, javaMailSender);
+        setField(service, "mailProvider", "smtp");
 
         SignupRequest request = new SignupRequest();
         request.setUsername("newstudent");
@@ -93,6 +125,9 @@ class AuthServiceImplTest {
         assertEquals(0, userSaveCount.get());
         assertNotNull(pendingSignup.get());
         assertEquals("newstudent@gmail.com", sentMessage.get().getTo()[0]);
+        Matcher matcher = Pattern.compile("\\b(\\d{6})\\b").matcher(sentMessage.get().getText());
+        assertTrue(matcher.find());
+        rawCode.set(matcher.group(1));
         assertTrue(pendingSignup.get().getVerificationCodeHash().startsWith("hashed:"));
 
         assertThrows(IllegalArgumentException.class, () -> service.verifyEmail(
@@ -121,8 +156,7 @@ class AuthServiceImplTest {
         AuthServiceImpl service = service(users,
                 proxy(PendingSignupRepository.class, (method, args) -> null),
                 proxy(PasswordEncoder.class, (method, args) ->
-                        "matches".equals(method) && "password".equals(args[0])),
-                proxy(JavaMailSender.class, (method, args) -> null));
+                        "matches".equals(method) && "password".equals(args[0])));
         LoginRequest request = new LoginRequest();
         request.setUsername("teacher");
         request.setPassword("password");
@@ -145,8 +179,7 @@ class AuthServiceImplTest {
         AuthServiceImpl service = service(users,
                 proxy(PendingSignupRepository.class, (method, args) -> null),
                 proxy(PasswordEncoder.class, (method, args) ->
-                        "matches".equals(method) && "password".equals(args[0])),
-                proxy(JavaMailSender.class, (method, args) -> null));
+                        "matches".equals(method) && "password".equals(args[0])));
         LoginRequest request = new LoginRequest();
         request.setUsername("student");
         request.setPassword("password");
@@ -183,10 +216,7 @@ class AuthServiceImplTest {
             if ("encode".equals(method)) return "new-password-hash";
             throw new UnsupportedOperationException(method);
         });
-        AuthServiceImpl service = service(users, pendingRepository, encoder,
-                proxy(JavaMailSender.class, (method, args) -> {
-                    throw new AssertionError("Unchanged email must not resend OTP");
-                }));
+        AuthServiceImpl service = service(users, pendingRepository, encoder);
         SignupRequest updated = new SignupRequest();
         updated.setUsername("updated-student");
         updated.setPassword("new-password");
@@ -213,7 +243,6 @@ class AuthServiceImplTest {
                 .status(UserStatus.ACTIVE)
                 .build();
         AtomicReference<PasswordResetChallenge> challenge = new AtomicReference<>();
-        AtomicReference<SimpleMailMessage> sentMessage = new AtomicReference<>();
         UserRepository users = proxy(UserRepository.class, (method, args) -> {
             if ("findByEmailForUpdate".equals(method)) return Optional.of(user);
             if ("save".equals(method)) return args[0];
@@ -236,23 +265,20 @@ class AuthServiceImplTest {
             if ("matches".equals(method)) return ("hashed:" + args[0]).equals(args[1]);
             throw new UnsupportedOperationException(method);
         });
-        JavaMailSender mailSender = proxy(JavaMailSender.class, (method, args) -> {
-            if ("send".equals(method) && args[0] instanceof SimpleMailMessage message) {
-                sentMessage.set(message);
-                return null;
-            }
-            throw new UnsupportedOperationException(method);
-        });
         AuthServiceImpl service = service(
                 users,
                 proxy(PendingSignupRepository.class, (method, args) -> null),
                 challenges,
-                encoder,
-                mailSender);
+                encoder);
 
         service.requestPasswordReset(new PasswordResetRequest(user.getEmail()));
-        assertEquals(user.getEmail(), sentMessage.get().getTo()[0]);
-        var matcher = Pattern.compile("\\b(\\d{6})\\b").matcher(sentMessage.get().getText());
+        assertTrue(LAST_EMAIL_REQUEST.get().contains("\"Email\":\"student@gmail.com\""));
+        assertTrue(LAST_EMAIL_REQUEST.get().contains("\"TextPart\""));
+        assertTrue(LAST_EMAIL_REQUEST.get().contains("\"Name\":\"FrogH\""));
+        String expectedAuth = "Basic " + Base64.getEncoder().encodeToString(
+                "test-api-key:test-api-secret".getBytes(StandardCharsets.UTF_8));
+        assertEquals(expectedAuth, LAST_EMAIL_AUTHORIZATION.get());
+        var matcher = Pattern.compile("\\b(\\d{6})\\b").matcher(LAST_EMAIL_REQUEST.get());
         assertTrue(matcher.find());
         String code = matcher.group(1);
 
@@ -272,11 +298,28 @@ class AuthServiceImplTest {
     private static AuthServiceImpl service(
             UserRepository users,
             PendingSignupRepository pending,
+            PasswordEncoder encoder) {
+        return service(users, pending,
+                proxy(PasswordResetChallengeRepository.class, (method, args) -> null),
+                encoder);
+    }
+
+    private static AuthServiceImpl service(
+            UserRepository users,
+            PendingSignupRepository pending,
             PasswordEncoder encoder,
             JavaMailSender mailSender) {
         return service(users, pending,
                 proxy(PasswordResetChallengeRepository.class, (method, args) -> null),
                 encoder, mailSender);
+    }
+
+    private static AuthServiceImpl service(
+            UserRepository users,
+            PendingSignupRepository pending,
+            PasswordResetChallengeRepository resetChallenges,
+            PasswordEncoder encoder) {
+        return service(users, pending, resetChallenges, encoder, null);
     }
 
     private static AuthServiceImpl service(
@@ -297,9 +340,24 @@ class AuthServiceImplTest {
                 encoder,
                 jwtService,
                 proxy(StorageService.class, (method, args) -> null),
-                mailSender);
-        setField(service, "mailFrom", "sender@gmail.com");
+                new ObjectMapper(),
+                mailSenderProvider(mailSender));
+        setField(service, "mailFrom", "FrogH <sender@example.com>");
+        setField(service, "mailApiKey", "test-api-key");
+        setField(service, "mailApiSecret", "test-api-secret");
+        setField(service, "mailApiUrl", emailApiUrl);
+        setField(service, "mailProvider", "https");
         return service;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ObjectProvider<JavaMailSender> mailSenderProvider(JavaMailSender mailSender) {
+        return (ObjectProvider<JavaMailSender>) proxy(ObjectProvider.class, (method, args) -> {
+            if ("getIfAvailable".equals(method) || "getIfUnique".equals(method) || "getObject".equals(method)) {
+                return mailSender;
+            }
+            return null;
+        });
     }
 
     private static void setField(Object instance, String name, Object value) {
