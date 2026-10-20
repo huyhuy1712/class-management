@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mail.SimpleMailMessage;
@@ -340,7 +339,6 @@ class AuthServiceImplTest {
                 encoder,
                 jwtService,
                 proxy(StorageService.class, (method, args) -> null),
-                new ObjectMapper(),
                 mailSenderProvider(mailSender));
         setField(service, "mailFrom", "FrogH <sender@example.com>");
         setField(service, "mailApiKey", "test-api-key");

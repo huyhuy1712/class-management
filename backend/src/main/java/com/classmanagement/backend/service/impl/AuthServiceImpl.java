@@ -62,6 +62,7 @@ public class AuthServiceImpl implements AuthService {
     private static final HttpClient EMAIL_HTTP_CLIENT = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
+    private static final ObjectMapper EMAIL_OBJECT_MAPPER = new ObjectMapper();
     private static final Duration VERIFICATION_CODE_LIFETIME = Duration.ofMinutes(10);
     private static final Duration VERIFICATION_RESEND_COOLDOWN = Duration.ofSeconds(60);
     private static final int MAX_VERIFICATION_ATTEMPTS = 5;
@@ -73,7 +74,6 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final StorageService storageService;
-    private final ObjectMapper objectMapper;
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
 
     @Value("${app.mail.provider:smtp}")
@@ -360,7 +360,7 @@ public class AuthServiceImpl implements AuthService {
                     "To", List.of(Map.of("Email", recipient)),
                     "Subject", subject,
                     "TextPart", text);
-            requestBody = objectMapper.writeValueAsString(Map.of("Messages", List.of(message)));
+            requestBody = EMAIL_OBJECT_MAPPER.writeValueAsString(Map.of("Messages", List.of(message)));
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Không thể tạo nội dung email.", exception);
         }
@@ -384,7 +384,7 @@ public class AuthServiceImpl implements AuthService {
                         "Dịch vụ email từ chối gửi thư (HTTP " + response.statusCode() + ").");
             }
             try {
-                String status = objectMapper.readTree(response.body())
+                String status = EMAIL_OBJECT_MAPPER.readTree(response.body())
                         .path("Messages").path(0).path("Status").asText();
                 if (!"success".equalsIgnoreCase(status)) {
                     LOGGER.warning("Mailjet did not accept the email request.");
