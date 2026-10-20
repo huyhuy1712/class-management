@@ -23,6 +23,7 @@ import com.classmanagement.backend.security.JwtService;
 import com.classmanagement.backend.service.AuthService;
 import com.classmanagement.backend.service.StorageService;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
@@ -45,6 +46,7 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Base64;
@@ -379,15 +381,22 @@ public class AuthServiceImpl implements AuthService {
                     request,
                     HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                LOGGER.warning("Email provider returned HTTP " + response.statusCode());
+                String requestId = response.headers()
+                        .firstValue("X-MJ-Request-GUID")
+                        .orElse("unavailable");
+                LOGGER.warning("Mailjet rejected email request: HTTP " + response.statusCode()
+                        + "; requestId=" + requestId
+                        + "; details: " + mailjetErrorSummary(response.body()));
                 throw new IllegalStateException(
                         "Dịch vụ email từ chối gửi thư (HTTP " + response.statusCode() + ").");
             }
             try {
-                String status = EMAIL_OBJECT_MAPPER.readTree(response.body())
-                        .path("Messages").path(0).path("Status").asText();
+                JsonNode body = EMAIL_OBJECT_MAPPER.readTree(response.body());
+                JsonNode messageResult = body.path("Messages").path(0);
+                String status = messageResult.path("Status").asText();
                 if (!"success".equalsIgnoreCase(status)) {
-                    LOGGER.warning("Mailjet did not accept the email request.");
+                    LOGGER.warning("Mailjet did not accept the email request: status=" + status
+                            + "; details: " + mailjetErrorSummary(response.body()));
                     throw new IllegalStateException("Mailjet không chấp nhận yêu cầu gửi email.");
                 }
             } catch (JsonProcessingException exception) {
@@ -400,6 +409,34 @@ public class AuthServiceImpl implements AuthService {
             Thread.currentThread().interrupt();
             LOGGER.log(Level.SEVERE, "Email provider request was interrupted.", exception);
             throw new IllegalStateException("Yêu cầu gửi email bị gián đoạn. Vui lòng thử lại sau.", exception);
+        }
+    }
+
+    static String mailjetErrorSummary(String responseBody) {
+        try {
+            JsonNode body = EMAIL_OBJECT_MAPPER.readTree(responseBody);
+            List<String> details = new ArrayList<>();
+            appendMailjetErrorFields(body, details);
+            JsonNode errors = body.path("Messages").path(0).path("Errors");
+            if (errors.isArray()) {
+                errors.forEach(error -> appendMailjetErrorFields(error, details));
+            }
+            if (details.isEmpty()) {
+                return "Mailjet response did not contain standard error details";
+            }
+            String summary = String.join("; ", details).replaceAll("[\\r\\n\\t]", " ");
+            return summary.length() <= 1000 ? summary : summary.substring(0, 1000);
+        } catch (JsonProcessingException exception) {
+            return "Mailjet response was not valid JSON";
+        }
+    }
+
+    private static void appendMailjetErrorFields(JsonNode node, List<String> details) {
+        for (String field : List.of("ErrorIdentifier", "ErrorCode", "StatusCode", "ErrorMessage", "Status")) {
+            JsonNode value = node.get(field);
+            if (value != null && !value.isNull() && !value.asText().isBlank()) {
+                details.add(field + "=" + value.asText());
+            }
         }
     }
 

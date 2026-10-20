@@ -68,6 +68,25 @@ class AuthServiceImplTest {
     }
 
     @Test
+    void mailjetErrorSummaryIncludesProviderReasonWithoutDumpingOtherFields() {
+        String summary = AuthServiceImpl.mailjetErrorSummary("""
+                {
+                  "ErrorIdentifier": "authentication",
+                  "ErrorCode": "mj-001",
+                  "StatusCode": 401,
+                  "ErrorMessage": "Invalid API key",
+                  "Authorization": "must-not-be-logged"
+                }
+                """);
+
+        assertTrue(summary.contains("ErrorIdentifier=authentication"));
+        assertTrue(summary.contains("ErrorCode=mj-001"));
+        assertTrue(summary.contains("StatusCode=401"));
+        assertTrue(summary.contains("ErrorMessage=Invalid API key"));
+        assertFalse(summary.contains("must-not-be-logged"));
+    }
+
+    @Test
     void signupDoesNotCreateUserAndOnlyValidOtpCreatesOne() {
         AtomicReference<PendingSignup> pendingSignup = new AtomicReference<>();
         AtomicReference<SimpleMailMessage> sentMessage = new AtomicReference<>();

@@ -186,6 +186,8 @@ Luồng OTP dùng chung `AuthServiceImpl`; provider được chọn bằng `MAIL
 
 Trước khi gửi, xác minh email kích hoạt tài khoản Mailjet, sau đó thêm và xác minh sender trong Mailjet. Trên Railway, đặt các biến cho backend service, bật profile `prod`, rồi redeploy. Không commit API key/secret hay mật khẩu SMTP.
 
+Khi Mailjet từ chối request, backend ghi HTTP status, `ErrorIdentifier`, `ErrorCode`, `StatusCode`, `ErrorMessage` (nếu provider trả về) và request ID vào Railway runtime logs; API key/secret không được ghi log. Dùng các chi tiết này để chẩn đoán lỗi gửi email.
+
 ### 2. POST `/api/auth/login` | Đăng nhập
 
 **Headers:**
