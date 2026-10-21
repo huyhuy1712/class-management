@@ -37,45 +37,48 @@ export function setLocalGuestQuota(quota) {
   }
 }
 
+/**
+ * Gửi tin nhắn câu hỏi tới Trợ lý Học tập AI
+ * @param {string} message Nội dung câu hỏi
+ * @param {Array<{role: string, content: string}>} history Lịch sử trò chuyện
+ * @returns {Promise<{reply: string, remainingQuota: number|null, limitReached: boolean, role: string}>}
+ */
+export const sendChatMessage = async (message, history = []) => {
+  const clientSessionId = getOrCreateClientSessionId()
+  const response = await api.post('/public/ai/chat', {
+    message,
+    clientSessionId,
+    history,
+  })
+
+  if (typeof response.data?.remainingQuota === 'number') {
+    setLocalGuestQuota(response.data.remainingQuota)
+  }
+
+  return response.data
+}
+
+/**
+ * Lấy trạng thái hạn mức quota và vai trò người dùng hiện tại
+ * @returns {Promise<{reply: string, remainingQuota: number|null, limitReached: boolean, role: string}>}
+ */
+export const getQuotaStatus = async () => {
+  const clientSessionId = getOrCreateClientSessionId()
+  const response = await api.get('/public/ai/quota', {
+    params: { clientSessionId },
+  })
+
+  if (typeof response.data?.remainingQuota === 'number') {
+    setLocalGuestQuota(response.data.remainingQuota)
+  }
+
+  return response.data
+}
+
 export const aiChatService = {
-  /**
-   * Gửi tin nhắn câu hỏi tới Trợ lý Học tập AI
-   * @param {string} message Nội dung câu hỏi
-   * @param {Array<{role: string, content: string}>} history Lịch sử trò chuyện
-   * @returns {Promise<{reply: string, remainingQuota: number|null, limitReached: boolean, role: string}>}
-   */
-  sendMessage: async (message, history = []) => {
-    const clientSessionId = getOrCreateClientSessionId()
-    const response = await api.post('/public/ai/chat', {
-      message,
-      history,
-      clientSessionId,
-    })
-
-    if (typeof response.data?.remainingQuota === 'number') {
-      setLocalGuestQuota(response.data.remainingQuota)
-    }
-
-    return response.data
-  },
-
-  /**
-   * Lấy trạng thái hạn mức quota và vai trò người dùng hiện tại
-   * @returns {Promise<{reply: string, remainingQuota: number|null, limitReached: boolean, role: string}>}
-   */
-  getQuotaStatus: async () => {
-    const clientSessionId = getOrCreateClientSessionId()
-    const response = await api.get('/public/ai/quota', {
-      params: { clientSessionId },
-    })
-
-    if (typeof response.data?.remainingQuota === 'number') {
-      setLocalGuestQuota(response.data.remainingQuota)
-    }
-
-    return response.data
-  },
+  sendChatMessage,
+  sendMessage: sendChatMessage,
+  getQuotaStatus,
 }
 
 export default aiChatService
-

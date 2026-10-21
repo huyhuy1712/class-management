@@ -19,8 +19,17 @@ public class AiChatRequest {
     @NotBlank(message = "Nội dung câu hỏi không được để trống")
     private String message;
 
-    private List<AiChatMessageDto> history;
+    private List<ChatMessageItem> history;
 
     private String clientSessionId;
-}
 
+    @Getter
+    @Setter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ChatMessageItem {
+        private String role;
+        private String content;
+    }
+}

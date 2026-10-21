@@ -1,25 +1,52 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import {
   Bot,
   Sparkles,
   X,
   Send,
   Lock,
-  RotateCcw,
+  Trash2,
   GraduationCap,
   BookOpen,
   User,
   ChevronDown,
 } from 'lucide-react'
 import useAuthStore from '../stores/authStore'
-import aiChatService, { getLocalGuestQuota } from '../services/aiChatService'
+import { sendChatMessage, getQuotaStatus, getLocalGuestQuota } from '../services/aiChatService'
 
 interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
+  text?: string
   time: string
+}
+
+const STORAGE_KEY = 'ai_chat_messages'
+
+const getWelcomeMessage = (currentRole: string): ChatMessage => {
+  let welcome = ''
+  if (currentRole === 'TEACHER') {
+    welcome =
+      'Xin chào Thầy/Cô! Tôi là Trợ lý Học tập AI của FrogH. Tôi sẵn sàng hỗ trợ Thầy/Cô xây dựng ma trận đề thi, soạn câu hỏi trắc nghiệm/tự luận, gợi ý ý tưởng bài giảng sáng tạo và giải đáp nghiệp vụ hệ thống. Thầy/Cô cần hỗ trợ nội dung nào ạ?'
+  } else if (currentRole === 'STUDENT') {
+    welcome =
+      'Xin chào bạn học sinh! Tôi là Trợ lý Học tập AI của FrogH. Tôi có thể cùng bạn ôn tập lý thuyết, hướng dẫn từng bước tư duy giải bài tập, giải thích công thức các môn học và tra cứu thông tin lớp học. Bạn đang có thắc mắc bài tập nào?'
+  } else {
+    welcome =
+      'Xin chào bạn! Tôi là Trợ lý Học tập AI của hệ thống FrogH Education. Bạn có tối đa 3 lượt hỏi thử miễn phí về kiến thức các môn học hoặc tìm hiểu về hệ thống FrogH. Hãy đặt câu hỏi để trải nghiệm nhé!'
+  }
+
+  return {
+    id: 'msg-welcome',
+    role: 'assistant',
+    content: welcome,
+    text: welcome,
+    time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+  }
 }
 
 export const AiChatWidget: React.FC = () => {
@@ -38,7 +65,23 @@ export const AiChatWidget: React.FC = () => {
   const isGuest = role === 'GUEST'
 
   const [isOpen, setIsOpen] = useState(false)
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+
+  // Khôi phục lịch sử chat từ localStorage nếu có
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed
+        }
+      }
+    } catch (e) {
+      console.error('Lỗi khi đọc lịch sử chat từ localStorage:', e)
+    }
+    return [getWelcomeMessage(role)]
+  })
+
   const [inputMessage, setInputMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [remainingQuota, setRemainingQuota] = useState<number | null>(
@@ -47,39 +90,26 @@ export const AiChatWidget: React.FC = () => {
   const [limitReached, setLimitReached] = useState<boolean>(
     isGuest ? getLocalGuestQuota() <= 0 : false
   )
+  const [showQuickPrompts, setShowQuickPrompts] = useState(true)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Khởi tạo tin nhắn chào mừng theo vai trò
+  // Lưu lịch sử chat vào localStorage mỗi khi messages thay đổi
   useEffect(() => {
-    let welcome = ''
-    if (role === 'TEACHER') {
-      welcome =
-        'Xin chào Thầy/Cô! Tôi là Trợ lý Học tập AI của FrogH. Tôi sẵn sàng hỗ trợ Thầy/Cô xây dựng ma trận đề thi, soạn câu hỏi trắc nghiệm/tự luận, gợi ý ý tưởng bài giảng sáng tạo và giải đáp nghiệp vụ hệ thống. Thầy/Cô cần hỗ trợ nội dung nào ạ?'
-    } else if (role === 'STUDENT') {
-      welcome =
-        'Xin chào bạn học sinh! Tôi là Trợ lý Học tập AI của FrogH. Tôi có thể cùng bạn ôn tập lý thuyết, hướng dẫn từng bước tư duy giải bài tập, giải thích công thức các môn học và tra cứu thông tin lớp học. Bạn đang có thắc mắc bài tập nào?'
-    } else {
-      welcome =
-        'Xin chào bạn! Tôi là Trợ lý Học tập AI của hệ thống FrogH Education. Bạn có tối đa 3 lượt hỏi thử miễn phí về kiến thức các môn học hoặc tìm hiểu về hệ thống FrogH. Hãy đặt câu hỏi để trải nghiệm nhé!'
+    if (messages && messages.length > 0) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(messages))
+      } catch (e) {
+        console.error('Lỗi khi lưu lịch sử chat vào localStorage:', e)
+      }
     }
-
-    setMessages([
-      {
-        id: 'msg-welcome',
-        role: 'assistant',
-        content: welcome,
-        time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-      },
-    ])
-  }, [role])
+  }, [messages])
 
   // Đồng bộ quota từ server khi mở widget hoặc khi auth thay đổi
   useEffect(() => {
     if (isGuest) {
-      aiChatService
-        .getQuotaStatus()
+      getQuotaStatus()
         .then((res) => {
           if (typeof res?.remainingQuota === 'number') {
             setRemainingQuota(res.remainingQuota)
@@ -140,29 +170,43 @@ export const AiChatWidget: React.FC = () => {
       return
     }
 
+    if (showQuickPrompts) {
+      setShowQuickPrompts(false)
+    }
+
     const userMsg: ChatMessage = {
       id: 'msg-' + Date.now(),
       role: 'user',
       content: text,
+      text: text,
       time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
     }
 
-    setMessages((prev) => [...prev, userMsg])
+    const nextMessages = [...messages, userMsg]
+    setMessages(nextMessages)
     setInputMessage('')
     setIsLoading(true)
 
-    // Chuẩn bị history (chỉ lấy role và content)
+    // Giữ lại tối đa 10 tin nhắn gần nhất có text và role để truyền context vào API
     const history = messages
-      .filter((m) => m.id !== 'msg-welcome')
-      .map((m) => ({ role: m.role, content: m.content }))
+      .filter((m) => (m.role === 'user' || m.role === 'assistant') && (m.content || m.text))
+      .slice(-10)
+      .map((m) => ({
+        role: m.role,
+        content: (m.content || m.text || '').trim(),
+      }))
 
     try {
-      const data = await aiChatService.sendMessage(text, history)
+      const data = await sendChatMessage(text, history)
+
+      const replyContent =
+        data.reply || 'Xin lỗi, tôi chưa xử lý được câu hỏi này. Bạn vui lòng thử lại nhé!'
 
       const assistantMsg: ChatMessage = {
         id: 'msg-' + (Date.now() + 1),
         role: 'assistant',
-        content: data.reply || 'Xin lỗi, tôi chưa xử lý được câu hỏi này. Bạn vui lòng thử lại nhé!',
+        content: replyContent,
+        text: replyContent,
         time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
       }
 
@@ -173,12 +217,15 @@ export const AiChatWidget: React.FC = () => {
         setLimitReached(data.limitReached || data.remainingQuota <= 0)
       }
     } catch (err: any) {
+      const errorText =
+        err.response?.data?.message ||
+        'Không thể kết nối đến máy chủ AI. Vui lòng kiểm tra lại đường truyền mạng hoặc thử lại sau!'
+
       const errorMsg: ChatMessage = {
         id: 'msg-err-' + Date.now(),
         role: 'assistant',
-        content:
-          err.response?.data?.message ||
-          'Không thể kết nối đến máy chủ AI. Vui lòng kiểm tra lại đường truyền mạng hoặc thử lại sau!',
+        content: errorText,
+        text: errorText,
         time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
       }
       setMessages((prev) => [...prev, errorMsg])
@@ -194,34 +241,22 @@ export const AiChatWidget: React.FC = () => {
     }
   }
 
-  const handleResetChat = () => {
-    let welcome = ''
-    if (role === 'TEACHER') {
-      welcome =
-        'Đoạn hội thoại đã được làm mới. Thầy/Cô cần hỗ trợ thêm nội dung học thuật hoặc soạn giáo án nào nữa không ạ?'
-    } else if (role === 'STUDENT') {
-      welcome =
-        'Đoạn hội thoại đã được làm mới. Bạn cần hỗ trợ ôn tập hoặc giải đáp bài tập môn học nào tiếp theo?'
-    } else {
-      welcome =
-        'Đoạn hội thoại đã được làm mới. Bạn có thể tiếp tục hỏi các nội dung học tập hoặc tìm hiểu về FrogH.'
+  // Xoá lịch sử trò chuyện (clear localStorage và đặt state messages về câu chào ban đầu)
+  const handleClearHistory = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY)
+    } catch (e) {
+      console.error('Lỗi khi xoá lịch sử chat từ localStorage:', e)
     }
-
-    setMessages([
-      {
-        id: 'msg-welcome-' + Date.now(),
-        role: 'assistant',
-        content: welcome,
-        time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-      },
-    ])
+    setMessages([getWelcomeMessage(role)])
+    setShowQuickPrompts(true)
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 select-none">
+    <div className="fixed bottom-28 right-6 z-50 flex flex-col items-end select-none">
       {/* 1. KHUNG CHAT KHI MỞ */}
       {isOpen && (
-        <div className="mb-3 flex h-[560px] max-h-[82vh] w-[360px] sm:w-[420px] flex-col overflow-hidden rounded-2xl border border-emerald-900/15 bg-white shadow-2xl transition-all duration-300 animate-in fade-in slide-in-from-bottom-5">
+        <div className="mb-3 flex h-[580px] max-h-[calc(100dvh-12rem)] w-[360px] sm:w-[440px] flex-col overflow-hidden rounded-2xl border border-emerald-900/15 bg-white shadow-2xl transition-all duration-300 animate-in fade-in slide-in-from-bottom-5">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-white/10 bg-[#0F3822] px-4 py-3.5 text-white">
             <div className="flex items-center gap-2.5">
@@ -268,18 +303,22 @@ export const AiChatWidget: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-1 text-white/80">
+              {/* Nút Xoá lịch sử */}
               <button
                 type="button"
-                onClick={handleResetChat}
-                title="Làm mới cuộc trò chuyện"
+                onClick={handleClearHistory}
+                title="Xoá lịch sử trò chuyện"
+                aria-label="Xoá lịch sử trò chuyện"
                 className="rounded-lg p-1.5 transition hover:bg-white/10 hover:text-white"
               >
-                <RotateCcw size={16} />
+                <Trash2 size={16} />
               </button>
+              {/* Nút Thu nhỏ */}
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
                 title="Thu nhỏ"
+                aria-label="Thu nhỏ"
                 className="rounded-lg p-1.5 transition hover:bg-white/10 hover:text-white"
               >
                 <ChevronDown size={18} />
@@ -291,6 +330,7 @@ export const AiChatWidget: React.FC = () => {
           <div className="flex-1 overflow-y-auto bg-[#F8FAF9] p-4 space-y-3.5">
             {messages.map((msg) => {
               const isUser = msg.role === 'user'
+              const textContent = msg.content || msg.text || ''
 
               return (
                 <div
@@ -307,15 +347,91 @@ export const AiChatWidget: React.FC = () => {
                     {isUser ? <User size={14} /> : <Bot size={14} />}
                   </div>
 
-                  <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} max-w-[82%]`}>
+                  <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} max-w-[85%]`}>
                     <div
-                      className={`rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm leading-relaxed shadow-2xs whitespace-pre-line ${
+                      className={`rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm leading-relaxed shadow-2xs ${
                         isUser
-                          ? 'rounded-tr-xs bg-[#0F3822] text-white'
+                          ? 'rounded-tr-xs bg-[#0F3822] text-white whitespace-pre-line'
                           : 'rounded-tl-xs border border-gray-100 bg-white text-gray-800'
                       }`}
                     >
-                      {msg.content}
+                      {isUser ? (
+                        textContent
+                      ) : (
+                        <div className="prose prose-sm max-w-none">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              p: ({ children }) => (
+                                <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>
+                              ),
+                              ul: ({ children }) => (
+                                <ul className="my-2 ml-4 list-disc space-y-1">{children}</ul>
+                              ),
+                              ol: ({ children }) => (
+                                <ol className="my-2 ml-4 list-decimal space-y-1">{children}</ol>
+                              ),
+                              li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                              strong: ({ children }) => (
+                                <strong className="font-bold text-[#0F3822]">{children}</strong>
+                              ),
+                              code: ({ inline, className, children, ...props }: any) => {
+                                return inline ? (
+                                  <code
+                                    className="rounded bg-emerald-100/70 px-1 py-0.5 font-mono text-[11px] font-semibold text-[#0F3822]"
+                                    {...props}
+                                  >
+                                    {children}
+                                  </code>
+                                ) : (
+                                  <pre className="my-2 overflow-x-auto rounded-xl bg-gray-900 p-3 font-mono text-xs text-gray-100 shadow-inner">
+                                    <code {...props}>{children}</code>
+                                  </pre>
+                                )
+                              },
+                              table: ({ children }) => (
+                                <div className="my-2 overflow-x-auto rounded-lg border border-gray-200">
+                                  <table className="min-w-full divide-y divide-gray-200 text-xs">
+                                    {children}
+                                  </table>
+                                </div>
+                              ),
+                              th: ({ children }) => (
+                                <th className="bg-emerald-50 px-2.5 py-1.5 text-left font-bold text-[#0F3822]">
+                                  {children}
+                                </th>
+                              ),
+                              td: ({ children }) => (
+                                <td className="border-t border-gray-100 px-2.5 py-1.5 text-gray-700">
+                                  {children}
+                                </td>
+                              ),
+                              blockquote: ({ children }) => (
+                                <blockquote className="my-2 border-l-2 border-emerald-600 pl-2.5 italic text-gray-600">
+                                  {children}
+                                </blockquote>
+                              ),
+                              h1: ({ children }) => (
+                                <h1 className="mb-2 mt-1 text-base font-bold text-[#0F3822]">
+                                  {children}
+                                </h1>
+                              ),
+                              h2: ({ children }) => (
+                                <h2 className="mb-1.5 mt-1 text-sm font-bold text-[#0F3822]">
+                                  {children}
+                                </h2>
+                              ),
+                              h3: ({ children }) => (
+                                <h3 className="mb-1 text-xs font-bold text-[#0F3822]">
+                                  {children}
+                                </h3>
+                              ),
+                            }}
+                          >
+                            {textContent}
+                          </ReactMarkdown>
+                        </div>
+                      )}
                     </div>
                     <span className="mt-1 px-1 text-[10px] text-gray-400">{msg.time}</span>
                   </div>
@@ -342,10 +458,20 @@ export const AiChatWidget: React.FC = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Quick Prompts gợi ý (khi tin nhắn ít) */}
-          {messages.length <= 3 && !limitReached && (
-            <div className="border-t border-gray-100 bg-white px-3 py-2">
-              <span className="block text-[11px] font-semibold text-gray-400 mb-1.5">
+          {/* Quick Prompts gợi ý */}
+          {showQuickPrompts && !limitReached && quickPrompts.length > 0 && (
+            <div className="relative border-t border-gray-100 bg-white px-3 py-2">
+              <button
+                type="button"
+                onClick={() => setShowQuickPrompts(false)}
+                title="Đóng gợi ý"
+                aria-label="Đóng gợi ý"
+                className="absolute top-2 right-2 rounded-md p-0.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+              >
+                <X size={14} />
+              </button>
+
+              <span className="block text-[11px] font-semibold text-gray-400 mb-1.5 pr-6">
                 💡 Gợi ý câu hỏi nhanh:
               </span>
               <div className="flex flex-wrap gap-1.5">
@@ -451,4 +577,3 @@ export const AiChatWidget: React.FC = () => {
 }
 
 export default AiChatWidget
-

@@ -25,22 +25,22 @@ import java.util.regex.Pattern;
 @Service
 public class AiChatServiceImpl implements AiChatService {
 
-    @Value("${app.ai.api-key:}")
+    @Value("${app.ai.api-key:${spring.ai.openai.api-key:${GROK_API_KEY:${GROQ_API_KEY:${AI_API_KEY:}}}}}")
     private String apiKey;
 
-    @Value("${app.ai.base-url:https://api.openai.com/v1}")
+    @Value("${app.ai.base-url:${spring.ai.openai.base-url:https://api.groq.com/openai/v1}}")
     private String baseUrl;
 
-    @Value("${app.ai.model:gpt-4o-mini}")
+    @Value("${app.ai.model:${spring.ai.openai.chat.options.model:llama-3.3-70b-versatile}}")
     private String model;
 
-    @Value("${app.ai.temperature:0.2}")
+    @Value("${app.ai.temperature:${spring.ai.openai.chat.options.temperature:0.2}}")
     private Double temperature;
 
     @Value("${app.ai.max-tokens:1000}")
     private Integer maxTokens;
 
-    @Value("${app.ai.guest-limit:3}")
+    @Value("${app.ai.guest-max-messages:${app.ai.guest-limit:3}}")
     private Integer guestLimit;
 
     private final RestClient restClient;
@@ -107,7 +107,6 @@ public class AiChatServiceImpl implements AiChatService {
 
         // 2. Bộ lọc Guardrails (Phạm vi học tập & Chống Injection)
         if (isGuardrailViolation(userMessage)) {
-            // Khi vi phạm guardrail, trả về từ chối lịch sự và KHÔNG tiêu tốn lượt của khách (thân thiện người dùng)
             int remaining = isGuest ? Math.max(0, guestLimit - guestUsageMap.getOrDefault(guestKey, new AtomicInteger(0)).get()) : 0;
             return AiChatResponse.builder()
                     .reply("Xin lỗi, tôi là Trợ lý Học tập AI của hệ thống FrogH Education. Tôi chỉ có thể hỗ trợ các nội dung liên quan đến học tập (kiến thức môn học, giải thích khái niệm, ôn tập bài thi, bài tập và giáo án) hoặc hướng dẫn sử dụng hệ thống FrogH. Bạn có câu hỏi nào về bài học không?")
@@ -117,9 +116,9 @@ public class AiChatServiceImpl implements AiChatService {
                     .build();
         }
 
-        // 3. Xử lý câu trả lời qua AI Model hoặc Fallback thông minh
+        // 3. Xử lý câu trả lời qua RestClient gọi OpenAI/Groq API hoặc Fallback thông minh
         String reply;
-        if (apiKey != null && !apiKey.trim().isEmpty()) {
+        if (apiKey != null && !apiKey.trim().isEmpty() && !"not-configured".equalsIgnoreCase(apiKey.trim())) {
             try {
                 reply = callOpenAiCompatibleApi(userMessage, request.getHistory(), role);
             } catch (Exception e) {
@@ -182,16 +181,16 @@ public class AiChatServiceImpl implements AiChatService {
     }
 
     // ==========================================
-    // GUARDRAIL INSPECTION
+    // GUARDRAILS CHECK
     // ==========================================
-    public boolean isGuardrailViolation(String message) {
+    private boolean isGuardrailViolation(String message) {
         if (message == null || message.isBlank()) {
             return false;
         }
 
-        // 1. Kiểm tra Prompt Injection
-        for (Pattern pattern : INJECTION_PATTERNS) {
-            if (pattern.matcher(message).matches() || pattern.matcher(message).find()) {
+        // 1. Kiểm tra Prompt Injection / Jailbreak
+        for (Pattern p : INJECTION_PATTERNS) {
+            if (p.matcher(message).matches()) {
                 return true;
             }
         }
@@ -208,19 +207,19 @@ public class AiChatServiceImpl implements AiChatService {
     }
 
     // ==========================================
-    // CALL OPENAI-COMPATIBLE API VIA RESTCLIENT
+    // CALL OPENAI-COMPATIBLE API VIA RESTCLIENT (LUỒNG 1)
     // ==========================================
-    private String callOpenAiCompatibleApi(String userMessage, List<AiChatMessageDto> history, String role) {
+    private String callOpenAiCompatibleApi(String userMessage, List<? extends AiChatRequest.ChatMessageItem> history, String role) {
         String systemPrompt = buildSystemPrompt(role);
 
         List<Map<String, String>> messages = new ArrayList<>();
         messages.add(Map.of("role", "system", "content", systemPrompt));
 
-        // Thêm tối đa 6 tin nhắn lịch sử gần nhất để giữ context
+        // Nối lịch sử trò chuyện (tối đa 10 tin nhắn gần nhất) để giữ ngữ cảnh Luồng 1
         if (history != null && !history.isEmpty()) {
-            int start = Math.max(0, history.size() - 6);
+            int start = Math.max(0, history.size() - 10);
             for (int i = start; i < history.size(); i++) {
-                AiChatMessageDto h = history.get(i);
+                AiChatRequest.ChatMessageItem h = history.get(i);
                 if (h != null && h.getContent() != null && !h.getContent().isBlank()) {
                     String msgRole = "assistant".equalsIgnoreCase(h.getRole()) ? "assistant" : "user";
                     messages.add(Map.of("role", msgRole, "content", h.getContent()));
@@ -228,6 +227,7 @@ public class AiChatServiceImpl implements AiChatService {
             }
         }
 
+        // Tin nhắn mới nhất của người dùng
         messages.add(Map.of("role", "user", "content", userMessage));
 
         Map<String, Object> requestBody = new HashMap<>();
@@ -236,7 +236,10 @@ public class AiChatServiceImpl implements AiChatService {
         requestBody.put("max_tokens", maxTokens);
         requestBody.put("messages", messages);
 
-        String endpointUrl = baseUrl.endsWith("/") ? baseUrl + "chat/completions" : baseUrl + "/chat/completions";
+        String endpointUrl = baseUrl;
+        if (!endpointUrl.endsWith("/chat/completions")) {
+            endpointUrl = endpointUrl.endsWith("/") ? endpointUrl + "chat/completions" : endpointUrl + "/chat/completions";
+        }
 
         Map<?, ?> response = restClient.post()
                 .uri(endpointUrl)
@@ -278,25 +281,25 @@ public class AiChatServiceImpl implements AiChatService {
         } else if ("STUDENT".equals(role)) {
             sb.append("4. PHONG CÁCH HỌC SINH: Khuyến khích tư duy phản biện, hướng dẫn từng bước tư duy giải bài tập, không chỉ đưa ra đáp án trực tiếp mà hãy phân tích logic.\n");
         } else {
-            sb.append("4. PHONG CÁCH KHÁCH HỎI THỬ: Thân thiện, giải đáp ngắn gọn, dễ hiểu và giới thiệu thêm các tiện ích hữu ích của hệ thống FrogH.\n");
+            sb.append("4. PHONG CÁCH KHÁCH: Thân thiện, giải đáp khái niệm học tập cơ bản và giới thiệu các tính năng học tập hấp dẫn của nền tảng FrogH.\n");
         }
 
-        sb.append("Ngôn ngữ: Tiếng Việt chuẩn mực, tôn trọng, sư phạm.");
+        sb.append("5. ĐỊNH DẠNG TRẢ LỜI: Trả lời bằng Markdown rõ ràng, dùng bullet points, in đậm từ khóa quan trọng và khối code nếu cần.");
         return sb.toString();
     }
 
     // ==========================================
-    // INTELLIGENT FALLBACK GENERATOR (OFFLINE / DEV)
+    // SMART FALLBACK RESPONSE
     // ==========================================
-    private String generateSmartFallbackReply(String message, String role) {
-        String lower = message.toLowerCase(Locale.ROOT);
+    private String generateSmartFallbackReply(String userMessage, String role) {
+        String lower = userMessage.toLowerCase(Locale.ROOT);
 
-        // 1. Câu hỏi về hệ thống FrogH
-        if (lower.contains("frogh") || lower.contains("hệ thống") || lower.contains("lớp học") || lower.contains("điểm danh") || lower.contains("bài thi") || lower.contains("bảng điểm")) {
+        // 1. Câu hỏi liên quan đến Hệ thống FrogH
+        if (lower.contains("frogh") || lower.contains("hệ thống") || lower.contains("lớp học") || lower.contains("điểm danh") || lower.contains("tra cứu") || lower.contains("bảng điểm") || lower.contains("bài thi")) {
             if ("TEACHER".equals(role)) {
-                return "Chào Thầy/Cô! Trên hệ thống FrogH, Thầy/Cô có thể dễ dàng quản lý lớp học phần, tạo đề thi trắc nghiệm & tự luận online, tổ chức điểm danh theo buổi và xuất bảng điểm tổng kết chính xác. Thầy/Cô cần hỗ trợ thao tác cụ thể nào ạ?";
+                return "Chào Thầy/Cô! Trên hệ thống FrogH, Thầy/Cô có thể tạo lớp học, phân công giảng dạy, mở phiên điểm danh kèm mật mã bảo vệ, tổ chức kỳ thi tự động chấm điểm và theo dõi sự tiến bộ của từng học sinh trong mục Quản lý lớp học.";
             } else if ("STUDENT".equals(role)) {
-                return "Chào bạn học sinh! Trên FrogH, bạn có thể theo dõi danh sách lớp học phần đã tham gia, kiểm tra tình hình chuyên cần điểm danh từng buổi, và làm bài thi trực tuyến kèm xem điểm số chi tiết ngay sau khi nộp bài. Bạn cần trợ giúp phần nào?";
+                return "Chào bạn! Tại FrogH, bạn có thể xem danh sách lớp học đã tham gia, kiểm tra tình hình chuyên cần điểm danh từng buổi, và làm bài thi trực tuyến kèm xem điểm số chi tiết ngay sau khi nộp bài. Bạn cần trợ giúp phần nào?";
             } else {
                 return "Chào bạn! Hệ thống FrogH Education cung cấp giải pháp toàn diện cho việc quản trị lớp học, điểm danh chuyên cần tự động, thi trực tuyến và tra cứu kết quả học tập minh bạch. Bạn có thể đăng nhập tài khoản Học sinh hoặc Giáo viên để trải nghiệm đầy đủ các tính năng!";
             }
@@ -357,4 +360,3 @@ public class AiChatServiceImpl implements AiChatService {
         return "guest:anonymous";
     }
 }
-
