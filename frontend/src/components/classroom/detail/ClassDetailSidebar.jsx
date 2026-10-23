@@ -2,6 +2,7 @@ import {
   Bell,
   BookOpen,
   ClipboardCheck,
+  ClipboardList,
   FileText,
   GraduationCap,
   Users,
@@ -15,6 +16,7 @@ function ClassDetailSidebar({ studentCount = 0 }) {
   const { classId } = useParams()
   const examsQuery = useResourceQuery('classExams', [classId])
   const materialsQuery = useResourceQuery('classDocuments', [classId])
+  const homeworkQuery = useResourceQuery('classHomeworks', [classId])
   const { pathname } = useLocation()
 
   const isItemActive = (item, routeIsActive) => {
@@ -39,6 +41,12 @@ function ClassDetailSidebar({ studentCount = 0 }) {
       icon: FileText,
       to: `/teacher/classes/${classId}/assignments`,
       count: examsQuery.data?.length,
+    },
+    {
+      label: 'Bài tập',
+      icon: ClipboardList,
+      to: `/teacher/classes/${classId}/homework`,
+      count: homeworkQuery.data?.length,
     },
     {
       label: 'Tài liệu',
