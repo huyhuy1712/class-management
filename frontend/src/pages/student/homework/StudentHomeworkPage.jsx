@@ -53,8 +53,10 @@ export default function StudentHomeworkPage() {
         : visibleHomeworks.length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {visibleHomeworks.map(({ assignment, submissionStatus, submittedAt, score, teacherComment }) => <Link key={assignment.id} to={`/student/homework/${assignment.id}`} className="flex flex-col rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
         <div className="flex items-start justify-between gap-2"><h2 className="font-bold text-slate-900">{assignment.title}</h2><span className={`shrink-0 rounded-lg px-2 py-1 text-xs font-semibold ${submissionStatus === 'GRADED' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{labels[submissionStatus] ?? labels.NOT_SUBMITTED}</span></div>
-        <p className="mt-3 line-clamp-3 text-sm text-slate-500">{assignment.instructions || assignment.attachmentName || 'Có tệp hướng dẫn đính kèm.'}</p>
+        {(assignment.subjectName || assignment.gradeLevel || assignment.purpose) && <p className="mt-2 text-xs text-slate-500">{[assignment.subjectName, assignment.gradeLevel, assignment.purpose].filter(Boolean).join(' · ')}</p>}
+        <p className="mt-3 line-clamp-3 text-sm text-slate-500">{assignment.instructions || assignment.attachmentName || (assignment.audioName ? `Có tệp nghe: ${assignment.audioName}` : 'Có tệp hướng dẫn đính kèm.')}</p>
         <p className="mt-4 text-xs text-slate-500">{assignment.dueAt ? `Hạn nộp: ${new Date(assignment.dueAt).toLocaleString('vi-VN')}` : 'Không có hạn nộp'} · Điểm tối đa {assignment.maxScore}</p>
+        {assignment.createdAt && <p className="mt-1 text-xs text-slate-400">Tạo lúc {new Date(assignment.createdAt).toLocaleString('vi-VN')}</p>}
         {submittedAt && <p className="mt-2 text-xs text-slate-400">Đã nộp {new Date(submittedAt).toLocaleString('vi-VN')}</p>}
         {submissionStatus === 'GRADED' && <p className="mt-3 font-semibold text-emerald-700">Điểm: {score}/{assignment.maxScore}{teacherComment ? ` · ${teacherComment}` : ''}</p>}
       </Link>)}

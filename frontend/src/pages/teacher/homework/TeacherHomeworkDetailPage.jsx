@@ -43,6 +43,7 @@ function SubmissionRow({ homeworkId, submission, maxScore, refresh }) {
     </header>
     {submission.answerText && <p className="mt-4 whitespace-pre-wrap rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-700">{submission.answerText}</p>}
     {submission.images?.length > 0 && <div className="mt-4 flex flex-wrap gap-3">{submission.images.map((image) => <a key={image.url} href={image.url} target="_blank" rel="noreferrer" aria-label={`Mở ảnh ${image.name}`}><img src={image.url} alt={image.name} className="h-32 max-w-48 rounded-lg border border-slate-200 object-contain" /></a>)}</div>}
+    {submission.audioUrl && <div className="mt-4"><p className="mb-2 text-sm font-semibold text-slate-700">Âm thanh bài làm: {submission.audioName}</p><audio controls preload="none" src={submission.audioUrl} className="w-full" /></div>}
     {submission.status !== 'NOT_SUBMITTED' && <div className="mt-5 grid gap-3 sm:grid-cols-[140px_1fr_auto]">
       <label className="text-xs font-semibold text-slate-600">Điểm / {maxScore}
         <input type="number" min="0" max={maxScore} step="0.001" value={score} onChange={(event) => setScore(event.target.value)} disabled={submission.status === 'REOPENED' || busy} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
@@ -104,8 +105,11 @@ export default function TeacherHomeworkDetailPage() {
     {assignment.isLoading ? <p className="text-slate-500">Đang tải...</p> : assignment.errorMessage ? <p role="alert" className="text-red-600">{assignment.errorMessage}</p> : item && <>
       <section className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-bold text-slate-900">{item.title}</h1>
+        <p className="mt-2 text-sm text-slate-500">{[item.subjectName, item.gradeLevel, item.purpose].filter(Boolean).join(' · ')}</p>
+        {item.createdAt && <p className="mt-1 text-xs text-slate-400">Tạo lúc {new Date(item.createdAt).toLocaleString('vi-VN')}</p>}
         {item.instructions && <p className="mt-4 whitespace-pre-wrap leading-7 text-slate-700">{item.instructions}</p>}
         {item.attachmentUrl && <a href={item.attachmentUrl} target="_blank" rel="noreferrer" className="mt-4 inline-block font-semibold text-emerald-700 underline">Tải tệp đề: {item.attachmentName}</a>}
+        {item.audioUrl && <div className="mt-4"><p className="mb-2 text-sm font-semibold text-slate-700">Âm thanh đề bài: {item.audioName}</p><audio controls preload="none" src={item.audioUrl} className="w-full" /></div>}
         <p className="mt-4 text-sm text-slate-500">Điểm tối đa {item.maxScore} · {submittedCount ?? 0}/{recipientCount ?? 0} đã nộp · {gradedCount ?? 0} đã chấm · {item.dueAt ? `Hạn ${new Date(item.dueAt).toLocaleString('vi-VN')}` : 'Không có hạn nộp'}</p>
         <form onSubmit={extendDeadline} className="mt-5 flex flex-wrap items-end gap-3 border-t border-slate-100 pt-4">
           <label className="text-sm font-semibold text-slate-600">Gia hạn hạn nộp

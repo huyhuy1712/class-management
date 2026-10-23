@@ -5,12 +5,16 @@ const homeworkService = {
     const body = new FormData()
     body.append('title', homework.title)
     body.append('instructions', homework.instructions ?? '')
+    body.append('subjectId', String(homework.subjectId))
+    body.append('gradeLevel', homework.gradeLevel)
+    body.append('purpose', homework.purpose ?? '')
     body.append('assignmentType', homework.assignmentType)
     body.append('maxScore', String(homework.maxScore))
     if (homework.dueAt) body.append('dueAt', homework.dueAt)
     homework.classIds?.forEach((id) => body.append('classIds', String(id)))
     homework.studentIds?.forEach((id) => body.append('studentIds', String(id)))
     if (homework.file) body.append('file', homework.file)
+    if (homework.audioFile) body.append('audioFile', homework.audioFile)
     return (await api.post('/homework-assignments', body)).data
   },
   getTeacherList: async (classId, options = {}) =>
@@ -29,10 +33,11 @@ const homeworkService = {
     (await api.get('/homework-assignments/me', options)).data,
   getStudentDetail: async (id, options = {}) =>
     (await api.get(`/homework-assignments/${id}/me`, options)).data,
-  submit: async (id, answerText, images) => {
+  submit: async (id, answerText, images, audio) => {
     const body = new FormData()
     if (answerText) body.append('answerText', answerText)
     images?.forEach((image) => body.append('images', image))
+    if (audio) body.append('audio', audio)
     return (await api.put(`/homework-assignments/${id}/submission`, body)).data
   },
 }

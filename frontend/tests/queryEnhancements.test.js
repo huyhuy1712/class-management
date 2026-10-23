@@ -14,6 +14,8 @@ test('detail prefetch uses the same class, date and exam parameters as page quer
   assert.ok(routeQueries('/teacher/classes/21/attendance', 7, '2026-10-11').some(([name]) => name === 'attendances'))
   assert.deepEqual(routeQueries('/teacher/exams/42', 7), [['examDetail', ['42']], ['examConfiguration', ['42']]])
   assert.deepEqual(routeQueries('/teacher/exams/create', 7), [['subjects', []], ['teacherClasses', []], ['teacherStudents', []]])
+  assert.ok(routeQueries('/teacher', 7).some(([name]) => name === 'teacherHomeworks'))
+  assert.ok(routeQueries('/student', 7).some(([name]) => name === 'studentHomeworks'))
   assert.deepEqual(routeQueries('/teacher/classes/21/assignments', 7), [['teacherClasses', []], ['classExams', ['21']]])
   assert.deepEqual(routeQueries('/teacher/classes/21/homework', 7), [['classHomeworks', ['21']]])
   assert.deepEqual(routeQueries('/teacher/homework', 7), [['teacherHomeworks', []]])

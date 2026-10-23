@@ -24,22 +24,30 @@ test('creating homework sends the selected scope, optional due date, score and p
     assert.equal(method, 'post')
     assert.equal(url, '/homework-assignments')
     assert.equal(body.get('title'), 'Bài tập chương 1')
+    assert.equal(body.get('subjectId'), '4')
+    assert.equal(body.get('gradeLevel'), '10')
+    assert.equal(body.get('purpose'), 'Luyện tập')
     assert.equal(body.get('assignmentType'), 'CLASS')
     assert.equal(body.get('classIds'), '8')
     assert.equal(body.get('studentIds'), null)
     assert.equal(body.get('dueAt'), '2026-10-30T23:59')
     assert.equal(body.get('maxScore'), '10')
     assert.equal(body.get('file').name, 'de-bai.pdf')
+    assert.equal(body.get('audioFile').name, 'de-nghe.mp3')
     return { data: { id: 19 } }
   }
   const response = await homeworkService.create({
     title: 'Bài tập chương 1',
     instructions: '',
+    subjectId: 4,
+    gradeLevel: '10',
+    purpose: 'Luyện tập',
     assignmentType: 'CLASS',
     classIds: [8],
     dueAt: '2026-10-30T23:59',
     maxScore: 10,
     file: new File(['prompt'], 'de-bai.pdf', { type: 'application/pdf' }),
+    audioFile: new File(['audio'], 'de-nghe.mp3', { type: 'audio/mpeg' }),
   })
   assert.equal(response.id, 19)
 })
@@ -66,6 +74,7 @@ test('student submission supports text with multiple images and deadline update 
       assert.equal(url, '/homework-assignments/19/submission')
       assert.equal(body.get('answerText'), 'Câu trả lời')
       assert.deepEqual(body.getAll('images').map((file) => file.name), ['trang-1.jpg', 'trang-2.png'])
+      assert.equal(body.get('audio').name, 'cau-tra-loi.mp3')
       return { data: { submissionStatus: 'SUBMITTED' } }
     }
     assert.equal(url, '/homework-assignments/19/deadline')
@@ -75,9 +84,26 @@ test('student submission supports text with multiple images and deadline update 
   const result = await homeworkService.submit(19, 'Câu trả lời', [
     new File(['page 1'], 'trang-1.jpg', { type: 'image/jpeg' }),
     new File(['page 2'], 'trang-2.png', { type: 'image/png' }),
-  ])
+  ], new File(['answer'], 'cau-tra-loi.mp3', { type: 'audio/mpeg' }))
   assert.equal(result.submissionStatus, 'SUBMITTED')
   assert.equal((await homeworkService.updateDeadline(19, '')).dueAt, null)
+})
+
+test('student can submit an audio-only homework answer', async () => {
+  api.handler = async (method, url, body) => {
+    assert.equal(method, 'put')
+    assert.equal(url, '/homework-assignments/19/submission')
+    assert.equal(body.get('answerText'), null)
+    assert.equal(body.get('audio').name, 'noi-tieng-anh.m4a')
+    return { data: { submissionStatus: 'SUBMITTED', audioName: 'noi-tieng-anh.m4a' } }
+  }
+  const result = await homeworkService.submit(
+    19,
+    '',
+    [],
+    new File(['audio'], 'noi-tieng-anh.m4a', { type: 'audio/mp4' }),
+  )
+  assert.equal(result.submissionStatus, 'SUBMITTED')
 })
 
 test('teacher grade and reopen requests use the student-specific submission endpoints', async () => {

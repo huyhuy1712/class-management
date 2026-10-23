@@ -70,7 +70,7 @@ Các API `/api/auth/password-reset/**` là public để phục vụ luồng khô
 | 51 | GET | `/api/exam-assignments/{assignmentId}` | Thông tin assignment trước khi thi |
 | 52 | PATCH | `/api/exams/{examId}/publish` | Xuất bản đề và kích hoạt phân công |
 | 53 | PATCH | `/api/exams/{examId}/unpublish` | Đưa đề và phân công về nháp |
-| 54 | POST | `/api/homework-assignments` | Tạo và giao bài tập bằng text/tệp cho lớp hoặc học sinh |
+| 54 | POST | `/api/homework-assignments` | Tạo và giao bài tập bằng text/tệp/âm thanh cho lớp hoặc học sinh |
 | 55 | GET | `/api/homework-assignments` | Danh sách bài tập giáo viên hiện tại đã giao |
 | 56 | GET | `/api/homework-assignments/{assignmentId}` | Chi tiết bài tập của giáo viên |
 | 57 | GET | `/api/homework-assignments/{assignmentId}/submissions` | Danh sách người nhận và bài nộp |
@@ -79,17 +79,17 @@ Các API `/api/auth/password-reset/**` là public để phục vụ luồng khô
 | 60 | PUT | `/api/homework-assignments/{assignmentId}/submissions/{studentId}/grade` | Chấm điểm và trả nhận xét |
 | 61 | GET | `/api/homework-assignments/me` | Danh sách bài tập của học sinh hiện tại |
 | 62 | GET | `/api/homework-assignments/{assignmentId}/me` | Chi tiết và trạng thái nộp của học sinh hiện tại |
-| 63 | PUT | `/api/homework-assignments/{assignmentId}/submission` | Nộp/sửa câu trả lời text và ảnh |
+| 63 | PUT | `/api/homework-assignments/{assignmentId}/submission` | Nộp/sửa câu trả lời text, ảnh và/hoặc âm thanh |
 | 64 | GET | `/api/homework-assignments/classes/{classId}` | Danh sách bài tập giao cho lớp của giáo viên hiện tại |
 | 65 | GET | `/api/homework-assignments/{assignmentId}/submissions?classId={classId}` | Lọc danh sách người nhận/bài nộp theo lớp |
 
 ### Bài tập
 
-Các endpoint `/api/homework-assignments` chỉ dành cho giáo viên hoặc học sinh đăng nhập; service kiểm tra vai trò, trạng thái tài khoản và quyền sở hữu/nhận bài. Khi tạo bài, multipart form gồm `title`, `instructions` (có thể rỗng nếu có tệp), `assignmentType` (`ALL`, `CLASS`, `STUDENT`), `classIds` hoặc `studentIds`, `dueAt` (ISO local datetime, tùy chọn), `maxScore` (mặc định 10) và một tệp đề tùy chọn. Tệp đề hỗ trợ PDF, DOC/DOCX, JPG/PNG, tối đa 10 MiB. Danh sách người nhận được snapshot lúc giao bài; học sinh tham gia lớp về sau không tự nhận bài cũ.
+Các endpoint `/api/homework-assignments` chỉ dành cho giáo viên hoặc học sinh đăng nhập; service kiểm tra vai trò, trạng thái tài khoản và quyền sở hữu/nhận bài. Khi tạo bài, multipart form gồm `title`, `instructions` (có thể rỗng nếu có tệp đề hoặc âm thanh), `subjectId` và `gradeLevel` (bắt buộc), `purpose` (tùy chọn, tối đa 50 ký tự), `assignmentType` (`ALL`, `CLASS`, `STUDENT`), `classIds` hoặc `studentIds`, `dueAt` (ISO local datetime, tùy chọn), `maxScore` (mặc định 10), `file` tùy chọn (PDF, DOC/DOCX, JPG/PNG, tối đa 10 MiB) và `audioFile` tùy chọn (MP3, WAV, M4A, AAC, OGG, WEBM, tối đa 10 MiB). Danh sách người nhận được snapshot lúc giao bài; học sinh tham gia lớp về sau không tự nhận bài cũ. Thời điểm tạo được lưu sẵn trong `homework_assignments.created_at` và trả về dưới dạng `createdAt`.
 
-Học sinh gửi `answerText` và/hoặc nhiều `images` trong multipart request. Tối đa 5 ảnh JPG/PNG, mỗi ảnh tối đa 5 MiB. Có thể sửa/nộp lại khi còn hạn. Sau khi giáo viên chấm và trả kết quả, học sinh chỉ được nộp lại nếu giáo viên mở lại bài. Hạn bài tập có thể bỏ trống; sau hạn hệ thống khóa nộp, giáo viên có thể gia hạn hoặc bỏ hạn qua endpoint deadline. Bài được chấm thủ công theo `maxScore`; điểm và nhận xét chỉ được trả về học sinh ở trạng thái `GRADED`. Không có cấu hình ẩn/hiện điểm riêng cho bài tập.
+Học sinh gửi `answerText`, nhiều `images` và/hoặc một `audio` trong multipart request; phải có ít nhất một trong ba loại nội dung. Tối đa 5 ảnh JPG/PNG, mỗi ảnh tối đa 5 MiB; âm thanh hỗ trợ MP3, WAV, M4A, AAC, OGG, WEBM và tối đa 10 MiB. Khi nộp lại, ảnh/âm thanh hiện có được giữ nguyên nếu request không gửi tệp mới cùng loại; gửi tệp mới sẽ thay thế tệp cũ. Có thể sửa/nộp lại khi còn hạn. Sau khi giáo viên chấm và trả kết quả, học sinh chỉ được nộp lại nếu giáo viên mở lại bài. Hạn bài tập có thể bỏ trống; sau hạn hệ thống khóa nộp, giáo viên có thể gia hạn hoặc bỏ hạn qua endpoint deadline. Bài được chấm thủ công theo `maxScore`; điểm và nhận xét chỉ được trả về học sinh ở trạng thái `GRADED`. Không có cấu hình ẩn/hiện điểm riêng cho bài tập.
 
-Các bảng mới: `homework_assignments`, `homework_assignment_classes`, `homework_assignment_students`, `homework_assignment_recipients`, `homework_submissions`, `homework_submission_images`. Dữ liệu tệp lưu trong storage; database chỉ lưu đường dẫn và metadata. Người nhận theo lớp/toàn bộ lớp được snapshot vào `homework_assignment_recipients` để giữ nguyên roster của đợt giao.
+Các bảng mới: `homework_assignments`, `homework_assignment_classes`, `homework_assignment_students`, `homework_assignment_recipients`, `homework_submissions`, `homework_submission_images`, `homework_submission_audio`. Bảng `homework_assignments` lưu môn học (`subject_id`), khối/cấp độ (`grade_level`), mục đích (`purpose`) và thời điểm tạo (`created_at`) cùng các thuộc tính bài tập. Dữ liệu tệp lưu trong storage; database chỉ lưu đường dẫn và metadata. Âm thanh đề bài lưu metadata/đường dẫn ở `homework_assignments`; âm thanh bài nộp lưu ở `homework_submission_audio` (tối đa một tệp trên mỗi bài nộp). Người nhận theo lớp/toàn bộ lớp được snapshot vào `homework_assignment_recipients` để giữ nguyên roster của đợt giao.
 
 `GET /api/homework-assignments/classes/{classId}` lấy danh sách bài tập thuộc lớp của giáo viên đăng nhập. `GET /api/homework-assignments/{assignmentId}/submissions?classId={classId}` lọc danh sách bài nộp theo lớp. `homework_assignment_recipient_classes` lưu snapshot quan hệ học sinh-người nhận-lớp để cùng một học sinh nhận bài ở nhiều lớp vẫn xuất hiện đúng trong từng tab lớp; migration V80 khởi tạo quan hệ này từ ngữ cảnh lớp đã lưu trước đó.
 

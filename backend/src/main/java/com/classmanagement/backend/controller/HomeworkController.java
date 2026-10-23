@@ -25,15 +25,19 @@ public class HomeworkController {
             Authentication authentication,
             @RequestParam String title,
             @RequestParam(required = false) String instructions,
+            @RequestParam Long subjectId,
+            @RequestParam String gradeLevel,
+            @RequestParam(required = false) String purpose,
             @RequestParam MaterialAssignmentType assignmentType,
             @RequestParam(required = false) List<Long> classIds,
             @RequestParam(required = false) List<Long> studentIds,
             @RequestParam(required = false) String dueAt,
             @RequestParam(defaultValue = "10") String maxScore,
-            @RequestParam(required = false) MultipartFile file) {
+            @RequestParam(required = false) MultipartFile file,
+            @RequestParam(required = false) MultipartFile audioFile) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(homework.create(authentication.getName(), title, instructions, assignmentType,
-                        classIds, studentIds, dueAt, maxScore, file));
+                .body(homework.create(authentication.getName(), title, instructions, subjectId,
+                        gradeLevel, purpose, assignmentType, classIds, studentIds, dueAt, maxScore, file, audioFile));
     }
 
     @GetMapping
@@ -102,7 +106,8 @@ public class HomeworkController {
             @PathVariable long assignmentId,
             Authentication authentication,
             @RequestParam(required = false) String answerText,
-            @RequestParam(required = false) List<MultipartFile> images) {
-        return homework.submit(assignmentId, authentication.getName(), answerText, images);
+            @RequestParam(required = false) List<MultipartFile> images,
+            @RequestParam(required = false) MultipartFile audio) {
+        return homework.submit(assignmentId, authentication.getName(), answerText, images, audio);
     }
 }

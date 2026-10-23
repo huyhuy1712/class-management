@@ -56,7 +56,7 @@ function TeacherHomeworkPage() {
               {filteredHomeworks.map((item) => {
                 const detailPath = `/teacher/homework/${item.id}${classId ? `?classId=${classId}` : ''}`
                 return <Link key={item.id} to={detailPath} onMouseEnter={() => prefetch(detailPath)} onFocus={() => prefetch(detailPath)} className="flex flex-wrap items-center justify-between gap-3 p-5 transition hover:bg-emerald-50/50">
-                  <div><h3 className="font-semibold text-slate-900">{item.title}</h3><p className="mt-1 text-sm text-slate-500">{item.assignmentType === 'ALL' ? 'Tất cả lớp' : item.assignmentType === 'CLASS' ? 'Theo lớp' : 'Theo học sinh'} · {item.dueAt ? `Hạn ${new Date(item.dueAt).toLocaleString('vi-VN')}` : 'Không giới hạn hạn nộp'}</p></div>
+                  <div><h3 className="font-semibold text-slate-900">{item.title}</h3><p className="mt-1 text-sm text-slate-500">{[item.subjectName, item.gradeLevel, item.purpose].filter(Boolean).join(' · ')}</p><p className="mt-1 text-xs text-slate-500">{item.assignmentType === 'ALL' ? 'Tất cả lớp' : item.assignmentType === 'CLASS' ? 'Theo lớp' : 'Theo học sinh'} · {item.dueAt ? `Hạn ${new Date(item.dueAt).toLocaleString('vi-VN')}` : 'Không giới hạn hạn nộp'}{item.createdAt ? ` · Tạo ${new Date(item.createdAt).toLocaleString('vi-VN')}` : ''}</p></div>
                   <span className="text-sm text-slate-600">{item.submittedCount}/{item.recipientCount} đã nộp · {item.gradedCount} đã chấm</span>
                 </Link>
               })}

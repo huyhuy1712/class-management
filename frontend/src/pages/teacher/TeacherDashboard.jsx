@@ -35,6 +35,12 @@ const features = [
     path: '/teacher/exams',
   },
   {
+    title: 'Bài tập',
+    description: 'Giao bài và theo dõi bài nộp của học sinh',
+    icon: ClipboardCheck,
+    path: '/teacher/homework',
+  },
+  {
     title: 'Tài liệu',
     description: 'Bài giảng, tài liệu và thông báo',
     icon: BookOpen,

@@ -8,7 +8,7 @@ export function routeQueries(path, userId, date) {
   if (assignment) return [['examConfiguration', [assignment[1]]], ['teacherAssignmentAttempts', [assignment[2], new URLSearchParams(search).get('classId') ?? '', 0, 12, '', '', 'newest']]]
   const teacherHomework = /^\/teacher\/homework\/(\d+)(?:\/submissions\/([^/]+))?$/.exec(pathname)
   if (teacherHomework) return [['teacherHomework', [teacherHomework[1]]], ['homeworkSubmissions', [teacherHomework[1], new URLSearchParams(search).get('classId') ?? '']]]
-  if (pathname === '/teacher/homework/create') return [['teacherClasses', []], ['teacherStudents', []]]
+  if (pathname === '/teacher/homework/create') return [['subjects', []], ['teacherClasses', []], ['teacherStudents', []]]
   const classHomework = /^\/teacher\/classes\/([^/]+)\/homework$/.exec(pathname)
   if (classHomework) return [['classHomeworks', [classHomework[1]]]]
   const studentHomework = /^\/student\/homework\/(\d+)$/.exec(pathname)
@@ -19,13 +19,13 @@ export function routeQueries(path, userId, date) {
   const gradebook = /^\/teacher\/classes\/([^/]+)\/grades$/.exec(pathname)
   if (gradebook) return [['classGradebook', [gradebook[1], 0, '', '']], ['subjects', []]]
   const pages = {
-    '/teacher': ['teacherClasses', 'teacherStudents', 'exams'],
+    '/teacher': ['teacherClasses', 'teacherStudents', 'exams', 'teacherHomeworks'],
     '/teacher/classes': ['teacherClasses'],
     '/teacher/exams': ['exams'],
     '/teacher/homework': ['teacherHomeworks'],
     '/teacher/exams/create': ['subjects', 'teacherClasses', 'teacherStudents'],
     '/teacher/materials': ['teacherMaterials', 'teacherClasses', 'teacherStudents'],
-    '/student': ['studentClasses', 'dashboard', 'examCount'],
+    '/student': ['studentClasses', 'dashboard', 'examCount', 'studentHomeworks'],
     '/student/classes': ['studentClasses', 'dashboard'],
     '/student/teachers': ['studentClasses', 'allClasses', 'teachers'],
     '/student/exams': ['studentClasses', 'studentExams'],
