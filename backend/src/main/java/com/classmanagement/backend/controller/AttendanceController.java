@@ -112,12 +112,14 @@ public ResponseEntity<byte[]> exportAttendance(
         @PathVariable Long classroomId,
         @RequestParam
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-        LocalDate date
+        LocalDate date,
+        org.springframework.security.core.Authentication authentication
 ) {
     AttendanceExportResult result =
             attendanceService.exportAttendance(
                     classroomId,
-                    date
+                    date,
+                    authentication.getName()
             );
 
     String fileName = buildAttendanceFileName(

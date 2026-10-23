@@ -89,7 +89,8 @@ class ClassroomDeletionExamCleanupTest {
                 null,
                 null,
                 null,
-                org.mockito.Mockito.mock(MaterialService.class));
+                org.mockito.Mockito.mock(MaterialService.class),
+                null);
     }
 
     private <T> T repository(Class<T> type, String name) {

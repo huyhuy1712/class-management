@@ -3,13 +3,9 @@ import useResourceQuery from '../../query/useResourceQuery'
 import useTeacherExamCount from './hooks/useTeacherExamCount'
 import {
   BookOpen,
-  ClipboardCheck,
   FileText,
   School,
-  Users,
   GraduationCap,
-  Clock3,
-  ArrowRight,
 } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import FeatureCard from '../../components/dashboard/FeatureCard'
@@ -21,12 +17,6 @@ const features = [
     description: 'Quản lý các lớp đang giảng dạy',
     icon: School,
     path: '/teacher/classes',
-  },
-  {
-    title: 'Học sinh',
-    description: 'Xem và quản lý học sinh trong lớp',
-    icon: Users,
-    path: '/teacher/students',
   },
   {
     title: 'Đề thi',
@@ -145,123 +135,7 @@ function TeacherDashboard() {
         </div>
       </section>
 
-      {/* Bottom section */}
-      <section className="mt-8 grid grid-cols-1 gap-4 sm:mt-10 sm:gap-6 xl:grid-cols-3">
-        
-        {/* Recent activity */}
-        <div className="rounded-2xl border border-green-100 bg-white p-4 shadow-sm sm:p-6 xl:col-span-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="font-bold text-[#18301D]">
-                Hoạt động gần đây
-              </h2>
-
-              <p className="mt-1 text-sm text-gray-400">
-                Những hoạt động mới nhất của bạn
-              </p>
-            </div>
-
-            <button className="flex items-center gap-1 text-sm font-medium text-green-700 hover:text-green-800">
-              <span className="hidden sm:inline">Xem tất cả</span>
-              <ArrowRight size={16} />
-            </button>
-          </div>
-
-          <div className="mt-6 space-y-1">
-            <ActivityItem
-              icon={ClipboardCheck}
-              title="Điểm danh lớp SE1840"
-              description="Đã hoàn thành điểm danh 32 học sinh"
-              time="10 phút trước"
-            />
-
-            <ActivityItem
-              icon={FileText}
-              title="Tạo đề kiểm tra mới"
-              description="Kiểm tra 15 phút - Chương 2"
-              time="2 giờ trước"
-            />
-
-            <ActivityItem
-              icon={BookOpen}
-              title="Đăng tài liệu mới"
-              description="Bài giảng Java Spring Boot"
-              time="Hôm qua"
-            />
-          </div>
-        </div>
-
-        {/* Upcoming */}
-        <div className="rounded-2xl border border-green-100 bg-white p-4 shadow-sm sm:p-6">
-          <h2 className="font-bold text-[#18301D]">
-            Sắp tới
-          </h2>
-
-          <p className="mt-1 text-sm text-gray-400">
-            Lịch giảng dạy gần nhất
-          </p>
-
-          <div className="mt-6 rounded-xl bg-green-50 p-4">
-            <div className="flex items-center gap-2 text-xs font-semibold text-green-700">
-              <Clock3 size={15} />
-              14:00 - 15:30
-            </div>
-
-            <h3 className="mt-3 font-semibold text-gray-800">
-              Lập trình Web
-            </h3>
-
-            <p className="mt-1 text-sm text-gray-500">
-              Lớp SE1840
-            </p>
-          </div>
-
-          <div className="mt-3 rounded-xl border border-gray-100 p-4">
-            <div className="flex items-center gap-2 text-xs font-semibold text-gray-500">
-              <Clock3 size={15} />
-              16:00 - 17:30
-            </div>
-
-            <h3 className="mt-3 font-semibold text-gray-800">
-              Java Web
-            </h3>
-
-            <p className="mt-1 text-sm text-gray-500">
-              Lớp SE1832
-            </p>
-          </div>
-        </div>
-      </section>
     </DashboardLayout>
-  )
-}
-
-function ActivityItem({
-  icon: Icon,
-  title,
-  description,
-  time,
-}) {
-  return (
-    <div className="flex items-center gap-4 rounded-xl p-3 transition hover:bg-green-50/60">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-50 text-green-700">
-        <Icon size={19} />
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-gray-700">
-          {title}
-        </p>
-
-        <p className="mt-0.5 truncate text-sm text-gray-400">
-          {description}
-        </p>
-      </div>
-
-      <span className="whitespace-nowrap text-xs text-gray-400">
-        {time}
-      </span>
-    </div>
   )
 }
 

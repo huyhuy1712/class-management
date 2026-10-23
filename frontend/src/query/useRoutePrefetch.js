@@ -12,6 +12,7 @@ export default function useRoutePrefetch() {
     const account = accountScope(user, getSessionVersion())
     if (!account) return
     if (path === '/student/grades') void import('../pages/student/grades/StudentGradesPage').catch(() => {})
+    if (path.startsWith('/teacher/billing')) void import('../pages/teacher/billing/TeacherBillingPage').catch(() => {})
     if (/^\/teacher\/exams\/[^/]+\/assignments\/[^/]+\/attempts\//.test(path)) void import('../pages/teacher/exams/TeacherAttemptReviewPage').catch(() => {})
     if (/^\/teacher\/exams\/[^/]+\/assignments\//.test(path)) void import('../pages/teacher/exams/TeacherAssignmentDetailPage').catch(() => {})
     if (/^\/teacher\/exams\/[^/]+$/.test(path) && !path.endsWith('/create')) {

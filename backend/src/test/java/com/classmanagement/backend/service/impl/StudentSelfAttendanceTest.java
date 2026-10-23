@@ -33,7 +33,7 @@ class StudentSelfAttendanceTest {
                 repository(ClassroomRepository.class, (method, args) -> Optional.of(classroom)),
                 repository(LessonRepository.class, (method, args) -> List.of(lesson)),
                 repository(UserRepository.class, (method, args) -> Optional.of(student)),
-                repository(ClassStudentRepository.class, (method, args) -> true), null, null);
+                repository(ClassStudentRepository.class, (method, args) -> true), null, null, null);
         assertThrows(IllegalArgumentException.class, () -> service.attendAsStudent(2L, "student", "wrong", null));
         assertTrue(saved.isEmpty());
         assertEquals(AttendanceStatus.PRESENT, service.attendAsStudent(2L, "student", "secret", null).get(0).getStatus());

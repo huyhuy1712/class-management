@@ -13,7 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface ClassroomService {
 
-    ClassroomResponse createClassroom(CreateClassroomRequest request);
+    ClassroomResponse createClassroom(String username, CreateClassroomRequest request);
 
     List<ClassroomResponse> getAllClassrooms();
 
@@ -42,7 +42,8 @@ public interface ClassroomService {
 
     ImportStudentsResponse importStudents(
         Long classroomId,
-        MultipartFile file
+        MultipartFile file,
+        String username
 );
     
 }

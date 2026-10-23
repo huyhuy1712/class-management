@@ -300,6 +300,36 @@ class ExamAttemptServiceTest {
         assertTrue(review.result().answersVisible()); assertFalse(review.result().sections().isEmpty());
     }
 
+        @Test void bulkExportRequiresVipOnlyAboveFiftyStudents() {
+        var teacher = User.builder().id(4L).username("teacher").role(UserRole.TEACHER)
+            .status(UserStatus.ACTIVE).build();
+        var entitlement = org.mockito.Mockito.mock(
+            com.classmanagement.backend.service.billing.TeacherEntitlementService.class);
+        var users = org.mockito.Mockito.mock(com.classmanagement.backend.repository.UserRepository.class);
+        var assignments = org.mockito.Mockito.mock(
+            com.classmanagement.backend.repository.exam.ExamAssignmentRepository.class);
+        var data = org.mockito.Mockito.mock(
+            com.classmanagement.backend.repository.exam.ExamAttemptDataRepository.class);
+        var assignment = com.classmanagement.backend.entity.ExamAssignment.builder()
+            .exam(com.classmanagement.backend.entity.Exam.builder().teacher(teacher).build()).build();
+        org.mockito.Mockito.when(users.findByUsername("teacher")).thenReturn(java.util.Optional.of(teacher));
+        org.mockito.Mockito.when(assignments.findByIdAndExam_Teacher_Username(8L, "teacher"))
+            .thenReturn(java.util.Optional.of(assignment));
+        var service = new ExamAttemptService(users, null, assignments, null, null, null, data, null, entitlement);
+
+        for (long total : List.of(50L, 51L)) {
+            org.mockito.Mockito.when(data.list(8L, 0, 100, null, "", "name", null))
+                .thenReturn(new ExamAttemptResponse.Page(List.of(), 0, 100, total, null));
+            service.listForExport(8L, "teacher", 0, 100, null, "", "name", null);
+            if (total > 50) {
+            org.mockito.Mockito.verify(entitlement)
+                .requireVipFeature(4L, "xuất Excel cho hơn 50 học sinh");
+            }
+        }
+        org.mockito.Mockito.verify(entitlement, org.mockito.Mockito.times(1))
+            .requireVipFeature(4L, "xuất Excel cho hơn 50 học sinh");
+        }
+
     private ExamAttemptService service() {
         var paper=new ExamDetailService(null,null,null,null,null,null,null,null) {
             @Override public List<ExamDetailResponse.Section> getStructure(Long id) { structureReads++; return structure(); }
@@ -312,7 +342,8 @@ class ExamAttemptServiceTest {
             }
         };
         return new ExamAttemptService(repo(UserRepository.class),repo(ExamRepository.class),repo(ExamAssignmentRepository.class),
-                repo(ExamAttemptRepository.class),access,paper,data,repo(com.classmanagement.backend.service.StorageService.class));
+            repo(ExamAttemptRepository.class),access,paper,data,repo(com.classmanagement.backend.service.StorageService.class),
+            org.mockito.Mockito.mock(com.classmanagement.backend.service.billing.TeacherEntitlementService.class));
     }
     private List<ExamDetailResponse.Section> structure() {
         var groups=new ArrayList<ExamDetailResponse.Answer>();

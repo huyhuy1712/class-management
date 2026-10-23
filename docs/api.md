@@ -70,6 +70,31 @@ Các API `/api/auth/password-reset/**` là public để phục vụ luồng khô
 | 51 | GET | `/api/exam-assignments/{assignmentId}` | Thông tin assignment trước khi thi |
 | 52 | PATCH | `/api/exams/{examId}/publish` | Xuất bản đề và kích hoạt phân công |
 | 53 | PATCH | `/api/exams/{examId}/unpublish` | Đưa đề và phân công về nháp |
+| 54 | GET | `/api/billing/me` | Lấy catalog, số dư point, VIP và 20 giao dịch gần nhất của giáo viên |
+| 55 | POST | `/api/billing/orders` | Tạo order MoMo từ product code và request ID idempotent |
+| 56 | GET | `/api/billing/orders/{orderId}` | Kiểm tra trạng thái order của giáo viên hiện tại |
+| 57 | POST | `/api/billing/vip/redeem` | Đổi point lấy gói VIP |
+| 58 | POST | `/api/billing/momo/ipn` | Webhook MoMo; chữ ký HMAC được xác minh trước khi cập nhật DB |
+
+## MoMo, Point và VIP
+
+Thanh toán MoMo mặc định bị tắt. Để chạy sandbox, tạo merchant sandbox với MoMo rồi cấu hình ở backend bằng environment variables; không commit credentials:
+
+```text
+MOMO_ENABLED=true
+MOMO_ENDPOINT=https://test-payment.momo.vn/v2/gateway/api/create
+MOMO_PARTNER_CODE=<sandbox partner code>
+MOMO_ACCESS_KEY=<sandbox access key>
+MOMO_SECRET_KEY=<sandbox secret key>
+MOMO_IPN_URL=https://<public-backend-host>/api/billing/momo/ipn
+FRONTEND_URL=https://<frontend-host>
+```
+
+`MOMO_IPN_URL` phải truy cập được công khai từ MoMo. Chỉ IPN có chữ ký hợp lệ, đúng partner/order/request ID và đúng số tiền đã lưu mới ghi nhận thanh toán. Redirect về trình duyệt không cộng point hoặc kích hoạt VIP. Sau khi sandbox kiểm thử thành công, đổi endpoint theo thông tin merchant production MoMo cấp.
+
+Catalog do backend sở hữu; client chỉ gửi `productCode` và `requestId`, không gửi số tiền hoặc số point. Gói điểm: 50/500/1.000 point tương ứng 49.000/490.000/980.000 VND. Đổi VIP dùng quy đổi 1 point = 980 VND, làm tròn lên. Các gói VIP có tier Cá nhân/5 thiết bị/10 thiết bị và chu kỳ 1/3/12 tháng.
+
+Hạn mức miễn phí hiện tại: 1 lớp, 3 đề, tối đa 2 lượt thi mỗi học sinh mỗi assignment; export bảng điểm Excel trên 50 học sinh và import file cần VIP. Tạo lớp/đề và đổi point được xác thực từ danh tính đã đăng nhập ở backend.
 
 ## Xác thực
 

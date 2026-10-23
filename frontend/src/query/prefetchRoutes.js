@@ -9,6 +9,10 @@ export function routeQueries(path, userId, date) {
   const classExams = /^\/teacher\/classes\/([^/]+)\/assignments$/.exec(path)
   if (classExams) return [['teacherClasses', []], ['classExams', [classExams[1]]]]
   if (pathname === '/student/grades') return [['studentGrades', ['', '', '', '', '', '', 'newest', 0]]]
+  if (pathname === '/teacher/billing') {
+    const orderId = new URLSearchParams(search).get('orderId')
+    return [['billing', []], ...(orderId ? [['billingOrder', [orderId]]] : [])]
+  }
   const gradebook = /^\/teacher\/classes\/([^/]+)\/grades$/.exec(pathname)
   if (gradebook) return [['classGradebook', [gradebook[1], 0, '', '']], ['subjects', []]]
   const pages = {

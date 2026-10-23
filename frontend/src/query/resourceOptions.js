@@ -7,6 +7,7 @@ import requestService from '../services/requestService'
 import examService from '../services/examService'
 import subjectService from '../services/subjectService'
 import materialService from '../services/materialService'
+import billingService from '../services/billingService'
 
 export function resourceOptions(resource, params) {
   const readers = {
@@ -58,15 +59,19 @@ export function resourceOptions(resource, params) {
     studentAssignment: ({ signal }) => examService.getStudentAssignment(params[0], { signal }),
     examAttempt: ({ signal }) => examService.getAttempt(params[0], { signal }),
     examAttemptResult: ({ signal }) => examService.getAttemptResult(params[0], { signal }),
+    billing: ({ signal }) => billingService.getOverview({ signal }),
+    billingOrder: ({ signal }) => billingService.getOrder(params[0], { signal }),
   }
   if (!readers[resource]) throw new Error(`Unknown query resource: ${resource}`)
   const classroomMembership = ['studentClasses', 'classStudents'].includes(resource)
   const realtime = ['notifications', 'requests', 'lessons', 'studentExams', 'studentAssignment', 'classExams', 'teacherAssignmentAttempts'].includes(resource)
   return {
     queryFn: readers[resource],
-    staleTime: classroomMembership ? 10_000 : realtime ? 15_000 : resource === 'teacherMaterials' ? 15_000 : resource === 'subjects' ? 30 * 60_000 : 60_000,
+    staleTime: classroomMembership ? 10_000 : realtime || resource === 'billing' ? 15_000 : resource === 'teacherMaterials' ? 15_000 : resource === 'subjects' ? 30 * 60_000 : 60_000,
     ...(classroomMembership
       ? { refetchInterval: 10_000 }
-      : realtime ? { refetchInterval: 60_000 } : {}),
+      : realtime ? { refetchInterval: 60_000 } : resource === 'billing' ? { refetchInterval: 60_000 } : resource === 'billingOrder'
+        ? { refetchInterval: (query) => ['PENDING', 'CREATING'].includes(query.state.data?.status) ? 10_000 : false }
+        : {}),
   }
 }
