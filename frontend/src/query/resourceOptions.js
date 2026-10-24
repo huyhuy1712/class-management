@@ -8,6 +8,7 @@ import examService from '../services/examService'
 import subjectService from '../services/subjectService'
 import materialService from '../services/materialService'
 import billingService from '../services/billingService'
+import homeworkService from '../services/homeworkService'
 
 export function resourceOptions(resource, params) {
   const readers = {
@@ -21,6 +22,12 @@ export function resourceOptions(resource, params) {
     classStudents: ({ signal }) => classroomService.getStudents(params[0], { signal }),
     classDocuments: ({ signal }) => classroomService.getDocuments(params[0], { signal }),
     teacherMaterials: ({ signal }) => materialService.getTeacherMaterials({ signal }),
+    teacherHomeworks: ({ signal }) => homeworkService.getTeacherList(params[0], { signal }),
+    teacherHomework: ({ signal }) => homeworkService.getTeacherDetail(params[0], { signal }),
+    homeworkSubmissions: ({ signal }) => homeworkService.getSubmissions(params[0], params[1], { signal }),
+    classHomeworks: ({ signal }) => homeworkService.getTeacherList(params[0], { signal }),
+    studentHomeworks: ({ signal }) => homeworkService.getStudentList({ signal }),
+    studentHomework: ({ signal }) => homeworkService.getStudentDetail(params[0], { signal }),
     teachers: ({ signal }) => userService.getTeachers({ signal }),
     studentDirectory: ({ signal }) => userService.getStudents({ signal }),
     teacherStudents: ({ signal }) => userService.getMyStudents({ signal }),
@@ -64,7 +71,7 @@ export function resourceOptions(resource, params) {
   }
   if (!readers[resource]) throw new Error(`Unknown query resource: ${resource}`)
   const classroomMembership = ['studentClasses', 'classStudents'].includes(resource)
-  const realtime = ['notifications', 'requests', 'lessons', 'studentExams', 'studentAssignment', 'classExams', 'teacherAssignmentAttempts'].includes(resource)
+  const realtime = ['notifications', 'requests', 'lessons', 'studentExams', 'studentAssignment', 'classExams', 'teacherAssignmentAttempts', 'teacherHomeworks', 'teacherHomework', 'homeworkSubmissions', 'classHomeworks', 'studentHomeworks', 'studentHomework'].includes(resource)
   return {
     queryFn: readers[resource],
     staleTime: classroomMembership ? 10_000 : realtime || resource === 'billing' ? 15_000 : resource === 'teacherMaterials' ? 15_000 : resource === 'subjects' ? 30 * 60_000 : 60_000,

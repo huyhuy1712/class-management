@@ -3,6 +3,7 @@ import useResourceQuery from '../../query/useResourceQuery'
 import useTeacherExamCount from './hooks/useTeacherExamCount'
 import {
   BookOpen,
+  ClipboardCheck,
   FileText,
   School,
   GraduationCap,
@@ -23,6 +24,12 @@ const features = [
     description: 'Tạo và quản lý bài kiểm tra',
     icon: FileText,
     path: '/teacher/exams',
+  },
+  {
+    title: 'Bài tập',
+    description: 'Giao bài và theo dõi bài nộp của học sinh',
+    icon: ClipboardCheck,
+    path: '/teacher/homework',
   },
   {
     title: 'Tài liệu',

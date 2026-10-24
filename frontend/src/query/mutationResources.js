@@ -10,6 +10,7 @@ export function mutationResources(url, method) {
   if (/^\/classes\/[^/]+\/attendances(?:\/|$)/.test(path)) return ['attendances', 'dashboard']
   if (/^\/classes\/[^/]+\/lessons(?:\/|$)/.test(path)) return ['lessons']
   if (/^\/materials(?:\/|$)/.test(path)) return ['teacherMaterials', 'classDocuments']
+  if (/^\/homework-assignments(?:\/|$)/.test(path)) return ['teacherHomeworks', 'teacherHomework', 'homeworkSubmissions', 'classHomeworks', 'studentHomeworks', 'studentHomework']
   if (/^\/classes(?:\/|$)/.test(path)) {
     const resources = ['teacherClasses', 'studentClasses', 'allClasses', 'classStudents', 'teacherStudents', 'dashboard', 'exams', 'studentExams', 'studentAssignment', 'classExams', 'studentClassExamResults', 'classGradebook', 'teacherAttemptReview', 'studentGrades']
     const removesClassStudents = String(method).toLowerCase() === 'delete'
@@ -27,5 +28,10 @@ export function isAffectedQuery(queryKey, url, method) {
   if (classId && ['classStudents', 'attendances', 'lessons'].includes(queryKey[2])) return String(queryKey[3]) === classId
   const examId = /^\/exams\/([^/]+)/.exec(String(url))?.[1]
   if (examId && ['examDetail', 'examConfiguration'].includes(queryKey[2])) return String(queryKey[3]) === examId
+  const homeworkId = /^\/homework-assignments\/(\d+)/.exec(String(url))?.[1]
+  if (homeworkId && ['teacherHomework', 'homeworkSubmissions', 'studentHomework'].includes(queryKey[2])) return String(queryKey[3]) === homeworkId
+  if (queryKey[2] === 'classHomeworks') return true
+  if (/^\/homework-assignments\/\d+/.test(String(url)) && ['teacherHomeworks', 'studentHomeworks'].includes(queryKey[2])) return true
+  if (/^\/homework-assignments(?:\/me)?$/.test(String(url)) && ['teacherHomeworks', 'studentHomeworks'].includes(queryKey[2])) return true
   return true
 }

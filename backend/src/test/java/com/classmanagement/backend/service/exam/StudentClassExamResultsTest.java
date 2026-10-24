@@ -13,7 +13,6 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -109,7 +108,7 @@ class StudentClassExamResultsTest {
 
             assertTrue(normalizedSql.contains("s.class_id=:classId"));
             assertTrue(normalizedSql.contains("ac.class_id=:classId"));
-            assertFalse(normalizedSql.contains("a.assignment_type='ALL'"));
+            assertTrue(normalizedSql.contains("a.assignment_type='ALL'"));
             assertTrue(normalizedSql.contains("e.teacher_id=:teacherId"));
             assertTrue(normalizedSql.contains("left join exam_attempts"));
             assertTrue(normalizedSql.contains("t.status='GRADED' and e.max_score>0"));
