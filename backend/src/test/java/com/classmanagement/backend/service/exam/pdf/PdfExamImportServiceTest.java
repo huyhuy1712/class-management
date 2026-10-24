@@ -76,7 +76,8 @@ class PdfExamImportServiceTest {
             recognitionCalls++;
             return new PdfFormulaProcessor.Result(List.of(), List.of(), "test-offline", false);
         });
-        return new PdfExamImportService(jobs, users, files(), pipeline);
+        return new PdfExamImportService(jobs, users, files(), pipeline,
+            org.mockito.Mockito.mock(com.classmanagement.backend.service.billing.TeacherEntitlementService.class));
     }
 
     private PdfImportFiles files() {

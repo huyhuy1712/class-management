@@ -34,6 +34,7 @@ import com.classmanagement.backend.repository.classroom.ClassroomRepository;
 import com.classmanagement.backend.service.AttendanceService;
 import com.classmanagement.backend.service.StorageService;
 import com.classmanagement.backend.service.excel.AttendanceExcelExporter;
+import com.classmanagement.backend.service.billing.TeacherEntitlementService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -50,6 +51,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     private final ClassStudentRepository classStudentRepository;
     private final StorageService storageService;
     private final AttendanceExcelExporter attendanceExcelExporter;
+        private final TeacherEntitlementService entitlements;
 
 private String getStudentAvatarUrl(User student) {
                         String avatar = student.getAvatar();
@@ -365,7 +367,8 @@ private Lesson requireLessonForAttendance(
 @Transactional(readOnly = true)
 public AttendanceExportResult exportAttendance(
         Long classroomId,
-        LocalDate date
+        LocalDate date,
+        String username
 ) {
     Classroom classroom = classroomRepository
             .findById(classroomId)
@@ -374,10 +377,17 @@ public AttendanceExportResult exportAttendance(
                             "Không tìm thấy lớp học"
                     )
             );
+    if (classroom.getTeacher() == null || !classroom.getTeacher().getUsername().equals(username)) {
+        throw new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.NOT_FOUND, "Không tìm thấy lớp học của bạn");
+    }
 
     List<ClassStudent> classStudents =
             classStudentRepository
                     .findAllByClassroomId(classroomId);
+        if (classStudents.size() > 50) {
+                entitlements.requireVipFeature(classroom.getTeacher().getId(), "xuất Excel cho lớp trên 50 học sinh");
+        }
 
     List<Attendance> attendances =
             attendanceRepository

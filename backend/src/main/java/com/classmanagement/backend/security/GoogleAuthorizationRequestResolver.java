@@ -49,6 +49,7 @@ public class GoogleAuthorizationRequestResolver implements OAuth2AuthorizationRe
 
         String finalIntent = intent;
         return OAuth2AuthorizationRequest.from(authorizationRequest)
+                .additionalParameters(parameters -> parameters.put("prompt", "select_account"))
                 .attributes(attributes -> {
                     attributes.put("app_intent", finalIntent);
                     if ("STUDENT".equals(role) || "TEACHER".equals(role)) {

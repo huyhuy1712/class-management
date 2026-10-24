@@ -44,7 +44,7 @@ public class GoogleOAuthAccountService {
         if (linkedIdentity.isPresent()) {
             User user = users.findById(linkedIdentity.get().getUserId()).orElse(null);
             if (user != null) {
-                applyGoogleAvatarIfMissing(user, googleAvatarUrl(googleUser));
+                applyGoogleAvatar(user, googleAvatarUrl(googleUser));
             }
             return user == null ? new Result("account_unavailable", null) : accountResult(user);
         }
@@ -93,7 +93,7 @@ public class GoogleOAuthAccountService {
             if (!existing.get().getUserId().equals(user.getId())) {
                 return new Result("google_already_linked", null);
             }
-            applyGoogleAvatarIfMissing(user, avatarUrl);
+            applyGoogleAvatar(user, avatarUrl);
             return new Result("linked", user);
         }
         if (identities.findByUserIdAndProvider(user.getId(), PROVIDER).isPresent()) {
@@ -106,7 +106,7 @@ public class GoogleOAuthAccountService {
                 .providerSubject(subject)
                 .emailAtLink(email)
                 .build());
-        applyGoogleAvatarIfMissing(user, avatarUrl);
+        applyGoogleAvatar(user, avatarUrl);
         return new Result("linked", user);
     }
 
@@ -122,6 +122,13 @@ public class GoogleOAuthAccountService {
 
     private void applyGoogleAvatarIfMissing(User user, String avatarUrl) {
         if ((user.getAvatar() == null || user.getAvatar().isBlank()) && avatarUrl != null) {
+            user.setAvatar(avatarUrl);
+            users.save(user);
+        }
+    }
+
+    private void applyGoogleAvatar(User user, String avatarUrl) {
+        if (avatarUrl != null && !avatarUrl.equals(user.getAvatar())) {
             user.setAvatar(avatarUrl);
             users.save(user);
         }

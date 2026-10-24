@@ -12,6 +12,7 @@ import com.classmanagement.backend.repository.classroom.*;
 import com.classmanagement.backend.repository.exam.*;
 import com.classmanagement.backend.service.exam.media.ExamMediaLifecycle;
 import com.classmanagement.backend.service.exam.validation.ExamStructureValidator;
+import com.classmanagement.backend.service.billing.TeacherEntitlementService;
 import com.classmanagement.backend.service.exam.validation.ExamTargetValidator;
 import com.classmanagement.backend.service.exam.validation.ExamTargetValidator.Targets;
 
@@ -49,6 +50,7 @@ public class ExamCreationService {
     private final ExamDetailService detailService;
     private final ExamMediaRepository mediaRepository;
     private final com.classmanagement.backend.service.StorageService storage;
+        private final TeacherEntitlementService entitlements;
 
     @Transactional
     public ExamDetailResponse copy(Long sourceId, String username, CopyExamRequest request) {
@@ -71,6 +73,12 @@ public class ExamCreationService {
                 examRepository.findByTeacher_UsernameAndCopiedFromExamIdAndCopyRequestId(
                         username, sourceId, request.requestId());
         if (previous.isPresent()) return detailService.get(previous.get().getId(), username);
+        var lockedTeacher = userRepository.findByUsernameForUpdate(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy giáo viên"));
+        if (!lockedTeacher.getId().equals(teacher.getId())) throw new ResourceNotFoundException("Không tìm thấy đề thi của bạn");
+        entitlements.requireExamCapacity(
+                teacher.getId(), examRepository.countByTeacher_Username(username));
+        entitlements.requireAttemptLimit(teacher.getId(), source.getMaxAttempts());
         var detail = detailService.get(sourceId, username);
         var sections = detail.sections().stream().map(ExamPublishService::section).toList();
         var summary = structureValidator.validateContent(sections);
@@ -215,13 +223,16 @@ public class ExamCreationService {
     public CreateExamResponse create(String username, CreateCompleteExamRequest request) {
         User teacher =
                 userRepository
-                        .findByUsername(username)
+                        .findByUsernameForUpdate(username)
                         .orElseThrow(() -> new IllegalStateException("Không tìm thấy giáo viên"));
         if (teacher.getRole() != UserRole.TEACHER || teacher.getStatus() != UserStatus.ACTIVE) {
             throw new IllegalStateException("Chỉ giáo viên đang hoạt động được tạo đề thi");
         }
+        entitlements.requireExamCapacity(
+                teacher.getId(), examRepository.countByTeacher_Username(username));
         Summary summary = structureValidator.validate(request);
         var basic = request.basicInfo();
+        entitlements.requireAttemptLimit(teacher.getId(), basic.maxAttempts());
         Subject subject = subjectRepository.findById(basic.subjectId()).orElse(null);
         if (subject == null) fail("basicInfo.subjectId", "Không tìm thấy môn học");
         Targets targets =

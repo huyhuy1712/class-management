@@ -34,6 +34,7 @@ const TeacherAssignmentDetailPage = lazy(() => import('../pages/teacher/exams/Te
 const TeacherAttemptReviewPage = lazy(() => import('../pages/teacher/exams/TeacherAttemptReviewPage'))
 import CreateExamPage from '../pages/teacher/exams/create/CreateExamPage'
 const ExamBuilderPage = lazy(() => import('../pages/teacher/exams/builder/ExamBuilderPage'))
+const TeacherBillingPage = lazy(() => import('../pages/teacher/billing/TeacherBillingPage'))
 const TeacherHomeworkPage = lazy(() => import('../pages/teacher/homework/TeacherHomeworkPage'))
 const CreateTeacherHomeworkPage = lazy(() => import('../pages/teacher/homework/CreateTeacherHomeworkPage'))
 const TeacherHomeworkDetailPage = lazy(() => import('../pages/teacher/homework/TeacherHomeworkDetailPage'))
@@ -94,6 +95,7 @@ function AppRoutes() {
       <Route path="/teacher" element={<TeacherDashboard />} />
       <Route path="/teacher/classes" element={<ClassListPage />} />
       <Route path="/teacher/profile" element={<TeacherProfilePage />} />
+      <Route path="/teacher/billing" element={<TeacherBillingPage />} />
       <Route path="/teacher/materials" element={<TeacherMaterialsPage />} />
 
       {/* Nested Route classDetail */}

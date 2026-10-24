@@ -26,8 +26,11 @@ public class ExamAssignmentController {
     public ExamAttemptResponse.Page submissions(@PathVariable Long assignmentId,
             @RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="20") int size,
             @RequestParam(required=false) ExamAttemptStatus status,@RequestParam(required=false) String q,
-            @RequestParam(defaultValue="newest") String sort,@RequestParam(required=false) Long classId,Authentication auth) {
-        return attempts.list(assignmentId,auth.getName(),page,size,status,q,sort,classId);
+            @RequestParam(defaultValue="newest") String sort,@RequestParam(required=false) Long classId,
+            @RequestParam(defaultValue="false") boolean export,Authentication auth) {
+        return export
+                ? attempts.listForExport(assignmentId,auth.getName(),page,size,status,q,sort,classId)
+                : attempts.list(assignmentId,auth.getName(),page,size,status,q,sort,classId);
     }
 
     @GetMapping("/{assignmentId}")

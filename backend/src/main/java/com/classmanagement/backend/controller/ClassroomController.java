@@ -59,9 +59,10 @@ public List<com.classmanagement.backend.dto.exam.ClassExamResponse> classExams(@
 
 @PostMapping
 public ResponseEntity<ClassroomResponse> createClassroom(
-                        @Valid @RequestBody CreateClassroomRequest request) {
+                        @Valid @RequestBody CreateClassroomRequest request,
+                        Authentication authentication) {
 
-                ClassroomResponse response = classroomService.createClassroom(request);
+                ClassroomResponse response = classroomService.createClassroom(authentication.getName(), request);
 
                 return ResponseEntity
                                 .status(HttpStatus.CREATED)
@@ -197,10 +198,11 @@ public ResponseEntity<byte[]> downloadStudentImportTemplate() throws IOException
 )
 public ResponseEntity<ImportStudentsResponse> importStudents(
         @PathVariable Long classroomId,
-        @RequestParam("file") MultipartFile file
+        @RequestParam("file") MultipartFile file,
+        Authentication authentication
 ) {
     return ResponseEntity.ok(
-            classroomService.importStudents(classroomId, file)
+            classroomService.importStudents(classroomId, file, authentication.getName())
     );
 }
 }

@@ -16,6 +16,10 @@ import jakarta.persistence.LockModeType;
 public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByUsername(String username);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from User u where u.username = :username")
+    Optional<User> findByUsernameForUpdate(@Param("username") String username);
     Optional<User> findByEmail(String email);
     Optional<User> findByEmailIgnoreCase(String email);
 

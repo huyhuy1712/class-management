@@ -104,6 +104,10 @@ public class SecurityConfig {
                                 "/api/public/**")
                         .permitAll()
 
+                        // MoMo authenticates this webhook with its HMAC signature.
+                        .requestMatchers("/api/billing/momo/ipn")
+                        .permitAll()
+
                         // TẤT CẢ API CÒN LẠI PHẢI LOGIN
                         .anyRequest().authenticated())
 
