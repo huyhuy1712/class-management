@@ -43,5 +43,7 @@ public interface ClassroomRepository extends JpaRepository<Classroom, Long> {
     @EntityGraph(attributePaths = {"subject", "teacher"})
     List<Classroom> findAllByTeacher_Id(Long teacherId);
 
+    long countByTeacher_Id(Long teacherId);
+
     List<Classroom> findAllByIdInAndTeacher_Id(Collection<Long> ids, Long teacherId);
 }

@@ -31,6 +31,7 @@ import com.classmanagement.backend.service.ClassroomService;
 import com.classmanagement.backend.service.MaterialService;
 import com.classmanagement.backend.service.mapper.ClassroomResponseMapper;
 import com.classmanagement.backend.service.StorageService;
+import com.classmanagement.backend.service.billing.TeacherEntitlementService;
 import com.classmanagement.backend.service.excel.StudentExcelReader;
 
 import com.classmanagement.backend.exception.ConflictException;
@@ -63,10 +64,11 @@ public class ClassroomServiceImpl implements ClassroomService {
     private final StudentExcelReader studentExcelReader;
     private final NotificationRepository notificationRepository;
     private final MaterialService materialService;
+        private final TeacherEntitlementService entitlements;
 
 @Override
 @Transactional
-public ClassroomResponse createClassroom(CreateClassroomRequest request) {
+public ClassroomResponse createClassroom(String username, CreateClassroomRequest request) {
 
         if (classroomRepository.existsByCode(request.getCode())) {
             throw new IllegalArgumentException("Mã lớp đã tồn tại");
@@ -78,15 +80,17 @@ public ClassroomResponse createClassroom(CreateClassroomRequest request) {
                         new IllegalArgumentException("Không tìm thấy môn học"));
 
         User teacher = userRepository
-                .findById(request.getTeacherId())
+                .findByUsernameForUpdate(username)
                 .orElseThrow(() ->
                         new IllegalArgumentException("Không tìm thấy giáo viên"));
 
-        if (teacher.getRole() != UserRole.TEACHER) {
+        if (teacher.getRole() != UserRole.TEACHER || teacher.getStatus() != UserStatus.ACTIVE) {
             throw new IllegalArgumentException(
-                    "Người dùng được chọn không phải là giáo viên"
+                    "Chỉ giáo viên đang hoạt động được tạo lớp"
             );
         }
+        entitlements.requireClassCapacity(
+                teacher.getId(), classroomRepository.countByTeacher_Id(teacher.getId()));
 
         Classroom classroom = Classroom.builder()
                 .name(request.getName())
@@ -500,8 +504,12 @@ private Classroom getClassroomById(Long classroomId) {
 
 @Override
 @Transactional
-public ImportStudentsResponse importStudents( Long classroomId, MultipartFile file) {
+public ImportStudentsResponse importStudents(Long classroomId, MultipartFile file, String username) {
         Classroom classroom = getClassroomById(classroomId);
+        if (classroom.getTeacher() == null || !classroom.getTeacher().getUsername().equals(username)) {
+                throw new ResourceNotFoundException("Không tìm thấy lớp học của bạn");
+        }
+        entitlements.requireVipFeature(classroom.getTeacher().getId(), "import danh sách học sinh");
 
         studentExcelReader.validateFile(file);
 

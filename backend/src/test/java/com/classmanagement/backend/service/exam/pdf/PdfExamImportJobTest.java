@@ -30,7 +30,7 @@ class PdfExamImportJobTest {
                 return Optional.of(queued);
             }
         };
-        var service = new PdfExamImportService(repository, null, null, null) {
+        var service = new PdfExamImportService(repository, null, null, null, null) {
             @Override
             public void process(PdfExamImportRepository.Job job) {
                 entered.countDown();

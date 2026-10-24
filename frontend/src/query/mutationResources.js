@@ -5,6 +5,7 @@ export function mutationResources(url, method) {
   if (/^\/exam-attempts\/[^/]+\/answers$/.test(path)) return []
   if (/^\/(exam-attempts|exam-assignments)(?:\/|$)/.test(path)) return ['studentExams', 'studentAssignment', 'examAttemptResult', 'examCount', 'dashboard', 'exams', 'classExams', 'teacherAssignmentAttempts', 'teacherAssignmentExport', 'studentClassExamResults', 'classGradebook', 'teacherAttemptReview', 'studentGrades']
   if (/^\/notifications(?:\/|$)/.test(path)) return ['notifications']
+  if (/^\/billing\/vip\/redeem$/.test(path)) return ['billing']
   if (/^\/requests(?:\/|$)/.test(path)) return ['requests', 'studentGrades', 'notifications', 'studentClasses', 'teacherClasses', 'classStudents', 'teacherStudents', 'dashboard']
   if (/^\/classes\/[^/]+\/attendances(?:\/|$)/.test(path)) return ['attendances', 'dashboard']
   if (/^\/classes\/[^/]+\/lessons(?:\/|$)/.test(path)) return ['lessons']

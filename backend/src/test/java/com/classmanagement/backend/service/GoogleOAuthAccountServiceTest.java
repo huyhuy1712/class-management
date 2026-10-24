@@ -64,6 +64,80 @@ class GoogleOAuthAccountServiceTest {
         assertEquals("link_requires_login", result.status());
     }
 
+    @Test
+    void linkingGoogleReplacesTheAvatarSoEmailLoginUsesTheGoogleImage() {
+        User existing = User.builder()
+                .id(8L)
+                .username("existing")
+                .email("person@gmail.com")
+                .fullName("Existing User")
+                .avatar("uploads/old-avatar.png")
+                .role(UserRole.STUDENT)
+                .status(UserStatus.ACTIVE)
+                .build();
+        UserRepository users = proxy(UserRepository.class, (method, args) -> switch (method) {
+            case "findByUsername" -> Optional.of(existing);
+            case "save" -> args[0];
+            default -> throw new UnsupportedOperationException(method);
+        });
+        UserAuthIdentityRepository identities = proxy(UserAuthIdentityRepository.class, (method, args) -> switch (method) {
+            case "findByProviderAndProviderSubject", "findByUserIdAndProvider" -> Optional.empty();
+            case "save" -> args[0];
+            default -> throw new UnsupportedOperationException(method);
+        });
+        ImpersonationSessionRepository impersonationSessions = proxy(
+                ImpersonationSessionRepository.class,
+                (method, args) -> false);
+        GoogleOAuthAccountService service = new GoogleOAuthAccountService(users, identities, impersonationSessions);
+
+        var result = service.process(googleUser(), Map.of(
+                "app_intent", "link",
+                "app_username", "existing"));
+
+        assertEquals("linked", result.status());
+        assertEquals("https://lh3.googleusercontent.com/google-avatar", existing.getAvatar());
+    }
+
+    @Test
+    void googleLoginUpdatesTheAvatarForAnAlreadyLinkedAccount() {
+        User existing = User.builder()
+                .id(8L)
+                .username("existing")
+                .email("person@gmail.com")
+                .fullName("Existing User")
+                .avatar(null)
+                .role(UserRole.STUDENT)
+                .status(UserStatus.ACTIVE)
+                .build();
+        UserAuthIdentity identity = UserAuthIdentity.builder()
+                .userId(8L)
+                .provider("GOOGLE")
+                .providerSubject("google-subject-1")
+                .build();
+        UserRepository users = proxy(UserRepository.class, (method, args) -> switch (method) {
+            case "findById" -> Optional.of(existing);
+            case "save" -> args[0];
+            default -> throw new UnsupportedOperationException(method);
+        });
+        UserAuthIdentityRepository identities = proxy(UserAuthIdentityRepository.class, (method, args) ->
+                method.equals("findByProviderAndProviderSubject")
+                        ? Optional.of(identity)
+                        : throwUnsupported(method));
+        ImpersonationSessionRepository impersonationSessions = proxy(
+                ImpersonationSessionRepository.class,
+                (method, args) -> false);
+        GoogleOAuthAccountService service = new GoogleOAuthAccountService(users, identities, impersonationSessions);
+
+        var result = service.process(googleUser(), Map.of("app_intent", "login"));
+
+        assertEquals("login", result.status());
+        assertEquals("https://lh3.googleusercontent.com/google-avatar", existing.getAvatar());
+    }
+
+    private static Object throwUnsupported(String method) {
+        throw new UnsupportedOperationException(method);
+    }
+
     private static DefaultOAuth2User googleUser() {
         return new DefaultOAuth2User(
                 java.util.List.of(new SimpleGrantedAuthority("ROLE_USER")),

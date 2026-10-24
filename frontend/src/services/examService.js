@@ -30,7 +30,7 @@ const examService = {
     const items = []
     let page = 0, total = 0
     do {
-      const result = await examService.getAssignmentAttempts(id, { ...(classId ? { classId } : {}), page, size: 100, sort: 'name' }, options)
+      const result = await examService.getAssignmentAttempts(id, { ...(classId ? { classId } : {}), page, size: 100, sort: 'name', export: true }, options)
       if (!Array.isArray(result.items)) throw new Error('Dữ liệu bảng điểm không hợp lệ.')
       items.push(...result.items)
       total = result.totalElements

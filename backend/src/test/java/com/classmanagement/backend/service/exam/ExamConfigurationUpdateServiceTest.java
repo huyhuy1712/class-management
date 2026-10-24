@@ -223,7 +223,7 @@ class ExamConfigurationUpdateServiceTest {
                 new ExamStructureValidator(VALIDATOR), targets, config, VALIDATOR, repo(EntityManager.class), new ExamAttemptDataRepository(null) {
                     @Override public void snapshotAssignment(Long id) { assertEquals(9L,id); calls.add("snapshot-new"); }
                     @Override public void snapshot(Long id) { fail("Must not reset cohorts of old rounds"); }
-                });
+                }, org.mockito.Mockito.mock(com.classmanagement.backend.service.billing.TeacherEntitlementService.class));
     }
     private <T> T repo(Class<T> type) {
         return type.cast(Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (proxy, method, args) -> {

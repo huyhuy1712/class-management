@@ -279,6 +279,7 @@ public class ClassGradebookQueries {
                         where ac.assignment_id = a.id
                           and ac.class_id = :classId
                     ))
+                    or (a.assignment_type = 'ALL' and (c.status = 'ACTIVE' or t.id is not null))
                     or (a.assignment_type = 'STUDENT' and exists (
                         select 1
                         from exam_assignment_students s

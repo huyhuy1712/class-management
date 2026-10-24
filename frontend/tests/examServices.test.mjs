@@ -32,6 +32,7 @@ test('assignment export reads all recipients in class scope without display filt
     assert.equal(url, '/exam-assignments/8/attempts')
     assert.equal(options.params.classId, '21')
     assert.equal(options.params.size, 100)
+    assert.equal(options.params.export, true)
     assert.equal(options.params.q, undefined)
     assert.equal(options.params.status, undefined)
     assert.equal(options.signal, signal)
