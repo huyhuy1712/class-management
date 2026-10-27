@@ -7,6 +7,7 @@ import com.classmanagement.backend.entity.enums.UserStatus;
 import com.classmanagement.backend.repository.ImpersonationSessionRepository;
 import com.classmanagement.backend.repository.UserAuthIdentityRepository;
 import com.classmanagement.backend.repository.UserRepository;
+import com.classmanagement.backend.service.GoogleAvatarStorage;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -52,7 +53,7 @@ class GoogleOAuthAccountServiceTest {
         assertEquals(18L, savedIdentity.get().getUserId());
         assertEquals("GOOGLE", savedIdentity.get().getProvider());
         assertEquals("google-subject-1", savedIdentity.get().getProviderSubject());
-        assertEquals("https://lh3.googleusercontent.com/google-avatar", savedUser.get().getAvatar());
+        assertEquals("avatars/google/google-avatar.jpg", savedUser.get().getAvatar());
     }
 
     @Test
@@ -71,7 +72,7 @@ class GoogleOAuthAccountServiceTest {
                 .username("existing")
                 .email("person@gmail.com")
                 .fullName("Existing User")
-                .avatar("uploads/old-avatar.png")
+                .avatar("https://lh3.googleusercontent.com/old-avatar")
                 .role(UserRole.STUDENT)
                 .status(UserStatus.ACTIVE)
                 .build();
@@ -88,14 +89,15 @@ class GoogleOAuthAccountServiceTest {
         ImpersonationSessionRepository impersonationSessions = proxy(
                 ImpersonationSessionRepository.class,
                 (method, args) -> false);
-        GoogleOAuthAccountService service = new GoogleOAuthAccountService(users, identities, impersonationSessions);
+        GoogleOAuthAccountService service = new GoogleOAuthAccountService(
+                users, identities, impersonationSessions, googleAvatarStorage());
 
         var result = service.process(googleUser(), Map.of(
                 "app_intent", "link",
                 "app_username", "existing"));
 
         assertEquals("linked", result.status());
-        assertEquals("https://lh3.googleusercontent.com/google-avatar", existing.getAvatar());
+        assertEquals("avatars/google/google-avatar.jpg", existing.getAvatar());
     }
 
     @Test
@@ -126,12 +128,13 @@ class GoogleOAuthAccountServiceTest {
         ImpersonationSessionRepository impersonationSessions = proxy(
                 ImpersonationSessionRepository.class,
                 (method, args) -> false);
-        GoogleOAuthAccountService service = new GoogleOAuthAccountService(users, identities, impersonationSessions);
+        GoogleOAuthAccountService service = new GoogleOAuthAccountService(
+                users, identities, impersonationSessions, googleAvatarStorage());
 
         var result = service.process(googleUser(), Map.of("app_intent", "login"));
 
         assertEquals("login", result.status());
-        assertEquals("https://lh3.googleusercontent.com/google-avatar", existing.getAvatar());
+        assertEquals("avatars/google/google-avatar.jpg", existing.getAvatar());
     }
 
     private static Object throwUnsupported(String method) {
@@ -176,7 +179,24 @@ class GoogleOAuthAccountServiceTest {
         ImpersonationSessionRepository impersonationSessions = proxy(
                 ImpersonationSessionRepository.class,
                 (method, args) -> false);
-        return new GoogleOAuthAccountService(users, identities, impersonationSessions);
+        return new GoogleOAuthAccountService(users, identities, impersonationSessions, googleAvatarStorage());
+    }
+
+    private static GoogleAvatarStorage googleAvatarStorage() {
+        return proxy(GoogleAvatarStorage.class, (method, args) -> switch (method) {
+            case "storeIfNeeded" -> {
+                String currentAvatar = (String) args[1];
+                if (currentAvatar == null
+                        || currentAvatar.isBlank()
+                        || currentAvatar.startsWith("http://")
+                        || currentAvatar.startsWith("https://")) {
+                    yield Optional.of("avatars/google/google-avatar.jpg");
+                }
+                yield Optional.empty();
+            }
+            case "delete" -> null;
+            default -> throw new UnsupportedOperationException(method);
+        });
     }
 
     private static <T> T proxy(Class<T> type, ProxyCall call) {

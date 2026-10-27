@@ -5,6 +5,7 @@ import {
   getMaterialDownloadName,
   getMaterialDownloadUrl,
 } from '../../../pages/teacher/materials/helpers/materialDownload'
+import FrogLoading from '../../../utils/FrogLoading'
 
 function getSafeDocumentUrl(fileUrl) {
   if (!fileUrl) return null
@@ -100,15 +101,18 @@ export default function ClassMaterialList({
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:pl-4">
-              {canDownload && (fileUrl || document.file) && (
+              {(fileUrl || document.file) && (
                 <button
                   type="button"
                   disabled={downloadingId === document.id}
                   onClick={() => handleDownload(document)}
-                  className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-60 sm:flex-none"
+                  aria-label={`Tải ${document.title}`}
+                  title="Tải tài liệu"
+                  className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-50 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-60 ${canDownload ? 'flex-1 px-4 sm:flex-none' : 'w-11 shrink-0 px-2'}`}
                 >
-                  <Download size={16} />
-                  {downloadingId === document.id ? 'Đang tải...' : 'Tải tài liệu'}
+                  {downloadingId === document.id
+                    ? <FrogLoading compact label={canDownload ? 'Đang tải...' : ''} />
+                    : <><Download size={16} />{canDownload && 'Tải tài liệu'}</>}
                 </button>
               )}
               {!canDownload && fileUrl && (

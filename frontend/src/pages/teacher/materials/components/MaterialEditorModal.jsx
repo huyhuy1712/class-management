@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import MaterialAssignmentFields from './MaterialAssignmentFields'
+import FrogLoading from '../../../../utils/FrogLoading'
 
 const emptyForm = {
   title: '',
@@ -85,14 +86,14 @@ export default function MaterialEditorModal({ material, classes, students, targe
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-[2px]" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-[2px]" onMouseDown={(event) => event.target === event.currentTarget && !saving && onClose()}>
       <section role="dialog" aria-modal="true" aria-labelledby="material-editor-title" className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white px-5 py-4 sm:px-6">
           <div>
             <h2 id="material-editor-title" className="text-lg font-bold text-[#18301D]">{material ? 'Chỉnh sửa tài liệu' : 'Đăng tài liệu mới'}</h2>
             <p className="mt-1 text-xs text-slate-500">Tài liệu sẽ được lưu trên máy chủ và phân phối theo lựa chọn bên dưới.</p>
           </div>
-          <button type="button" aria-label="Đóng" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"><X size={19} /></button>
+          <button type="button" aria-label="Đóng" disabled={saving} onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"><X size={19} /></button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5 p-5 sm:p-6">
@@ -154,13 +155,17 @@ export default function MaterialEditorModal({ material, classes, students, targe
               onStudentSearchChange={setStudentSearch}
             />
           </fieldset>
-          {targetLoading && <p role="status" className="text-sm text-slate-500">Đang tải danh sách lớp và học sinh...</p>}
+          {targetLoading && <FrogLoading compact label="Đang tải danh sách lớp và học sinh..." className="text-sm text-slate-500" />}
 
           {error && <p role="alert" className="text-sm font-medium text-red-600">{error}</p>}
           <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
-            <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Hủy</button>
+            <button type="button" disabled={saving} onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">Hủy</button>
             <button type="submit" disabled={saving || targetLoading} className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-60">
-              {saving ? 'Đang lưu...' : targetLoading ? 'Đang tải...' : material ? 'Lưu thay đổi' : 'Đăng tài liệu'}
+              {saving
+                ? <FrogLoading compact label={material ? 'Đang cập nhật...' : 'Đang thêm...'} />
+                : targetLoading
+                  ? <FrogLoading compact label="Đang tải..." />
+                  : material ? 'Lưu thay đổi' : 'Đăng tài liệu'}
             </button>
           </div>
         </form>

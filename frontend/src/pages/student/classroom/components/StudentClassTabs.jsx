@@ -6,6 +6,7 @@ import useRoutePrefetch from '../../../../query/useRoutePrefetch'
 import useResourceQuery from '../../../../query/useResourceQuery'
 import StudentClassStudentsTab from '../tabs/StudentClassStudentsTab'
 import useAuthStore from '../../../../stores/authStore'
+import ClassAnnouncementsFeed from '../../../../components/classroom/announcements/ClassAnnouncementsFeed'
 
 const tabs = [
   { id: 'students', label: 'Học sinh', Icon: Users },
@@ -28,7 +29,7 @@ export default function StudentClassTabs({ selected, onSelect, classId }) {
   const examCount = examsQuery.data?.items.filter((exam) => exam.classes?.some((item) => String(item.id) === String(classId))).length
   const counts = { students: studentsQuery.data?.length, grades: examCount,
     attendance: attendanceQuery.data?.filter((item) => userId != null && String(item.studentId) === String(userId)).length,
-    materials: materialsQuery.data?.length }
+    materials: materialsQuery.data?.length, announcements: 2 }
   const current = tabs.find((item) => item.id === selected)
   return (
     <div className="grid items-start gap-5 lg:grid-cols-[220px_1fr]">
@@ -41,7 +42,7 @@ export default function StudentClassTabs({ selected, onSelect, classId }) {
         ))}
       </nav>
       <section className="min-w-0 rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm">
-        {selected === 'students' ? <StudentClassStudentsTab key={classId} classId={classId} /> : selected === 'attendance' ? <StudentAttendanceTab key={classId} classId={classId} /> : selected === 'grades' ? <StudentClassGradesTab key={classId} classId={classId} /> : selected === 'materials' ? <ClassDocumentsTab key={classId} classId={classId} /> : <>
+        {selected === 'students' ? <StudentClassStudentsTab key={classId} classId={classId} /> : selected === 'attendance' ? <StudentAttendanceTab key={classId} classId={classId} /> : selected === 'grades' ? <StudentClassGradesTab key={classId} classId={classId} /> : selected === 'materials' ? <ClassDocumentsTab key={classId} classId={classId} /> : selected === 'announcements' ? <ClassAnnouncementsFeed key={classId} /> : <>
         <h2 className="text-xl font-bold text-[#18301D]">{current.label}</h2>
         <p className="py-12 text-center text-sm text-slate-400">Nội dung sẽ được bổ sung sau.</p>
         </>}

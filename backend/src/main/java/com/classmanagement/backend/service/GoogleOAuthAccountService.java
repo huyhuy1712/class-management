@@ -25,6 +25,7 @@ public class GoogleOAuthAccountService {
     private final UserRepository users;
     private final UserAuthIdentityRepository identities;
     private final ImpersonationSessionRepository impersonationSessions;
+    private final GoogleAvatarStorage googleAvatarStorage;
 
     @Transactional
     public Result process(OAuth2User googleUser, Map<String, String> context) {
@@ -44,7 +45,7 @@ public class GoogleOAuthAccountService {
         if (linkedIdentity.isPresent()) {
             User user = users.findById(linkedIdentity.get().getUserId()).orElse(null);
             if (user != null) {
-                applyGoogleAvatar(user, googleAvatarUrl(googleUser));
+                storeGoogleAvatar(user, googleAvatarUrl(googleUser));
             }
             return user == null ? new Result("account_unavailable", null) : accountResult(user);
         }
@@ -66,10 +67,10 @@ public class GoogleOAuthAccountService {
                 .passwordHash(null)
                 .email(email)
                 .fullName(fullName.length() <= 100 ? fullName : fullName.substring(0, 100))
-                .avatar(googleAvatarUrl(googleUser))
                 .role(role)
                 .status(role == UserRole.TEACHER ? UserStatus.PENDING : UserStatus.ACTIVE)
                 .build());
+        storeGoogleAvatar(user, googleAvatarUrl(googleUser));
         if (role == UserRole.TEACHER) user.setTeacherCode("TC-" + user.getId());
         else user.setStudentCode("ST-" + user.getId());
         user = users.save(user);
@@ -93,7 +94,7 @@ public class GoogleOAuthAccountService {
             if (!existing.get().getUserId().equals(user.getId())) {
                 return new Result("google_already_linked", null);
             }
-            applyGoogleAvatar(user, avatarUrl);
+            storeGoogleAvatar(user, avatarUrl);
             return new Result("linked", user);
         }
         if (identities.findByUserIdAndProvider(user.getId(), PROVIDER).isPresent()) {
@@ -106,7 +107,7 @@ public class GoogleOAuthAccountService {
                 .providerSubject(subject)
                 .emailAtLink(email)
                 .build());
-        applyGoogleAvatar(user, avatarUrl);
+        storeGoogleAvatar(user, avatarUrl);
         return new Result("linked", user);
     }
 
@@ -120,18 +121,21 @@ public class GoogleOAuthAccountService {
         return url;
     }
 
-    private void applyGoogleAvatarIfMissing(User user, String avatarUrl) {
-        if ((user.getAvatar() == null || user.getAvatar().isBlank()) && avatarUrl != null) {
-            user.setAvatar(avatarUrl);
-            users.save(user);
-        }
-    }
-
-    private void applyGoogleAvatar(User user, String avatarUrl) {
-        if (avatarUrl != null && !avatarUrl.equals(user.getAvatar())) {
-            user.setAvatar(avatarUrl);
-            users.save(user);
-        }
+    private void storeGoogleAvatar(User user, String avatarUrl) {
+        googleAvatarStorage.storeIfNeeded(user.getId(), user.getAvatar(), avatarUrl)
+                .ifPresent(objectPath -> {
+                    user.setAvatar(objectPath);
+                    try {
+                        users.save(user);
+                    } catch (RuntimeException exception) {
+                        try {
+                            googleAvatarStorage.delete(objectPath);
+                        } catch (RuntimeException cleanupException) {
+                            exception.addSuppressed(cleanupException);
+                        }
+                        throw exception;
+                    }
+                });
     }
 
     private Result accountResult(User user) {
