@@ -35,6 +35,9 @@ Các API `/api/auth/password-reset/**` là public để phục vụ luồng khô
 | 14 | POST | `/api/classes/{classroomId}/lessons` | Tạo buổi học cho lớp |
 | 15 | GET | `/api/classes/{classroomId}/lessons?date=YYYY-MM-DD` | Lấy buổi học của lớp theo ngày |
 | 16 | PUT | `/api/classes/{classroomId}/lessons/{lessonId}` | Cập nhật buổi học |
+| 59 | GET | `/api/classes/{classroomId}/feed/posts?page=0&size=20` | Lấy bài đăng bảng tin lớp theo trang |
+| 60 | POST | `/api/classes/{classroomId}/feed/posts` | Tạo bài đăng bảng tin lớp |
+| 61 | PUT | `/api/classes/{classroomId}/feed/posts/{postId}` | Sửa bài đăng của chính mình |
 | 17 | GET | `/api/requests/join-class/received` | Lấy yêu cầu tham gia lớp đang chờ |
 | 18 | PATCH | `/api/requests/{requestId}/approve` | Chấp nhận yêu cầu tham gia lớp |
 | 19 | PATCH | `/api/requests/{requestId}/reject` | Từ chối yêu cầu tham gia lớp |
@@ -1150,6 +1153,126 @@ curl -X PUT http://localhost:8080/api/classes/1/lessons/1 \
 - `400 Bad Request`: Không tìm thấy lớp học, không tìm thấy buổi học, hoặc buổi học không thuộc lớp chỉ định.
 - `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
 - `403 Forbidden`: Người dùng hiện tại không phải giáo viên phụ trách lớp.
+
+## Bảng tin lớp
+
+Các API bảng tin yêu cầu đăng nhập. Giáo viên phụ trách lớp và học sinh đang là thành viên lớp có thể xem, đăng bài; chỉ tác giả mới được sửa bài của mình. Nội dung bài không được để trống và giới hạn 20.000 ký tự.
+
+### 59. GET `/api/classes/{classroomId}/feed/posts` | Lấy bài đăng bảng tin theo trang
+
+Trả danh sách bài đăng chưa bị xóa mềm, sắp xếp mới nhất trước. Thông tin tác giả được trả kèm mỗi bài. Phân trang dùng số trang bắt đầu từ 0; kích thước trang mặc định 20, tối đa 50.
+
+**Query parameters:**
+
+- `page`: Không bắt buộc, số trang từ `0` trở lên; mặc định `0`.
+- `size`: Không bắt buộc, số phần tử từ `1` đến `50`; mặc định `20`.
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X GET "http://localhost:8080/api/classes/1/feed/posts?page=0&size=20" \
+	--cookie "access_token=<token>"
+```
+
+**Response thành công `200 OK`:**
+
+```json
+{
+	"items": [
+		{
+			"id": 12,
+			"classId": 1,
+			"authorId": 5,
+			"authorName": "Nguyễn Minh Anh",
+			"authorAvatar": "/api/users/5/avatar",
+			"authorRole": "TEACHER",
+			"content": "Chào cả lớp! Đây là thông báo mới.",
+			"createdAt": "2026-10-27T08:30:00",
+			"updatedAt": "2026-10-27T08:30:00"
+		}
+	],
+	"page": 0,
+	"size": 20,
+	"totalElements": 1,
+	"totalPages": 1
+}
+```
+
+Không có bài đăng phù hợp thì `items` là `[]`, `totalElements` và `totalPages` bằng `0`.
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: `page` âm hoặc `size` ngoài khoảng `1..50`.
+- `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
+- `403 Forbidden`: Người dùng không phải giáo viên phụ trách hoặc học sinh đang tham gia lớp.
+- `404 Not Found`: Không tìm thấy lớp.
+
+### 60. POST `/api/classes/{classroomId}/feed/posts` | Tạo bài đăng
+
+Tạo bài mới trong bảng tin lớp. Tác giả được xác định từ tài khoản đăng nhập, không nhận `authorId` từ client. Trả `201 Created`.
+
+**Headers:**
+
+```http
+Content-Type: application/json
+Cookie: access_token=<token>
+```
+
+**Request body:**
+
+```json
+{
+	"content": "Chào cả lớp! Đây là thông báo mới."
+}
+```
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X POST http://localhost:8080/api/classes/1/feed/posts \
+	-H "Content-Type: application/json" \
+	--cookie "access_token=<token>" \
+	-d '{"content":"Chào cả lớp! Đây là thông báo mới."}'
+```
+
+**Response thành công `201 Created`:** Trả về một object bài đăng cùng cấu trúc phần tử trong `items` của API GET.
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Thiếu `content`, nội dung rỗng/chỉ có khoảng trắng hoặc vượt quá 20.000 ký tự.
+- `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
+- `403 Forbidden`: Người dùng không phải giáo viên phụ trách hoặc học sinh đang tham gia lớp.
+- `404 Not Found`: Không tìm thấy lớp.
+
+### 61. PUT `/api/classes/{classroomId}/feed/posts/{postId}` | Sửa bài đăng
+
+Cập nhật nội dung bài đăng chưa bị xóa mềm trong lớp. Chỉ tác giả bài đăng được sửa. Request body có cùng định dạng và giới hạn như API POST; trả về object bài đăng sau khi cập nhật.
+
+**Request body:**
+
+```json
+{
+	"content": "Nội dung thông báo đã được cập nhật."
+}
+```
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X PUT http://localhost:8080/api/classes/1/feed/posts/12 \
+	-H "Content-Type: application/json" \
+	--cookie "access_token=<token>" \
+	-d '{"content":"Nội dung thông báo đã được cập nhật."}'
+```
+
+**Response thành công `200 OK`:** Trả về một object bài đăng với `content` và `updatedAt` mới.
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Thiếu `content`, nội dung rỗng/chỉ có khoảng trắng hoặc vượt quá 20.000 ký tự.
+- `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
+- `403 Forbidden`: Người dùng không có quyền truy cập bảng tin lớp hoặc không phải tác giả bài đăng.
+- `404 Not Found`: Không tìm thấy lớp hoặc bài đăng còn hoạt động thuộc lớp đó.
 
 ## Điểm danh
 
