@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { MessageCircle, Pencil, Send, SmilePlus, ThumbsDown, ThumbsUp } from 'lucide-react'
 import { useParams } from 'react-router-dom'
+import defaultAvatar from '../../../assets/images/avatar_default.png'
 import useAuthStore from '../../../stores/authStore'
 import useResourceQuery from '../../../query/useResourceQuery'
 import { getSessionVersion } from '../../../query/queryClient'
@@ -9,8 +10,18 @@ import classroomService from '../../../services/classroomService'
 
 const PAGE_SIZE = 20
 
-function initialsFor(name = '') {
-  return name.trim().split(/\s+/).slice(-2).map((part) => part[0]).join('').toLocaleUpperCase('vi') || 'B'
+function UserAvatar({ name, avatar, className }) {
+  return (
+    <img
+      src={avatar && avatar !== 'avatar' ? avatar : defaultAvatar}
+      alt={`${name} - ảnh đại diện`}
+      onError={(event) => {
+        event.currentTarget.onerror = null
+        event.currentTarget.src = defaultAvatar
+      }}
+      className={className}
+    />
+  )
 }
 
 function formatPostTime(value) {
@@ -182,9 +193,7 @@ function ClassAnnouncementsFeed() {
 
       <form onSubmit={publishPost} className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700">
-            {initialsFor(currentName)}
-          </div>
+          <UserAvatar name={currentName} avatar={user?.avatar} className="h-11 w-11 shrink-0 rounded-full object-cover" />
           <label className="min-w-0 flex-1">
             <span className="sr-only">Nội dung bài đăng</span>
             <textarea
@@ -237,10 +246,7 @@ function ClassAnnouncementsFeed() {
                 <div className="p-4 sm:p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
-                      <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-emerald-100 text-sm font-bold text-emerald-700">
-                        {initialsFor(post.authorName)}
-                        {post.authorAvatar && <img src={post.authorAvatar} alt="" onError={(event) => { event.currentTarget.style.display = 'none' }} className="absolute inset-0 h-full w-full object-cover" />}
-                      </div>
+                      <UserAvatar name={post.authorName} avatar={post.authorAvatar} className="h-11 w-11 shrink-0 rounded-full object-cover" />
                       <div className="min-w-0">
                         <p className="truncate font-semibold text-slate-800">{post.authorName}</p>
                         <p className="mt-0.5 text-xs text-slate-400">
@@ -304,14 +310,17 @@ function ClassAnnouncementsFeed() {
 
                       <div className="space-y-3 pt-4">
                         <form className="flex items-center gap-2.5" onSubmit={(event) => event.preventDefault()}>
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-700">{initialsFor(currentName)}</div>
-                          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-slate-200 bg-slate-50 py-1 pl-4 pr-1 opacity-70" title="Bình luận sẽ được kết nối khi API bình luận hoàn tất">
-                            <span className="sr-only">Viết bình luận</span>
-                            <input disabled placeholder="Bình luận sẽ sớm khả dụng..." className="min-w-0 flex-1 bg-transparent py-1.5 text-sm text-slate-700 outline-none placeholder:text-slate-400" />
-                            <button type="submit" disabled aria-label="Gửi bình luận" className="flex h-8 w-8 shrink-0 cursor-not-allowed items-center justify-center rounded-full bg-slate-300 text-white">
-                              <Send size={14} />
-                            </button>
-                          </label>
+                          <UserAvatar name={currentName} avatar={user?.avatar} className="h-8 w-8 shrink-0 rounded-full object-cover" />
+                          <div className="min-w-0 flex-1">
+                            <p className="mb-1 truncate text-xs font-semibold text-slate-600">{currentName}</p>
+                            <label className="flex min-w-0 items-center gap-2 rounded-full border border-slate-200 bg-slate-50 py-1 pl-4 pr-1 opacity-70" title="Bình luận sẽ được kết nối khi API bình luận hoàn tất">
+                              <span className="sr-only">Viết bình luận</span>
+                              <input disabled placeholder="Bình luận sẽ sớm khả dụng..." className="min-w-0 flex-1 bg-transparent py-1.5 text-sm text-slate-700 outline-none placeholder:text-slate-400" />
+                              <button type="submit" disabled aria-label="Gửi bình luận" className="flex h-8 w-8 shrink-0 cursor-not-allowed items-center justify-center rounded-full bg-slate-300 text-white">
+                                <Send size={14} />
+                              </button>
+                            </label>
+                          </div>
                         </form>
                       </div>
                     </>

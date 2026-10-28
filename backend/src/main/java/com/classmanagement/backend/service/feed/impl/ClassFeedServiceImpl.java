@@ -9,6 +9,7 @@ import com.classmanagement.backend.exception.ResourceNotFoundException;
 import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.repository.classroom.ClassroomRepository;
 import com.classmanagement.backend.repository.feed.ClassFeedPostRepository;
+import com.classmanagement.backend.service.StorageService;
 import com.classmanagement.backend.service.feed.ClassFeedService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -28,6 +29,7 @@ public class ClassFeedServiceImpl implements ClassFeedService {
     private final ClassFeedPostRepository postRepository;
     private final ClassroomRepository classroomRepository;
     private final UserRepository userRepository;
+    private final StorageService storageService;
 
     @Override
     @Transactional(readOnly = true)
@@ -41,12 +43,13 @@ public class ClassFeedServiceImpl implements ClassFeedService {
                         Sort.Order.desc("createdAt"),
                         Sort.Order.desc("id"))));
 
+        Page<ClassFeedPostResponse> responsePage = result.map(this::resolveAuthorAvatar);
         return new ClassFeedPostPageResponse(
-                result.getContent(),
-                result.getNumber(),
-                result.getSize(),
-                result.getTotalElements(),
-                result.getTotalPages());
+                responsePage.getContent(),
+                responsePage.getNumber(),
+                responsePage.getSize(),
+                responsePage.getTotalElements(),
+                responsePage.getTotalPages());
     }
 
     @Override
@@ -110,11 +113,29 @@ public class ClassFeedServiceImpl implements ClassFeedService {
                 post.getId(),
                 post.getClassroom().getId(),
                 author.getId(),
-                author.getFullName(),
-                author.getAvatar(),
+                displayName(author),
+                storageService.getUrl(author.getAvatar()),
                 author.getRole(),
                 post.getContent(),
                 post.getCreatedAt(),
                 post.getUpdatedAt());
+    }
+
+    private ClassFeedPostResponse resolveAuthorAvatar(ClassFeedPostResponse post) {
+        return new ClassFeedPostResponse(
+                post.id(),
+                post.classId(),
+                post.authorId(),
+                post.authorName(),
+                storageService.getUrl(post.authorAvatar()),
+                post.authorRole(),
+                post.content(),
+                post.createdAt(),
+                post.updatedAt());
+    }
+
+    private String displayName(User author) {
+        String fullName = author.getFullName();
+        return fullName == null || fullName.isBlank() ? author.getUsername() : fullName;
     }
 }

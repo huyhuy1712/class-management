@@ -35,7 +35,7 @@ public interface ClassFeedPostRepository extends JpaRepository<ClassFeedPost, Lo
                         post.id,
                         post.classroom.id,
                         author.id,
-                        author.fullName,
+                        coalesce(nullif(author.fullName, ''), author.username),
                         author.avatar,
                         author.role,
                         post.content,

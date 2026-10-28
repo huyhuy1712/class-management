@@ -1184,7 +1184,7 @@ curl -X GET "http://localhost:8080/api/classes/1/feed/posts?page=0&size=20" \
 			"classId": 1,
 			"authorId": 5,
 			"authorName": "Nguyễn Minh Anh",
-			"authorAvatar": "/api/users/5/avatar",
+			"authorAvatar": "https://storage.example.com/class-management/avatars/5.png",
 			"authorRole": "TEACHER",
 			"content": "Chào cả lớp! Đây là thông báo mới.",
 			"createdAt": "2026-10-27T08:30:00",
@@ -1199,6 +1199,7 @@ curl -X GET "http://localhost:8080/api/classes/1/feed/posts?page=0&size=20" \
 ```
 
 Không có bài đăng phù hợp thì `items` là `[]`, `totalElements` và `totalPages` bằng `0`.
+`authorAvatar` là URL ảnh đại diện có thể dùng trực tiếp trên giao diện; `authorName` ưu tiên họ tên và dùng username nếu họ tên trống.
 
 **Một số trường hợp lỗi:**
 
