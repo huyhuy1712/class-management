@@ -14,12 +14,60 @@ const classroomService = {
     return response.data
   },
 
+  getFeedComments: async (classroomId, postId, page, size, options = {}) => {
+    const response = await api.get(`/classes/${classroomId}/feed/posts/${postId}/comments`, {
+      ...options,
+      params: { ...options.params, page, size },
+    })
+    return response.data
+  },
+
   createFeedPost: async (classroomId, content) => (
     await api.post(`/classes/${classroomId}/feed/posts`, { content }, { skipQueryInvalidation: true })
   ).data,
 
   updateFeedPost: async (classroomId, postId, content) => (
     await api.put(`/classes/${classroomId}/feed/posts/${postId}`, { content }, { skipQueryInvalidation: true })
+  ).data,
+
+  deleteFeedPost: async (classroomId, postId) => (
+    await api.delete(`/classes/${classroomId}/feed/posts/${postId}`, { skipQueryInvalidation: true })
+  ).data,
+
+  setFeedPostVote: async (classroomId, postId, vote) => (
+    await api.put(`/classes/${classroomId}/feed/posts/${postId}/vote`, { vote }, { skipQueryInvalidation: true })
+  ).data,
+
+  clearFeedPostVote: async (classroomId, postId) => (
+    await api.delete(`/classes/${classroomId}/feed/posts/${postId}/vote`, { skipQueryInvalidation: true })
+  ).data,
+
+  setFeedPostEmoji: async (classroomId, postId, emojiCode) => (
+    await api.put(`/classes/${classroomId}/feed/posts/${postId}/reactions/emoji`, { emojiCode }, { skipQueryInvalidation: true })
+  ).data,
+
+  clearFeedPostEmoji: async (classroomId, postId) => (
+    await api.delete(`/classes/${classroomId}/feed/posts/${postId}/reactions/emoji`, { skipQueryInvalidation: true })
+  ).data,
+
+  createFeedComment: async (classroomId, postId, content) => (
+    await api.post(`/classes/${classroomId}/feed/posts/${postId}/comments`, { content }, { skipQueryInvalidation: true })
+  ).data,
+
+  updateFeedComment: async (classroomId, postId, commentId, content) => (
+    await api.put(`/classes/${classroomId}/feed/posts/${postId}/comments/${commentId}`, { content }, { skipQueryInvalidation: true })
+  ).data,
+
+  deleteFeedComment: async (classroomId, postId, commentId) => (
+    await api.delete(`/classes/${classroomId}/feed/posts/${postId}/comments/${commentId}`, { skipQueryInvalidation: true })
+  ).data,
+
+  setFeedCommentEmoji: async (classroomId, postId, commentId, emojiCode) => (
+    await api.put(`/classes/${classroomId}/feed/posts/${postId}/comments/${commentId}/reactions/emoji`, { emojiCode }, { skipQueryInvalidation: true })
+  ).data,
+
+  clearFeedCommentEmoji: async (classroomId, postId, commentId) => (
+    await api.delete(`/classes/${classroomId}/feed/posts/${postId}/comments/${commentId}/reactions/emoji`, { skipQueryInvalidation: true })
   ).data,
 
   getGradebook: async (id, params, options = {}) => (await api.get(`/classes/${id}/gradebook`, { ...options, params })).data,
