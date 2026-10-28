@@ -5,6 +5,12 @@
 
 **Xác thực hiện tại:** Đăng nhập qua `POST /api/auth/login` để nhận cookie HttpOnly `access_token`. Browser/Postman phải gửi lại cookie khi gọi API; dùng cURL có thể truyền `--cookie "access_token=<token>"`. Filter hiện đọc JWT từ cookie, không đọc header Bearer. Các ví dụ Bearer cũ bên dưới cần thay bằng cookie khi thử trên code hiện tại. Signup/login/logout được cấu hình public.
 
+### Deploy frontend và đăng nhập Google
+
+Trên Netlify, frontend gọi API và khởi tạo/nhận callback Google qua các proxy cùng domain được khai báo trong `frontend/public/_redirects`. Bản build production luôn dùng `/api` cùng domain, để cookie HttpOnly không bị Safari/iOS chặn như cookie bên thứ ba. Backend và frontend phải dùng đúng URL tương ứng trong các rule proxy.
+
+Khi bật Google OAuth production, đặt `FRONTEND_URL` bằng URL Netlify và thêm chính xác `${FRONTEND_URL}/login/oauth2/code/google` làm Authorized redirect URI trong Google Cloud Console. Có thể đặt `GOOGLE_REDIRECT_URI` nếu muốn chỉ định URI khác; URI đó cũng phải được Google cho phép và route callback phải đi qua frontend proxy. Sau khi đổi cấu hình, build lại frontend và redeploy cả hai service.
+
 ## Danh sách API
 
 `POST /api/auth/verify-email` và `POST /api/auth/resend-verification-code` cũng là API public. Signup được lưu tạm riêng; user chỉ được tạo trong `users` sau khi OTP hợp lệ.
