@@ -4,5 +4,6 @@ public enum NotificationType {
     REQUEST_APPROVED,
     REQUEST_REJECTED,
     CLASS_REMOVED,
-    CLASS_ADDED
+    CLASS_ADDED,
+    HOMEWORK_NEW
 }

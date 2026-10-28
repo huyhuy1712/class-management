@@ -1,11 +1,12 @@
-import { useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, ClipboardCheck, Plus } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { ArrowLeft, ClipboardCheck, Plus, Save } from 'lucide-react'
 import DashboardLayout from '../../../layouts/DashboardLayout'
 import useResourceQuery from '../../../query/useResourceQuery'
 import homeworkService from '../../../services/homeworkService'
 import { sortByText } from '../../../utils/sortByText'
 import { GRADE_OPTIONS } from '../exams/create/helpers/examFormConstants'
+import { clearHomeworkDraft, loadHomeworkDraft, saveHomeworkDraft } from './homeworkDraftStorage'
 
 const emptyForm = {
   title: '',
@@ -21,20 +22,56 @@ const emptyForm = {
   maxScore: '10',
   file: null,
   audioFile: null,
+  removeFile: false,
+  removeAudio: false,
+  existingFileName: '',
+  existingAudioName: '',
 }
 
 export default function CreateTeacherHomeworkPage() {
   const [searchParams] = useSearchParams()
+  const { homeworkId } = useParams()
   const navigate = useNavigate()
   const classId = searchParams.get('classId')
+  const detailQuery = useResourceQuery('teacherHomework', homeworkId ? [homeworkId] : [], { enabled: Boolean(homeworkId) })
   const subjectsQuery = useResourceQuery('subjects')
   const classesQuery = useResourceQuery('teacherClasses')
   const studentsQuery = useResourceQuery('teacherStudents')
-  const [form, setForm] = useState(() => classId
-    ? { ...emptyForm, assignmentType: 'CLASS', classIds: [Number(classId)] }
-    : emptyForm)
+  const [form, setForm] = useState(() => {
+    const draft = loadHomeworkDraft()
+    if (draft) return { ...emptyForm, ...draft }
+    return classId
+      ? { ...emptyForm, assignmentType: 'CLASS', classIds: [Number(classId)] }
+      : { ...emptyForm }
+  })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!homeworkId) saveHomeworkDraft(form)
+  }, [form, homeworkId])
+
+  useEffect(() => {
+    const detail = detailQuery.data
+    if (!homeworkId || !detail) return
+    const due = detail.dueAt ? new Date(detail.dueAt) : null
+    const localDue = due && !Number.isNaN(due.getTime())
+      ? new Date(due.getTime() - due.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+      : ''
+    setForm({
+      ...emptyForm,
+      title: detail.title ?? '',
+      instructions: detail.instructions ?? '',
+      subjectId: detail.subjectId == null ? '' : String(detail.subjectId),
+      gradeLevel: detail.gradeLevel ?? '',
+      purpose: detail.purpose ?? '',
+      assignmentType: detail.assignmentType ?? 'ALL',
+      dueAt: localDue,
+      maxScore: detail.maxScore == null ? '10' : String(detail.maxScore),
+      existingFileName: detail.attachmentName ?? '',
+      existingAudioName: detail.audioName ?? '',
+    })
+  }, [detailQuery.data, homeworkId])
   const classes = classesQuery.data?.filter((item) => item.status === 'ACTIVE') ?? []
   const students = studentsQuery.data ?? []
   const subjects = subjectsQuery.data ?? []
@@ -65,11 +102,14 @@ export default function CreateTeacherHomeworkPage() {
     if (form.audioFile && form.audioFile.size > 10 * 1024 * 1024) return setError('Tệp âm thanh không được vượt quá 10 MB.')
     setSaving(true)
     try {
-      await homeworkService.create({
+      const payload = {
         ...form,
         classIds: form.assignmentType === 'CLASS' ? form.classIds : [],
         studentIds: form.assignmentType === 'STUDENT' ? form.studentIds : [],
-      })
+      }
+      if (homeworkId) await homeworkService.update(homeworkId, payload)
+      else await homeworkService.create(payload)
+      clearHomeworkDraft()
       navigate(listPath, { replace: true })
     } catch (failure) {
       setError(failure.response?.data?.message || failure.message || 'Không thể giao bài tập.')
@@ -83,7 +123,7 @@ export default function CreateTeacherHomeworkPage() {
       <Link to={listPath} className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700"><ArrowLeft size={17} />Quay lại danh sách bài tập</Link>
       <header className="flex items-center gap-4 border-b border-emerald-100 pb-5">
         <span className="rounded-2xl bg-emerald-100 p-4 text-emerald-700"><ClipboardCheck size={28} /></span>
-        <div><h1 className="text-2xl font-bold text-slate-900">Tạo bài tập</h1><p className="mt-1 text-sm text-slate-500">Nhập nội dung, chọn người nhận và thiết lập hạn nộp.</p></div>
+        <div><h1 className="text-2xl font-bold text-slate-900">{homeworkId ? 'Chỉnh sửa bài tập' : 'Tạo bài tập'}</h1><p className="mt-1 text-sm text-slate-500">{homeworkId ? 'Cập nhật nội dung, phạm vi giao và hạn nộp bài tập.' : 'Nhập nội dung, chọn người nhận và thiết lập hạn nộp.'}</p></div>
       </header>
 
       {classId && <Link to={`/teacher/classes/${classId}/homework`} className="inline-flex text-sm font-semibold text-emerald-700 underline">Quay lại tab bài tập của lớp</Link>}
@@ -116,12 +156,14 @@ export default function CreateTeacherHomeworkPage() {
             <textarea rows={4} maxLength={50000} value={form.instructions} onChange={(event) => setForm({ ...form, instructions: event.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 font-normal" />
           </label>
           <label className="text-sm font-semibold text-slate-700">Tệp đề bài (tùy chọn)
-            <input type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onChange={(event) => setForm({ ...form, file: event.target.files?.[0] ?? null })} className="mt-1.5 block w-full rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 font-normal" />
-            <span className="mt-1 block text-xs font-normal text-slate-500">{form.file?.name ?? 'PDF, DOC/DOCX, JPG/PNG · tối đa 10 MB'}</span>
+            <input type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onChange={(event) => setForm({ ...form, file: event.target.files?.[0] ?? null, removeFile: false })} className="mt-1.5 block w-full rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 font-normal" />
+            <span className="mt-1 block text-xs font-normal text-slate-500">{form.file?.name ?? (!form.removeFile && form.existingFileName ? `Tệp hiện tại: ${form.existingFileName}` : 'PDF, DOC/DOCX, JPG/PNG · tối đa 10 MB')}</span>
+            {homeworkId && form.existingFileName && !form.file && <button type="button" onClick={() => setForm({ ...form, removeFile: !form.removeFile })} className={`mt-1 text-xs font-semibold ${form.removeFile ? 'text-emerald-700' : 'text-red-600'}`}>{form.removeFile ? 'Hoàn tác xóa tệp' : 'Xóa tệp hiện tại'}</button>}
           </label>
           <label className="text-sm font-semibold text-slate-700">Tệp âm thanh (tùy chọn)
-            <input type="file" accept=".mp3,.wav,.m4a,.aac,.ogg,.webm" onChange={(event) => setForm({ ...form, audioFile: event.target.files?.[0] ?? null })} className="mt-1.5 block w-full rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 font-normal" />
-            <span className="mt-1 block text-xs font-normal text-slate-500">{form.audioFile?.name ?? 'MP3, WAV, M4A, AAC, OGG, WEBM · tối đa 10 MB'}</span>
+            <input type="file" accept=".mp3,.wav,.m4a,.aac,.ogg,.webm" onChange={(event) => setForm({ ...form, audioFile: event.target.files?.[0] ?? null, removeAudio: false })} className="mt-1.5 block w-full rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 font-normal" />
+            <span className="mt-1 block text-xs font-normal text-slate-500">{form.audioFile?.name ?? (!form.removeAudio && form.existingAudioName ? `Tệp hiện tại: ${form.existingAudioName}` : 'MP3, WAV, M4A, AAC, OGG, WEBM · tối đa 10 MB')}</span>
+            {homeworkId && form.existingAudioName && !form.audioFile && <button type="button" onClick={() => setForm({ ...form, removeAudio: !form.removeAudio })} className={`mt-1 text-xs font-semibold ${form.removeAudio ? 'text-emerald-700' : 'text-red-600'}`}>{form.removeAudio ? 'Hoàn tác xóa âm thanh' : 'Xóa âm thanh hiện tại'}</button>}
           </label>
           <label className="text-sm font-semibold text-slate-700">Hạn nộp (không bắt buộc)
             <input type="datetime-local" value={form.dueAt} onChange={(event) => setForm({ ...form, dueAt: event.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 font-normal" />
@@ -148,8 +190,8 @@ export default function CreateTeacherHomeworkPage() {
 
           {error && <p role="alert" className="lg:col-span-2 text-sm text-red-600">{error}</p>}
           <div className="flex flex-wrap gap-3 lg:col-span-2">
-            <button disabled={saving || subjectsQuery.isLoading || Boolean(subjectsQuery.errorMessage) || subjects.length === 0 || classesQuery.isLoading || (form.assignmentType === 'STUDENT' && studentsQuery.isLoading)} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white disabled:opacity-50"><Plus size={17} />{saving ? 'Đang giao...' : 'Giao bài tập'}</button>
-            <Link to={listPath} className="rounded-xl border border-slate-200 px-5 py-3 font-semibold text-slate-600">Hủy</Link>
+            <button disabled={saving || subjectsQuery.isLoading || Boolean(subjectsQuery.errorMessage) || subjects.length === 0 || classesQuery.isLoading || (form.assignmentType === 'STUDENT' && studentsQuery.isLoading)} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white disabled:opacity-50">{homeworkId ? <Save size={17} /> : <Plus size={17} />}{saving ? (homeworkId ? 'Đang lưu...' : 'Đang giao...') : (homeworkId ? 'Lưu thay đổi' : 'Giao bài tập')}</button>
+            <Link to={listPath} onClick={clearHomeworkDraft} className="rounded-xl border border-slate-200 px-5 py-3 font-semibold text-slate-600">Hủy</Link>
           </div>
         </form>
       </section>

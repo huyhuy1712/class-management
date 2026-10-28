@@ -130,6 +130,7 @@ function AppRoutes() {
       <Route path="/teacher/exams" element={<ExamManagementPage />} />
       <Route path="/teacher/homework" element={<TeacherHomeworkPage />} />
       <Route path="/teacher/homework/create" element={<CreateTeacherHomeworkPage />} />
+      <Route path="/teacher/homework/:homeworkId/edit" element={<CreateTeacherHomeworkPage />} />
       <Route path="/teacher/homework/:homeworkId" element={<TeacherHomeworkDetailPage />} />
       <Route path="/teacher/homework/:homeworkId/submissions/:studentId" element={<TeacherHomeworkDetailPage />} />
       <Route path="/teacher/exams/:examId" element={<ExamDetailPage />} />
