@@ -40,12 +40,33 @@ public interface ClassFeedPostRepository extends JpaRepository<ClassFeedPost, Lo
                         author.role,
                         post.content,
                         post.createdAt,
-                        post.updatedAt
+                        post.updatedAt,
+                        count(comment.id),
+                        (select count(likeReaction)
+                         from ClassFeedPostReaction likeReaction
+                         where likeReaction.post.id = post.id
+                           and likeReaction.id.reactionKind = com.classmanagement.backend.entity.enums.FeedReactionKind.VOTE
+                           and likeReaction.reactionCode = 'LIKE'),
+                        (select count(dislikeReaction)
+                         from ClassFeedPostReaction dislikeReaction
+                         where dislikeReaction.post.id = post.id
+                           and dislikeReaction.id.reactionKind = com.classmanagement.backend.entity.enums.FeedReactionKind.VOTE
+                           and dislikeReaction.reactionCode = 'DISLIKE'),
+                        (select myReaction.reactionCode
+                         from ClassFeedPostReaction myReaction
+                         where myReaction.post.id = post.id
+                           and myReaction.user.username = :username
+                           and myReaction.id.reactionKind = com.classmanagement.backend.entity.enums.FeedReactionKind.VOTE)
                     )
                     from ClassFeedPost post
                     join post.author author
+                    left join ClassFeedComment comment
+                      on comment.post.id = post.id
+                     and comment.deletedAt is null
                     where post.classroom.id = :classroomId
                       and post.deletedAt is null
+                    group by post.id, post.classroom.id, author.id, author.fullName, author.username,
+                             author.avatar, author.role, post.content, post.createdAt, post.updatedAt
                     """,
             countQuery = """
                     select count(post)
@@ -55,6 +76,7 @@ public interface ClassFeedPostRepository extends JpaRepository<ClassFeedPost, Lo
                     """)
     Page<ClassFeedPostResponse> findFeedByClassroomId(
             @Param("classroomId") Long classroomId,
+            @Param("username") String username,
             Pageable pageable);
 
     @Query("""

@@ -27,6 +27,13 @@ export function resourceOptions(resource, params) {
       Number(params[2] ?? 20),
       { signal },
     ),
+    classFeedComments: ({ signal }) => classroomService.getFeedComments(
+      params[0],
+      params[1],
+      Number(params[2] ?? 0),
+      Number(params[3] ?? 20),
+      { signal },
+    ),
     teacherMaterials: ({ signal }) => materialService.getTeacherMaterials({ signal }),
     teacherHomeworks: ({ signal }) => homeworkService.getTeacherList(params[0], { signal }),
     teacherHomework: ({ signal }) => homeworkService.getTeacherDetail(params[0], { signal }),

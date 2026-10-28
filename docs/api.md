@@ -44,6 +44,17 @@ Các API `/api/auth/password-reset/**` là public để phục vụ luồng khô
 | 59 | GET | `/api/classes/{classroomId}/feed/posts?page=0&size=20` | Lấy bài đăng bảng tin lớp theo trang |
 | 60 | POST | `/api/classes/{classroomId}/feed/posts` | Tạo bài đăng bảng tin lớp |
 | 61 | PUT | `/api/classes/{classroomId}/feed/posts/{postId}` | Sửa bài đăng của chính mình |
+| 62 | DELETE | `/api/classes/{classroomId}/feed/posts/{postId}` | Xóa mềm bài đăng của chính mình |
+| 63 | GET | `/api/classes/{classroomId}/feed/posts/{postId}/comments?page=0&size=20` | Lấy bình luận của bài đăng |
+| 64 | POST | `/api/classes/{classroomId}/feed/posts/{postId}/comments` | Tạo bình luận cho bài đăng |
+| 65 | DELETE | `/api/classes/{classroomId}/feed/posts/{postId}/comments/{commentId}` | Xóa mềm bình luận của chính mình |
+| 66 | PUT | `/api/classes/{classroomId}/feed/posts/{postId}/comments/{commentId}` | Sửa bình luận của chính mình |
+| 67 | PUT | `/api/classes/{classroomId}/feed/posts/{postId}/vote` | Đặt hoặc đổi like/dislike |
+| 68 | DELETE | `/api/classes/{classroomId}/feed/posts/{postId}/vote` | Bỏ like/dislike |
+| 69 | PUT | `/api/classes/{classroomId}/feed/posts/{postId}/reactions/emoji` | Thêm hoặc đổi emoji reaction bài đăng |
+| 70 | DELETE | `/api/classes/{classroomId}/feed/posts/{postId}/reactions/emoji` | Gỡ emoji reaction bài đăng |
+| 71 | PUT | `/api/classes/{classroomId}/feed/posts/{postId}/comments/{commentId}/reactions/emoji` | Thêm hoặc đổi emoji reaction bình luận |
+| 72 | DELETE | `/api/classes/{classroomId}/feed/posts/{postId}/comments/{commentId}/reactions/emoji` | Gỡ emoji reaction bình luận |
 | 17 | GET | `/api/requests/join-class/received` | Lấy yêu cầu tham gia lớp đang chờ |
 | 18 | PATCH | `/api/requests/{requestId}/approve` | Chấp nhận yêu cầu tham gia lớp |
 | 19 | PATCH | `/api/requests/{requestId}/reject` | Từ chối yêu cầu tham gia lớp |
@@ -1162,7 +1173,7 @@ curl -X PUT http://localhost:8080/api/classes/1/lessons/1 \
 
 ## Bảng tin lớp
 
-Các API bảng tin yêu cầu đăng nhập. Giáo viên phụ trách lớp và học sinh đang là thành viên lớp có thể xem, đăng bài; chỉ tác giả mới được sửa bài của mình. Nội dung bài không được để trống và giới hạn 20.000 ký tự.
+Các API bảng tin yêu cầu đăng nhập. Giáo viên phụ trách lớp và học sinh đang là thành viên lớp có thể xem, đăng bài và bình luận; chỉ tác giả mới được sửa hoặc xóa bài/bình luận của mình. Nội dung bài không được để trống và giới hạn 20.000 ký tự; nội dung bình luận tối đa 10.000 ký tự.
 
 ### 59. GET `/api/classes/{classroomId}/feed/posts` | Lấy bài đăng bảng tin theo trang
 
@@ -1194,7 +1205,8 @@ curl -X GET "http://localhost:8080/api/classes/1/feed/posts?page=0&size=20" \
 			"authorRole": "TEACHER",
 			"content": "Chào cả lớp! Đây là thông báo mới.",
 			"createdAt": "2026-10-27T08:30:00",
-			"updatedAt": "2026-10-27T08:30:00"
+			"updatedAt": "2026-10-27T08:30:00",
+			"commentCount": 2
 		}
 	],
 	"page": 0,
@@ -1280,6 +1292,110 @@ curl -X PUT http://localhost:8080/api/classes/1/feed/posts/12 \
 - `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
 - `403 Forbidden`: Người dùng không có quyền truy cập bảng tin lớp hoặc không phải tác giả bài đăng.
 - `404 Not Found`: Không tìm thấy lớp hoặc bài đăng còn hoạt động thuộc lớp đó.
+
+### 62. DELETE `/api/classes/{classroomId}/feed/posts/{postId}` | Xóa bài đăng của mình
+
+Xóa mềm bài đăng bằng cách ghi `deleted_at`; bài đăng không còn xuất hiện trong bảng tin. Chỉ tác giả bài đăng được xóa. Trả `204 No Content`.
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X DELETE http://localhost:8080/api/classes/1/feed/posts/12 \
+	--cookie "access_token=<token>"
+```
+
+**Một số trường hợp lỗi:**
+
+- `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
+- `403 Forbidden`: Người dùng không có quyền truy cập bảng tin lớp hoặc không phải tác giả bài đăng.
+- `404 Not Found`: Không tìm thấy lớp hoặc bài đăng còn hoạt động thuộc lớp đó.
+
+### 63. GET `/api/classes/{classroomId}/feed/posts/{postId}/comments` | Lấy bình luận
+
+Lấy bình luận chưa bị xóa mềm theo trang, mới nhất trước. Tác giả (tên, ảnh đại diện, vai trò) được trả kèm mỗi bình luận. Mặc định lấy 20 bình luận, tối đa 50 bình luận mỗi trang.
+
+```bash
+curl -X GET "http://localhost:8080/api/classes/1/feed/posts/12/comments?page=0&size=20" \
+	--cookie "access_token=<token>"
+```
+
+Response `200 OK` có cấu trúc phân trang như danh sách bài đăng, trong đó mỗi phần tử gồm `id`, `postId`, `parentCommentId`, `authorId`, `authorName`, `authorAvatar`, `authorRole`, `content`, `createdAt` và `updatedAt`.
+
+### 64. POST `/api/classes/{classroomId}/feed/posts/{postId}/comments` | Tạo bình luận
+
+Tạo bình luận cho bài đăng đang hoạt động. Tác giả lấy từ tài khoản đăng nhập; nội dung bắt buộc và tối đa 10.000 ký tự. Trả `201 Created` cùng dữ liệu bình luận mới.
+
+```bash
+curl -X POST http://localhost:8080/api/classes/1/feed/posts/12/comments \
+	-H "Content-Type: application/json" \
+	--cookie "access_token=<token>" \
+	-d '{"content":"Cảm ơn thầy/cô!"}'
+```
+
+### 65. DELETE `/api/classes/{classroomId}/feed/posts/{postId}/comments/{commentId}` | Xóa bình luận của mình
+
+Xóa mềm bình luận bằng cách ghi `deleted_at`; chỉ tác giả bình luận được xóa. Trả `204 No Content`.
+
+```bash
+curl -X DELETE http://localhost:8080/api/classes/1/feed/posts/12/comments/31 \
+	--cookie "access_token=<token>"
+```
+
+Các API bình luận yêu cầu đăng nhập và quyền truy cập lớp học. Trả `403 Forbidden` nếu người dùng không phải giáo viên phụ trách/học sinh của lớp hoặc không phải tác giả khi xóa; trả `404 Not Found` nếu lớp, bài đăng hoặc bình luận không còn hoạt động.
+
+### 66. PUT `/api/classes/{classroomId}/feed/posts/{postId}/comments/{commentId}` | Sửa bình luận của mình
+
+Cập nhật nội dung bình luận đang hoạt động. Chỉ tác giả bình luận được sửa; request body giống API tạo bình luận và giới hạn 10.000 ký tự. Trả `200 OK` cùng thông tin bình luận sau khi cập nhật.
+
+```bash
+curl -X PUT http://localhost:8080/api/classes/1/feed/posts/12/comments/31 \
+	-H "Content-Type: application/json" \
+	--cookie "access_token=<token>" \
+	-d '{"content":"Nội dung bình luận đã chỉnh sửa."}'
+```
+
+Trả `400 Bad Request` nếu nội dung rỗng hoặc dài hơn 10.000 ký tự, `403 Forbidden` nếu người dùng không có quyền truy cập lớp hoặc không phải tác giả, và `404 Not Found` nếu lớp, bài đăng hoặc bình luận không còn hoạt động.
+
+### 67. PUT `/api/classes/{classroomId}/feed/posts/{postId}/vote` | Đặt like/dislike
+
+Đặt hoặc đổi lượt vote của người dùng hiện tại. Mỗi người chỉ có một vote (`LIKE` hoặc `DISLIKE`) trên mỗi bài đăng; gửi lại loại đang chọn sẽ giữ nguyên. Trả số lượng like/dislike mới cùng `myVote`.
+
+```bash
+curl -X PUT http://localhost:8080/api/classes/1/feed/posts/12/vote \
+	-H "Content-Type: application/json" \
+	--cookie "access_token=<token>" \
+	-d '{"vote":"LIKE"}'
+```
+
+### 68. DELETE `/api/classes/{classroomId}/feed/posts/{postId}/vote` | Bỏ like/dislike
+
+Gỡ vote của người dùng hiện tại khỏi bài đăng. Trả số lượng like/dislike mới cùng `myVote` (là `null` nếu đã gỡ).
+
+```bash
+curl -X DELETE http://localhost:8080/api/classes/1/feed/posts/12/vote \
+	--cookie "access_token=<token>"
+```
+
+Cả hai API yêu cầu đăng nhập và quyền truy cập lớp; trả `403 Forbidden` nếu không có quyền vào lớp, `404 Not Found` nếu bài đăng không còn hoạt động, và `400 Bad Request` nếu vote không phải `LIKE` hoặc `DISLIKE`. API GET danh sách bài đăng đã bao gồm `likeCount`, `dislikeCount` và `myVote` cho từng bài, không cần request riêng từng bài đăng.
+
+### 69-70. Emoji reaction cho bài đăng
+
+`PUT /api/classes/{classroomId}/feed/posts/{postId}/reactions/emoji` đặt hoặc đổi emoji của người dùng hiện tại. Mỗi người có tối đa một emoji reaction cho mỗi bài; mã emoji lấy từ trường `unified` của emoji picker và phải dài tối đa 32 ký tự.
+
+```bash
+curl -X PUT http://localhost:8080/api/classes/1/feed/posts/12/reactions/emoji \
+	-H "Content-Type: application/json" \
+	--cookie "access_token=<token>" \
+	-d '{"emojiCode":"1f602"}'
+```
+
+`DELETE` cùng đường dẫn gỡ emoji reaction của người dùng hiện tại. Cả hai API trả danh sách `emojiCode`, `count`, `reactedByMe` mới; GET danh sách bài đăng cũng trả `emojiReactions` cho từng bài bằng một truy vấn tổng hợp theo trang.
+
+### 71-72. Emoji reaction cho bình luận
+
+`PUT /api/classes/{classroomId}/feed/posts/{postId}/comments/{commentId}/reactions/emoji` đặt hoặc đổi emoji cho bình luận; `DELETE` cùng đường dẫn gỡ reaction của người dùng hiện tại. Body PUT dùng `{"emojiCode":"1f602"}`; response là danh sách tổng hợp theo emoji. GET danh sách bình luận trả thêm `emojiReactions`, được tổng hợp theo trang để tránh N+1 query.
+
+Các API reaction yêu cầu người dùng đăng nhập và có quyền truy cập lớp. Trả `404 Not Found` nếu bài đăng hoặc bình luận đã bị xóa/không tồn tại; trả `400 Bad Request` nếu mã emoji không đúng định dạng.
 
 ## Điểm danh
 
