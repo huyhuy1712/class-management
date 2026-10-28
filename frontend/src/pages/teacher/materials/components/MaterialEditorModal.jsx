@@ -10,6 +10,11 @@ const emptyForm = {
   classIds: [],
   studentIds: [],
   file: null,
+  files: [],
+}
+
+function getFileTitle(file) {
+  return file.name.replace(/\.[^.]+$/, '') || file.name
 }
 
 export default function MaterialEditorModal({ material, classes, students, targetError, targetLoading = false, retryTargets, saving, onClose, onSave }) {
@@ -19,6 +24,7 @@ export default function MaterialEditorModal({ material, classes, students, targe
     classIds: [...(material.classIds ?? [])],
     studentIds: [...(material.studentIds ?? [])],
     file: null,
+    files: [],
   } : emptyForm)
   const [selectedStudentClassId, setSelectedStudentClassId] = useState(() => {
     const existingClassId = material?.studentClassIds
@@ -41,16 +47,20 @@ export default function MaterialEditorModal({ material, classes, students, targe
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-    if (!form.title.trim()) {
+    if ((!form.files.length || form.files.length === 1 || material) && !form.title.trim()) {
       setError('Vui lòng nhập tên tài liệu.')
       return
     }
-    if (!material && !form.file) {
-      setError('Vui lòng chọn một tệp tài liệu để tải lên.')
+    if (!material && !form.files.length) {
+      setError('Vui lòng chọn ít nhất một tệp tài liệu để tải lên.')
       return
     }
-    if (form.file && form.file.size > 10 * 1024 * 1024) {
+    if (form.files.some((file) => file.size > 10 * 1024 * 1024)) {
       setError('Tệp tài liệu không được vượt quá 10 MB.')
+      return
+    }
+    if (form.files.reduce((total, file) => total + file.size, 0) > 35 * 1024 * 1024) {
+      setError('Tổng dung lượng tài liệu được tải cùng lúc không được vượt quá 35 MB.')
       return
     }
     if (form.targetType === 'CLASS' && !form.classIds.length) {
@@ -69,10 +79,11 @@ export default function MaterialEditorModal({ material, classes, students, targe
       source: material?.source ?? 'UPLOAD',
       title: form.title.trim(),
       content: form.content.trim(),
-      fileName: form.file?.name ?? material?.fileName ?? '',
-      fileSize: form.file?.size ?? material?.fileSize ?? null,
-      file: form.file ?? material?.file ?? null,
-      fileUrl: form.file ? '' : material?.fileUrl ?? '',
+      fileName: form.files[0]?.name ?? material?.fileName ?? '',
+      fileSize: form.files[0]?.size ?? material?.fileSize ?? null,
+      file: form.files[0] ?? material?.file ?? null,
+      files: !material && form.files.length > 1 ? form.files : [],
+      fileUrl: form.files.length ? '' : material?.fileUrl ?? '',
       classIds: form.targetType === 'CLASS' ? form.classIds : [],
       studentIds: form.targetType === 'STUDENT' ? form.studentIds : [],
       excludedClassIds: [],
@@ -97,17 +108,23 @@ export default function MaterialEditorModal({ material, classes, students, targe
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5 p-5 sm:p-6">
-          <label className="block text-sm font-semibold text-slate-700">
-            Tên tài liệu <span className="text-red-500">*</span>
-            <input
-              autoFocus
-              value={form.title}
-              onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
-              maxLength={255}
-              placeholder="Ví dụ: Bài giảng chương 1"
-              className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-normal outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50"
-            />
-          </label>
+          {(material || form.files.length <= 1) ? (
+            <label className="block text-sm font-semibold text-slate-700">
+              Tên tài liệu <span className="text-red-500">*</span>
+              <input
+                autoFocus
+                value={form.title}
+                onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
+                maxLength={255}
+                placeholder="Ví dụ: Bài giảng chương 1"
+                className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-normal outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50"
+              />
+            </label>
+          ) : (
+            <p className="rounded-xl bg-emerald-50 px-3.5 py-3 text-sm text-emerald-800">
+              Đã chọn {form.files.length} tệp. Mỗi tài liệu sẽ dùng tên tệp làm tiêu đề.
+            </p>
+          )}
 
           <label className="block text-sm font-semibold text-slate-700">
             Mô tả
@@ -125,14 +142,30 @@ export default function MaterialEditorModal({ material, classes, students, targe
             <input
               type="file"
               disabled={Boolean(material)}
+              multiple={!material}
               accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.zip"
-              onChange={(event) => setForm((current) => ({ ...current, file: event.target.files?.[0] ?? null }))}
+              onChange={(event) => setForm((current) => ({
+                ...current,
+                files: [...(event.target.files ?? [])],
+                file: event.target.files?.[0] ?? null,
+              }))}
               className="mt-1.5 block w-full rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-sm font-normal text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-100 file:px-3 file:py-2 file:font-semibold file:text-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
             />
             <span className="mt-1.5 block text-xs font-normal text-slate-500">
-              {form.file?.name ?? material?.fileName ?? 'PDF, Word, PowerPoint, Excel, TXT hoặc ZIP · tối đa 10 MB'}
-              {form.file && ` · ${(form.file.size / 1024 / 1024).toFixed(2)} MB`}
+              {material
+                ? material.fileName ?? 'Chọn một tệp'
+                : 'Chọn nhiều tệp cùng lúc · PDF, Word, PowerPoint, Excel, TXT hoặc ZIP · tối đa 10 MB mỗi tệp, 35 MB tổng cộng'}
             </span>
+            {form.files.length > 0 && (
+              <ul className="mt-2 max-h-28 space-y-1 overflow-y-auto text-xs font-normal text-slate-600">
+                {form.files.map((file) => (
+                  <li key={`${file.name}:${file.size}:${file.lastModified}`} className="flex justify-between gap-3">
+                    <span className="truncate">{form.files.length > 1 ? getFileTitle(file) : file.name}</span>
+                    <span className="shrink-0">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </label>
 
           <fieldset disabled={targetLoading}>

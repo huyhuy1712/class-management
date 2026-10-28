@@ -65,6 +65,9 @@ test('logout cancels pending reads and late results cannot restore cache', async
 
 test('writes invalidate only relevant resources and matching classroom/exam', () => {
   assert.deepEqual(mutationResources('/classes/21/lessons', 'post'), ['lessons'])
+  assert.deepEqual(mutationResources('/classes/21/feed/posts', 'post'), ['classFeedPosts'])
+  assert.equal(isAffectedQuery(resourceKey('a', 'classFeedPosts', [21, 0, 20]), '/classes/21/feed/posts', 'post'), true)
+  assert.equal(isAffectedQuery(resourceKey('a', 'classFeedPosts', [22, 0, 20]), '/classes/21/feed/posts', 'post'), false)
   assert.deepEqual(mutationResources('/classes/21/lessons', 'get'), [])
   assert.equal(isAffectedQuery(resourceKey('a', 'attendances', [21]), '/classes/21/attendances', 'post'), true)
   assert.equal(isAffectedQuery(resourceKey('a', 'attendances', [22]), '/classes/21/attendances', 'post'), false)

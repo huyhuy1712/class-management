@@ -6,6 +6,22 @@ const classroomService = {
     return response.data
   },
 
+  getFeedPosts: async (classroomId, page, size, options = {}) => {
+    const response = await api.get(`/classes/${classroomId}/feed/posts`, {
+      ...options,
+      params: { ...options.params, page, size },
+    })
+    return response.data
+  },
+
+  createFeedPost: async (classroomId, content) => (
+    await api.post(`/classes/${classroomId}/feed/posts`, { content }, { skipQueryInvalidation: true })
+  ).data,
+
+  updateFeedPost: async (classroomId, postId, content) => (
+    await api.put(`/classes/${classroomId}/feed/posts/${postId}`, { content }, { skipQueryInvalidation: true })
+  ).data,
+
   getGradebook: async (id, params, options = {}) => (await api.get(`/classes/${id}/gradebook`, { ...options, params })).data,
   getAll: async (options = {}) => {
     const response = await api.get('/classes', options)

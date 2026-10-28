@@ -47,7 +47,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         String username = jwtService.extractUsername(token);
 
                         if (username != null
-                                        && SecurityContextHolder.getContext().getAuthentication() == null) {
+                                        && (impersonationToken != null
+                                                        || SecurityContextHolder.getContext().getAuthentication() == null)) {
                                 String role = jwtService.extractRole(token);
                                 String sessionId = jwtService.extractImpersonationSessionId(token);
                                 Long impersonationSessionId = null;

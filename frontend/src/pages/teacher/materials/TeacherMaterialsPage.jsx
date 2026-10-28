@@ -42,7 +42,9 @@ export default function TeacherMaterialsPage() {
     try {
       await manager.save(material)
       setEditorOpen(false)
-      if (material.id) setToast('Cập nhật tài liệu thành công.')
+      if (material.files?.length > 1) setToast(`Đã đăng ${material.files.length} tài liệu thành công.`)
+      else if (material.id) setToast('Cập nhật tài liệu thành công.')
+      else setToast('Đăng tài liệu thành công.')
       return { success: true }
     } catch (error) {
       const message = getErrorMessage(error)

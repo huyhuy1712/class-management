@@ -21,6 +21,12 @@ export function resourceOptions(resource, params) {
     allClasses: ({ signal }) => classroomService.getAll({ signal }),
     classStudents: ({ signal }) => classroomService.getStudents(params[0], { signal }),
     classDocuments: ({ signal }) => classroomService.getDocuments(params[0], { signal }),
+    classFeedPosts: ({ signal }) => classroomService.getFeedPosts(
+      params[0],
+      Number(params[1] ?? 0),
+      Number(params[2] ?? 20),
+      { signal },
+    ),
     teacherMaterials: ({ signal }) => materialService.getTeacherMaterials({ signal }),
     teacherHomeworks: ({ signal }) => homeworkService.getTeacherList(params[0], { signal }),
     teacherHomework: ({ signal }) => homeworkService.getTeacherDetail(params[0], { signal }),
@@ -74,7 +80,7 @@ export function resourceOptions(resource, params) {
   const realtime = ['notifications', 'requests', 'lessons', 'studentExams', 'studentAssignment', 'classExams', 'teacherAssignmentAttempts', 'teacherHomeworks', 'teacherHomework', 'homeworkSubmissions', 'classHomeworks', 'studentHomeworks', 'studentHomework'].includes(resource)
   return {
     queryFn: readers[resource],
-    staleTime: classroomMembership ? 10_000 : realtime || resource === 'billing' ? 15_000 : resource === 'teacherMaterials' ? 15_000 : resource === 'subjects' ? 30 * 60_000 : 60_000,
+    staleTime: classroomMembership ? 10_000 : realtime || resource === 'billing' || resource === 'classFeedPosts' ? 15_000 : resource === 'teacherMaterials' ? 15_000 : resource === 'subjects' ? 30 * 60_000 : 60_000,
     ...(classroomMembership
       ? { refetchInterval: 10_000 }
       : realtime ? { refetchInterval: 60_000 } : resource === 'billing' ? { refetchInterval: 60_000 } : resource === 'billingOrder'

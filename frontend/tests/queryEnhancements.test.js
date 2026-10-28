@@ -38,6 +38,11 @@ test('detail prefetch uses the same class, date and exam parameters as page quer
   assert.deepEqual(mutationResources('/billing/vip/redeem', 'post'), ['billing'])
 })
 
+test('announcement routes prefetch the first page of the class feed', () => {
+  assert.deepEqual(routeQueries('/teacher/classes/21/announcements', 7), [['classFeedPosts', ['21', 0, 20]]])
+  assert.deepEqual(routeQueries('/student/classes/21/announcements', 7), [['classFeedPosts', ['21', 0, 20]]])
+})
+
 test('optimistic patch and rollback preserve unrelated rows, new changes and missing fields', () => {
   const original = [{ id: 21, name: 'Toán', status: 'ACTIVE' }, { id: 22, name: 'Anh' }]
   const patch = { name: 'Toán 12', description: 'Mới' }

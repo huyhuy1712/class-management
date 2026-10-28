@@ -1,4 +1,1 @@
-/api/* https://backend-class-management.up.railway.app/api/:splat 200
-/oauth2/* https://backend-class-management.up.railway.app/oauth2/:splat 200
-/login/oauth2/* https://backend-class-management.up.railway.app/login/oauth2/:splat 200
 /* /index.html 200

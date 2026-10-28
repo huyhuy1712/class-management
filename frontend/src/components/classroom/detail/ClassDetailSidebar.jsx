@@ -20,6 +20,9 @@ function ClassDetailSidebar({ studentCount = 0 }) {
     [classId, getTodayDate()],
     { enabled: Boolean(classId), refetchInterval: false },
   )
+  const feedQuery = useResourceQuery('classFeedPosts', [classId, 0, 20], {
+    enabled: Boolean(classId),
+  })
   const examsQuery = useResourceQuery('classExams', [classId])
   const materialsQuery = useResourceQuery('classDocuments', [classId])
   const homeworkQuery = useResourceQuery('classHomeworks', [classId])
@@ -64,7 +67,7 @@ function ClassDetailSidebar({ studentCount = 0 }) {
       label: 'Bảng tin',
       icon: Bell,
       to: `/teacher/classes/${classId}/announcements`,
-      count: 2,
+      count: feedQuery.data?.totalElements,
     },
     {
       label: 'Bảng điểm',

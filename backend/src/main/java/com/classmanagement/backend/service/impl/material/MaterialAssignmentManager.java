@@ -115,30 +115,39 @@ public class MaterialAssignmentManager {
             MaterialAssignment assignment,
             MaterialAssignmentType assignmentType,
             MaterialDistribution distribution) {
+        replaceTargets(List.of(assignment), assignmentType, distribution);
+    }
+
+    public void replaceTargets(
+            List<MaterialAssignment> assignments,
+            MaterialAssignmentType assignmentType,
+            MaterialDistribution distribution) {
         if (assignmentType == MaterialAssignmentType.CLASS) {
-            assignmentClassRepository.saveAll(distribution.classrooms().stream()
-                    .map(classroom -> MaterialAssignmentClass.builder()
-                            .id(new MaterialAssignmentClassId(assignment.getId(), classroom.getId()))
-                            .assignment(assignment)
-                            .classroom(classroom)
-                            .build())
+            assignmentClassRepository.saveAll(assignments.stream()
+                    .flatMap(assignment -> distribution.classrooms().stream()
+                            .map(classroom -> MaterialAssignmentClass.builder()
+                                    .id(new MaterialAssignmentClassId(assignment.getId(), classroom.getId()))
+                                    .assignment(assignment)
+                                    .classroom(classroom)
+                                    .build()))
                     .toList());
         } else if (assignmentType == MaterialAssignmentType.STUDENT) {
             Map<Long, User> studentsById = distribution.students().stream()
                     .collect(Collectors.toMap(User::getId, Function.identity()));
             Map<Long, Classroom> classroomsById = distribution.classrooms().stream()
                     .collect(Collectors.toMap(Classroom::getId, Function.identity()));
-            assignmentStudentRepository.saveAll(distribution.studentClassIds().entrySet().stream()
-                    .map(entry -> {
-                        User student = studentsById.get(entry.getKey());
-                        Classroom classroom = classroomsById.get(entry.getValue());
-                        return MaterialAssignmentStudent.builder()
-                                .id(new MaterialAssignmentStudentId(assignment.getId(), student.getId()))
-                                .assignment(assignment)
-                                .student(student)
-                                .classroom(classroom)
-                                .build();
-                    })
+            assignmentStudentRepository.saveAll(assignments.stream()
+                    .flatMap(assignment -> distribution.studentClassIds().entrySet().stream()
+                            .map(entry -> {
+                                User student = studentsById.get(entry.getKey());
+                                Classroom classroom = classroomsById.get(entry.getValue());
+                                return MaterialAssignmentStudent.builder()
+                                        .id(new MaterialAssignmentStudentId(assignment.getId(), student.getId()))
+                                        .assignment(assignment)
+                                        .student(student)
+                                        .classroom(classroom)
+                                        .build();
+                            }))
                     .toList());
         }
         assignmentClassRepository.flush();
