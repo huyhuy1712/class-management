@@ -39,6 +39,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                 ? impersonationToken
                                 : extractCookie(request, "access_token");
                 if (token == null) {
+                        String authHeader = request.getHeader("Authorization");
+                        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                                token = authHeader.substring(7).trim();
+                        }
+                }
+                if (token == null) {
                         filterChain.doFilter(request, response);
                         return;
                 }
