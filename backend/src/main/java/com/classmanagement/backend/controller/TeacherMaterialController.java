@@ -45,6 +45,18 @@ public class TeacherMaterialController {
                 authentication.getName(), title, content, assignmentType, classIds, studentIds, file));
     }
 
+    @PostMapping(value = "/batch", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<List<MaterialDocumentResponse>> uploadDocuments(
+            Authentication authentication,
+            @RequestParam(required = false) String content,
+            @RequestParam MaterialAssignmentType assignmentType,
+            @RequestParam(required = false) List<Long> classIds,
+            @RequestParam(required = false) List<Long> studentIds,
+            @RequestParam("files") List<MultipartFile> files) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(materialService.uploadDocuments(
+                authentication.getName(), content, assignmentType, classIds, studentIds, files));
+    }
+
     @PutMapping(value = "/{materialId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<MaterialDocumentResponse> updateDocument(
             Authentication authentication,

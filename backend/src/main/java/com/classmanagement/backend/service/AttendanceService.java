@@ -35,7 +35,8 @@ AttendanceResponse updateAttendance(
 
 AttendanceExportResult exportAttendance(
         Long classroomId,
-        LocalDate date
+        LocalDate date,
+        String username
 );      
     
 }

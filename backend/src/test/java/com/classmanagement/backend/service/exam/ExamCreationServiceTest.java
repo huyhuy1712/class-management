@@ -157,7 +157,8 @@ class ExamCreationServiceTest {
                 repository(ExamRepository.class, "exams"), repository(ExamAssignmentRepository.class, "assignments"),
                 repository(ExamSectionRepository.class, "sections"), repository(QuestionRepository.class, "questions"),
                 repository(AnswerRepository.class, "answers"), repository(AnswerOptionRepository.class, "options"),
-                repository(QuestionScoringRuleRepository.class, "rules"), repository(EntityManager.class, "entityManager"), null, null, null);
+                repository(QuestionScoringRuleRepository.class, "rules"), repository(EntityManager.class, "entityManager"), null, null, null,
+                org.mockito.Mockito.mock(com.classmanagement.backend.service.billing.TeacherEntitlementService.class));
         var interceptor = new TransactionInterceptor();
         interceptor.setTransactionManager(transactions);
         interceptor.setTransactionAttributeSource(new AnnotationTransactionAttributeSource());
@@ -172,6 +173,8 @@ class ExamCreationServiceTest {
             String name = method.getName();
             calls.merge(label + "." + name, 1, Integer::sum);
             if (name.equals("findByUsername")) return Optional.of(teacher);
+            if (name.equals("findByUsernameForUpdate")) return Optional.of(teacher);
+            if (name.equals("countByTeacher_Username")) return 0L;
             if (name.equals("findById")) return Optional.of(Subject.builder().id(1L).build());
             if (name.equals("existsByTeacher_IdAndCode")) {
                 assertEquals(teacher.getId(), args[0]);

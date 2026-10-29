@@ -68,6 +68,11 @@ function Header({ onMenuClick }) {
       <p className="max-w-[160px] truncate text-sm font-semibold text-[#18301D]">
         {user?.fullName || user?.username}
       </p>
+      {(user?.role === 'TEACHER' || user?.role === 'STUDENT') && (
+        <p className="text-xs font-medium text-green-700">
+          {user.role === 'TEACHER' ? 'Giáo viên' : 'Học sinh'}
+        </p>
+      )}
     </div>
   </button>
 </div>

@@ -7,6 +7,8 @@ import requestService from '../services/requestService'
 import examService from '../services/examService'
 import subjectService from '../services/subjectService'
 import materialService from '../services/materialService'
+import billingService from '../services/billingService'
+import homeworkService from '../services/homeworkService'
 
 export function resourceOptions(resource, params) {
   const readers = {
@@ -19,7 +21,26 @@ export function resourceOptions(resource, params) {
     allClasses: ({ signal }) => classroomService.getAll({ signal }),
     classStudents: ({ signal }) => classroomService.getStudents(params[0], { signal }),
     classDocuments: ({ signal }) => classroomService.getDocuments(params[0], { signal }),
+    classFeedPosts: ({ signal }) => classroomService.getFeedPosts(
+      params[0],
+      Number(params[1] ?? 0),
+      Number(params[2] ?? 20),
+      { signal },
+    ),
+    classFeedComments: ({ signal }) => classroomService.getFeedComments(
+      params[0],
+      params[1],
+      Number(params[2] ?? 0),
+      Number(params[3] ?? 20),
+      { signal },
+    ),
     teacherMaterials: ({ signal }) => materialService.getTeacherMaterials({ signal }),
+    teacherHomeworks: ({ signal }) => homeworkService.getTeacherList(params[0], { signal }),
+    teacherHomework: ({ signal }) => homeworkService.getTeacherDetail(params[0], { signal }),
+    homeworkSubmissions: ({ signal }) => homeworkService.getSubmissions(params[0], params[1], { signal }),
+    classHomeworks: ({ signal }) => homeworkService.getTeacherList(params[0], { signal }),
+    studentHomeworks: ({ signal }) => homeworkService.getStudentList({ signal }),
+    studentHomework: ({ signal }) => homeworkService.getStudentDetail(params[0], { signal }),
     teachers: ({ signal }) => userService.getTeachers({ signal }),
     studentDirectory: ({ signal }) => userService.getStudents({ signal }),
     teacherStudents: ({ signal }) => userService.getMyStudents({ signal }),
@@ -58,15 +79,19 @@ export function resourceOptions(resource, params) {
     studentAssignment: ({ signal }) => examService.getStudentAssignment(params[0], { signal }),
     examAttempt: ({ signal }) => examService.getAttempt(params[0], { signal }),
     examAttemptResult: ({ signal }) => examService.getAttemptResult(params[0], { signal }),
+    billing: ({ signal }) => billingService.getOverview({ signal }),
+    billingOrder: ({ signal }) => billingService.getOrder(params[0], { signal }),
   }
   if (!readers[resource]) throw new Error(`Unknown query resource: ${resource}`)
   const classroomMembership = ['studentClasses', 'classStudents'].includes(resource)
-  const realtime = ['notifications', 'requests', 'lessons', 'studentExams', 'studentAssignment', 'classExams', 'teacherAssignmentAttempts'].includes(resource)
+  const realtime = ['notifications', 'requests', 'lessons', 'studentExams', 'studentAssignment', 'classExams', 'teacherAssignmentAttempts', 'teacherHomeworks', 'teacherHomework', 'homeworkSubmissions', 'classHomeworks', 'studentHomeworks', 'studentHomework'].includes(resource)
   return {
     queryFn: readers[resource],
-    staleTime: classroomMembership ? 10_000 : realtime ? 15_000 : resource === 'teacherMaterials' ? 15_000 : resource === 'subjects' ? 30 * 60_000 : 60_000,
+    staleTime: classroomMembership ? 10_000 : realtime || resource === 'billing' || resource === 'classFeedPosts' ? 15_000 : resource === 'teacherMaterials' ? 15_000 : resource === 'subjects' ? 30 * 60_000 : 60_000,
     ...(classroomMembership
       ? { refetchInterval: 10_000 }
-      : realtime ? { refetchInterval: 60_000 } : {}),
+      : realtime ? { refetchInterval: 60_000 } : resource === 'billing' ? { refetchInterval: 60_000 } : resource === 'billingOrder'
+        ? { refetchInterval: (query) => ['PENDING', 'CREATING'].includes(query.state.data?.status) ? 10_000 : false }
+        : {}),
   }
 }

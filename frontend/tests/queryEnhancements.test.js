@@ -14,7 +14,15 @@ test('detail prefetch uses the same class, date and exam parameters as page quer
   assert.ok(routeQueries('/teacher/classes/21/attendance', 7, '2026-10-11').some(([name]) => name === 'attendances'))
   assert.deepEqual(routeQueries('/teacher/exams/42', 7), [['examDetail', ['42']], ['examConfiguration', ['42']]])
   assert.deepEqual(routeQueries('/teacher/exams/create', 7), [['subjects', []], ['teacherClasses', []], ['teacherStudents', []]])
+  assert.ok(routeQueries('/teacher', 7).some(([name]) => name === 'teacherHomeworks'))
+  assert.ok(routeQueries('/student', 7).some(([name]) => name === 'studentHomeworks'))
   assert.deepEqual(routeQueries('/teacher/classes/21/assignments', 7), [['teacherClasses', []], ['classExams', ['21']]])
+  assert.deepEqual(routeQueries('/teacher/classes/21/homework', 7), [['classHomeworks', ['21']]])
+  assert.deepEqual(routeQueries('/teacher/homework', 7), [['teacherHomeworks', []]])
+  assert.deepEqual(routeQueries('/teacher/homework?classId=21', 7), [['teacherHomeworks', ['21']]])
+  assert.deepEqual(routeQueries('/teacher/homework/create?classId=21', 7), [['teacherClasses', []], ['teacherStudents', []]])
+  assert.deepEqual(routeQueries('/teacher/homework/19?classId=21', 7), [['teacherHomework', ['19']], ['homeworkSubmissions', ['19', '21']]])
+  assert.deepEqual(routeQueries('/teacher/homework/19/submissions/23?classId=21', 7), [['teacherHomework', ['19']], ['homeworkSubmissions', ['19', '21']]])
   assert.ok(mutationResources('/exams/7/publish', 'patch').includes('classExams'))
   assert.ok(mutationResources('/exam-attempts/42/grades', 'patch').includes('classExams'))
   assert.ok(mutationResources('/exam-attempts/42/grades', 'patch').includes('teacherAssignmentAttempts'))
@@ -23,6 +31,16 @@ test('detail prefetch uses the same class, date and exam parameters as page quer
   assert.deepEqual(routeQueries('/teacher/exams/7/assignments/8?classId=21', 7), [['examConfiguration', ['7']], ['teacherAssignmentAttempts', ['8', '21', 0, 12, '', '', 'newest']]])
   assert.deepEqual(routeQueries('/student/exams/42', 7), [['studentAssignment', ['42']]])
   assert.deepEqual(routeQueries('/student/profile', 7), [['profile', [7]]])
+  assert.deepEqual(routeQueries('/teacher/billing?orderId=order-1', 7), [
+    ['billing', []], ['billingOrder', ['order-1']],
+  ])
+  assert.deepEqual(routeQueries('/teacher/billing', 7), [['billing', []]])
+  assert.deepEqual(mutationResources('/billing/vip/redeem', 'post'), ['billing'])
+})
+
+test('announcement routes prefetch the first page of the class feed', () => {
+  assert.deepEqual(routeQueries('/teacher/classes/21/announcements', 7), [['classFeedPosts', ['21', 0, 20]]])
+  assert.deepEqual(routeQueries('/student/classes/21/announcements', 7), [['classFeedPosts', ['21', 0, 20]]])
 })
 
 test('optimistic patch and rollback preserve unrelated rows, new changes and missing fields', () => {

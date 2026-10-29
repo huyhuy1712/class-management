@@ -48,7 +48,7 @@ class ClassroomAdditionNotificationTest {
         request.setStudentId(21L);
         new ClassroomServiceImpl(repo(ClassroomRepository.class), null, repo(UserRepository.class),
                 repo(ClassStudentRepository.class), null, null, null, null, null,
-                repo(NotificationRepository.class), null)
+                repo(NotificationRepository.class), null, null)
                 .addStudent(3L, request);
     }
     private <T> T repo(Class<T> type) {

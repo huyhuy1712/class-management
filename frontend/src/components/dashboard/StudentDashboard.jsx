@@ -42,6 +42,12 @@ const features = [
     icon: FileCheck,
     path: "/student/exams",
   },
+  {
+    title: "Bài tập",
+    description: "Xem bài được giao và theo dõi bài đã nộp",
+    icon: ClipboardCheck,
+    path: "/student/homework",
+  },
 ];
 
 function StudentDashboard() {
@@ -235,6 +241,7 @@ function StudentDashboard() {
               "/student/teachers",
               "/student/exams",
               "/student/grades",
+              "/student/homework",
             ].includes(feature.path);
             const FeatureLink = isImplementedRoute ? Link : "a";
             const destinationProps = isImplementedRoute

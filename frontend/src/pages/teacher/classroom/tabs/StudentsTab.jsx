@@ -531,7 +531,7 @@ const handleSubmitAttendance = async ({
                   <tr className="bg-[#F7FAF7]">
                     <th className="w-20 px-5 py-4 text-center text-xs font-bold uppercase text-gray-500">STT</th>
                     <th className="px-5 py-4 text-left text-xs font-bold uppercase text-gray-500">Học sinh</th>
-                    <th className="px-5 py-4 text-left text-xs font-bold uppercase text-gray-500">Mã học sinh</th>
+                    <th className="w-36 whitespace-nowrap px-5 py-4 text-left text-xs font-bold uppercase text-gray-500">Mã học sinh</th>
                     <th className="px-5 py-4 text-left text-xs font-bold uppercase text-gray-500">Liên hệ</th>
                     <th className="px-5 py-4 text-left text-xs font-bold uppercase text-gray-500">Ngày tham gia</th>
                     <th className="w-36 px-5 py-4 text-center text-xs font-bold uppercase text-gray-500">Hành động</th>
@@ -555,8 +555,8 @@ const handleSubmitAttendance = async ({
                         </span>
                       </td>
                       <td className="px-5 py-5">{renderStudentIdentity(student)}</td>
-                      <td className="px-5 py-5">
-                        <span className="rounded-lg bg-green-50 px-3 py-1.5 text-sm font-semibold text-green-700">
+                      <td className="whitespace-nowrap px-5 py-5">
+                        <span className="inline-flex whitespace-nowrap rounded-lg bg-green-50 px-3 py-1.5 text-sm font-semibold text-green-700">
                           {student.studentCode || '---'}
                         </span>
                       </td>
