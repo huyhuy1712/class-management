@@ -15,6 +15,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import java.lang.reflect.Proxy;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -49,11 +50,28 @@ class GoogleOAuthAccountServiceTest {
                 "app_role", "TEACHER"));
 
         assertEquals("account_pending", result.status());
+        assertEquals("google - Google Person", savedUser.get().getUsername());
         assertNotNull(savedIdentity.get());
         assertEquals(18L, savedIdentity.get().getUserId());
         assertEquals("GOOGLE", savedIdentity.get().getProvider());
         assertEquals("google-subject-1", savedIdentity.get().getProviderSubject());
         assertEquals("avatars/google/google-avatar.jpg", savedUser.get().getAvatar());
+    }
+
+    @Test
+    void signupAddsANumberWhenTheGeneratedUsernameAlreadyExists() {
+        AtomicReference<User> savedUser = new AtomicReference<>();
+        GoogleOAuthAccountService service = service(
+                null,
+                new AtomicReference<>(),
+                savedUser,
+                username -> username.equals("google - Google Person"));
+
+        service.process(googleUser(), Map.of(
+                "app_intent", "signup",
+                "app_role", "STUDENT"));
+
+        assertEquals("google - Google Person (2)", savedUser.get().getUsername());
     }
 
     @Test
@@ -157,8 +175,17 @@ class GoogleOAuthAccountServiceTest {
             User existingEmailUser,
             AtomicReference<UserAuthIdentity> savedIdentity,
             AtomicReference<User> savedUser) {
+        return service(existingEmailUser, savedIdentity, savedUser, username -> false);
+    }
+
+    private static GoogleOAuthAccountService service(
+            User existingEmailUser,
+            AtomicReference<UserAuthIdentity> savedIdentity,
+            AtomicReference<User> savedUser,
+            Predicate<String> usernameExists) {
         UserRepository users = proxy(UserRepository.class, (method, args) -> switch (method) {
             case "findByEmailIgnoreCase" -> Optional.ofNullable(existingEmailUser);
+            case "existsByUsername" -> usernameExists.test((String) args[0]);
             case "save" -> {
                 User user = (User) args[0];
                 if (user.getId() == null) user.setId(18L);

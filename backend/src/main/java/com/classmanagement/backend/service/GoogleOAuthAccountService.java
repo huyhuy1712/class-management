@@ -14,13 +14,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
 import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
 public class GoogleOAuthAccountService {
     private static final String PROVIDER = "GOOGLE";
+    private static final String GOOGLE_USERNAME_PREFIX = "google - ";
+    private static final int USERNAME_MAX_LENGTH = 50;
 
     private final UserRepository users;
     private final UserAuthIdentityRepository identities;
@@ -63,7 +64,7 @@ public class GoogleOAuthAccountService {
         if (fullName == null || fullName.isBlank()) fullName = email.substring(0, email.indexOf('@'));
 
         User user = users.save(User.builder()
-                .username("google-" + UUID.randomUUID().toString().replace("-", ""))
+                .username(createGoogleUsername(fullName))
                 .passwordHash(null)
                 .email(email)
                 .fullName(fullName.length() <= 100 ? fullName : fullName.substring(0, 100))
@@ -82,6 +83,19 @@ public class GoogleOAuthAccountService {
                 .build());
 
         return accountResult(user);
+    }
+
+    private String createGoogleUsername(String fullName) {
+        String normalizedName = fullName.trim().replaceAll("\\s+", " ");
+        for (int suffix = 1; ; suffix++) {
+            String suffixText = suffix == 1 ? "" : " (" + suffix + ")";
+            int nameLimit = USERNAME_MAX_LENGTH - GOOGLE_USERNAME_PREFIX.length() - suffixText.length();
+            String displayName = normalizedName.length() > nameLimit
+                    ? normalizedName.substring(0, nameLimit).stripTrailing()
+                    : normalizedName;
+            String username = GOOGLE_USERNAME_PREFIX + displayName + suffixText;
+            if (!users.existsByUsername(username)) return username;
+        }
     }
 
     private Result link(String subject, String email, String avatarUrl, String username) {
