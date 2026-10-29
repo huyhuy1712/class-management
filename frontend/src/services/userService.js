@@ -91,6 +91,11 @@ changePassword: async (currentPassword, newPassword) => {
   })
 },
 
+isGoogleLinked: async () => {
+  const response = await api.get('/auth/google/linked')
+  return response.data?.linked === true
+},
+
 }
 
 export default userService

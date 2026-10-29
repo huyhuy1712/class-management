@@ -20,6 +20,7 @@ import com.classmanagement.backend.entity.enums.RequestStatus;
 import com.classmanagement.backend.repository.request.RequestRepository;
 import com.classmanagement.backend.repository.AttendanceRepository;
 import com.classmanagement.backend.repository.UserRepository;
+import com.classmanagement.backend.repository.UserAuthIdentityRepository;
 import com.classmanagement.backend.repository.classroom.ClassStudentRepository;
 import com.classmanagement.backend.service.StorageService;
 import com.classmanagement.backend.service.UserService;
@@ -45,6 +46,7 @@ public class UserServiceImpl implements UserService {
     private final StorageService storageService;
     private final PasswordEncoder passwordEncoder;
     private final RequestRepository requestRepository;
+    private final UserAuthIdentityRepository userAuthIdentityRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -298,6 +300,12 @@ public void changePassword(
                             "Không tìm thấy người dùng"
                     )
             );
+
+    if (userAuthIdentityRepository.findByUserIdAndProvider(user.getId(), "GOOGLE").isPresent()) {
+        throw new IllegalArgumentException(
+                "Tài khoản đã xác thực Google không thể đổi mật khẩu."
+        );
+    }
 
     // Kiểm tra mật khẩu hiện tại
     if (!passwordEncoder.matches(
