@@ -441,8 +441,27 @@ public class HomeworkService {
     }
 
     @Transactional(readOnly = true)
-    public List<HomeworkDtos.StudentAssignment> listForStudent(String username) {
+    public List<HomeworkDtos.StudentAssignment> listForStudent(String username, Long classId) {
         User student = user(username, UserRole.STUDENT);
+        if (classId != null && (classId <= 0 || !Boolean.TRUE.equals(jdbc.queryForObject("""
+                SELECT EXISTS (
+                    SELECT 1 FROM class_students cs
+                    JOIN classes c ON c.id = cs.class_id
+                    WHERE cs.class_id = ? AND cs.student_id = ? AND c.status = 'ACTIVE'
+                )
+                """, Boolean.class, classId, student.getId())))) {
+            throw new ResourceNotFoundException("Không tìm thấy lớp đang hoạt động");
+        }
+        String classFilter = classId == null ? "" : """
+                  AND EXISTS (
+                      SELECT 1 FROM homework_assignment_recipient_classes rc
+                      WHERE rc.assignment_id = h.id
+                        AND rc.student_id = r.student_id AND rc.class_id = ?
+                  )
+                """;
+        Object[] parameters = classId == null
+                ? new Object[] { student.getId() }
+                : new Object[] { student.getId(), classId };
         List<HomeworkDtos.StudentAssignment> result = jdbc.query("""
                 SELECT h.id, h.title, h.instructions, h.subject_id,
                        (SELECT subj.name FROM subjects subj WHERE subj.id = h.subject_id) subject_name,
@@ -460,8 +479,9 @@ public class HomeworkService {
                   ON s.assignment_id = h.id AND s.student_id = r.student_id
                 LEFT JOIN homework_submission_audio sa ON sa.submission_id = s.id
                 WHERE r.student_id = ?
+                """ + classFilter + """
                 ORDER BY h.created_at DESC, h.id DESC
-                """, (rs, row) -> studentAssignment(rs), student.getId());
+                """, (rs, row) -> studentAssignment(rs), parameters);
         return result;
     }
 

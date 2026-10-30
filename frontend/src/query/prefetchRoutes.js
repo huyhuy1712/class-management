@@ -52,7 +52,8 @@ export function routeQueries(path, userId, date) {
   if (classroom) {
     const [, role, id] = classroom
     const queries = [[role === 'student' ? 'studentClasses' : 'teacherClasses', []], ['classStudents', [id]]]
-    if (role === 'student' || path.endsWith('/attendance')) queries.push(['attendances', [id]], ['lessons', [id, date]])
+    if (role === 'student') queries.push(['attendances', [id]], ['lessons', [id, date]], ['studentHomeworks', [id]])
+    else if (path.endsWith('/attendance')) queries.push(['attendances', [id]], ['lessons', [id, date]])
     return queries
   }
   const exam = /^\/teacher\/exams\/([^/]+)$/.exec(path)

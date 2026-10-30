@@ -39,7 +39,10 @@ export function resourceOptions(resource, params) {
     teacherHomework: ({ signal }) => homeworkService.getTeacherDetail(params[0], { signal }),
     homeworkSubmissions: ({ signal }) => homeworkService.getSubmissions(params[0], params[1], { signal }),
     classHomeworks: ({ signal }) => homeworkService.getTeacherList(params[0], { signal }),
-    studentHomeworks: ({ signal }) => homeworkService.getStudentList({ signal }),
+    studentHomeworks: ({ signal }) => homeworkService.getStudentList({
+      signal,
+      ...(params[0] ? { params: { classId: params[0] } } : {}),
+    }),
     studentHomework: ({ signal }) => homeworkService.getStudentDetail(params[0], { signal }),
     teachers: ({ signal }) => userService.getTeachers({ signal }),
     studentDirectory: ({ signal }) => userService.getStudents({ signal }),

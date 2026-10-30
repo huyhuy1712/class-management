@@ -1,10 +1,11 @@
-import { Bell, BookOpen, ClipboardCheck, FileText, Users } from 'lucide-react'
+import { Bell, BookOpen, ClipboardCheck, ClipboardList, FileText, Users } from 'lucide-react'
 import StudentAttendanceTab from '../tabs/StudentAttendanceTab'
 import StudentClassGradesTab from '../tabs/StudentClassGradesTab'
 import ClassDocumentsTab from '../../../../components/classroom/detail/ClassDocumentsTab'
 import useRoutePrefetch from '../../../../query/useRoutePrefetch'
 import useResourceQuery from '../../../../query/useResourceQuery'
 import StudentClassStudentsTab from '../tabs/StudentClassStudentsTab'
+import StudentHomeworkList from '../../homework/StudentHomeworkList'
 import useAuthStore from '../../../../stores/authStore'
 import ClassAnnouncementsFeed from '../../../../components/classroom/announcements/ClassAnnouncementsFeed'
 
@@ -12,6 +13,7 @@ const tabs = [
   { id: 'students', label: 'Học sinh', Icon: Users },
   { id: 'attendance', label: 'Điểm danh', Icon: ClipboardCheck },
   { id: 'grades', label: 'Bài kiểm tra', Icon: FileText },
+  { id: 'homework', label: 'Bài tập', Icon: ClipboardList },
   { id: 'materials', label: 'Tài liệu', Icon: BookOpen },
   { id: 'announcements', label: 'Bảng tin', Icon: Bell },
 ]
@@ -19,6 +21,7 @@ const tabs = [
 export default function StudentClassTabs({ selected, onSelect, classId }) {
   const prefetch = useRoutePrefetch()
   const examsQuery = useResourceQuery('studentExams', ['CLASS', classId])
+  const homeworksQuery = useResourceQuery('studentHomeworks', [classId])
   const studentsQuery = useResourceQuery('classStudents', [classId])
   const attendanceQuery = useResourceQuery('attendances', [classId])
   const materialsQuery = useResourceQuery('classDocuments', [classId], {
@@ -31,6 +34,7 @@ export default function StudentClassTabs({ selected, onSelect, classId }) {
   const userId = useAuthStore((state) => state.user?.id)
   const examCount = examsQuery.data?.items.filter((exam) => exam.classes?.some((item) => String(item.id) === String(classId))).length
   const counts = { students: studentsQuery.data?.length, grades: examCount,
+    homework: homeworksQuery.data?.length,
     attendance: attendanceQuery.data?.filter((item) => userId != null && String(item.studentId) === String(userId)).length,
     materials: materialsQuery.data?.length, announcements: feedQuery.data?.totalElements }
   const current = tabs.find((item) => item.id === selected)
@@ -45,7 +49,7 @@ export default function StudentClassTabs({ selected, onSelect, classId }) {
         ))}
       </nav>
       <section className="min-w-0 rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm">
-        {selected === 'students' ? <StudentClassStudentsTab key={classId} classId={classId} /> : selected === 'attendance' ? <StudentAttendanceTab key={classId} classId={classId} /> : selected === 'grades' ? <StudentClassGradesTab key={classId} classId={classId} /> : selected === 'materials' ? <ClassDocumentsTab key={classId} classId={classId} /> : selected === 'announcements' ? <ClassAnnouncementsFeed key={classId} /> : <>
+        {selected === 'students' ? <StudentClassStudentsTab key={classId} classId={classId} /> : selected === 'attendance' ? <StudentAttendanceTab key={classId} classId={classId} /> : selected === 'grades' ? <StudentClassGradesTab key={classId} classId={classId} /> : selected === 'homework' ? <StudentHomeworkList key={classId} classId={classId} /> : selected === 'materials' ? <ClassDocumentsTab key={classId} classId={classId} /> : selected === 'announcements' ? <ClassAnnouncementsFeed key={classId} /> : <>
         <h2 className="text-xl font-bold text-[#18301D]">{current.label}</h2>
         <p className="py-12 text-center text-sm text-slate-400">Nội dung sẽ được bổ sung sau.</p>
         </>}
