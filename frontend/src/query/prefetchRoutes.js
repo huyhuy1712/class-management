@@ -27,7 +27,7 @@ export function routeQueries(path, userId, date) {
   const gradebook = /^\/teacher\/classes\/([^/]+)\/grades$/.exec(pathname)
   if (gradebook) return [['classGradebook', [gradebook[1], 0, '', '']], ['subjects', []]]
   const pages = {
-    '/teacher': ['teacherClasses', 'teacherStudents', 'exams', 'teacherHomeworks'],
+    '/teacher': ['teacherClasses', 'teacherStudents', 'exams', 'teacherHomeworks', 'billing'],
     '/teacher/classes': ['teacherClasses'],
     '/teacher/exams': ['exams'],
     '/teacher/homework': ['teacherHomeworks'],

@@ -9,6 +9,7 @@ import {
   Search,
   BarChart3,
   FileCheck,
+  ClipboardList,
   ArrowUpRight,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -53,7 +54,7 @@ const features = [
 function StudentDashboard() {
   const prefetch = useRoutePrefetch()
   const navigate = useNavigate()
-  const { studentName, classCount, loading, classError, error, completedExamCount, examCountLoading, examCountError, unstartedExams, unstartedExamsError } = useStudentDashboard();
+  const { studentName, classCount, loading, classError, error, completedExamCount, examCountLoading, examCountError, completedHomeworkCount, homeworkCountLoading, homeworkCountError, unstartedExams, unstartedExamsError } = useStudentDashboard();
   const [activeExamIndex, setActiveExamIndex] = useState(0)
   const [paused, setPaused] = useState(false)
   const activeExams = unstartedExams
@@ -168,7 +169,7 @@ function StudentDashboard() {
       )}
 
       {/* Statistics */}
-      <section className="mb-10 grid grid-cols-1 gap-4 md:grid-cols-2">
+      <section className="mb-10 grid grid-cols-1 gap-4 md:grid-cols-3">
 
         {/* Card 1 */}
         <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-6 shadow-sm">
@@ -215,6 +216,23 @@ function StudentDashboard() {
               </p>
             </div>
 
+          </div>
+        </div>
+
+        {/* Card 3 */}
+        <div className="rounded-2xl border border-sky-100 bg-sky-50/60 p-6 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-sky-600">
+              <ClipboardList size={24} />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-sky-700">
+                {homeworkCountLoading ? <FrogLoading compact label="" /> : homeworkCountError ? "--" : completedHomeworkCount}
+              </p>
+              <p className="text-sm text-gray-400">
+                Bài tập đã làm
+              </p>
+            </div>
           </div>
         </div>
 
