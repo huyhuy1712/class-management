@@ -2,6 +2,7 @@ import FrogLoading from '../../../../utils/FrogLoading'
 import { useMutation } from '@tanstack/react-query'
 import { EMPTY_LIST } from '../../../../query/queryKeys'
 import useResourceQuery from '../../../../query/useResourceQuery'
+import useRoutePrefetch from '../../../../query/useRoutePrefetch'
 import { sortByText } from '../../../../utils/sortByText'
 import {
   CalendarCheck,
@@ -80,6 +81,7 @@ function StudentsTab() {
   const [attendanceError, setAttendanceError] = useState(null)
 
   const navigate = useNavigate()
+  const prefetch = useRoutePrefetch()
 
   const handleActivateClass = async () => {
     if (activatingClass) return
@@ -295,16 +297,17 @@ function StudentsTab() {
     </div>
   )
 
+  const getStudentDetailPath = (student) => `/teacher/classes/${classroom.id}/students/${student.id}`
+
   const handleViewStudent = (student) => {
-  navigate(
-    `/teacher/classes/${classroom.id}/students/${student.id}`,
-    {
+    const path = getStudentDetailPath(student)
+    prefetch(path)
+    navigate(path, {
       state: {
         student,
       },
-    },
-  )
-}
+    })
+  }
 
 const handleSubmitAttendance = async ({
   date,
@@ -531,7 +534,7 @@ const handleSubmitAttendance = async ({
                   <tr className="bg-[#F7FAF7]">
                     <th className="w-20 px-5 py-4 text-center text-xs font-bold uppercase text-gray-500">STT</th>
                     <th className="px-5 py-4 text-left text-xs font-bold uppercase text-gray-500">Học sinh</th>
-                    <th className="px-5 py-4 text-left text-xs font-bold uppercase text-gray-500">Mã học sinh</th>
+                    <th className="w-36 whitespace-nowrap px-5 py-4 text-left text-xs font-bold uppercase text-gray-500">Mã học sinh</th>
                     <th className="px-5 py-4 text-left text-xs font-bold uppercase text-gray-500">Liên hệ</th>
                     <th className="px-5 py-4 text-left text-xs font-bold uppercase text-gray-500">Ngày tham gia</th>
                     <th className="w-36 px-5 py-4 text-center text-xs font-bold uppercase text-gray-500">Hành động</th>
@@ -543,6 +546,8 @@ const handleSubmitAttendance = async ({
                       key={student.id}
                       role="button"
                       tabIndex={0}
+                      onMouseEnter={() => prefetch(getStudentDetailPath(student))}
+                      onFocus={() => prefetch(getStudentDetailPath(student))}
                       onClick={() => handleViewStudent(student)}
                       onKeyDown={(event) =>
                         handleStudentKeyDown(event, student)
@@ -555,8 +560,8 @@ const handleSubmitAttendance = async ({
                         </span>
                       </td>
                       <td className="px-5 py-5">{renderStudentIdentity(student)}</td>
-                      <td className="px-5 py-5">
-                        <span className="rounded-lg bg-green-50 px-3 py-1.5 text-sm font-semibold text-green-700">
+                      <td className="whitespace-nowrap px-5 py-5">
+                        <span className="inline-flex whitespace-nowrap rounded-lg bg-green-50 px-3 py-1.5 text-sm font-semibold text-green-700">
                           {student.studentCode || '---'}
                         </span>
                       </td>
@@ -586,6 +591,8 @@ const handleSubmitAttendance = async ({
                   key={student.id}
                   role="button"
                   tabIndex={0}
+                  onMouseEnter={() => prefetch(getStudentDetailPath(student))}
+                  onFocus={() => prefetch(getStudentDetailPath(student))}
                   onClick={() => handleViewStudent(student)}
                   onKeyDown={(event) =>
                     handleStudentKeyDown(event, student)

@@ -107,8 +107,8 @@ export default function AssignmentsTab() {
     {query.isLoading ? <FrogLoading label="Đang tải đề thi..." className="p-8 text-center text-slate-500" />
       : query.errorMessage ? <div role="alert" className="p-8 text-center text-red-600">{query.errorMessage}<button type="button" onClick={() => query.refetch()} className="ml-3 underline">Thử lại</button></div>
       : rows.length === 0 ? <p className="border-t border-slate-100 p-10 text-center text-slate-500">{items.length ? 'Không có đề thi phù hợp bộ lọc.' : 'Lớp học chưa có đề thi được giao.'}</p>
-        : <div className="overflow-x-auto"><table className="w-full min-w-[950px] text-sm">
-          <thead className="bg-slate-50/80 text-left text-[11px] uppercase tracking-wide text-slate-500"><tr>{['STT', 'Đề thi', 'Trạng thái', 'Chấm bài', 'Thời gian', 'Hành động'].map((title) => <th key={title} className="px-4 py-3.5 font-bold">{title}</th>)}</tr></thead>
+        : <div className="overflow-x-auto"><table className="w-full min-w-[850px] text-sm">
+          <thead className="bg-slate-50/80 text-left text-[11px] uppercase tracking-wide text-slate-500"><tr>{['STT', 'Đề thi', 'Trạng thái', 'Chấm bài', 'Thời gian'].map((title) => <th key={title} className="px-4 py-3.5 font-bold">{title}</th>)}</tr></thead>
           <tbody className="divide-y divide-slate-100">
             {rows.map(({ item, canPublish }, index) => (
               <tr
@@ -144,6 +144,23 @@ export default function AssignmentsTab() {
                   <p className="mt-1.5 text-xs text-slate-500">
                     {item.assignmentStatus === 'DRAFT' ? 'Lần giao nháp' : item.assignmentStatus === 'SCHEDULED' ? 'Đã lên lịch' : item.assignmentStatus === 'CLOSED' ? 'Đã đóng' : 'Đã giao'}
                   </p>
+                  {canPublish && (
+                    <button
+                      type="button"
+                      disabled={publishMutation.isPending}
+                      title="Xuất bản đề và các lần giao nháp"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        setPublishError('')
+                        publishMutation.mutate(item.examId)
+                      }}
+                      className="mt-2 inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {publishMutation.isPending && publishMutation.variables === item.examId
+                        ? <FrogLoading compact label="Đang xuất bản..." />
+                        : <><Check size={15} />Xuất bản</>}
+                    </button>
+                  )}
                 </td>
                 <td className="px-4 py-4">
                   <p className={`mb-2 text-xs font-bold ${item.pendingGradingCount > 0 ? 'text-amber-700' : item.gradedCount > 0 ? 'text-emerald-700' : 'text-slate-500'}`}>
@@ -158,25 +175,6 @@ export default function AssignmentsTab() {
                   <p className="font-medium text-slate-600">{item.timeLimit} phút</p>
                   <p className="mt-1 text-xs">Mở: {item.openTime ? formatExamDateTime(item.openTime) : 'Không giới hạn'}</p>
                   <p className="mt-1 text-xs">Đóng: {item.closeTime ? formatExamDateTime(item.closeTime) : 'Không giới hạn'}</p>
-                </td>
-                <td className="px-4 py-4">
-                  {canPublish && (
-                    <button
-                      type="button"
-                      disabled={publishMutation.isPending}
-                      title="Xuất bản đề và các lần giao nháp"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        setPublishError('')
-                        publishMutation.mutate(item.examId)
-                      }}
-                      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {publishMutation.isPending && publishMutation.variables === item.examId
-                        ? <FrogLoading compact label="Đang xuất bản..." />
-                        : <><Check size={15} />Xuất bản</>}
-                    </button>
-                  )}
                 </td>
               </tr>
             ))}

@@ -73,7 +73,8 @@ public interface ClassStudentRepository
     List<StudentClassPair> findStudentClassPairs(@Param("classIds") Collection<Long> classIds,
                                                @Param("studentIds") Collection<Long> studentIds);
 
-    List<ClassStudent> findAllByClassroomId(Long classroomId);
+        @EntityGraph(attributePaths = {"student", "classroom", "classroom.teacher"})
+        List<ClassStudent> findAllByClassroomId(Long classroomId);
 
     @Query("select cs.student.id from ClassStudent cs where cs.classroom.id = :classroomId")
     List<Long> findStudentIdsByClassroomId(@Param("classroomId") Long classroomId);

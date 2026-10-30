@@ -102,6 +102,7 @@ class ExamCopyTest {
         var exams = proxy(ExamRepository.class, (method,args) -> switch(method) {
             case "findLockedByIdAndTeacher_Username" -> "teacher".equals(args[1]) ? Optional.of(original) : Optional.empty();
             case "findByTeacher_UsernameAndCopiedFromExamIdAndCopyRequestId" -> Optional.ofNullable(copied);
+            case "countByTeacher_Username" -> 0L;
             case "existsByTeacher_IdAndCode" -> false;
             case "save" -> { copied=(Exam)args[0]; copied.setId(99L); saved.add(copied); yield copied; }
             case "flush" -> null;
@@ -127,14 +128,19 @@ class ExamCopyTest {
                 return reservation;
             }
         };
-        return new ExamCreationService(new ExamStructureValidator(validator),lifecycle,null,null,null,null,exams,
+        var users = proxy(com.classmanagement.backend.repository.UserRepository.class, (method,args) -> {
+            if (method.equals("findByUsernameForUpdate")) return Optional.of(teacher);
+            throw new AssertionError(method);
+        });
+        return new ExamCreationService(new ExamStructureValidator(validator),lifecycle,users,null,null,null,exams,
                 writes(ExamAssignmentRepository.class),writes(ExamSectionRepository.class),writes(QuestionRepository.class),
                 writes(AnswerRepository.class),writes(AnswerOptionRepository.class),writes(QuestionScoringRuleRepository.class),
                 proxy(EntityManager.class,(method,args) -> {
                     if (method.equals("persist")) { saved.add(args[0]); return null; }
                     if (method.equals("getReference")) return args[0] == User.class ? User.builder().id((Long)args[1]).build() : Classroom.builder().id((Long)args[1]).build();
                     throw new AssertionError(method);
-                }),detail,media,storage);
+                }),detail,media,storage,
+                org.mockito.Mockito.mock(com.classmanagement.backend.service.billing.TeacherEntitlementService.class));
     }
 
     <T> T writes(Class<T> type) {

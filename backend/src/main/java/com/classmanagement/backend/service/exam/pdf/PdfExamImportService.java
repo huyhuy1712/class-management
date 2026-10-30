@@ -14,6 +14,7 @@ import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.repository.exam.PdfExamImportRepository;
 import com.classmanagement.backend.repository.exam.PdfExamImportRepository.Job;
 import com.classmanagement.backend.service.exam.pdf.latex.PdfFormulaProcessor;
+import com.classmanagement.backend.service.billing.TeacherEntitlementService;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -49,6 +50,7 @@ public class PdfExamImportService {
     private final UserRepository users;
     private final PdfImportFiles files;
     private final PdfExamImportPipeline pipeline;
+    private final TeacherEntitlementService entitlements;
     private final JsonMapper json = JsonMapper.builder().build();
     private SaveDependencies save;
 
@@ -82,29 +84,34 @@ public class PdfExamImportService {
     public PdfExamImportService(
             PdfExamImportRepository jobs,
             UserRepository users,
+            TeacherEntitlementService entitlements,
             @Value("${app.exam-import.private-dir:.private/exam-imports}") String privateDirectory,
             @Value("${app.storage.local-dir:uploads}") String publicDirectory,
             @Value("${app.exam-import.backend-dir:.}") String backendDirectory) {
         this(jobs, users,
                 new PdfImportFiles(Path.of(privateDirectory), Path.of(publicDirectory)),
-                new PdfExamImportPipeline(new PdfFormulaProcessor(
-                        PdfFormulaProcessor.Configuration.local(Path.of(backendDirectory)))));
+            new PdfExamImportPipeline(new PdfFormulaProcessor(
+                PdfFormulaProcessor.Configuration.local(Path.of(backendDirectory)))),
+            entitlements);
     }
 
     PdfExamImportService(
             PdfExamImportRepository jobs,
             UserRepository users,
             PdfImportFiles files,
-            PdfExamImportPipeline pipeline) {
+            PdfExamImportPipeline pipeline,
+            TeacherEntitlementService entitlements) {
         this.jobs = jobs;
         this.users = users;
         this.files = files;
         this.pipeline = pipeline;
+        this.entitlements = entitlements;
     }
 
     public PdfExamImportResponse upload(
             String username, MultipartFile file, int examNumber, UUID requestId) {
         long ownerId = teacher(username);
+        entitlements.requireVipFeature(ownerId, "import PDF");
         if (!enabled) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Chức năng import PDF đang tạm dừng");

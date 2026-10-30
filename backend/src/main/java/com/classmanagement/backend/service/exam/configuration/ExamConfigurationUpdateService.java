@@ -11,6 +11,7 @@ import com.classmanagement.backend.repository.SubjectRepository;
 import com.classmanagement.backend.repository.exam.*;
 import com.classmanagement.backend.service.exam.validation.ExamStructureValidator;
 import com.classmanagement.backend.service.exam.validation.ExamTargetValidator;
+import com.classmanagement.backend.service.billing.TeacherEntitlementService;
 
 import jakarta.persistence.EntityManager;
 import jakarta.validation.Validator;
@@ -39,6 +40,7 @@ public class ExamConfigurationUpdateService {
     private final Validator validator;
     private final EntityManager entityManager;
     private final ExamAttemptDataRepository attemptData;
+        private final TeacherEntitlementService entitlements;
 
     @Transactional
     public ExamConfigurationResponse createAssignment(
@@ -65,6 +67,7 @@ public class ExamConfigurationUpdateService {
         if (exam.getStatus() != ExamStatus.PUBLISHED)
             throw new ConflictException("Chỉ đề đã xuất bản được mở đợt thi mới.");
         var input = request.assignment();
+        entitlements.requireAttemptLimit(exam.getTeacher().getId(), request.maxAttempts());
         structureValidator.validateAssignment(input);
         if (input.answerVisibilityScore() != null
                 && input.answerVisibilityScore().compareTo(exam.getMaxScore()) > 0)
@@ -194,6 +197,7 @@ public class ExamConfigurationUpdateService {
             fail("assignment.threshold", "Điểm ngưỡng không được vượt quá tổng điểm đề");
         }
         var basic = request.basicInfo();
+        entitlements.requireAttemptLimit(teacher.getId(), basic.maxAttempts());
         var subject = subjectRepository.findById(basic.subjectId()).orElse(null);
         if (subject == null) fail("basicInfo.subjectId", "Không tìm thấy môn học");
         var targets = targetValidator.validate(teacher.getId(), input);

@@ -1,9 +1,16 @@
+import { useNavigate } from 'react-router-dom'
 import FrogLoading from '../../../utils/FrogLoading'
-import { sortByText } from '../../../utils/sortByText'
-import { Bell, CheckCircle2, Clock3, X, XCircle, UserMinus } from 'lucide-react'
+import { Bell, CheckCircle2, Clock3, ClipboardCheck, ExternalLink, X, XCircle, UserMinus } from 'lucide-react'
 
 export default function StudentNotificationsModal({ notifications, loading, error, actionError, busy, onRead, onDelete, onDeleteAll, onClose }) {
+  const navigate = useNavigate()
   const unreadCount = notifications.filter((item) => !item.read).length
+  const sortedNotifications = [...notifications].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+  const openHomework = (item) => {
+    if (!item.read) onRead(item)
+    onClose()
+    navigate(`/student/homework/${item.referenceId}`)
+  }
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-[2px]" onClick={onClose}>
@@ -28,10 +35,10 @@ export default function StudentNotificationsModal({ notifications, loading, erro
         </div>
         <div className="space-y-3 overflow-y-auto bg-slate-50/40 p-5">
           {actionError && <p role="alert" className="text-sm text-red-600">{actionError}</p>}
-          {loading ? <FrogLoading label="Đang tải thông báo..." className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500" /> : error ? <p role="alert" className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-600">{error}</p> : notifications.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-12 text-center"><Bell className="mx-auto text-slate-300" size={30} /><p className="mt-3 font-semibold text-slate-700">Bạn chưa có thông báo</p><p className="mt-1 text-sm text-slate-500">Các cập nhật về lớp học sẽ hiển thị tại đây.</p></div> : sortByText(notifications, (item) => item.title).map((item) => (
+          {loading ? <FrogLoading label="Đang tải thông báo..." className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500" /> : error ? <p role="alert" className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-600">{error}</p> :           notifications.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-12 text-center"><Bell className="mx-auto text-slate-300" size={30} /><p className="mt-3 font-semibold text-slate-700">Bạn chưa có thông báo</p><p className="mt-1 text-sm text-slate-500">Các cập nhật về lớp học sẽ hiển thị tại đây.</p></div> : sortedNotifications.map((item) => (
             <article key={item.id} className={`flex gap-3 rounded-2xl border p-4 transition ${['REQUEST_REJECTED', 'CLASS_REMOVED'].includes(item.type) ? 'border-red-200 bg-red-50/70 shadow-sm shadow-red-900/5' : item.read ? 'border-slate-200 bg-white' : 'border-emerald-200 bg-emerald-50/70 shadow-sm shadow-emerald-900/5'}`}>
               <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${['REQUEST_REJECTED', 'CLASS_REMOVED'].includes(item.type) ? 'bg-white text-red-600' : item.read ? 'bg-slate-100 text-slate-500' : 'bg-white text-emerald-600'}`}>
-                {item.type === 'REQUEST_REJECTED' ? <XCircle size={17} /> : item.type === 'CLASS_REMOVED' ? <UserMinus size={17} /> : item.read ? <Clock3 size={17} /> : <CheckCircle2 size={17} />}
+                {item.type === 'REQUEST_REJECTED' ? <XCircle size={17} /> : item.type === 'CLASS_REMOVED' ? <UserMinus size={17} /> : item.type === 'HOMEWORK_NEW' ? <ClipboardCheck size={17} /> : item.read ? <Clock3 size={17} /> : <CheckCircle2 size={17} />}
               </span>
               <button type="button" disabled={busy} onClick={() => onRead(item)} className="min-w-0 flex-1 text-left disabled:cursor-wait">
                 <div className="flex items-start justify-between gap-3">
@@ -41,6 +48,12 @@ export default function StudentNotificationsModal({ notifications, loading, erro
                 <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-slate-600">{item.message}</p>
                 {item.createdAt && <p className="mt-2 text-xs font-medium text-slate-400">{new Date(item.createdAt).toLocaleString('vi-VN')}</p>}
               </button>
+              {item.type === 'HOMEWORK_NEW' && item.referenceId && <button
+                type="button"
+                disabled={busy}
+                onClick={() => openHomework(item)}
+                className="self-center inline-flex shrink-0 items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-wait"
+              ><ExternalLink size={14} />Mở bài tập</button>}
               <button type="button" disabled={busy} onClick={() => onDelete(item.id)} aria-label="Xóa thông báo" className="self-start rounded-lg p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed"><X size={17} /></button>
             </article>
           ))}

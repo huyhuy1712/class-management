@@ -10,7 +10,11 @@ export default function useStudentDashboard() {
   const classes = useResourceQuery('studentClasses')
   const exams = useResourceQuery('examCount')
   const assignedExams = useResourceQuery('studentExams')
+  const homeworks = useResourceQuery('studentHomeworks')
   const unstartedExams = getUnstartedAvailableExams(assignedExams.data?.items ?? [])
+  const completedHomeworkCount = homeworks.data?.filter(
+    ({ submissionStatus }) => submissionStatus === 'SUBMITTED' || submissionStatus === 'GRADED',
+  ).length ?? null
   useEffect(() => {
     if (dashboard.data?.fullName && dashboard.data.fullName !== user?.fullName) updateUser({ fullName: dashboard.data.fullName })
   }, [dashboard.data?.fullName, user?.fullName, updateUser])
@@ -21,6 +25,8 @@ export default function useStudentDashboard() {
     error: dashboard.errorMessage,
     completedExamCount: exams.data?.completedExamCount ?? null,
     examCountLoading: exams.isLoading, examCountError: Boolean(exams.errorMessage),
+    completedHomeworkCount,
+    homeworkCountLoading: homeworks.isLoading, homeworkCountError: Boolean(homeworks.errorMessage),
     unstartedExams, unstartedExamsError: assignedExams.errorMessage,
   }
 }

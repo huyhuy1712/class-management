@@ -45,6 +45,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class MaterialServiceImpl implements MaterialService {
+    private static final long MAX_BATCH_SIZE = 35L * 1024 * 1024;
 
     private final MaterialRepository materialRepository;
     private final MaterialAssignmentRepository assignmentRepository;
@@ -128,6 +129,105 @@ public class MaterialServiceImpl implements MaterialService {
             throw error;
         }
     }
+
+    @Override
+    @Transactional
+    public List<MaterialDocumentResponse> uploadDocuments(
+            String username,
+            String content,
+            MaterialAssignmentType assignmentType,
+            List<Long> classIds,
+            List<Long> studentIds,
+            List<MultipartFile> files) {
+        if (files == null || files.isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng chọn ít nhất một tệp tài liệu");
+        }
+
+        User teacher = requireTeacher(username);
+        long totalSize = 0;
+        List<PreparedDocument> prepared = new java.util.ArrayList<>(files.size());
+        for (MultipartFile file : files) {
+            String extension = fileSupport.validateFile(file);
+            String originalName = fileSupport.originalFileName(file);
+            fileSupport.validateOriginalFileName(originalName);
+            if (file.getSize() > MAX_BATCH_SIZE - totalSize) {
+                throw new ResponseStatusException(
+                        HttpStatus.PAYLOAD_TOO_LARGE, "Tổng dung lượng tài liệu không được vượt quá 35 MB");
+            }
+            totalSize += file.getSize();
+            prepared.add(new PreparedDocument(file, originalName, extension, titleFromFileName(originalName)));
+        }
+
+        MaterialDistribution distribution = assignmentManager.validateDistribution(
+                teacher.getId(), assignmentType, classIds, studentIds);
+        String normalizedContent = content == null || content.isBlank() ? null : content.trim();
+        List<String> uploadedPaths = new java.util.ArrayList<>(prepared.size());
+        List<Material> materials = new java.util.ArrayList<>(prepared.size());
+        try {
+            for (PreparedDocument document : prepared) {
+                String folder = "materials/teachers/" + teacher.getId() + "/" + UUID.randomUUID();
+                MultipartFile typedFile = fileSupport.withContentType(
+                        document.file(), fileSupport.contentTypeFor(document.extension()));
+                String objectPath = storageService.upload(
+                        folder, "document." + document.extension(), typedFile);
+                uploadedPaths.add(objectPath);
+                materials.add(Material.builder()
+                        .teacher(teacher)
+                        .type(MaterialType.DOCUMENT)
+                        .title(document.title())
+                        .content(normalizedContent)
+                        .fileUrl(objectPath)
+                        .fileName(document.originalName())
+                        .fileSize(document.file().getSize())
+                        .fileContentType(typedFile.getContentType())
+                        .build());
+            }
+
+            List<Material> savedMaterials = materialRepository.saveAllAndFlush(materials);
+            List<MaterialAssignment> assignments = assignmentRepository.saveAllAndFlush(savedMaterials.stream()
+                    .map(material -> MaterialAssignment.builder()
+                            .material(material)
+                            .assignmentType(assignmentType)
+                            .build())
+                    .toList());
+            assignmentManager.replaceTargets(assignments, assignmentType, distribution);
+            return documentMapper.map(savedMaterials);
+        } catch (IllegalStateException error) {
+            cleanupUploadedPaths(uploadedPaths, error);
+            log.error("Could not upload batch material files for teacher {}", teacher.getId(), error);
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY, "Không thể tải tệp tài liệu lên storage", error);
+        } catch (RuntimeException error) {
+            cleanupUploadedPaths(uploadedPaths, error);
+            throw error;
+        }
+    }
+
+    private String titleFromFileName(String fileName) {
+        int extensionIndex = fileName.lastIndexOf('.');
+        String title = extensionIndex > 0 ? fileName.substring(0, extensionIndex) : fileName;
+        if (title.isBlank() || title.length() > 255) {
+            throw new IllegalArgumentException("Không thể tạo tên tài liệu từ tên tệp");
+        }
+        return title;
+    }
+
+    private void cleanupUploadedPaths(List<String> objectPaths, RuntimeException error) {
+        for (String objectPath : objectPaths) {
+            try {
+                storageService.delete(objectPath);
+            } catch (RuntimeException cleanupError) {
+                error.addSuppressed(cleanupError);
+                log.error("Uploaded material file could not be cleaned after batch failure: {}", objectPath);
+            }
+        }
+    }
+
+    private record PreparedDocument(
+            MultipartFile file,
+            String originalName,
+            String extension,
+            String title) {}
 
     @Override
     @Transactional

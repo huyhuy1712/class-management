@@ -35,7 +35,7 @@ class StudentDashboardPendingRequestsTest {
     }
     private UserServiceImpl service() {
         return new UserServiceImpl(repo(UserRepository.class), repo(ClassStudentRepository.class),
-                repo(AttendanceRepository.class), null, null, repo(RequestRepository.class));
+                repo(AttendanceRepository.class), null, null, repo(RequestRepository.class), null);
     }
     private <T> T repo(Class<T> type) {
         return type.cast(Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (p, m, a) -> {

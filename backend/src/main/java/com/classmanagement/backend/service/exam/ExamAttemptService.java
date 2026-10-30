@@ -30,6 +30,7 @@ public class ExamAttemptService {
     private final ExamDetailService papers;
     private final ExamAttemptDataRepository data;
     private final com.classmanagement.backend.service.StorageService storage;
+        private final com.classmanagement.backend.service.billing.TeacherEntitlementService entitlements;
 
     private static LocalDateTime now() {
         return LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
@@ -303,6 +304,31 @@ public class ExamAttemptService {
             String q,
             String sort,
             Long classId) {
+                return list(assignmentId, username, page, size, status, q, sort, classId, false);
+        }
+
+        public ExamAttemptResponse.Page listForExport(
+                        Long assignmentId,
+                        String username,
+                        int page,
+                        int size,
+                        ExamAttemptStatus status,
+                        String q,
+                        String sort,
+                        Long classId) {
+                return list(assignmentId, username, page, size, status, q, sort, classId, true);
+        }
+
+        private ExamAttemptResponse.Page list(
+                        Long assignmentId,
+                        String username,
+                        int page,
+                        int size,
+                        ExamAttemptStatus status,
+                        String q,
+                        String sort,
+                        Long classId,
+                        boolean export) {
         positive(assignmentId);
         if (page < 0 || size < 1 || size > 100)
             throw new IllegalArgumentException("page >= 0, size 1..100");
@@ -321,6 +347,9 @@ public class ExamAttemptService {
         if (!a.getExam().getTeacher().getId().equals(teacher.getId())) throw missing();
         if (classId != null && !data.classAllowed(assignmentId, classId)) throw missing();
         var result = data.list(assignmentId, page, size, status, q, sort, classId);
+                if (export && result.totalElements() > 50) {
+                        entitlements.requireVipFeature(teacher.getId(), "xuất Excel cho hơn 50 học sinh");
+                }
         var items =
                 result.items().stream()
                         .map(

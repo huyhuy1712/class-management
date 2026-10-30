@@ -24,10 +24,15 @@ import com.classmanagement.backend.service.impl.material.MaterialAssignmentManag
 import com.classmanagement.backend.service.impl.material.MaterialDistribution;
 import com.classmanagement.backend.service.impl.material.MaterialDocumentMapper;
 import com.classmanagement.backend.service.impl.material.MaterialFileSupport;
+import com.classmanagement.backend.service.impl.material.MaterialDistribution;
+import com.classmanagement.backend.dto.material.MaterialDocumentResponse;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.lang.reflect.Proxy;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -46,6 +51,66 @@ class MaterialServiceImplTest {
             .assignmentType(MaterialAssignmentType.CLASS).build();
     private final MaterialAssignmentClass classTarget = MaterialAssignmentClass.builder()
             .id(new MaterialAssignmentClassId(12L, 3L)).assignment(assignment).classroom(classroom).build();
+
+    @Test
+    void batchUploadCreatesAllDocumentsWithOneDistributionValidationAndOneMappingPass() {
+        User teacher = User.builder().id(8L).username("teacher").role(UserRole.TEACHER).build();
+        MaterialRepository materials = mock(MaterialRepository.class);
+        MaterialAssignmentRepository assignments = mock(MaterialAssignmentRepository.class);
+        UserRepository users = mock(UserRepository.class);
+        StorageService storage = mock(StorageService.class);
+        MaterialAssignmentManager assignmentManager = mock(MaterialAssignmentManager.class);
+        MaterialDocumentMapper mapper = mock(MaterialDocumentMapper.class);
+        MaterialDistribution distribution = new MaterialDistribution(List.of(), List.of(), Map.of());
+        List<MultipartFile> files = List.of(
+                new MockMultipartFile("files", "lesson-1.pdf", "application/pdf", new byte[] {1}),
+                new MockMultipartFile("files", "lesson-2.pdf", "application/pdf", new byte[] {2}));
+        List<MaterialDocumentResponse> response = List.of(
+                MaterialDocumentResponse.builder().id(1L).title("lesson-1").build(),
+                MaterialDocumentResponse.builder().id(2L).title("lesson-2").build());
+
+        when(users.findByUsername("teacher")).thenReturn(Optional.of(teacher));
+        when(assignmentManager.validateDistribution(8L, MaterialAssignmentType.ALL, null, null))
+                .thenReturn(distribution);
+        when(storage.upload(anyString(), anyString(), any())).thenAnswer(invocation ->
+                invocation.getArgument(0, String.class) + "/" + invocation.getArgument(1, String.class));
+        when(materials.saveAllAndFlush(anyList())).thenAnswer(invocation -> {
+            List<Material> saved = invocation.getArgument(0);
+            for (int index = 0; index < saved.size(); index++) saved.get(index).setId((long) index + 1);
+            return saved;
+        });
+        when(assignments.saveAllAndFlush(anyList())).thenAnswer(invocation -> {
+            List<MaterialAssignment> saved = invocation.getArgument(0);
+            for (int index = 0; index < saved.size(); index++) saved.get(index).setId((long) index + 10);
+            return saved;
+        });
+        when(mapper.map(anyList())).thenReturn(response);
+
+        MaterialServiceImpl service = new MaterialServiceImpl(
+                materials,
+                assignments,
+                mock(MaterialAssignmentClassRepository.class),
+                mock(MaterialAssignmentStudentRepository.class),
+                mock(MaterialAssignmentExcludedClassRepository.class),
+                mock(ClassroomRepository.class),
+                mock(ClassStudentRepository.class),
+                users,
+                storage,
+                assignmentManager,
+                mapper,
+                new MaterialFileSupport(storage));
+
+        List<MaterialDocumentResponse> result = service.uploadDocuments(
+                "teacher", null, MaterialAssignmentType.ALL, null, null, files);
+
+        assertEquals(response, result);
+        verify(assignmentManager, times(1)).validateDistribution(8L, MaterialAssignmentType.ALL, null, null);
+        verify(materials, times(1)).saveAllAndFlush(anyList());
+        verify(assignments, times(1)).saveAllAndFlush(anyList());
+        verify(assignmentManager, times(1)).replaceTargets(anyList(), eq(MaterialAssignmentType.ALL), eq(distribution));
+        verify(mapper, times(1)).map(anyList());
+        verify(storage, times(2)).upload(anyString(), anyString(), any());
+    }
 
     @Test
     void classMemberCanReadDocuments() {

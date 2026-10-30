@@ -7,6 +7,7 @@ import {
   BookOpen,
   BarChart3,
   FileCheck,
+  ClipboardCheck,
   LogOut,
 } from "lucide-react";
 
@@ -37,6 +38,11 @@ const menuItems = [
     label: "Bài kiểm tra",
     icon: FileCheck,
     path: "/student/exams",
+  },
+  {
+    label: "Bài tập",
+    icon: ClipboardCheck,
+    path: "/student/homework",
   },
 ];
 

@@ -5,12 +5,16 @@ export function mutationResources(url, method) {
   if (/^\/exam-attempts\/[^/]+\/answers$/.test(path)) return []
   if (/^\/(exam-attempts|exam-assignments)(?:\/|$)/.test(path)) return ['studentExams', 'studentAssignment', 'examAttemptResult', 'examCount', 'dashboard', 'exams', 'classExams', 'teacherAssignmentAttempts', 'teacherAssignmentExport', 'studentClassExamResults', 'classGradebook', 'teacherAttemptReview', 'studentGrades']
   if (/^\/notifications(?:\/|$)/.test(path)) return ['notifications']
+  if (/^\/billing\/vip\/redeem$/.test(path)) return ['billing']
   if (/^\/requests(?:\/|$)/.test(path)) return ['requests', 'studentGrades', 'notifications', 'studentClasses', 'teacherClasses', 'classStudents', 'teacherStudents', 'dashboard']
   if (/^\/classes\/[^/]+\/attendances(?:\/|$)/.test(path)) return ['attendances', 'dashboard']
   if (/^\/classes\/[^/]+\/lessons(?:\/|$)/.test(path)) return ['lessons']
+  if (/^\/classes\/[^/]+\/feed\/posts\/\d+\/comments(?:\/|$)/.test(path)) return ['classFeedPosts', 'classFeedComments']
+  if (/^\/classes\/[^/]+\/feed\/posts(?:\/|$)/.test(path)) return ['classFeedPosts']
   if (/^\/materials(?:\/|$)/.test(path)) return ['teacherMaterials', 'classDocuments']
+  if (/^\/homework-assignments(?:\/|$)/.test(path)) return ['teacherHomeworks', 'teacherHomework', 'homeworkSubmissions', 'studentHomeworkSummary', 'classHomeworks', 'studentHomeworks', 'studentHomework']
   if (/^\/classes(?:\/|$)/.test(path)) {
-    const resources = ['teacherClasses', 'studentClasses', 'allClasses', 'classStudents', 'teacherStudents', 'dashboard', 'exams', 'studentExams', 'studentAssignment', 'classExams', 'studentClassExamResults', 'classGradebook', 'teacherAttemptReview', 'studentGrades']
+    const resources = ['teacherClasses', 'studentClasses', 'allClasses', 'classStudents', 'studentHomeworkSummary', 'teacherStudents', 'dashboard', 'exams', 'studentExams', 'studentAssignment', 'classExams', 'studentClassExamResults', 'classGradebook', 'teacherAttemptReview', 'studentGrades']
     const removesClassStudents = String(method).toLowerCase() === 'delete'
       && /^\/classes\/[^/]+\/students(?:\/[^/]+)?$/.test(path)
     return removesClassStudents ? [...resources, 'teacherMaterials'] : resources
@@ -23,8 +27,16 @@ export function mutationResources(url, method) {
 export function isAffectedQuery(queryKey, url, method) {
   if (queryKey[0] !== 'account' || !mutationResources(url, method).includes(queryKey[2])) return false
   const classId = /^\/classes\/([^/]+)/.exec(String(url))?.[1]
+  if (classId && queryKey[2] === 'classFeedPosts') return String(queryKey[3]) === classId
+  if (classId && queryKey[2] === 'classFeedComments') return String(queryKey[3]) === classId
   if (classId && ['classStudents', 'attendances', 'lessons'].includes(queryKey[2])) return String(queryKey[3]) === classId
+  if (classId && queryKey[2] === 'studentHomeworkSummary') return String(queryKey[3]) === classId
   const examId = /^\/exams\/([^/]+)/.exec(String(url))?.[1]
   if (examId && ['examDetail', 'examConfiguration'].includes(queryKey[2])) return String(queryKey[3]) === examId
+  const homeworkId = /^\/homework-assignments\/(\d+)/.exec(String(url))?.[1]
+  if (homeworkId && ['teacherHomework', 'homeworkSubmissions', 'studentHomework'].includes(queryKey[2])) return String(queryKey[3]) === homeworkId
+  if (queryKey[2] === 'classHomeworks') return true
+  if (/^\/homework-assignments\/\d+/.test(String(url)) && ['teacherHomeworks', 'studentHomeworks'].includes(queryKey[2])) return true
+  if (/^\/homework-assignments(?:\/me)?$/.test(String(url)) && ['teacherHomeworks', 'studentHomeworks'].includes(queryKey[2])) return true
   return true
 }
