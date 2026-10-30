@@ -71,6 +71,14 @@ public class HomeworkController {
         return homework.submissions(assignmentId, classId, authentication.getName());
     }
 
+    @GetMapping("/classes/{classId}/students/{studentId}/summary")
+    public HomeworkDtos.StudentClassSummary studentClassSummary(
+            @PathVariable long classId,
+            @PathVariable long studentId,
+            Authentication authentication) {
+        return homework.studentClassSummary(classId, studentId, authentication.getName());
+    }
+
     @PutMapping(value = "/{assignmentId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public HomeworkDtos.Assignment update(
             @PathVariable long assignmentId,

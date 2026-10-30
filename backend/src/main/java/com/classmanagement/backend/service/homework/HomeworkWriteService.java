@@ -73,7 +73,7 @@ public class HomeworkWriteService {
         MaterialDistribution distribution = assignmentManager.validateDistribution(
                 teacher.getId(), assignmentType, classIds, studentIds);
         HomeworkRecipientResolver.RecipientSnapshot recipients =
-                recipientResolver.resolveRecipients(teacher.getId(), assignmentType, distribution);
+                recipientResolver.resolve(teacher.getId(), assignmentType, distribution);
 
         HomeworkFileService.UploadedFile uploaded = null;
         HomeworkFileService.UploadedFile uploadedAudio = null;
@@ -130,7 +130,7 @@ public class HomeworkWriteService {
                             """, assignmentId, recipient.getKey(), classId);
                 }
             }
-            notifications.createNewHomeworkNotifications(assignmentId, normalizedTitle, recipients.students().keySet());
+            notifications.notifyNewAssignment(assignmentId, normalizedTitle, recipients.students().keySet());
             return reads.teacherAssignment(assignmentId, teacher.getId());
         } catch (RuntimeException error) {
             homeworkFiles.deleteUploaded(uploaded, error);
@@ -195,7 +195,7 @@ public class HomeworkWriteService {
         MaterialDistribution distribution = assignmentManager.validateDistribution(
                 teacher.getId(), assignmentType, classIds, studentIds);
         HomeworkRecipientResolver.RecipientSnapshot recipients =
-                recipientResolver.resolveRecipients(teacher.getId(), assignmentType, distribution);
+                recipientResolver.resolve(teacher.getId(), assignmentType, distribution);
 
         HomeworkFileService.UploadedFile uploaded = null;
         HomeworkFileService.UploadedFile uploadedAudio = null;
@@ -329,7 +329,7 @@ public class HomeworkWriteService {
         HomeworkDtos.Assignment assignment = reads.teacherAssignment(assignmentId, teacher.getId());
         if (request == null || request.score() == null || request.score().signum() < 0
                 || request.score().compareTo(assignment.maxScore()) > 0)
-            throw new IllegalArgumentException("Äiá»ƒm pháº£i náº±m trong khoáº£ng 0 Ä‘áº¿n Ä‘iá»ƒm tá»‘i Ä‘a cá»§a bĂ i táº­p");
+            throw new IllegalArgumentException("Điểm phải nằm trong khoảng 0 đến " + assignment.maxScore());
         if (request.teacherComment() != null && request.teacherComment().length() > 10000)
             throw new IllegalArgumentException("Nháº­n xĂ©t tá»‘i Ä‘a 10.000 kĂ½ tá»±");
         int updated = jdbc.update("""

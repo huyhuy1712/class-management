@@ -11,10 +11,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
-import static com.classmanagement.backend.service.homework.HomeworkSupport.*;
 
 @Service
 @RequiredArgsConstructor
@@ -25,7 +25,7 @@ public class HomeworkReadService {
 
     @Transactional(readOnly = true)
     public List<HomeworkDtos.Assignment> listForTeacher(String username, Long classId) {
-        User teacher = requireUser(username, UserRole.TEACHER);
+        User teacher = user(username, UserRole.TEACHER);
         if (classId == null) {
             return jdbc.query(assignmentSelect() + """
                     WHERE h.teacher_id = ?
@@ -54,13 +54,13 @@ public class HomeworkReadService {
 
     @Transactional(readOnly = true)
     public HomeworkDtos.Assignment getForTeacher(long assignmentId, String username) {
-        User teacher = requireUser(username, UserRole.TEACHER);
+        User teacher = user(username, UserRole.TEACHER);
         return teacherAssignment(assignmentId, teacher.getId());
     }
 
     @Transactional(readOnly = true)
     public List<HomeworkDtos.Submission> submissions(long assignmentId, Long classId, String username) {
-        User teacher = requireUser(username, UserRole.TEACHER);
+        User teacher = user(username, UserRole.TEACHER);
         requireOwnedAssignment(assignmentId, teacher.getId());
         if (classId != null) requireTeacherClass(classId, teacher.getId());
         String classFilter = classId == null ? "" : """
@@ -73,8 +73,9 @@ public class HomeworkReadService {
         Object[] parameters = classId == null
                 ? new Object[] { assignmentId }
                 : new Object[] { assignmentId, classId };
-        List<HomeworkDtos.Submission> rows = jdbc.query("""
-                SELECT s.id, r.student_id, u.full_name, u.student_code, s.status, s.answer_text,
+        return jdbc.query("""
+                SELECT s.id, r.student_id, u.full_name, u.student_code, u.avatar student_avatar,
+                       s.status, s.answer_text,
                        s.submitted_at, s.score, s.teacher_comment,
                        sa.original_name audio_name, sa.object_path audio_path
                 FROM homework_assignment_recipients r
@@ -101,80 +102,89 @@ public class HomeworkReadService {
                     audioUrl(rs.getString("audio_path")),
                     localDate(rs, "submitted_at"),
                     rs.getBigDecimal("score"),
-                    rs.getString("teacher_comment"));
+                    rs.getString("teacher_comment"),
+                    avatarUrl(rs.getString("student_avatar")));
         }, parameters);
-        return rows;
+    }
+
+    @Transactional(readOnly = true)
+    public HomeworkDtos.StudentClassSummary studentClassSummary(
+            long classId, long studentId, String username) {
+        User teacher = user(username, UserRole.TEACHER);
+        return jdbc.query("""
+                SELECT COUNT(a.id) AS total,
+                       COUNT(a.id) FILTER (WHERE s.id IS NULL) AS not_submitted,
+                       COUNT(a.id) FILTER (WHERE s.status = 'SUBMITTED') AS pending_grading,
+                       COUNT(a.id) FILTER (WHERE s.status = 'GRADED') AS graded,
+                       COUNT(a.id) FILTER (WHERE s.status = 'REOPENED') AS reopened,
+                       ROUND(AVG(
+                           CASE WHEN s.status = 'GRADED' AND a.max_score > 0
+                                THEN s.score * 10.0 / a.max_score
+                           END
+                       ), 2) AS average_score_on_ten
+                FROM classes c
+                JOIN class_students cs
+                  ON cs.class_id = c.id AND cs.student_id = ?
+                JOIN users student
+                  ON student.id = cs.student_id AND student.role = 'STUDENT'
+                LEFT JOIN homework_assignment_recipient_classes rc
+                  ON rc.class_id = c.id AND rc.student_id = cs.student_id
+                LEFT JOIN homework_assignments a
+                  ON a.id = rc.assignment_id
+                LEFT JOIN homework_submissions s
+                  ON s.assignment_id = a.id AND s.student_id = cs.student_id
+                WHERE c.id = ? AND c.teacher_id = ?
+                GROUP BY c.id
+                """, (rs, row) -> new HomeworkDtos.StudentClassSummary(
+                rs.getLong("total"),
+                rs.getLong("not_submitted"),
+                rs.getLong("pending_grading"),
+                rs.getLong("graded"),
+                rs.getLong("reopened"),
+                rs.getBigDecimal("average_score_on_ten")),
+                studentId, classId, teacher.getId())
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy học sinh trong lớp này"));
+    }
+
+    @Transactional(readOnly = true)
+    public List<HomeworkDtos.StudentAssignment> listForStudent(String username) {
+        return listForStudent(username, null);
     }
 
     @Transactional(readOnly = true)
     public List<HomeworkDtos.StudentAssignment> listForStudent(String username, Long classId) {
-        User student = requireUser(username, UserRole.STUDENT);
-        if (classId != null && (classId <= 0 || !Boolean.TRUE.equals(jdbc.queryForObject("""
-                SELECT EXISTS (
-                    SELECT 1 FROM class_students cs
-                    JOIN classes c ON c.id = cs.class_id
-                    WHERE cs.class_id = ? AND cs.student_id = ? AND c.status = 'ACTIVE'
-                )
-                """, Boolean.class, classId, student.getId())))) {
-            throw new ResourceNotFoundException("Không tìm thấy lớp đang hoạt động");
+        User student = user(username, UserRole.STUDENT);
+        if (classId != null && classId <= 0) {
+            throw new IllegalArgumentException("Lớp học không hợp lệ");
         }
         String classFilter = classId == null ? "" : """
                   AND EXISTS (
                       SELECT 1 FROM homework_assignment_recipient_classes rc
-                      WHERE rc.assignment_id = h.id
+                      WHERE rc.assignment_id = r.assignment_id
                         AND rc.student_id = r.student_id AND rc.class_id = ?
                   )
                 """;
         Object[] parameters = classId == null
                 ? new Object[] { student.getId() }
                 : new Object[] { student.getId(), classId };
-        List<HomeworkDtos.StudentAssignment> result = jdbc.query("""
-                SELECT h.id, h.title, h.instructions, h.subject_id,
-                       (SELECT subj.name FROM subjects subj WHERE subj.id = h.subject_id) subject_name,
-                       h.grade_level, h.purpose, h.assignment_type, h.due_at, h.max_score,
-                       h.status, h.attachment_name, h.attachment_path, h.audio_name, h.audio_path, h.created_at,
-                       (SELECT COUNT(*) FROM homework_assignment_recipients r WHERE r.assignment_id = h.id) recipient_count,
-                       (SELECT COUNT(*) FROM homework_submissions s WHERE s.assignment_id = h.id) submitted_count,
-                       (SELECT COUNT(*) FROM homework_submissions s WHERE s.assignment_id = h.id AND s.status = 'GRADED') graded_count,
-                       s.id submission_id, s.status submission_status, s.answer_text, s.submitted_at,
-                       s.score, s.teacher_comment,
-                       sa.original_name submission_audio_name, sa.object_path submission_audio_path
-                FROM homework_assignment_recipients r
-                JOIN homework_assignments h ON h.id = r.assignment_id
-                LEFT JOIN homework_submissions s
-                  ON s.assignment_id = h.id AND s.student_id = r.student_id
-                LEFT JOIN homework_submission_audio sa ON sa.submission_id = s.id
+        return jdbc.query(studentAssignmentSelect() + """
                 WHERE r.student_id = ?
                 """ + classFilter + """
                 ORDER BY h.created_at DESC, h.id DESC
                 """, (rs, row) -> studentAssignment(rs), parameters);
-        return result;
     }
 
     @Transactional(readOnly = true)
     public HomeworkDtos.StudentAssignment getForStudent(long assignmentId, String username) {
-        User student = requireUser(username, UserRole.STUDENT);
-        return jdbc.query("""
-                SELECT h.id, h.title, h.instructions, h.subject_id,
-                       (SELECT subj.name FROM subjects subj WHERE subj.id = h.subject_id) subject_name,
-                       h.grade_level, h.purpose, h.assignment_type, h.due_at, h.max_score,
-                       h.status, h.attachment_name, h.attachment_path, h.audio_name, h.audio_path, h.created_at,
-                       (SELECT COUNT(*) FROM homework_assignment_recipients r WHERE r.assignment_id = h.id) recipient_count,
-                       (SELECT COUNT(*) FROM homework_submissions s WHERE s.assignment_id = h.id) submitted_count,
-                       (SELECT COUNT(*) FROM homework_submissions s WHERE s.assignment_id = h.id AND s.status = 'GRADED') graded_count,
-                       s.id submission_id, s.status submission_status, s.answer_text, s.submitted_at,
-                       s.score, s.teacher_comment,
-                       sa.original_name submission_audio_name, sa.object_path submission_audio_path
-                FROM homework_assignment_recipients r
-                JOIN homework_assignments h ON h.id = r.assignment_id
-                LEFT JOIN homework_submissions s
-                  ON s.assignment_id = h.id AND s.student_id = r.student_id
-                LEFT JOIN homework_submission_audio sa ON sa.submission_id = s.id
+        User student = user(username, UserRole.STUDENT);
+        return jdbc.query(studentAssignmentSelect() + """
                 WHERE r.assignment_id = ? AND r.student_id = ?
                 """, (rs, row) -> studentAssignment(rs), assignmentId, student.getId())
                 .stream()
                 .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("KhĂ´ng tĂ¬m tháº¥y bĂ i táº­p Ä‘Æ°á»£c giao cho báº¡n"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bài tập được giao cho bạn"));
     }
 
     public HomeworkDtos.Assignment teacherAssignment(long id, Long teacherId) {
@@ -183,7 +193,7 @@ public class HomeworkReadService {
                 GROUP BY h.id
                 """, (rs, row) -> assignment(rs), id, teacherId).stream()
                 .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("KhĂ´ng tĂ¬m tháº¥y bĂ i táº­p"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bài tập"));
     }
 
     private String assignmentSelect() {
@@ -213,6 +223,26 @@ public class HomeworkReadService {
                 """;
     }
 
+    private String studentAssignmentSelect() {
+        return """
+                SELECT h.id, h.title, h.instructions, h.subject_id,
+                       (SELECT subj.name FROM subjects subj WHERE subj.id = h.subject_id) subject_name,
+                       h.grade_level, h.purpose, h.assignment_type, h.due_at, h.max_score,
+                       h.status, h.attachment_name, h.attachment_path, h.audio_name, h.audio_path, h.created_at,
+                       (SELECT COUNT(*) FROM homework_assignment_recipients r WHERE r.assignment_id = h.id) recipient_count,
+                       (SELECT COUNT(*) FROM homework_submissions s WHERE s.assignment_id = h.id) submitted_count,
+                       (SELECT COUNT(*) FROM homework_submissions s WHERE s.assignment_id = h.id AND s.status = 'GRADED') graded_count,
+                       s.id submission_id, s.status submission_status, s.answer_text, s.submitted_at,
+                       s.score, s.teacher_comment,
+                       sa.original_name submission_audio_name, sa.object_path submission_audio_path
+                FROM homework_assignment_recipients r
+                JOIN homework_assignments h ON h.id = r.assignment_id
+                LEFT JOIN homework_submissions s
+                  ON s.assignment_id = h.id AND s.student_id = r.student_id
+                LEFT JOIN homework_submission_audio sa ON sa.submission_id = s.id
+                """;
+    }
+
     private void requireTeacherClass(long classId, Long teacherId) {
         if (classId <= 0 || !Boolean.TRUE.equals(jdbc.queryForObject("""
                 SELECT EXISTS (
@@ -220,8 +250,27 @@ public class HomeworkReadService {
                     WHERE id = ? AND teacher_id = ? AND status = 'ACTIVE'
                 )
                 """, Boolean.class, classId, teacherId))) {
-            throw new ResourceNotFoundException("KhĂ´ng tĂ¬m tháº¥y lá»›p Ä‘ang hoáº¡t Ä‘á»™ng");
+            throw new ResourceNotFoundException("Không tìm thấy lớp đang hoạt động");
         }
+    }
+
+    public void requireOwnedAssignment(long id, Long teacherId) {
+        if (!Boolean.TRUE.equals(jdbc.queryForObject(
+                "SELECT EXISTS (SELECT 1 FROM homework_assignments WHERE id = ? AND teacher_id = ?)",
+                Boolean.class, id, teacherId)))
+            throw new ResourceNotFoundException("Không tìm thấy bài tập");
+    }
+
+    private User user(String username, UserRole role) {
+        User user = users.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
+        if (user.getRole() != role || user.getStatus() != UserStatus.ACTIVE)
+            throw new IllegalStateException("Không có quyền sử dụng chức năng bài tập");
+        return user;
+    }
+
+    public User requireUser(String username, UserRole role) {
+        return user(username, role);
     }
 
     private HomeworkDtos.Assignment assignment(ResultSet rs) throws SQLException {
@@ -293,22 +342,21 @@ public class HomeworkReadService {
                 rs.getString("content_type")), submissionId);
     }
 
+    private String avatarUrl(String avatarPath) {
+        return avatarPath == null || avatarPath.isBlank() ? null : storage.getUrl(avatarPath);
+    }
+
     private String audioUrl(String path) {
         return path == null ? null : storage.getUrl(path);
     }
 
-    public void requireOwnedAssignment(long id, Long teacherId) {
-        if (!Boolean.TRUE.equals(jdbc.queryForObject(
-                "SELECT EXISTS (SELECT 1 FROM homework_assignments WHERE id = ? AND teacher_id = ?)",
-                Boolean.class, id, teacherId)))
-            throw new ResourceNotFoundException("KhĂ´ng tĂ¬m tháº¥y bĂ i táº­p");
+    private static Long nullableLong(ResultSet rs, String column) throws SQLException {
+        long value = rs.getLong(column);
+        return rs.wasNull() ? null : value;
     }
 
-    public User requireUser(String username, UserRole role) {
-        User user = users.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("KhĂ´ng tĂ¬m tháº¥y ngÆ°á»i dĂ¹ng"));
-        if (user.getRole() != role || user.getStatus() != UserStatus.ACTIVE)
-            throw new IllegalStateException("KhĂ´ng cĂ³ quyá»n sá»­ dá»¥ng chá»©c nÄƒng bĂ i táº­p");
-        return user;
+    private static java.time.LocalDateTime localDate(ResultSet rs, String column) throws SQLException {
+        java.sql.Timestamp value = rs.getTimestamp(column);
+        return value == null ? null : value.toLocalDateTime();
     }
 }

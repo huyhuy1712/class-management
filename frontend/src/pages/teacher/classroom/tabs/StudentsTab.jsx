@@ -2,6 +2,7 @@ import FrogLoading from '../../../../utils/FrogLoading'
 import { useMutation } from '@tanstack/react-query'
 import { EMPTY_LIST } from '../../../../query/queryKeys'
 import useResourceQuery from '../../../../query/useResourceQuery'
+import useRoutePrefetch from '../../../../query/useRoutePrefetch'
 import { sortByText } from '../../../../utils/sortByText'
 import {
   CalendarCheck,
@@ -80,6 +81,7 @@ function StudentsTab() {
   const [attendanceError, setAttendanceError] = useState(null)
 
   const navigate = useNavigate()
+  const prefetch = useRoutePrefetch()
 
   const handleActivateClass = async () => {
     if (activatingClass) return
@@ -295,16 +297,17 @@ function StudentsTab() {
     </div>
   )
 
+  const getStudentDetailPath = (student) => `/teacher/classes/${classroom.id}/students/${student.id}`
+
   const handleViewStudent = (student) => {
-  navigate(
-    `/teacher/classes/${classroom.id}/students/${student.id}`,
-    {
+    const path = getStudentDetailPath(student)
+    prefetch(path)
+    navigate(path, {
       state: {
         student,
       },
-    },
-  )
-}
+    })
+  }
 
 const handleSubmitAttendance = async ({
   date,
@@ -543,6 +546,8 @@ const handleSubmitAttendance = async ({
                       key={student.id}
                       role="button"
                       tabIndex={0}
+                      onMouseEnter={() => prefetch(getStudentDetailPath(student))}
+                      onFocus={() => prefetch(getStudentDetailPath(student))}
                       onClick={() => handleViewStudent(student)}
                       onKeyDown={(event) =>
                         handleStudentKeyDown(event, student)
@@ -586,6 +591,8 @@ const handleSubmitAttendance = async ({
                   key={student.id}
                   role="button"
                   tabIndex={0}
+                  onMouseEnter={() => prefetch(getStudentDetailPath(student))}
+                  onFocus={() => prefetch(getStudentDetailPath(student))}
                   onClick={() => handleViewStudent(student)}
                   onKeyDown={(event) =>
                     handleStudentKeyDown(event, student)

@@ -12,9 +12,9 @@ export function mutationResources(url, method) {
   if (/^\/classes\/[^/]+\/feed\/posts\/\d+\/comments(?:\/|$)/.test(path)) return ['classFeedPosts', 'classFeedComments']
   if (/^\/classes\/[^/]+\/feed\/posts(?:\/|$)/.test(path)) return ['classFeedPosts']
   if (/^\/materials(?:\/|$)/.test(path)) return ['teacherMaterials', 'classDocuments']
-  if (/^\/homework-assignments(?:\/|$)/.test(path)) return ['teacherHomeworks', 'teacherHomework', 'homeworkSubmissions', 'classHomeworks', 'studentHomeworks', 'studentHomework', 'notifications']
+  if (/^\/homework-assignments(?:\/|$)/.test(path)) return ['teacherHomeworks', 'teacherHomework', 'homeworkSubmissions', 'studentHomeworkSummary', 'classHomeworks', 'studentHomeworks', 'studentHomework']
   if (/^\/classes(?:\/|$)/.test(path)) {
-    const resources = ['teacherClasses', 'studentClasses', 'allClasses', 'classStudents', 'teacherStudents', 'dashboard', 'exams', 'studentExams', 'studentAssignment', 'classExams', 'studentClassExamResults', 'classGradebook', 'teacherAttemptReview', 'studentGrades']
+    const resources = ['teacherClasses', 'studentClasses', 'allClasses', 'classStudents', 'studentHomeworkSummary', 'teacherStudents', 'dashboard', 'exams', 'studentExams', 'studentAssignment', 'classExams', 'studentClassExamResults', 'classGradebook', 'teacherAttemptReview', 'studentGrades']
     const removesClassStudents = String(method).toLowerCase() === 'delete'
       && /^\/classes\/[^/]+\/students(?:\/[^/]+)?$/.test(path)
     return removesClassStudents ? [...resources, 'teacherMaterials'] : resources
@@ -30,6 +30,7 @@ export function isAffectedQuery(queryKey, url, method) {
   if (classId && queryKey[2] === 'classFeedPosts') return String(queryKey[3]) === classId
   if (classId && queryKey[2] === 'classFeedComments') return String(queryKey[3]) === classId
   if (classId && ['classStudents', 'attendances', 'lessons'].includes(queryKey[2])) return String(queryKey[3]) === classId
+  if (classId && queryKey[2] === 'studentHomeworkSummary') return String(queryKey[3]) === classId
   const examId = /^\/exams\/([^/]+)/.exec(String(url))?.[1]
   if (examId && ['examDetail', 'examConfiguration'].includes(queryKey[2])) return String(queryKey[3]) === examId
   const homeworkId = /^\/homework-assignments\/(\d+)/.exec(String(url))?.[1]

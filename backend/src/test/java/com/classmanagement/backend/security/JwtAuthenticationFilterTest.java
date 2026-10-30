@@ -71,4 +71,37 @@ class JwtAuthenticationFilterTest {
         assertInstanceOf(ImpersonationAuthenticationDetails.class, authentication.getDetails());
         assertEquals(42L, ((ImpersonationAuthenticationDetails) authentication.getDetails()).sessionId());
     }
+
+    @Test
+    void accessTokenCookieOverridesStaleSessionAuthentication()
+            throws ServletException, IOException {
+        JwtService jwtService = mock(JwtService.class);
+        CustomUserDetailsService userDetailsService = mock(CustomUserDetailsService.class);
+        ImpersonationService impersonationService = mock(ImpersonationService.class);
+        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(
+                jwtService,
+                userDetailsService,
+                impersonationService);
+        UserDetails adminDetails = org.springframework.security.core.userdetails.User
+                .withUsername("admin")
+                .password("")
+                .authorities("ROLE_ADMIN")
+                .build();
+        when(jwtService.extractUsername("admin-token")).thenReturn("admin");
+        when(jwtService.extractRole("admin-token")).thenReturn("ROLE_ADMIN");
+        when(jwtService.extractImpersonationSessionId("admin-token")).thenReturn(null);
+        when(userDetailsService.loadUserByUsername("admin")).thenReturn(adminDetails);
+        when(jwtService.isTokenValid("admin-token", adminDetails)).thenReturn(true);
+
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("student", null, List.of()));
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setCookies(new jakarta.servlet.http.Cookie("access_token", "admin-token"));
+
+        filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        assertEquals("admin", authentication.getName());
+        assertEquals("ROLE_ADMIN", authentication.getAuthorities().iterator().next().getAuthority());
+    }
 }

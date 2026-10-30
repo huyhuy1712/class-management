@@ -23,6 +23,8 @@ const homeworkService = {
     (await api.get(`/homework-assignments/${id}`, options)).data,
   getSubmissions: async (id, classId, options = {}) =>
     (await api.get(`/homework-assignments/${id}/submissions`, { ...options, params: classId ? { classId } : undefined })).data,
+  getStudentClassSummary: async (classId, studentId, options = {}) =>
+    (await api.get(`/homework-assignments/classes/${classId}/students/${studentId}/summary`, options)).data,
   update: async (id, homework) => {
     const body = new FormData()
     body.append('title', homework.title)
