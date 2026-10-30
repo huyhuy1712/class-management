@@ -70,6 +70,35 @@ public class HomeworkController {
         return homework.submissions(assignmentId, classId, authentication.getName());
     }
 
+    @PutMapping(value = "/{assignmentId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public HomeworkDtos.Assignment update(
+            @PathVariable long assignmentId,
+            Authentication authentication,
+            @RequestParam String title,
+            @RequestParam(required = false) String instructions,
+            @RequestParam Long subjectId,
+            @RequestParam String gradeLevel,
+            @RequestParam(required = false) String purpose,
+            @RequestParam MaterialAssignmentType assignmentType,
+            @RequestParam(required = false) List<Long> classIds,
+            @RequestParam(required = false) List<Long> studentIds,
+            @RequestParam(required = false) String dueAt,
+            @RequestParam(defaultValue = "10") String maxScore,
+            @RequestParam(required = false) MultipartFile file,
+            @RequestParam(required = false) MultipartFile audioFile,
+            @RequestParam(defaultValue = "false") boolean removeFile,
+            @RequestParam(defaultValue = "false") boolean removeAudio) {
+        return homework.update(assignmentId, authentication.getName(), title, instructions, subjectId,
+                gradeLevel, purpose, assignmentType, classIds, studentIds, dueAt, maxScore,
+                file, audioFile, removeFile, removeAudio);
+    }
+
+    @DeleteMapping("/{assignmentId}")
+    public ResponseEntity<Void> delete(@PathVariable long assignmentId, Authentication authentication) {
+        homework.delete(assignmentId, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
     @PutMapping("/{assignmentId}/deadline")
     public HomeworkDtos.Assignment updateDeadline(
             @PathVariable long assignmentId,
@@ -107,7 +136,8 @@ public class HomeworkController {
             Authentication authentication,
             @RequestParam(required = false) String answerText,
             @RequestParam(required = false) List<MultipartFile> images,
+            @RequestParam(required = false) List<MultipartFile> files,
             @RequestParam(required = false) MultipartFile audio) {
-        return homework.submit(assignmentId, authentication.getName(), answerText, images, audio);
+        return homework.submit(assignmentId, authentication.getName(), answerText, images, files, audio);
     }
 }

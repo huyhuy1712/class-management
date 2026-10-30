@@ -8,6 +8,7 @@ public final class HomeworkDtos {
     private HomeworkDtos() {}
 
     public record Image(String name, String url, long size) {}
+    public record File(String name, String url, long size, String contentType) {}
 
     public record Assignment(
             long id,
@@ -38,24 +39,24 @@ public final class HomeworkDtos {
             String status,
             String answerText,
             List<Image> images,
+            List<File> files,
             String audioName,
             String audioUrl,
             LocalDateTime submittedAt,
             BigDecimal score,
-            String teacherComment,
-            int resubmissionCount) {}
+            String teacherComment) {}
 
     public record StudentAssignment(
             Assignment assignment,
             String submissionStatus,
             String answerText,
             List<Image> images,
+            List<File> files,
             String audioName,
             String audioUrl,
             LocalDateTime submittedAt,
             BigDecimal score,
-            String teacherComment,
-            int resubmissionCount) {}
+            String teacherComment) {}
 
     public record GradeRequest(BigDecimal score, String teacherComment) {}
 

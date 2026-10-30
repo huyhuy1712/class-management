@@ -2,8 +2,10 @@ package com.classmanagement.backend.service.homework;
 
 import com.classmanagement.backend.dto.homework.HomeworkDtos;
 import com.classmanagement.backend.entity.Classroom;
+import com.classmanagement.backend.entity.Notification;
 import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.entity.enums.ClassroomStatus;
+import com.classmanagement.backend.entity.enums.NotificationType;
 import com.classmanagement.backend.entity.enums.MaterialAssignmentType;
 import com.classmanagement.backend.entity.enums.UserRole;
 import com.classmanagement.backend.entity.enums.UserStatus;
@@ -11,6 +13,7 @@ import com.classmanagement.backend.exception.ResourceNotFoundException;
 import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.repository.classroom.ClassStudentRepository;
 import com.classmanagement.backend.repository.classroom.ClassroomRepository;
+import com.classmanagement.backend.repository.NotificationRepository;
 import com.classmanagement.backend.service.StorageService;
 import com.classmanagement.backend.service.impl.material.MaterialAssignmentManager;
 import com.classmanagement.backend.service.impl.material.MaterialDistribution;
@@ -38,10 +41,14 @@ public class HomeworkService {
     private static final long MAX_AUDIO_SIZE = 10L * 1024 * 1024;
     private static final long MAX_IMAGE_SIZE = 5L * 1024 * 1024;
     private static final int MAX_IMAGES = 5;
+    private static final long MAX_SUBMISSION_FILE_SIZE = 10L * 1024 * 1024;
+    private static final int MAX_SUBMISSION_FILES = 5;
     private static final int MAX_SCORE = 1000;
     private static final Set<String> PROMPT_EXTENSIONS = Set.of("pdf", "doc", "docx", "jpg", "jpeg", "png");
     private static final Set<String> IMAGE_EXTENSIONS = Set.of("jpg", "jpeg", "png");
     private static final Set<String> AUDIO_EXTENSIONS = Set.of("mp3", "wav", "m4a", "aac", "ogg", "webm");
+    private static final Set<String> SUBMISSION_FILE_EXTENSIONS = Set.of(
+            "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "zip", "rar", "csv");
 
     private final JdbcTemplate jdbc;
     private final UserRepository users;
@@ -49,6 +56,7 @@ public class HomeworkService {
     private final ClassStudentRepository classStudents;
     private final MaterialAssignmentManager assignmentManager;
     private final MaterialFileSupport materialFileSupport;
+    private final NotificationRepository notificationRepository;
     private final StorageService storage;
 
     @Transactional
@@ -70,24 +78,24 @@ public class HomeworkService {
         String normalizedTitle = title == null ? "" : title.trim();
         String normalizedInstructions = instructions == null ? "" : instructions.trim();
         if (normalizedTitle.isEmpty() || normalizedTitle.length() > 255)
-            throw new IllegalArgumentException("Tên bài tập không được để trống và tối đa 255 ký tự");
+            throw new IllegalArgumentException("TĂªn bĂ i táº­p khĂ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng vĂ  tá»‘i Ä‘a 255 kĂ½ tá»±");
         if (normalizedInstructions.length() > 50000)
-            throw new IllegalArgumentException("Nội dung bài tập tối đa 50.000 ký tự");
+            throw new IllegalArgumentException("Ná»™i dung bĂ i táº­p tá»‘i Ä‘a 50.000 kĂ½ tá»±");
         if (subjectId == null || subjectId <= 0 || !Boolean.TRUE.equals(
                 jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM subjects WHERE id = ?)", Boolean.class, subjectId)))
-            throw new IllegalArgumentException("Vui lòng chọn môn học hợp lệ");
+            throw new IllegalArgumentException("Vui lĂ²ng chá»n mĂ´n há»c há»£p lá»‡");
         String normalizedGradeLevel = gradeLevel == null ? "" : gradeLevel.trim();
         if (!Set.of("10", "11", "12", "UNIVERSITY", "OTHER").contains(normalizedGradeLevel))
-            throw new IllegalArgumentException("Vui lòng chọn khối / cấp độ hợp lệ");
+            throw new IllegalArgumentException("Vui lĂ²ng chá»n khá»‘i / cáº¥p Ä‘á»™ há»£p lá»‡");
         String normalizedPurpose = normalize(purpose);
         if (normalizedPurpose != null && normalizedPurpose.length() > 50)
-            throw new IllegalArgumentException("Mục đích tối đa 50 ký tự");
+            throw new IllegalArgumentException("Má»¥c Ä‘Ă­ch tá»‘i Ä‘a 50 kĂ½ tá»±");
         if (normalizedInstructions.isEmpty() && (file == null || file.isEmpty())
                 && (audioFile == null || audioFile.isEmpty()))
-            throw new IllegalArgumentException("Hãy nhập nội dung hoặc đính kèm tệp bài tập");
+            throw new IllegalArgumentException("HĂ£y nháº­p ná»™i dung hoáº·c Ä‘Ă­nh kĂ¨m tá»‡p bĂ i táº­p");
         LocalDateTime dueAt = parseDate(dueAtValue);
         if (dueAt != null && !dueAt.isAfter(now()))
-            throw new IllegalArgumentException("Hạn nộp phải ở tương lai");
+            throw new IllegalArgumentException("Háº¡n ná»™p pháº£i á»Ÿ tÆ°Æ¡ng lai");
         BigDecimal maxScore = parseScore(maxScoreValue);
         MaterialDistribution distribution = assignmentManager.validateDistribution(
                 teacher.getId(), assignmentType, classIds, studentIds);
@@ -148,6 +156,7 @@ public class HomeworkService {
                             """, assignmentId, recipient.getKey(), classId);
                 }
             }
+            createNewHomeworkNotifications(assignmentId, normalizedTitle, recipients.students().keySet());
             return teacherAssignment(assignmentId, teacher.getId());
         } catch (RuntimeException error) {
             deleteUploaded(uploaded, error);
@@ -208,7 +217,7 @@ public class HomeworkService {
                 : new Object[] { assignmentId, classId };
         List<HomeworkDtos.Submission> rows = jdbc.query("""
                 SELECT s.id, r.student_id, u.full_name, u.student_code, s.status, s.answer_text,
-                       s.submitted_at, s.score, s.teacher_comment, s.resubmission_count,
+                       s.submitted_at, s.score, s.teacher_comment,
                        sa.original_name audio_name, sa.object_path audio_path
                 FROM homework_assignment_recipients r
                 JOIN users u ON u.id = r.student_id
@@ -229,14 +238,151 @@ public class HomeworkService {
                     rs.getString("status") == null ? "NOT_SUBMITTED" : rs.getString("status"),
                     rs.getString("answer_text"),
                     id == null ? List.of() : images(id),
+                    id == null ? List.of() : files(id),
                     rs.getString("audio_name"),
                     audioUrl(rs.getString("audio_path")),
                     localDate(rs, "submitted_at"),
                     rs.getBigDecimal("score"),
-                    rs.getString("teacher_comment"),
-                    rs.getInt("resubmission_count"));
+                    rs.getString("teacher_comment"));
         }, parameters);
         return rows;
+    }
+
+    @Transactional
+    public HomeworkDtos.Assignment update(long assignmentId, String username, String title,
+            String instructions, Long subjectId, String gradeLevel, String purpose,
+            MaterialAssignmentType assignmentType, List<Long> classIds, List<Long> studentIds,
+            String dueAtValue, String maxScoreValue, MultipartFile file, MultipartFile audioFile,
+            boolean removeFile, boolean removeAudio) {
+        User teacher = user(username, UserRole.TEACHER);
+        requireOwnedAssignment(assignmentId, teacher.getId());
+
+        String normalizedTitle = title == null ? "" : title.trim();
+        String normalizedInstructions = instructions == null ? "" : instructions.trim();
+        if (normalizedTitle.isEmpty() || normalizedTitle.length() > 255)
+            throw new IllegalArgumentException("Tên bài tập không được để trống và tối đa 255 ký tự");
+        if (normalizedInstructions.length() > 50000)
+            throw new IllegalArgumentException("Nội dung bài tập tối đa 50.000 ký tự");
+        if (subjectId == null || subjectId <= 0 || !Boolean.TRUE.equals(
+                jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM subjects WHERE id = ?)", Boolean.class, subjectId)))
+            throw new IllegalArgumentException("Vui lòng chọn môn học hợp lệ");
+        if (!Set.of("10", "11", "12", "UNIVERSITY", "OTHER").contains(gradeLevel == null ? "" : gradeLevel))
+            throw new IllegalArgumentException("Vui lòng chọn khối / cấp độ hợp lệ");
+        String normalizedPurpose = normalize(purpose);
+        if (normalizedPurpose != null && normalizedPurpose.length() > 50)
+            throw new IllegalArgumentException("Mục đích tối đa 50 ký tự");
+
+        LocalDateTime existingDueAt = jdbc.queryForObject("SELECT due_at FROM homework_assignments WHERE id = ?", LocalDateTime.class, assignmentId);
+        LocalDateTime dueAt = parseDate(dueAtValue);
+        if (dueAt != null && !dueAt.equals(existingDueAt) && !dueAt.isAfter(now()))
+            throw new IllegalArgumentException("Hạn nộp mới phải ở tương lai");
+        BigDecimal maxScore = parseScore(maxScoreValue);
+
+        Map<String, Object> oldFiles = jdbc.queryForObject("""
+                SELECT attachment_path, attachment_name, attachment_size, attachment_content_type,
+                       audio_path, audio_name, audio_size, audio_content_type
+                FROM homework_assignments WHERE id = ?
+                """, (rs, rowNum) -> {
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("attachmentPath", rs.getString("attachment_path"));
+                    result.put("attachmentName", rs.getString("attachment_name"));
+                    result.put("attachmentSize", rs.getObject("attachment_size"));
+                    result.put("attachmentContentType", rs.getString("attachment_content_type"));
+                    result.put("audioPath", rs.getString("audio_path"));
+                    result.put("audioName", rs.getString("audio_name"));
+                    result.put("audioSize", rs.getObject("audio_size"));
+                    result.put("audioContentType", rs.getString("audio_content_type"));
+                    return result;
+                }, assignmentId);
+
+        boolean hasFileAfterUpdate = !removeFile && (file != null && !file.isEmpty()
+                || oldFiles.get("attachmentPath") != null);
+        boolean hasAudioAfterUpdate = !removeAudio && (audioFile != null && !audioFile.isEmpty()
+                || oldFiles.get("audioPath") != null);
+        if (normalizedInstructions.isEmpty() && !hasFileAfterUpdate && !hasAudioAfterUpdate)
+            throw new IllegalArgumentException("Hãy nhập nội dung hoặc đính kèm tệp bài tập");
+
+        MaterialDistribution distribution = assignmentManager.validateDistribution(
+                teacher.getId(), assignmentType, classIds, studentIds);
+        RecipientSnapshot recipients = resolveRecipients(teacher.getId(), assignmentType, distribution);
+
+        UploadedFile uploaded = null;
+        UploadedFile uploadedAudio = null;
+        try {
+            uploaded = file == null || file.isEmpty() ? null : uploadPrompt(teacher.getId(), file);
+            uploadedAudio = audioFile == null || audioFile.isEmpty() ? null : uploadAudio(
+                    "homework/teachers/" + teacher.getId(), "prompt-audio", audioFile);
+
+            String attachmentPath = uploaded != null ? uploaded.path() : removeFile ? null : (String) oldFiles.get("attachmentPath");
+            String attachmentName = uploaded != null ? uploaded.name() : removeFile ? null : (String) oldFiles.get("attachmentName");
+            Object attachmentSize = uploaded != null ? uploaded.size() : removeFile ? null : oldFiles.get("attachmentSize");
+            String attachmentContentType = uploaded != null ? uploaded.contentType() : removeFile ? null : (String) oldFiles.get("attachmentContentType");
+            String audioPath = uploadedAudio != null ? uploadedAudio.path() : removeAudio ? null : (String) oldFiles.get("audioPath");
+            String audioName = uploadedAudio != null ? uploadedAudio.name() : removeAudio ? null : (String) oldFiles.get("audioName");
+            Object audioSize = uploadedAudio != null ? uploadedAudio.size() : removeAudio ? null : oldFiles.get("audioSize");
+            String audioContentType = uploadedAudio != null ? uploadedAudio.contentType() : removeAudio ? null : (String) oldFiles.get("audioContentType");
+
+            jdbc.update("""
+                    UPDATE homework_assignments SET
+                        title = ?, instructions = ?, subject_id = ?, grade_level = ?, purpose = ?,
+                        assignment_type = ?, due_at = ?, max_score = ?, status = 'OPEN', updated_at = CURRENT_TIMESTAMP,
+                        attachment_path = ?, attachment_name = ?, attachment_size = ?, attachment_content_type = ?,
+                        audio_path = ?, audio_name = ?, audio_size = ?, audio_content_type = ?
+                    WHERE id = ?
+                    """,
+                    normalizedTitle, normalizedInstructions.isEmpty() ? null : normalizedInstructions,
+                    subjectId, gradeLevel, normalizedPurpose, assignmentType.name(), dueAt, maxScore,
+                    attachmentPath, attachmentName, attachmentSize, attachmentContentType,
+                    audioPath, audioName, audioSize, audioContentType, assignmentId);
+
+            jdbc.update("DELETE FROM homework_assignment_recipient_classes WHERE assignment_id = ?", assignmentId);
+            jdbc.update("DELETE FROM homework_assignment_recipients WHERE assignment_id = ?", assignmentId);
+            jdbc.update("DELETE FROM homework_assignment_classes WHERE assignment_id = ?", assignmentId);
+            jdbc.update("DELETE FROM homework_assignment_students WHERE assignment_id = ?", assignmentId);
+
+            if (assignmentType == MaterialAssignmentType.CLASS) {
+                for (Classroom classroom : distribution.classrooms())
+                    jdbc.update("INSERT INTO homework_assignment_classes (assignment_id, class_id) VALUES (?, ?)", assignmentId, classroom.getId());
+            }
+            if (assignmentType == MaterialAssignmentType.STUDENT) {
+                Map<Long, Long> studentClasses = distribution.studentClassIds();
+                for (Long studentId : distribution.students().stream().map(User::getId).toList())
+                    jdbc.update("INSERT INTO homework_assignment_students (assignment_id, student_id, class_id) VALUES (?, ?, ?)", assignmentId, studentId, studentClasses.get(studentId));
+            }
+            for (var recipient : recipients.students().entrySet()) {
+                jdbc.update("INSERT INTO homework_assignment_recipients (assignment_id, student_id, class_id) VALUES (?, ?, ?)",
+                        assignmentId, recipient.getKey(), recipient.getValue());
+                for (Long classId : recipients.classes().getOrDefault(recipient.getKey(), Set.of()))
+                    jdbc.update("INSERT INTO homework_assignment_recipient_classes (assignment_id, student_id, class_id) VALUES (?, ?, ?)",
+                            assignmentId, recipient.getKey(), classId);
+            }
+
+            String oldAttachmentPath = (String) oldFiles.get("attachmentPath");
+            String oldAudioPath = (String) oldFiles.get("audioPath");
+            if ((uploaded != null || removeFile) && oldAttachmentPath != null)
+                storage.delete(oldAttachmentPath);
+            if ((uploadedAudio != null || removeAudio) && oldAudioPath != null)
+                storage.delete(oldAudioPath);
+            return teacherAssignment(assignmentId, teacher.getId());
+        } catch (RuntimeException error) {
+            deleteUploaded(uploaded, error);
+            deleteUploaded(uploadedAudio, error);
+            throw error;
+        }
+    }
+
+    @Transactional
+    public void delete(long assignmentId, String username) {
+        User teacher = user(username, UserRole.TEACHER);
+        requireOwnedAssignment(assignmentId, teacher.getId());
+        Map<String, String> files = jdbc.queryForObject("""
+                SELECT attachment_path, audio_path FROM homework_assignments WHERE id = ?
+                """, (rs, rowNum) -> Map.of(
+                        "attachmentPath", rs.getString("attachment_path") == null ? "" : rs.getString("attachment_path"),
+                        "audioPath", rs.getString("audio_path") == null ? "" : rs.getString("audio_path")), assignmentId);
+        jdbc.update("DELETE FROM homework_assignments WHERE id = ?", assignmentId);
+        if (!files.get("attachmentPath").isEmpty()) storage.delete(files.get("attachmentPath"));
+        if (!files.get("audioPath").isEmpty()) storage.delete(files.get("audioPath"));
     }
 
     @Transactional
@@ -244,7 +390,7 @@ public class HomeworkService {
         User teacher = user(username, UserRole.TEACHER);
         requireOwnedAssignment(assignmentId, teacher.getId());
         if (dueAt != null && !dueAt.isAfter(now()))
-            throw new IllegalArgumentException("Hạn nộp mới phải ở tương lai");
+            throw new IllegalArgumentException("Háº¡n ná»™p má»›i pháº£i á»Ÿ tÆ°Æ¡ng lai");
         jdbc.update("""
                 UPDATE homework_assignments
                 SET due_at = ?, status = 'OPEN', updated_at = CURRENT_TIMESTAMP
@@ -268,7 +414,7 @@ public class HomeworkService {
                       WHERE r.assignment_id = s.assignment_id AND r.student_id = s.student_id
                   )
                 """, assignmentId, studentId);
-        if (updated == 0) throw new IllegalArgumentException("Không tìm thấy bài nộp cần mở lại");
+        if (updated == 0) throw new IllegalArgumentException("KhĂ´ng tĂ¬m tháº¥y bĂ i ná»™p cáº§n má»Ÿ láº¡i");
     }
 
     @Transactional
@@ -278,20 +424,20 @@ public class HomeworkService {
         HomeworkDtos.Assignment assignment = teacherAssignment(assignmentId, teacher.getId());
         if (request == null || request.score() == null || request.score().signum() < 0
                 || request.score().compareTo(assignment.maxScore()) > 0)
-            throw new IllegalArgumentException("Điểm phải nằm trong khoảng 0 đến điểm tối đa của bài tập");
+            throw new IllegalArgumentException("Äiá»ƒm pháº£i náº±m trong khoáº£ng 0 Ä‘áº¿n Ä‘iá»ƒm tá»‘i Ä‘a cá»§a bĂ i táº­p");
         if (request.teacherComment() != null && request.teacherComment().length() > 10000)
-            throw new IllegalArgumentException("Nhận xét tối đa 10.000 ký tự");
+            throw new IllegalArgumentException("Nháº­n xĂ©t tá»‘i Ä‘a 10.000 kĂ½ tá»±");
         int updated = jdbc.update("""
                 UPDATE homework_submissions
                 SET status = 'GRADED', score = ?, teacher_comment = ?, graded_at = CURRENT_TIMESTAMP,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE assignment_id = ? AND student_id = ? AND status = 'SUBMITTED'
                 """, request.score(), normalize(request.teacherComment()), assignmentId, studentId);
-        if (updated == 0) throw new IllegalArgumentException("Chỉ có thể chấm bài đã nộp");
+        if (updated == 0) throw new IllegalArgumentException("Chá»‰ cĂ³ thá»ƒ cháº¥m bĂ i Ä‘Ă£ ná»™p");
         return submissions(assignmentId, null, username).stream()
                 .filter(row -> row.studentId() == studentId)
                 .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bài nộp"));
+                .orElseThrow(() -> new ResourceNotFoundException("KhĂ´ng tĂ¬m tháº¥y bĂ i ná»™p"));
     }
 
     @Transactional(readOnly = true)
@@ -306,7 +452,7 @@ public class HomeworkService {
                        (SELECT COUNT(*) FROM homework_submissions s WHERE s.assignment_id = h.id) submitted_count,
                        (SELECT COUNT(*) FROM homework_submissions s WHERE s.assignment_id = h.id AND s.status = 'GRADED') graded_count,
                        s.id submission_id, s.status submission_status, s.answer_text, s.submitted_at,
-                       s.score, s.teacher_comment, s.resubmission_count,
+                       s.score, s.teacher_comment,
                        sa.original_name submission_audio_name, sa.object_path submission_audio_path
                 FROM homework_assignment_recipients r
                 JOIN homework_assignments h ON h.id = r.assignment_id
@@ -331,7 +477,7 @@ public class HomeworkService {
                        (SELECT COUNT(*) FROM homework_submissions s WHERE s.assignment_id = h.id) submitted_count,
                        (SELECT COUNT(*) FROM homework_submissions s WHERE s.assignment_id = h.id AND s.status = 'GRADED') graded_count,
                        s.id submission_id, s.status submission_status, s.answer_text, s.submitted_at,
-                       s.score, s.teacher_comment, s.resubmission_count,
+                       s.score, s.teacher_comment,
                        sa.original_name submission_audio_name, sa.object_path submission_audio_path
                 FROM homework_assignment_recipients r
                 JOIN homework_assignments h ON h.id = r.assignment_id
@@ -342,13 +488,13 @@ public class HomeworkService {
                 """, (rs, row) -> studentAssignment(rs), assignmentId, student.getId())
                 .stream()
                 .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bài tập được giao cho bạn"));
+                .orElseThrow(() -> new ResourceNotFoundException("KhĂ´ng tĂ¬m tháº¥y bĂ i táº­p Ä‘Æ°á»£c giao cho báº¡n"));
     }
 
     @Transactional
     public HomeworkDtos.StudentAssignment submit(
             long assignmentId, String username, String answerText, List<MultipartFile> requestedImages,
-            MultipartFile requestedAudio) {
+            List<MultipartFile> requestedFiles, MultipartFile requestedAudio) {
         User student = user(username, UserRole.STUDENT);
         AssignmentGate gate = jdbc.query("""
                 SELECT h.status assignment_status, h.due_at, s.id submission_id, s.status submission_status
@@ -365,28 +511,33 @@ public class HomeworkService {
                 rs.getString("submission_status")), assignmentId, student.getId())
                 .stream()
                 .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bài tập được giao cho bạn"));
+                .orElseThrow(() -> new ResourceNotFoundException("KhĂ´ng tĂ¬m tháº¥y bĂ i táº­p Ä‘Æ°á»£c giao cho báº¡n"));
 
         String text = normalize(answerText);
         if (text != null && text.length() > 50000)
-            throw new IllegalArgumentException("Câu trả lời tối đa 50.000 ký tự");
+            throw new IllegalArgumentException("CĂ¢u tráº£ lá»i tá»‘i Ä‘a 50.000 kĂ½ tá»±");
         List<MultipartFile> images = (requestedImages == null ? List.<MultipartFile>of() : requestedImages)
                 .stream().filter(file -> file != null && !file.isEmpty()).toList();
+        List<MultipartFile> files = (requestedFiles == null ? List.<MultipartFile>of() : requestedFiles)
+                .stream().filter(file -> file != null && !file.isEmpty()).toList();
         boolean hasAudio = requestedAudio != null && !requestedAudio.isEmpty();
-        if (text == null && images.isEmpty() && !hasAudio)
-            throw new IllegalArgumentException("Hãy nhập câu trả lời hoặc đính kèm ảnh/âm thanh bài làm");
+        if (text == null && images.isEmpty() && files.isEmpty() && !hasAudio)
+            throw new IllegalArgumentException("HĂ£y nháº­p cĂ¢u tráº£ lá»i hoáº·c Ä‘Ă­nh kĂ¨m áº£nh, tá»‡p hoáº·c Ă¢m thanh bĂ i lĂ m");
         if (images.size() > MAX_IMAGES)
-            throw new IllegalArgumentException("Mỗi lần nộp tối đa " + MAX_IMAGES + " ảnh");
+            throw new IllegalArgumentException("Má»—i láº§n ná»™p tá»‘i Ä‘a " + MAX_IMAGES + " áº£nh");
+        if (files.size() > MAX_SUBMISSION_FILES)
+            throw new IllegalArgumentException("Má»—i láº§n ná»™p tá»‘i Ä‘a " + MAX_SUBMISSION_FILES + " tá»‡p");
 
         boolean reopened = "REOPENED".equals(gate.submissionStatus());
         if (!"OPEN".equals(gate.assignmentStatus()) && !reopened)
-            throw new IllegalArgumentException("Bài tập đã đóng, không thể nộp bài");
+            throw new IllegalArgumentException("BĂ i táº­p Ä‘Ă£ Ä‘Ă³ng, khĂ´ng thá»ƒ ná»™p bĂ i");
         if (gate.dueAt() != null && !gate.dueAt().isAfter(now()) && !reopened)
-            throw new IllegalArgumentException("Đã quá hạn nộp bài");
+            throw new IllegalArgumentException("ÄĂ£ quĂ¡ háº¡n ná»™p bĂ i");
         if ("GRADED".equals(gate.submissionStatus()))
-            throw new IllegalArgumentException("Bài đã được chấm; cần giáo viên mở lại trước khi nộp lại");
+            throw new IllegalArgumentException("BĂ i Ä‘Ă£ Ä‘Æ°á»£c cháº¥m; cáº§n giĂ¡o viĂªn má»Ÿ láº¡i trÆ°á»›c khi ná»™p láº¡i");
 
         List<UploadedFile> uploaded = uploadImages(assignmentId, student.getId(), images);
+        List<UploadedFile> uploadedFiles = uploadSubmissionFiles(assignmentId, student.getId(), files);
         UploadedFile uploadedAudio = null;
         try {
             if (hasAudio) {
@@ -406,7 +557,7 @@ public class HomeworkService {
                         UPDATE homework_submissions
                         SET answer_text = ?, status = 'SUBMITTED', submitted_at = CURRENT_TIMESTAMP,
                             score = NULL, teacher_comment = NULL, graded_at = NULL,
-                            resubmission_count = resubmission_count + 1, updated_at = CURRENT_TIMESTAMP
+                            updated_at = CURRENT_TIMESTAMP
                         WHERE id = ?
                         """, text, gate.submissionId());
                 submissionId = gate.submissionId();
@@ -426,6 +577,21 @@ public class HomeworkService {
                 }
                 oldPaths.forEach(materialFileSupport::scheduleDelete);
             }
+            if (!uploadedFiles.isEmpty()) {
+                List<String> oldFilePaths = jdbc.query(
+                        "SELECT object_path FROM homework_submission_files WHERE submission_id = ?",
+                        (rs, row) -> rs.getString(1), submissionId);
+                jdbc.update("DELETE FROM homework_submission_files WHERE submission_id = ?", submissionId);
+                for (int index = 0; index < uploadedFiles.size(); index++) {
+                    UploadedFile file = uploadedFiles.get(index);
+                    jdbc.update("""
+                            INSERT INTO homework_submission_files
+                                (submission_id, object_path, original_name, content_type, file_size, order_index)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                            """, submissionId, file.path(), file.name(), file.contentType(), file.size(), index + 1);
+                }
+                oldFilePaths.forEach(materialFileSupport::scheduleDelete);
+            }
             if (uploadedAudio != null) {
                 List<String> oldAudioPaths = jdbc.query(
                         "SELECT object_path FROM homework_submission_audio WHERE submission_id = ?",
@@ -442,6 +608,7 @@ public class HomeworkService {
             return getForStudent(assignmentId, username);
         } catch (RuntimeException error) {
             uploaded.forEach(item -> deleteUploaded(item, error));
+            uploadedFiles.forEach(item -> deleteUploaded(item, error));
             deleteUploaded(uploadedAudio, error);
             throw error;
         }
@@ -463,7 +630,7 @@ public class HomeworkService {
                         .filter(room -> room.getStatus() == ClassroomStatus.ACTIVE).toList()
                 : distribution.classrooms();
         if (targets.isEmpty())
-            throw new IllegalArgumentException("Không có lớp đang hoạt động để giao bài tập");
+            throw new IllegalArgumentException("KhĂ´ng cĂ³ lá»›p Ä‘ang hoáº¡t Ä‘á»™ng Ä‘á»ƒ giao bĂ i táº­p");
         for (Classroom classroom : targets) {
             for (var membership : classStudents.findAllByClassroomId(classroom.getId())) {
                 User student = membership.getStudent();
@@ -475,7 +642,7 @@ public class HomeworkService {
             }
         }
         if (result.isEmpty())
-            throw new IllegalArgumentException("Không tìm thấy học sinh đang hoạt động trong phạm vi đã chọn");
+            throw new IllegalArgumentException("KhĂ´ng tĂ¬m tháº¥y há»c sinh Ä‘ang hoáº¡t Ä‘á»™ng trong pháº¡m vi Ä‘Ă£ chá»n");
         return new RecipientSnapshot(result, recipientClasses);
     }
 
@@ -485,7 +652,7 @@ public class HomeworkService {
                 GROUP BY h.id
                 """, (rs, row) -> assignment(rs), id, teacherId).stream()
                 .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bài tập"));
+                .orElseThrow(() -> new ResourceNotFoundException("KhĂ´ng tĂ¬m tháº¥y bĂ i táº­p"));
     }
 
     private String assignmentSelect() {
@@ -522,7 +689,7 @@ public class HomeworkService {
                     WHERE id = ? AND teacher_id = ? AND status = 'ACTIVE'
                 )
                 """, Boolean.class, classId, teacherId))) {
-            throw new ResourceNotFoundException("Không tìm thấy lớp đang hoạt động");
+            throw new ResourceNotFoundException("KhĂ´ng tĂ¬m tháº¥y lá»›p Ä‘ang hoáº¡t Ä‘á»™ng");
         }
     }
 
@@ -566,12 +733,12 @@ public class HomeworkService {
                 status == null ? "NOT_SUBMITTED" : status,
                 rs.getString("answer_text"),
                 submissionId == null ? List.of() : images(submissionId),
+                submissionId == null ? List.of() : files(submissionId),
                 rs.getString("submission_audio_name"),
                 audioUrl(rs.getString("submission_audio_path")),
                 localDate(rs, "submitted_at"),
                 "GRADED".equals(status) ? rs.getBigDecimal("score") : null,
-                "GRADED".equals(status) ? rs.getString("teacher_comment") : null,
-                rs.getInt("resubmission_count"));
+                "GRADED".equals(status) ? rs.getString("teacher_comment") : null);
     }
 
     private List<HomeworkDtos.Image> images(long submissionId) {
@@ -584,6 +751,17 @@ public class HomeworkService {
                 rs.getLong("file_size")), submissionId);
     }
 
+    private List<HomeworkDtos.File> files(long submissionId) {
+        return jdbc.query("""
+                SELECT original_name, object_path, file_size, content_type
+                FROM homework_submission_files WHERE submission_id = ? ORDER BY order_index
+                """, (rs, row) -> new HomeworkDtos.File(
+                rs.getString("original_name"),
+                storage.getUrl(rs.getString("object_path")),
+                rs.getLong("file_size"),
+                rs.getString("content_type")), submissionId);
+    }
+
     private String audioUrl(String path) {
         return path == null ? null : storage.getUrl(path);
     }
@@ -592,23 +770,23 @@ public class HomeworkService {
         if (!Boolean.TRUE.equals(jdbc.queryForObject(
                 "SELECT EXISTS (SELECT 1 FROM homework_assignments WHERE id = ? AND teacher_id = ?)",
                 Boolean.class, id, teacherId)))
-            throw new ResourceNotFoundException("Không tìm thấy bài tập");
+            throw new ResourceNotFoundException("KhĂ´ng tĂ¬m tháº¥y bĂ i táº­p");
     }
 
     private User user(String username, UserRole role) {
         User user = users.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
+                .orElseThrow(() -> new ResourceNotFoundException("KhĂ´ng tĂ¬m tháº¥y ngÆ°á»i dĂ¹ng"));
         if (user.getRole() != role || user.getStatus() != UserStatus.ACTIVE)
-            throw new IllegalStateException("Không có quyền sử dụng chức năng bài tập");
+            throw new IllegalStateException("KhĂ´ng cĂ³ quyá»n sá»­ dá»¥ng chá»©c nÄƒng bĂ i táº­p");
         return user;
     }
 
     private UploadedFile uploadPrompt(Long teacherId, MultipartFile file) {
         String extension = extension(file.getOriginalFilename());
         if (!PROMPT_EXTENSIONS.contains(extension))
-            throw new IllegalArgumentException("Tệp bài tập chỉ hỗ trợ PDF, DOC, DOCX, JPG hoặc PNG");
+            throw new IllegalArgumentException("Tá»‡p bĂ i táº­p chá»‰ há»— trá»£ PDF, DOC, DOCX, JPG hoáº·c PNG");
         if (file.getSize() > MAX_PROMPT_FILE_SIZE)
-            throw new IllegalArgumentException("Tệp bài tập không được vượt quá 10 MB");
+            throw new IllegalArgumentException("Tá»‡p bĂ i táº­p khĂ´ng Ä‘Æ°á»£c vÆ°á»£t quĂ¡ 10 MB");
         String name = safeName(file.getOriginalFilename());
         String type = contentType(extension);
         String path = storage.upload("homework/teachers/" + teacherId + "/" + UUID.randomUUID(),
@@ -619,9 +797,9 @@ public class HomeworkService {
     private UploadedFile uploadAudio(String directory, String storedName, MultipartFile file) {
         String extension = extension(file.getOriginalFilename());
         if (!AUDIO_EXTENSIONS.contains(extension))
-            throw new IllegalArgumentException("Tệp âm thanh chỉ hỗ trợ MP3, WAV, M4A, AAC, OGG hoặc WEBM");
+            throw new IllegalArgumentException("Tá»‡p Ă¢m thanh chá»‰ há»— trá»£ MP3, WAV, M4A, AAC, OGG hoáº·c WEBM");
         if (file.getSize() > MAX_AUDIO_SIZE)
-            throw new IllegalArgumentException("Tệp âm thanh không được vượt quá 10 MB");
+            throw new IllegalArgumentException("Tá»‡p Ă¢m thanh khĂ´ng Ä‘Æ°á»£c vÆ°á»£t quĂ¡ 10 MB");
         String name = safeName(file.getOriginalFilename());
         String type = contentType(extension);
         String path = storage.upload(directory + "/" + UUID.randomUUID(),
@@ -635,14 +813,36 @@ public class HomeworkService {
             for (MultipartFile image : images) {
                 String extension = extension(image.getOriginalFilename());
                 if (!IMAGE_EXTENSIONS.contains(extension))
-                    throw new IllegalArgumentException("Ảnh bài làm chỉ hỗ trợ JPG hoặc PNG");
+                    throw new IllegalArgumentException("áº¢nh bĂ i lĂ m chá»‰ há»— trá»£ JPG hoáº·c PNG");
                 if (image.getSize() > MAX_IMAGE_SIZE)
-                    throw new IllegalArgumentException("Mỗi ảnh bài làm không được vượt quá 5 MB");
+                    throw new IllegalArgumentException("Má»—i áº£nh bĂ i lĂ m khĂ´ng Ä‘Æ°á»£c vÆ°á»£t quĂ¡ 5 MB");
                 String type = contentType(extension);
                 String path = storage.upload(
                         "homework/submissions/" + assignmentId + "/" + studentId + "/" + UUID.randomUUID(),
                         "answer." + extension, typed(image, type));
                 uploaded.add(new UploadedFile(path, safeName(image.getOriginalFilename()), type, image.getSize()));
+            }
+            return uploaded;
+        } catch (RuntimeException error) {
+            uploaded.forEach(item -> deleteUploaded(item, error));
+            throw error;
+        }
+    }
+
+    private List<UploadedFile> uploadSubmissionFiles(long assignmentId, Long studentId, List<MultipartFile> files) {
+        List<UploadedFile> uploaded = new ArrayList<>();
+        try {
+            for (MultipartFile file : files) {
+                String extension = extension(file.getOriginalFilename());
+                if (!SUBMISSION_FILE_EXTENSIONS.contains(extension))
+                    throw new IllegalArgumentException("File bĂ i lĂ m chá»‰ há»— trá»£ PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, ZIP, RAR hoáº·c CSV");
+                if (file.getSize() > MAX_SUBMISSION_FILE_SIZE)
+                    throw new IllegalArgumentException("Má»—i file bĂ i lĂ m khĂ´ng Ä‘Æ°á»£c vÆ°á»£t quĂ¡ 10 MB");
+                String type = contentType(extension);
+                String path = storage.upload(
+                        "homework/submissions/" + assignmentId + "/" + studentId + "/" + UUID.randomUUID(),
+                        "answer-file." + extension, typed(file, type));
+                uploaded.add(new UploadedFile(path, safeName(file.getOriginalFilename()), type, file.getSize()));
             }
             return uploaded;
         } catch (RuntimeException error) {
@@ -665,7 +865,7 @@ public class HomeworkService {
         String base = filename == null ? "file" : filename.replace('\\', '/');
         String name = base.substring(base.lastIndexOf('/') + 1).trim();
         if (name.isEmpty() || name.length() > 255)
-            throw new IllegalArgumentException("Tên tệp không hợp lệ hoặc vượt quá 255 ký tự");
+            throw new IllegalArgumentException("TĂªn tá»‡p khĂ´ng há»£p lá»‡ hoáº·c vÆ°á»£t quĂ¡ 255 kĂ½ tá»±");
         return name;
     }
 
@@ -674,6 +874,14 @@ public class HomeworkService {
             case "pdf" -> "application/pdf";
             case "doc" -> "application/msword";
             case "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            case "xls" -> "application/vnd.ms-excel";
+            case "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            case "ppt" -> "application/vnd.ms-powerpoint";
+            case "pptx" -> "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+            case "txt" -> "text/plain";
+            case "csv" -> "text/csv";
+            case "zip" -> "application/zip";
+            case "rar" -> "application/vnd.rar";
             case "jpg", "jpeg" -> "image/jpeg";
             case "png" -> "image/png";
             case "mp3" -> "audio/mpeg";
@@ -700,7 +908,7 @@ public class HomeworkService {
         try {
             return LocalDateTime.parse(value);
         } catch (RuntimeException error) {
-            throw new IllegalArgumentException("Hạn nộp không hợp lệ", error);
+            throw new IllegalArgumentException("Háº¡n ná»™p khĂ´ng há»£p lá»‡", error);
         }
     }
 
@@ -708,10 +916,10 @@ public class HomeworkService {
         try {
             BigDecimal score = new BigDecimal(value);
             if (score.signum() < 0 || score.compareTo(BigDecimal.valueOf(MAX_SCORE)) > 0)
-                throw new IllegalArgumentException("Điểm tối đa phải nằm trong khoảng 0 đến 1000");
+                throw new IllegalArgumentException("Äiá»ƒm tá»‘i Ä‘a pháº£i náº±m trong khoáº£ng 0 Ä‘áº¿n 1000");
             return score;
         } catch (NumberFormatException error) {
-            throw new IllegalArgumentException("Điểm tối đa không hợp lệ", error);
+            throw new IllegalArgumentException("Äiá»ƒm tá»‘i Ä‘a khĂ´ng há»£p lá»‡", error);
         }
     }
 
@@ -734,6 +942,23 @@ public class HomeworkService {
     }
 
     private record UploadedFile(String path, String name, String contentType, long size) {}
+    private void createNewHomeworkNotifications(long assignmentId, String title, Set<Long> studentIds) {
+        List<Notification> notifications = new ArrayList<>();
+        for (Long studentId : studentIds) {
+            User student = users.findById(studentId).orElse(null);
+            if (student == null || student.getRole() != UserRole.STUDENT || student.getStatus() != UserStatus.ACTIVE) continue;
+            notifications.add(Notification.builder()
+                    .user(student)
+                    .type(NotificationType.HOMEWORK_NEW)
+                    .title("Bài tập mới: " + title)
+                    .message("Giáo viên vừa giao bài tập mới. Bấm để xem và bắt đầu làm bài.")
+                    .referenceType("HOMEWORK")
+                    .referenceId(assignmentId)
+                    .build());
+        }
+        if (!notifications.isEmpty()) notificationRepository.saveAll(notifications);
+    }
+
     private record RecipientSnapshot(Map<Long, Long> students, Map<Long, Set<Long>> classes) {}
 
     private record AssignmentGate(
