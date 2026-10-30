@@ -44,7 +44,16 @@ public final class HomeworkDtos {
             String audioUrl,
             LocalDateTime submittedAt,
             BigDecimal score,
-            String teacherComment) {}
+            String teacherComment,
+            String studentAvatarUrl) {}
+
+    public record StudentClassSummary(
+            long total,
+            long notSubmitted,
+            long pendingGrading,
+            long graded,
+            long reopened,
+            BigDecimal averageScoreOnTen) {}
 
     public record StudentAssignment(
             Assignment assignment,

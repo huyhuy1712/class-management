@@ -7,7 +7,7 @@ export function routeQueries(path, userId, date) {
   const studentFeed = /^\/student\/classes\/([^/]+)\/announcements$/.exec(pathname)
   if (studentFeed) return [['classFeedPosts', [studentFeed[1], 0, 20]]]
   const studentDetail = /^\/teacher\/classes\/([^/]+)\/students\/([^/]+)$/.exec(pathname)
-  if (studentDetail) return [['classStudents', [studentDetail[1]]], ['studentClassExamResults', [studentDetail[1], studentDetail[2]]], ['attendances', [studentDetail[1]]]]
+  if (studentDetail) return [['classStudents', [studentDetail[1]]], ['studentClassExamResults', [studentDetail[1], studentDetail[2]]], ['studentHomeworkSummary', [studentDetail[1], studentDetail[2]]], ['attendances', [studentDetail[1]]]]
   const assignment = /^\/teacher\/exams\/([^/]+)\/assignments\/([^/]+)$/.exec(pathname)
   if (assignment) return [['examConfiguration', [assignment[1]]], ['teacherAssignmentAttempts', [assignment[2], new URLSearchParams(search).get('classId') ?? '', 0, 12, '', '', 'newest']]]
   const teacherHomework = /^\/teacher\/homework\/(\d+)(?:\/submissions\/([^/]+))?$/.exec(pathname)

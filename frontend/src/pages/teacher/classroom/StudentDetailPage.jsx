@@ -1,6 +1,7 @@
 import FrogLoading from '../../../utils/FrogLoading'
 import useResourceQuery from '../../../query/useResourceQuery'
 import StudentExamOverview from './components/StudentExamOverview'
+import StudentHomeworkOverview from './components/StudentHomeworkOverview'
 import { useMemo } from 'react'
 import {
   ArrowLeft,
@@ -136,10 +137,10 @@ function StudentDetailPage() {
         )}
       </section>
 
-      {/* Placeholder */}
       <div className="grid gap-5 lg:grid-cols-2">
 
         <StudentExamOverview key={`${classId}:${studentId}`} classId={classId} studentId={studentId} />
+        <StudentHomeworkOverview classId={classId} studentId={studentId} />
 
         {/* Attendance statistics */}
   <section className="rounded-2xl border border-emerald-200 bg-white p-6 shadow-sm shadow-emerald-950/5">
