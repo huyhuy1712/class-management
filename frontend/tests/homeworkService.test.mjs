@@ -67,6 +67,16 @@ test('class homework list and submission review retain the selected class scope'
   assert.equal((await homeworkService.getSubmissions(19, '21'))[0].studentId, 5)
 })
 
+test('student homework list can be scoped to a class', async () => {
+  api.handler = async (method, url, options) => {
+    assert.equal(method, 'get')
+    assert.equal(url, '/homework-assignments/me')
+    assert.deepEqual(options.params, { classId: 21 })
+    return { data: [{ assignment: { id: 19 } }] }
+  }
+  assert.equal((await homeworkService.getStudentList({ params: { classId: 21 } }))[0].assignment.id, 19)
+})
+
 test('student submission supports text with multiple images and deadline update can remove the due date', async () => {
   api.handler = async (method, url, body) => {
     assert.equal(method, 'put')

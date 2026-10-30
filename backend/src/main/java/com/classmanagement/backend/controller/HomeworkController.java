@@ -52,8 +52,9 @@ public class HomeworkController {
     }
 
     @GetMapping("/me")
-    public List<HomeworkDtos.StudentAssignment> listForStudent(Authentication authentication) {
-        return homework.listForStudent(authentication.getName());
+    public List<HomeworkDtos.StudentAssignment> listForStudent(
+            Authentication authentication, @RequestParam(required = false) Long classId) {
+        return homework.listForStudent(authentication.getName(), classId);
     }
 
     @GetMapping("/{assignmentId}")

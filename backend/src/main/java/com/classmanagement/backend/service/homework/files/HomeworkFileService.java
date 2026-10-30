@@ -4,7 +4,6 @@ import com.classmanagement.backend.service.StorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,6 +16,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class HomeworkFileService {
+    public static final int MAX_IMAGES = 5;
+    public static final int MAX_SUBMISSION_FILES = 5;
     private static final long MAX_PROMPT_FILE_SIZE = 10L * 1024 * 1024;
     private static final long MAX_AUDIO_SIZE = 10L * 1024 * 1024;
     private static final long MAX_IMAGE_SIZE = 5L * 1024 * 1024;
@@ -106,6 +107,10 @@ public class HomeworkFileService {
         } catch (RuntimeException cleanupError) {
             original.addSuppressed(cleanupError);
         }
+    }
+
+    public void delete(String objectPath) {
+        storage.delete(objectPath);
     }
 
     private static MultipartFile typed(MultipartFile file, String contentType) {

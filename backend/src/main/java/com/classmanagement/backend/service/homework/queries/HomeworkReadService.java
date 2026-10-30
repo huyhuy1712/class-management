@@ -150,11 +150,30 @@ public class HomeworkReadService {
 
     @Transactional(readOnly = true)
     public List<HomeworkDtos.StudentAssignment> listForStudent(String username) {
+        return listForStudent(username, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<HomeworkDtos.StudentAssignment> listForStudent(String username, Long classId) {
         User student = user(username, UserRole.STUDENT);
+        if (classId != null && classId <= 0) {
+            throw new IllegalArgumentException("Lớp học không hợp lệ");
+        }
+        String classFilter = classId == null ? "" : """
+                  AND EXISTS (
+                      SELECT 1 FROM homework_assignment_recipient_classes rc
+                      WHERE rc.assignment_id = r.assignment_id
+                        AND rc.student_id = r.student_id AND rc.class_id = ?
+                  )
+                """;
+        Object[] parameters = classId == null
+                ? new Object[] { student.getId() }
+                : new Object[] { student.getId(), classId };
         return jdbc.query(studentAssignmentSelect() + """
                 WHERE r.student_id = ?
+                """ + classFilter + """
                 ORDER BY h.created_at DESC, h.id DESC
-                """, (rs, row) -> studentAssignment(rs), student.getId());
+                """, (rs, row) -> studentAssignment(rs), parameters);
     }
 
     @Transactional(readOnly = true)
@@ -168,7 +187,7 @@ public class HomeworkReadService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bài tập được giao cho bạn"));
     }
 
-    private HomeworkDtos.Assignment teacherAssignment(long id, Long teacherId) {
+    public HomeworkDtos.Assignment teacherAssignment(long id, Long teacherId) {
         return jdbc.query(assignmentSelect() + """
                 WHERE h.id = ? AND h.teacher_id = ?
                 GROUP BY h.id
@@ -235,7 +254,7 @@ public class HomeworkReadService {
         }
     }
 
-    private void requireOwnedAssignment(long id, Long teacherId) {
+    public void requireOwnedAssignment(long id, Long teacherId) {
         if (!Boolean.TRUE.equals(jdbc.queryForObject(
                 "SELECT EXISTS (SELECT 1 FROM homework_assignments WHERE id = ? AND teacher_id = ?)",
                 Boolean.class, id, teacherId)))
@@ -248,6 +267,10 @@ public class HomeworkReadService {
         if (user.getRole() != role || user.getStatus() != UserStatus.ACTIVE)
             throw new IllegalStateException("Không có quyền sử dụng chức năng bài tập");
         return user;
+    }
+
+    public User requireUser(String username, UserRole role) {
+        return user(username, role);
     }
 
     private HomeworkDtos.Assignment assignment(ResultSet rs) throws SQLException {

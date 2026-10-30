@@ -29,13 +29,14 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class HomeworkService {
-    private static final int MAX_IMAGES = 5;
-    private static final int MAX_SUBMISSION_FILES = 5;
     private static final int MAX_SCORE = 1000;
 
     private final JdbcTemplate jdbc;
@@ -47,6 +48,7 @@ public class HomeworkService {
     private final HomeworkRecipientResolver recipientResolver;
     private final HomeworkNotificationService notificationService;
     private final HomeworkReadService homeworkReadService;
+    private final HomeworkWriteService writes;
 
     @Transactional
     public HomeworkDtos.Assignment create(
@@ -299,16 +301,7 @@ public class HomeworkService {
 
     @Transactional
     public void delete(long assignmentId, String username) {
-        User teacher = user(username, UserRole.TEACHER);
-        requireOwnedAssignment(assignmentId, teacher.getId());
-        Map<String, String> files = jdbc.queryForObject("""
-                SELECT attachment_path, audio_path FROM homework_assignments WHERE id = ?
-                """, (rs, rowNum) -> Map.of(
-                        "attachmentPath", rs.getString("attachment_path") == null ? "" : rs.getString("attachment_path"),
-                        "audioPath", rs.getString("audio_path") == null ? "" : rs.getString("audio_path")), assignmentId);
-        jdbc.update("DELETE FROM homework_assignments WHERE id = ?", assignmentId);
-        if (!files.get("attachmentPath").isEmpty()) storage.delete(files.get("attachmentPath"));
-        if (!files.get("audioPath").isEmpty()) storage.delete(files.get("audioPath"));
+        writes.delete(assignmentId, username);
     }
 
     @Transactional
@@ -327,20 +320,7 @@ public class HomeworkService {
 
     @Transactional
     public void reopen(long assignmentId, long studentId, String username) {
-        User teacher = user(username, UserRole.TEACHER);
-        requireOwnedAssignment(assignmentId, teacher.getId());
-        int updated = jdbc.update("""
-                UPDATE homework_submissions s
-                SET status = 'REOPENED', score = NULL, teacher_comment = NULL, graded_at = NULL,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE s.assignment_id = ? AND s.student_id = ?
-                  AND s.status IN ('SUBMITTED', 'GRADED')
-                  AND EXISTS (
-                      SELECT 1 FROM homework_assignment_recipients r
-                      WHERE r.assignment_id = s.assignment_id AND r.student_id = s.student_id
-                  )
-                """, assignmentId, studentId);
-        if (updated == 0) throw new IllegalArgumentException("KhĂ´ng tĂ¬m tháº¥y bĂ i ná»™p cáº§n má»Ÿ láº¡i");
+        writes.reopen(assignmentId, studentId, username);
     }
 
     @Transactional
@@ -350,7 +330,7 @@ public class HomeworkService {
         HomeworkDtos.Assignment assignment = homeworkReadService.getForTeacher(assignmentId, username);
         if (request == null || request.score() == null || request.score().signum() < 0
                 || request.score().compareTo(assignment.maxScore()) > 0)
-            throw new IllegalArgumentException("Äiá»ƒm pháº£i náº±m trong khoáº£ng 0 Ä‘áº¿n Ä‘iá»ƒm tá»‘i Ä‘a cá»§a bĂ i táº­p");
+            throw new IllegalArgumentException("Điểm phải nằm trong khoảng 0 đến " + assignment.maxScore());
         if (request.teacherComment() != null && request.teacherComment().length() > 10000)
             throw new IllegalArgumentException("Nháº­n xĂ©t tá»‘i Ä‘a 10.000 kĂ½ tá»±");
         int updated = jdbc.update("""
@@ -359,7 +339,7 @@ public class HomeworkService {
                     updated_at = CURRENT_TIMESTAMP
                 WHERE assignment_id = ? AND student_id = ? AND status = 'SUBMITTED'
                 """, request.score(), normalize(request.teacherComment()), assignmentId, studentId);
-        if (updated == 0) throw new IllegalArgumentException("Chá»‰ cĂ³ thá»ƒ cháº¥m bĂ i Ä‘Ă£ ná»™p");
+        if (updated == 0) throw new IllegalArgumentException("Chỉ có thể chấm bài ở trạng thái đã nộp");
         return homeworkReadService.submissions(assignmentId, null, username).stream()
                 .filter(row -> row.studentId() == studentId)
                 .findFirst()
@@ -369,6 +349,11 @@ public class HomeworkService {
     @Transactional(readOnly = true)
     public List<HomeworkDtos.StudentAssignment> listForStudent(String username) {
         return homeworkReadService.listForStudent(username);
+    }
+
+    @Transactional(readOnly = true)
+    public List<HomeworkDtos.StudentAssignment> listForStudent(String username, Long classId) {
+        return homeworkReadService.listForStudent(username, classId);
     }
 
     @Transactional(readOnly = true)
@@ -408,10 +393,12 @@ public class HomeworkService {
         boolean hasAudio = requestedAudio != null && !requestedAudio.isEmpty();
         if (text == null && images.isEmpty() && files.isEmpty() && !hasAudio)
             throw new IllegalArgumentException("HĂ£y nháº­p cĂ¢u tráº£ lá»i hoáº·c Ä‘Ă­nh kĂ¨m áº£nh, tá»‡p hoáº·c Ă¢m thanh bĂ i lĂ m");
-        if (images.size() > MAX_IMAGES)
-            throw new IllegalArgumentException("Má»—i láº§n ná»™p tá»‘i Ä‘a " + MAX_IMAGES + " áº£nh");
-        if (files.size() > MAX_SUBMISSION_FILES)
-            throw new IllegalArgumentException("Má»—i láº§n ná»™p tá»‘i Ä‘a " + MAX_SUBMISSION_FILES + " tá»‡p");
+        if (images.size() > HomeworkFileService.MAX_IMAGES)
+            throw new IllegalArgumentException("Má»—i láº§n ná»™p tá»‘i Ä‘a "
+                    + HomeworkFileService.MAX_IMAGES + " áº£nh");
+        if (files.size() > HomeworkFileService.MAX_SUBMISSION_FILES)
+            throw new IllegalArgumentException("Má»—i láº§n ná»™p tá»‘i Ä‘a "
+                    + HomeworkFileService.MAX_SUBMISSION_FILES + " tá»‡p");
 
         boolean reopened = "REOPENED".equals(gate.submissionStatus());
         if (!"OPEN".equals(gate.assignmentStatus()) && !reopened)

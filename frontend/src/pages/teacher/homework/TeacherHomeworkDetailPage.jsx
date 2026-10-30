@@ -11,8 +11,12 @@ function SubmissionRow({ homeworkId, submission, maxScore, refresh }) {
   const [comment, setComment] = useState(submission.teacherComment ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const numericScore = Number(score)
+  const scoreError = score !== ''
+    && (!Number.isFinite(numericScore) || numericScore < 0 || numericScore > Number(maxScore))
 
   const grade = async () => {
+    if (!score || scoreError) return
     setBusy(true)
     setError('')
     try {
@@ -56,15 +60,26 @@ function SubmissionRow({ homeworkId, submission, maxScore, refresh }) {
     {submission.answerText && <p className="mt-4 whitespace-pre-wrap rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-700">{submission.answerText}</p>}
     {submission.images?.length > 0 && <div className="mt-4 flex flex-wrap gap-3">{submission.images.map((image) => <a key={image.url} href={image.url} target="_blank" rel="noreferrer" aria-label={`Mở ảnh ${image.name}`}><img src={image.url} alt={image.name} className="h-32 max-w-48 rounded-lg border border-slate-200 object-contain" /></a>)}</div>}
     {submission.files?.length > 0 && <div className="mt-4 space-y-2">{submission.files.map((file) => <a key={file.url} href={file.url} target="_blank" rel="noreferrer" download className="block rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-slate-50">Tải bài làm: {file.name}</a>)}</div>}
-    {submission.audioUrl && <div className="mt-4"><p className="mb-2 text-sm font-semibold text-slate-700">Âm thanh bài làm: {submission.audioName}</p><audio controls preload="none" src={submission.audioUrl} className="w-full" /></div>}    {submission.status !== 'NOT_SUBMITTED' && <div className="mt-5 grid gap-3 sm:grid-cols-[140px_1fr_auto]">
+    {submission.audioUrl && <div className="mt-4"><p className="mb-2 text-sm font-semibold text-slate-700">Âm thanh bài làm: {submission.audioName}</p><audio controls preload="none" src={submission.audioUrl} className="w-full" /></div>}        {submission.status === 'GRADED' && <div className="mt-5 rounded-xl bg-emerald-50 p-4 text-sm">
+      <p className="font-semibold text-emerald-900">Điểm: {submission.score ?? '—'} / {maxScore}</p>
+      <p className="mt-2 whitespace-pre-wrap text-slate-700">{submission.teacherComment || 'Không có nhận xét.'}</p>
+    </div>}
+    {submission.status === 'SUBMITTED' && <div className="mt-5 grid gap-3 sm:grid-cols-[140px_1fr_auto]">
       <label className="text-xs font-semibold text-slate-600">Điểm / {maxScore}
-        <input type="number" min="0" max={maxScore} step="0.001" value={score} onChange={(event) => setScore(event.target.value)} disabled={submission.status === 'REOPENED' || busy} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        <input type="number" min="0" max={maxScore} step="0.001" value={score} onChange={(event) => {
+          setScore(event.target.value)
+          setError('')
+        }} disabled={busy} aria-invalid={scoreError} className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm ${scoreError ? 'border-red-400' : 'border-slate-200'}`} />
       </label>
       <label className="text-xs font-semibold text-slate-600">Nhận xét
-        <input value={comment} onChange={(event) => setComment(event.target.value)} disabled={submission.status === 'REOPENED' || busy} maxLength={10000} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        <input value={comment} onChange={(event) => {
+          setComment(event.target.value)
+          setError('')
+        }} disabled={busy} maxLength={10000} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
       </label>
-      {submission.status !== 'REOPENED' && <button type="button" onClick={grade} disabled={busy || !score} className="self-end rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Đang lưu...' : 'Trả bài'}</button>}
+      <button type="button" onClick={grade} disabled={busy || !score || scoreError} className="self-end rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Đang lưu...' : 'Trả bài'}</button>
     </div>}
+    {scoreError && <p role="alert" className="mt-2 text-sm text-red-600">Điểm phải nằm trong khoảng 0 đến {maxScore}.</p>}
     {error && <p role="alert" className="mt-3 text-sm text-red-600">{error}</p>}
     {submission.status === 'SUBMITTED' && <p className="mt-3 text-xs font-semibold text-blue-700">Đã nộp, chờ chấm</p>}
     {submission.status === 'REOPENED' && <p className="mt-3 text-xs font-semibold text-amber-700">Đã mở lại, chờ học sinh nộp</p>}
@@ -169,7 +184,7 @@ export default function TeacherHomeworkDetailPage() {
           : submissions.errorMessage ? <p role="alert" className="text-red-600">{submissions.errorMessage}</p>
             : studentId ? selectedSubmission ? <div className="space-y-4">
               <Link to={detailPath} className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700"><ArrowLeft size={16} />Quay lại danh sách học sinh</Link>
-              <SubmissionRow key={selectedSubmission.studentId} homeworkId={homeworkId} submission={selectedSubmission} maxScore={item.maxScore} refresh={refresh} />
+              <SubmissionRow key={`${selectedSubmission.studentId}-${selectedSubmission.status}`} homeworkId={homeworkId} submission={selectedSubmission} maxScore={item.maxScore} refresh={refresh} />
             </div> : <p role="alert" className="text-sm text-red-600">Không tìm thấy thông tin bài nộp của học sinh này.</p>
               : filteredSubmissions.length ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {filteredSubmissions.map((submission) => {
