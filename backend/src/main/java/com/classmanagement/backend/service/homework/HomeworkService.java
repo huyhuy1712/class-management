@@ -375,14 +375,32 @@ public class HomeworkService {
     public void delete(long assignmentId, String username) {
         User teacher = user(username, UserRole.TEACHER);
         requireOwnedAssignment(assignmentId, teacher.getId());
-        Map<String, String> files = jdbc.queryForObject("""
-                SELECT attachment_path, audio_path FROM homework_assignments WHERE id = ?
-                """, (rs, rowNum) -> Map.of(
-                        "attachmentPath", rs.getString("attachment_path") == null ? "" : rs.getString("attachment_path"),
-                        "audioPath", rs.getString("audio_path") == null ? "" : rs.getString("audio_path")), assignmentId);
+        List<String> filePaths = jdbc.query("""
+                SELECT attachment_path AS object_path FROM homework_assignments
+                WHERE id = ? AND attachment_path IS NOT NULL
+                UNION ALL
+                SELECT audio_path FROM homework_assignments
+                WHERE id = ? AND audio_path IS NOT NULL
+                UNION ALL
+                SELECT image.object_path FROM homework_submission_images image
+                JOIN homework_submissions submission ON submission.id = image.submission_id
+                WHERE submission.assignment_id = ?
+                UNION ALL
+                SELECT file.object_path FROM homework_submission_files file
+                JOIN homework_submissions submission ON submission.id = file.submission_id
+                WHERE submission.assignment_id = ?
+                UNION ALL
+                SELECT audio.object_path FROM homework_submission_audio audio
+                JOIN homework_submissions submission ON submission.id = audio.submission_id
+                WHERE submission.assignment_id = ?
+                """, (rs, rowNum) -> rs.getString("object_path"),
+                assignmentId, assignmentId, assignmentId, assignmentId, assignmentId);
+        jdbc.update("""
+                DELETE FROM notifications
+                WHERE type = 'HOMEWORK_NEW' AND reference_type = 'HOMEWORK' AND reference_id = ?
+                """, assignmentId);
         jdbc.update("DELETE FROM homework_assignments WHERE id = ?", assignmentId);
-        if (!files.get("attachmentPath").isEmpty()) storage.delete(files.get("attachmentPath"));
-        if (!files.get("audioPath").isEmpty()) storage.delete(files.get("audioPath"));
+        filePaths.forEach(materialFileSupport::scheduleDelete);
     }
 
     @Transactional
@@ -433,7 +451,8 @@ public class HomeworkService {
                     updated_at = CURRENT_TIMESTAMP
                 WHERE assignment_id = ? AND student_id = ? AND status = 'SUBMITTED'
                 """, request.score(), normalize(request.teacherComment()), assignmentId, studentId);
-        if (updated == 0) throw new IllegalArgumentException("Chá»‰ cĂ³ thá»ƒ cháº¥m bĂ i Ä‘Ă£ ná»™p");
+        if (updated == 0)
+            throw new IllegalArgumentException("Bài nộp này đã được chấm. Nếu cần chấm lại, hãy mở lại bài để học sinh nộp lại trước.");
         return submissions(assignmentId, null, username).stream()
                 .filter(row -> row.studentId() == studentId)
                 .findFirst()

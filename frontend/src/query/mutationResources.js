@@ -12,7 +12,7 @@ export function mutationResources(url, method) {
   if (/^\/classes\/[^/]+\/feed\/posts\/\d+\/comments(?:\/|$)/.test(path)) return ['classFeedPosts', 'classFeedComments']
   if (/^\/classes\/[^/]+\/feed\/posts(?:\/|$)/.test(path)) return ['classFeedPosts']
   if (/^\/materials(?:\/|$)/.test(path)) return ['teacherMaterials', 'classDocuments']
-  if (/^\/homework-assignments(?:\/|$)/.test(path)) return ['teacherHomeworks', 'teacherHomework', 'homeworkSubmissions', 'classHomeworks', 'studentHomeworks', 'studentHomework']
+  if (/^\/homework-assignments(?:\/|$)/.test(path)) return ['teacherHomeworks', 'teacherHomework', 'homeworkSubmissions', 'classHomeworks', 'studentHomeworks', 'studentHomework', 'notifications']
   if (/^\/classes(?:\/|$)/.test(path)) {
     const resources = ['teacherClasses', 'studentClasses', 'allClasses', 'classStudents', 'teacherStudents', 'dashboard', 'exams', 'studentExams', 'studentAssignment', 'classExams', 'studentClassExamResults', 'classGradebook', 'teacherAttemptReview', 'studentGrades']
     const removesClassStudents = String(method).toLowerCase() === 'delete'
