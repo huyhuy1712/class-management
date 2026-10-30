@@ -7,6 +7,7 @@ import homeworkService from '../../../services/homeworkService'
 import { sortByText } from '../../../utils/sortByText'
 import { GRADE_OPTIONS } from '../exams/create/helpers/examFormConstants'
 import { clearHomeworkDraft, loadHomeworkDraft, saveHomeworkDraft } from './homeworkDraftStorage'
+import HomeworkAssignmentScope from './components/HomeworkAssignmentScope'
 
 const emptyForm = {
   title: '',
@@ -66,6 +67,9 @@ export default function CreateTeacherHomeworkPage() {
       gradeLevel: detail.gradeLevel ?? '',
       purpose: detail.purpose ?? '',
       assignmentType: detail.assignmentType ?? 'ALL',
+      classIds: detail.classIds ?? [],
+      studentIds: detail.studentIds ?? [],
+      classId: detail.assignmentType === 'STUDENT' ? String(detail.classIds?.[0] ?? '') : '',
       dueAt: localDue,
       maxScore: detail.maxScore == null ? '10' : String(detail.maxScore),
       existingFileName: detail.attachmentName ?? '',
@@ -75,8 +79,6 @@ export default function CreateTeacherHomeworkPage() {
   const classes = classesQuery.data?.filter((item) => item.status === 'ACTIVE') ?? []
   const students = studentsQuery.data ?? []
   const subjects = subjectsQuery.data ?? []
-  const availableStudents = students.filter((student) =>
-    student.classes?.some((classroom) => String(classroom.id) === String(form.classId)))
   const listPath = `/teacher/homework${classId ? `?classId=${classId}` : ''}`
 
   const toggleId = (field, id) => setForm((current) => ({
@@ -169,24 +171,18 @@ export default function CreateTeacherHomeworkPage() {
             <input type="datetime-local" value={form.dueAt} onChange={(event) => setForm({ ...form, dueAt: event.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 font-normal" />
           </label>
 
-          <fieldset className="lg:col-span-2">
-            <legend className="mb-2 text-sm font-semibold text-slate-700">Phạm vi giao</legend>
-            <div className="flex flex-wrap gap-2">
-              {[['ALL', 'Tất cả lớp'], ['CLASS', 'Chọn lớp'], ['STUDENT', 'Chọn học sinh']].map(([value, label]) =>
-                <button key={value} type="button" onClick={() => setForm({ ...form, assignmentType: value, classIds: [], studentIds: [], classId: '' })} className={`rounded-xl border px-4 py-2 text-sm font-semibold ${form.assignmentType === value ? 'border-emerald-600 bg-emerald-50 text-emerald-800' : 'border-slate-200 text-slate-600'}`}>{label}</button>)}
-            </div>
-            {['CLASS', 'STUDENT'].includes(form.assignmentType) && <div className="mt-3 max-h-52 overflow-y-auto rounded-xl border border-slate-100 p-3">
-              {classesQuery.isLoading ? <p className="text-sm text-slate-500">Đang tải lớp...</p> : classesQuery.errorMessage ? <p role="alert" className="text-sm text-red-600">{classesQuery.errorMessage}</p> : form.assignmentType === 'CLASS' ?
-                classes.map((classroom) => <label key={classroom.id} className="flex items-center gap-2 py-1.5 text-sm"><input type="checkbox" checked={form.classIds.some((id) => String(id) === String(classroom.id))} onChange={() => toggleId('classIds', classroom.id)} />{classroom.name}</label>)
-                : <div>
-                  <select value={form.classId} onChange={(event) => setForm({ ...form, classId: event.target.value, studentIds: [] })} className="mb-2 rounded-lg border border-slate-200 px-3 py-2 text-sm"><option value="">Chọn lớp để lọc học sinh</option>{classes.map((classroom) => <option key={classroom.id} value={classroom.id}>{classroom.name}</option>)}</select>
-                  {availableStudents.map((student) => <label key={student.id} className="flex items-center gap-2 py-1.5 text-sm"><input type="checkbox" checked={form.studentIds.some((id) => String(id) === String(student.id))} onChange={() => toggleId('studentIds', student.id)} />{student.fullName} {student.studentCode && <span className="text-slate-400">({student.studentCode})</span>}</label>)}
-                </div>}
-            </div>}
-            {form.assignmentType === 'ALL' && <p className="mt-2 text-sm text-slate-500">Giao cho học sinh thuộc các lớp đang hoạt động của bạn.</p>}
-            {classesQuery.errorMessage && <p role="alert" className="mt-2 text-sm text-red-600">{classesQuery.errorMessage}</p>}
-            {form.assignmentType === 'STUDENT' && studentsQuery.errorMessage && <p role="alert" className="mt-2 text-sm text-red-600">{studentsQuery.errorMessage}</p>}
-          </fieldset>
+          <HomeworkAssignmentScope
+            form={form}
+            setForm={setForm}
+            classes={classes}
+            students={students}
+            classesLoading={classesQuery.isLoading}
+            classesError={classesQuery.errorMessage}
+            studentsLoading={studentsQuery.isLoading}
+            studentsError={studentsQuery.errorMessage}
+            onToggleClass={(id) => toggleId('classIds', id)}
+            onToggleStudent={(id) => toggleId('studentIds', id)}
+          />
 
           {error && <p role="alert" className="lg:col-span-2 text-sm text-red-600">{error}</p>}
           <div className="flex flex-wrap gap-3 lg:col-span-2">

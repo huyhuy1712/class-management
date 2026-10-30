@@ -31,7 +31,7 @@ public class HomeworkReadService {
                     WHERE h.teacher_id = ?
                     GROUP BY h.id
                     ORDER BY h.created_at DESC, h.id DESC
-                    """, (rs, row) -> assignment(rs), teacher.getId());
+                    """, (rs, row) -> assignment(rs, true), teacher.getId());
         }
         requireTeacherClass(classId, teacher.getId());
         return jdbc.query(assignmentSelect(classId) + """
@@ -49,7 +49,7 @@ public class HomeworkReadService {
                   )
                 GROUP BY h.id
                 ORDER BY h.created_at DESC, h.id DESC
-                """, (rs, row) -> assignment(rs), classId, teacher.getId(), classId, classId);
+                """, (rs, row) -> assignment(rs, true), classId, teacher.getId(), classId, classId);
     }
 
     @Transactional(readOnly = true)
@@ -191,7 +191,7 @@ public class HomeworkReadService {
         return jdbc.query(assignmentSelect() + """
                 WHERE h.id = ? AND h.teacher_id = ?
                 GROUP BY h.id
-                """, (rs, row) -> assignment(rs), id, teacherId).stream()
+                """, (rs, row) -> assignment(rs, true), id, teacherId).stream()
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bài tập"));
     }
@@ -213,6 +213,17 @@ public class HomeworkReadService {
                        (SELECT subj.name FROM subjects subj WHERE subj.id = h.subject_id) subject_name,
                        h.grade_level, h.purpose, h.assignment_type, h.due_at, h.max_score,
                        h.status, h.attachment_name, h.attachment_path, h.audio_name, h.audio_path, h.created_at,
+                       CASE WHEN h.assignment_type = 'CLASS' THEN ARRAY(
+                           SELECT hc.class_id FROM homework_assignment_classes hc
+                           WHERE hc.assignment_id = h.id ORDER BY hc.class_id
+                       ) WHEN h.assignment_type = 'STUDENT' THEN ARRAY(
+                           SELECT DISTINCT rc.class_id FROM homework_assignment_recipient_classes rc
+                           WHERE rc.assignment_id = h.id ORDER BY rc.class_id
+                       ) ELSE ARRAY[]::BIGINT[] END AS target_class_ids,
+                       CASE WHEN h.assignment_type = 'STUDENT' THEN ARRAY(
+                           SELECT hs.student_id FROM homework_assignment_students hs
+                           WHERE hs.assignment_id = h.id ORDER BY hs.student_id
+                       ) ELSE ARRAY[]::BIGINT[] END AS target_student_ids,
                        COUNT(DISTINCT r.student_id) recipient_count,
                        COUNT(DISTINCT s.student_id) submitted_count,
                        COUNT(DISTINCT CASE WHEN s.status = 'GRADED' THEN s.student_id END) graded_count
@@ -274,6 +285,10 @@ public class HomeworkReadService {
     }
 
     private HomeworkDtos.Assignment assignment(ResultSet rs) throws SQLException {
+        return assignment(rs, false);
+    }
+
+    private HomeworkDtos.Assignment assignment(ResultSet rs, boolean includeTargets) throws SQLException {
         String path = rs.getString("attachment_path");
         return new HomeworkDtos.Assignment(
                 rs.getLong("id"),
@@ -294,7 +309,18 @@ public class HomeworkReadService {
                 rs.getInt("recipient_count"),
                 rs.getInt("submitted_count"),
                 rs.getInt("graded_count"),
-                localDate(rs, "created_at"));
+                localDate(rs, "created_at"),
+                includeTargets ? longArray(rs, "target_class_ids") : List.of(),
+                includeTargets ? longArray(rs, "target_student_ids") : List.of());
+    }
+
+    private List<Long> longArray(ResultSet rs, String column) throws SQLException {
+        java.sql.Array sqlArray = rs.getArray(column);
+        if (sqlArray == null) return List.of();
+        Object[] values = (Object[]) sqlArray.getArray();
+        return java.util.Arrays.stream(values)
+                .map(value -> ((Number) value).longValue())
+                .toList();
     }
 
     private HomeworkDtos.StudentAssignment studentAssignment(ResultSet rs) throws SQLException {
@@ -305,7 +331,7 @@ public class HomeworkReadService {
                 assignment.assignmentType(),
                 assignment.dueAt(), assignment.maxScore(), assignment.status(), assignment.attachmentName(),
                 assignment.attachmentUrl(), assignment.audioName(), assignment.audioUrl(),
-                0, 0, 0, assignment.createdAt());
+                0, 0, 0, assignment.createdAt(), List.of(), List.of());
         Long submissionId = nullableLong(rs, "submission_id");
         String status = rs.getString("submission_status");
         return new HomeworkDtos.StudentAssignment(

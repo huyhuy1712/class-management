@@ -29,7 +29,9 @@ public final class HomeworkDtos {
             int recipientCount,
             int submittedCount,
             int gradedCount,
-            LocalDateTime createdAt) {}
+            LocalDateTime createdAt,
+            List<Long> classIds,
+            List<Long> studentIds) {}
 
     public record Submission(
             long id,
