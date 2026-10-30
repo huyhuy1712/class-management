@@ -31,6 +31,16 @@ test('detail prefetch uses the same class, date and exam parameters as page quer
   assert.deepEqual(routeQueries('/teacher/exams/7/assignments/8?classId=21', 7), [['examConfiguration', ['7']], ['teacherAssignmentAttempts', ['8', '21', 0, 12, '', '', 'newest']]])
   assert.deepEqual(routeQueries('/student/exams/42', 7), [['studentAssignment', ['42']]])
   assert.deepEqual(routeQueries('/student/profile', 7), [['profile', [7]]])
+  assert.deepEqual(routeQueries('/teacher/billing?orderId=order-1', 7), [
+    ['billing', []], ['billingOrder', ['order-1']],
+  ])
+  assert.deepEqual(routeQueries('/teacher/billing', 7), [['billing', []]])
+  assert.deepEqual(mutationResources('/billing/vip/redeem', 'post'), ['billing'])
+})
+
+test('announcement routes prefetch the first page of the class feed', () => {
+  assert.deepEqual(routeQueries('/teacher/classes/21/announcements', 7), [['classFeedPosts', ['21', 0, 20]]])
+  assert.deepEqual(routeQueries('/student/classes/21/announcements', 7), [['classFeedPosts', ['21', 0, 20]]])
 })
 
 test('optimistic patch and rollback preserve unrelated rows, new changes and missing fields', () => {

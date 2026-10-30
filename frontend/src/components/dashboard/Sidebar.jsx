@@ -5,6 +5,7 @@ import {
   School,
   FileText,
   BookOpen,
+  Gem,
   ClipboardCheck,
   LogOut 
 } from 'lucide-react'
@@ -20,6 +21,7 @@ const menuItems = [
   { label: 'Đề thi', icon: FileText, path: '/teacher/exams' },
   { label: 'Bài tập', icon: ClipboardCheck, path: '/teacher/homework' },
   { label: 'Tài liệu', icon: BookOpen, path: '/teacher/materials' },
+  { label: 'VIP & Point', icon: Gem, path: '/teacher/billing' },
 ]
 
 function Sidebar({ isOpen, onClose }) {

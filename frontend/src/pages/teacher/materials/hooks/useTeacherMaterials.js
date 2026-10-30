@@ -3,8 +3,12 @@ import useResourceQuery from '../../../../query/useResourceQuery'
 import materialService from '../../../../services/materialService'
 
 function addMaterial(state, material) {
-  const current = state?.materials ?? []
+  const current = Array.isArray(state) ? state : state?.materials ?? []
   return [material, ...current.filter((item) => String(item.id) !== String(material.id))]
+}
+
+function getFileTitle(file) {
+  return file.name.replace(/\.[^.]+$/, '') || file.name
 }
 
 function isAssignedToClass(material, classId) {
@@ -33,7 +37,9 @@ export default function useTeacherMaterials({ enabled = true } = {}) {
   const saveMutation = useMutation({
     mutationFn: (material) => material.id
       ? materialService.update(material)
-      : materialService.upload(material),
+      : material.files?.length > 1
+        ? materialService.uploadMany(material)
+        : materialService.upload(material),
     onMutate: async (material) => {
       await client.cancelQueries({
         predicate: (item) => item.queryKey.length === query.queryKey.length
@@ -42,31 +48,43 @@ export default function useTeacherMaterials({ enabled = true } = {}) {
       })
       const previous = client.getQueryData(query.queryKey)
       const classSnapshots = classDocumentQueries(client)
-      const optimistic = {
+      const files = material.files?.length > 1 ? material.files : [material.file]
+      const optimisticMaterials = files.map((file, index) => ({
         ...material,
-        id: material.id ?? `pending-${Date.now()}`,
+        title: files.length > 1 ? getFileTitle(file) : material.title,
+        id: material.id ?? `pending-${Date.now()}-${index}`,
         type: 'DOCUMENT',
         source: 'UPLOAD',
-        fileName: material.file?.name ?? material.fileName,
-        fileSize: material.file?.size ?? material.fileSize,
-        fileUrl: material.file ? '' : material.fileUrl,
+        fileName: file?.name ?? material.fileName,
+        fileSize: file?.size ?? material.fileSize,
+        fileUrl: file ? '' : material.fileUrl,
         createdAt: material.createdAt ?? new Date().toISOString(),
-      }
+      }))
       if (previous !== undefined) {
-        query.setData((state) => addMaterial(state, optimistic))
+        query.setData((state) => optimisticMaterials.reduce(
+          (next, optimistic) => addMaterial(next, optimistic),
+          state,
+        ))
       }
       classSnapshots.forEach(([key, data]) => {
         const classId = key[3]
         if (!Array.isArray(data)) return
-        const visible = isAssignedToClass(optimistic, classId)
-        client.setQueryData(key, visible
-          ? [optimistic, ...data.filter((item) => String(item.id) !== String(optimistic.id))]
-          : data.filter((item) => String(item.id) !== String(optimistic.id)))
+        const visible = optimisticMaterials.filter((item) => isAssignedToClass(item, classId))
+        const optimisticIds = new Set(optimisticMaterials.map((item) => String(item.id)))
+        client.setQueryData(key, [
+          ...visible,
+          ...data.filter((item) => !optimisticIds.has(String(item.id))),
+        ])
       })
       const assignedClassKeys = classSnapshots
-        .filter(([key]) => isAssignedToClass(optimistic, key[3]))
+        .filter(([key]) => optimisticMaterials.some((item) => isAssignedToClass(item, key[3])))
         .map(([key]) => key)
-      return { previous, classSnapshots, assignedClassKeys, optimisticId: optimistic.id }
+      return {
+        previous,
+        classSnapshots,
+        assignedClassKeys,
+        optimisticIds: optimisticMaterials.map((item) => item.id),
+      }
     },
     onError: (_error, _material, context) => {
       if (!context) return
@@ -74,18 +92,25 @@ export default function useTeacherMaterials({ enabled = true } = {}) {
       context.classSnapshots.forEach(([key, data]) => client.setQueryData(key, data))
     },
     onSuccess: (saved, _material, context) => {
+      const savedMaterials = Array.isArray(saved) ? saved : [saved]
       if (context?.previous !== undefined) {
+        const optimisticIds = new Set(context.optimisticIds.map(String))
         query.setData((state = []) => [
-            saved,
-            ...state.filter((item) =>
-              String(item.id) !== String(context.optimisticId)
-                && String(item.id) !== String(saved.id)),
-          ])
+          ...savedMaterials,
+          ...state.filter((item) =>
+            !optimisticIds.has(String(item.id))
+              && !savedMaterials.some((savedItem) => String(item.id) === String(savedItem.id))),
+        ])
       }
       context?.assignedClassKeys.forEach((key) => {
+        const assigned = savedMaterials.filter((item) => isAssignedToClass(item, key[3]))
+        const optimisticIds = new Set(context.optimisticIds.map(String))
         client.setQueryData(key, (data) => Array.isArray(data)
-          ? [saved, ...data.filter((item) => String(item.id) !== String(context.optimisticId)
-            && String(item.id) !== String(saved.id))]
+          ? [
+            ...assigned,
+            ...data.filter((item) => !optimisticIds.has(String(item.id))
+              && !savedMaterials.some((savedItem) => String(item.id) === String(savedItem.id))),
+          ]
           : data)
       })
     },

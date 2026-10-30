@@ -5,6 +5,12 @@
 
 **Xác thực hiện tại:** Đăng nhập qua `POST /api/auth/login` để nhận cookie HttpOnly `access_token`. Browser/Postman phải gửi lại cookie khi gọi API; dùng cURL có thể truyền `--cookie "access_token=<token>"`. Filter hiện đọc JWT từ cookie, không đọc header Bearer. Các ví dụ Bearer cũ bên dưới cần thay bằng cookie khi thử trên code hiện tại. Signup/login/logout được cấu hình public.
 
+### Deploy frontend và đăng nhập Google
+
+Trên Netlify, frontend gọi API và khởi tạo/nhận callback Google qua các proxy cùng domain được khai báo trong `frontend/public/_redirects`. Bản build production luôn dùng `/api` cùng domain, để cookie HttpOnly không bị Safari/iOS chặn như cookie bên thứ ba. Backend và frontend phải dùng đúng URL tương ứng trong các rule proxy.
+
+Khi bật Google OAuth production, đặt `FRONTEND_URL` bằng URL Netlify và thêm chính xác `${FRONTEND_URL}/login/oauth2/code/google` làm Authorized redirect URI trong Google Cloud Console. Có thể đặt `GOOGLE_REDIRECT_URI` nếu muốn chỉ định URI khác; URI đó cũng phải được Google cho phép và route callback phải đi qua frontend proxy. Sau khi đổi cấu hình, build lại frontend và redeploy cả hai service.
+
 ## Danh sách API
 
 `POST /api/auth/verify-email` và `POST /api/auth/resend-verification-code` cũng là API public. Signup được lưu tạm riêng; user chỉ được tạo trong `users` sau khi OTP hợp lệ.
@@ -35,6 +41,20 @@ Các API `/api/auth/password-reset/**` là public để phục vụ luồng khô
 | 14 | POST | `/api/classes/{classroomId}/lessons` | Tạo buổi học cho lớp |
 | 15 | GET | `/api/classes/{classroomId}/lessons?date=YYYY-MM-DD` | Lấy buổi học của lớp theo ngày |
 | 16 | PUT | `/api/classes/{classroomId}/lessons/{lessonId}` | Cập nhật buổi học |
+| 59 | GET | `/api/classes/{classroomId}/feed/posts?page=0&size=20` | Lấy bài đăng bảng tin lớp theo trang |
+| 60 | POST | `/api/classes/{classroomId}/feed/posts` | Tạo bài đăng bảng tin lớp |
+| 61 | PUT | `/api/classes/{classroomId}/feed/posts/{postId}` | Sửa bài đăng của chính mình |
+| 62 | DELETE | `/api/classes/{classroomId}/feed/posts/{postId}` | Xóa mềm bài đăng của chính mình |
+| 63 | GET | `/api/classes/{classroomId}/feed/posts/{postId}/comments?page=0&size=20` | Lấy bình luận của bài đăng |
+| 64 | POST | `/api/classes/{classroomId}/feed/posts/{postId}/comments` | Tạo bình luận cho bài đăng |
+| 65 | DELETE | `/api/classes/{classroomId}/feed/posts/{postId}/comments/{commentId}` | Xóa mềm bình luận của chính mình |
+| 66 | PUT | `/api/classes/{classroomId}/feed/posts/{postId}/comments/{commentId}` | Sửa bình luận của chính mình |
+| 67 | PUT | `/api/classes/{classroomId}/feed/posts/{postId}/vote` | Đặt hoặc đổi like/dislike |
+| 68 | DELETE | `/api/classes/{classroomId}/feed/posts/{postId}/vote` | Bỏ like/dislike |
+| 69 | PUT | `/api/classes/{classroomId}/feed/posts/{postId}/reactions/emoji` | Thêm hoặc đổi emoji reaction bài đăng |
+| 70 | DELETE | `/api/classes/{classroomId}/feed/posts/{postId}/reactions/emoji` | Gỡ emoji reaction bài đăng |
+| 71 | PUT | `/api/classes/{classroomId}/feed/posts/{postId}/comments/{commentId}/reactions/emoji` | Thêm hoặc đổi emoji reaction bình luận |
+| 72 | DELETE | `/api/classes/{classroomId}/feed/posts/{postId}/comments/{commentId}/reactions/emoji` | Gỡ emoji reaction bình luận |
 | 17 | GET | `/api/requests/join-class/received` | Lấy yêu cầu tham gia lớp đang chờ |
 | 18 | PATCH | `/api/requests/{requestId}/approve` | Chấp nhận yêu cầu tham gia lớp |
 | 19 | PATCH | `/api/requests/{requestId}/reject` | Từ chối yêu cầu tham gia lớp |
@@ -70,6 +90,31 @@ Các API `/api/auth/password-reset/**` là public để phục vụ luồng khô
 | 51 | GET | `/api/exam-assignments/{assignmentId}` | Thông tin assignment trước khi thi |
 | 52 | PATCH | `/api/exams/{examId}/publish` | Xuất bản đề và kích hoạt phân công |
 | 53 | PATCH | `/api/exams/{examId}/unpublish` | Đưa đề và phân công về nháp |
+| 54 | GET | `/api/billing/me` | Lấy catalog, số dư point, VIP và 20 giao dịch gần nhất của giáo viên |
+| 55 | POST | `/api/billing/orders` | Tạo order MoMo từ product code và request ID idempotent |
+| 56 | GET | `/api/billing/orders/{orderId}` | Kiểm tra trạng thái order của giáo viên hiện tại |
+| 57 | POST | `/api/billing/vip/redeem` | Đổi point lấy gói VIP |
+| 58 | POST | `/api/billing/momo/ipn` | Webhook MoMo; chữ ký HMAC được xác minh trước khi cập nhật DB |
+
+## MoMo, Point và VIP
+
+Thanh toán MoMo mặc định bị tắt. Để chạy sandbox, tạo merchant sandbox với MoMo rồi cấu hình ở backend bằng environment variables; không commit credentials:
+
+```text
+MOMO_ENABLED=true
+MOMO_ENDPOINT=https://test-payment.momo.vn/v2/gateway/api/create
+MOMO_PARTNER_CODE=<sandbox partner code>
+MOMO_ACCESS_KEY=<sandbox access key>
+MOMO_SECRET_KEY=<sandbox secret key>
+MOMO_IPN_URL=https://<public-backend-host>/api/billing/momo/ipn
+FRONTEND_URL=https://<frontend-host>
+```
+
+`MOMO_IPN_URL` phải truy cập được công khai từ MoMo. Chỉ IPN có chữ ký hợp lệ, đúng partner/order/request ID và đúng số tiền đã lưu mới ghi nhận thanh toán. Redirect về trình duyệt không cộng point hoặc kích hoạt VIP. Sau khi sandbox kiểm thử thành công, đổi endpoint theo thông tin merchant production MoMo cấp.
+
+Catalog do backend sở hữu; client chỉ gửi `productCode` và `requestId`, không gửi số tiền hoặc số point. Gói điểm: 50/500/1.000 point tương ứng 49.000/490.000/980.000 VND. Đổi VIP dùng quy đổi 1 point = 980 VND, làm tròn lên. Các gói VIP có tier Cá nhân/5 thiết bị/10 thiết bị và chu kỳ 1/3/12 tháng.
+
+Hạn mức miễn phí hiện tại: 1 lớp, 3 đề, tối đa 2 lượt thi mỗi học sinh mỗi assignment; export bảng điểm Excel trên 50 học sinh và import file cần VIP. Tạo lớp/đề và đổi point được xác thực từ danh tính đã đăng nhập ở backend.
 | 54 | POST | `/api/homework-assignments` | Tạo và giao bài tập bằng text/tệp/âm thanh cho lớp hoặc học sinh |
 | 55 | GET | `/api/homework-assignments` | Danh sách bài tập giáo viên hiện tại đã giao |
 | 56 | GET | `/api/homework-assignments/{assignmentId}` | Chi tiết bài tập của giáo viên |
@@ -1125,6 +1170,232 @@ curl -X PUT http://localhost:8080/api/classes/1/lessons/1 \
 - `400 Bad Request`: Không tìm thấy lớp học, không tìm thấy buổi học, hoặc buổi học không thuộc lớp chỉ định.
 - `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
 - `403 Forbidden`: Người dùng hiện tại không phải giáo viên phụ trách lớp.
+
+## Bảng tin lớp
+
+Các API bảng tin yêu cầu đăng nhập. Giáo viên phụ trách lớp và học sinh đang là thành viên lớp có thể xem, đăng bài và bình luận; chỉ tác giả mới được sửa hoặc xóa bài/bình luận của mình. Nội dung bài không được để trống và giới hạn 20.000 ký tự; nội dung bình luận tối đa 10.000 ký tự.
+
+### 59. GET `/api/classes/{classroomId}/feed/posts` | Lấy bài đăng bảng tin theo trang
+
+Trả danh sách bài đăng chưa bị xóa mềm, sắp xếp mới nhất trước. Thông tin tác giả được trả kèm mỗi bài. Phân trang dùng số trang bắt đầu từ 0; kích thước trang mặc định 20, tối đa 50.
+
+**Query parameters:**
+
+- `page`: Không bắt buộc, số trang từ `0` trở lên; mặc định `0`.
+- `size`: Không bắt buộc, số phần tử từ `1` đến `50`; mặc định `20`.
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X GET "http://localhost:8080/api/classes/1/feed/posts?page=0&size=20" \
+	--cookie "access_token=<token>"
+```
+
+**Response thành công `200 OK`:**
+
+```json
+{
+	"items": [
+		{
+			"id": 12,
+			"classId": 1,
+			"authorId": 5,
+			"authorName": "Nguyễn Minh Anh",
+			"authorAvatar": "https://storage.example.com/class-management/avatars/5.png",
+			"authorRole": "TEACHER",
+			"content": "Chào cả lớp! Đây là thông báo mới.",
+			"createdAt": "2026-10-27T08:30:00",
+			"updatedAt": "2026-10-27T08:30:00",
+			"commentCount": 2
+		}
+	],
+	"page": 0,
+	"size": 20,
+	"totalElements": 1,
+	"totalPages": 1
+}
+```
+
+Không có bài đăng phù hợp thì `items` là `[]`, `totalElements` và `totalPages` bằng `0`.
+`authorAvatar` là URL ảnh đại diện có thể dùng trực tiếp trên giao diện; `authorName` ưu tiên họ tên và dùng username nếu họ tên trống.
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: `page` âm hoặc `size` ngoài khoảng `1..50`.
+- `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
+- `403 Forbidden`: Người dùng không phải giáo viên phụ trách hoặc học sinh đang tham gia lớp.
+- `404 Not Found`: Không tìm thấy lớp.
+
+### 60. POST `/api/classes/{classroomId}/feed/posts` | Tạo bài đăng
+
+Tạo bài mới trong bảng tin lớp. Tác giả được xác định từ tài khoản đăng nhập, không nhận `authorId` từ client. Trả `201 Created`.
+
+**Headers:**
+
+```http
+Content-Type: application/json
+Cookie: access_token=<token>
+```
+
+**Request body:**
+
+```json
+{
+	"content": "Chào cả lớp! Đây là thông báo mới."
+}
+```
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X POST http://localhost:8080/api/classes/1/feed/posts \
+	-H "Content-Type: application/json" \
+	--cookie "access_token=<token>" \
+	-d '{"content":"Chào cả lớp! Đây là thông báo mới."}'
+```
+
+**Response thành công `201 Created`:** Trả về một object bài đăng cùng cấu trúc phần tử trong `items` của API GET.
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Thiếu `content`, nội dung rỗng/chỉ có khoảng trắng hoặc vượt quá 20.000 ký tự.
+- `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
+- `403 Forbidden`: Người dùng không phải giáo viên phụ trách hoặc học sinh đang tham gia lớp.
+- `404 Not Found`: Không tìm thấy lớp.
+
+### 61. PUT `/api/classes/{classroomId}/feed/posts/{postId}` | Sửa bài đăng
+
+Cập nhật nội dung bài đăng chưa bị xóa mềm trong lớp. Chỉ tác giả bài đăng được sửa. Request body có cùng định dạng và giới hạn như API POST; trả về object bài đăng sau khi cập nhật.
+
+**Request body:**
+
+```json
+{
+	"content": "Nội dung thông báo đã được cập nhật."
+}
+```
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X PUT http://localhost:8080/api/classes/1/feed/posts/12 \
+	-H "Content-Type: application/json" \
+	--cookie "access_token=<token>" \
+	-d '{"content":"Nội dung thông báo đã được cập nhật."}'
+```
+
+**Response thành công `200 OK`:** Trả về một object bài đăng với `content` và `updatedAt` mới.
+
+**Một số trường hợp lỗi:**
+
+- `400 Bad Request`: Thiếu `content`, nội dung rỗng/chỉ có khoảng trắng hoặc vượt quá 20.000 ký tự.
+- `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
+- `403 Forbidden`: Người dùng không có quyền truy cập bảng tin lớp hoặc không phải tác giả bài đăng.
+- `404 Not Found`: Không tìm thấy lớp hoặc bài đăng còn hoạt động thuộc lớp đó.
+
+### 62. DELETE `/api/classes/{classroomId}/feed/posts/{postId}` | Xóa bài đăng của mình
+
+Xóa mềm bài đăng bằng cách ghi `deleted_at`; bài đăng không còn xuất hiện trong bảng tin. Chỉ tác giả bài đăng được xóa. Trả `204 No Content`.
+
+**Cách test bằng cURL:**
+
+```bash
+curl -X DELETE http://localhost:8080/api/classes/1/feed/posts/12 \
+	--cookie "access_token=<token>"
+```
+
+**Một số trường hợp lỗi:**
+
+- `401 Unauthorized`: Thiếu hoặc token không hợp lệ.
+- `403 Forbidden`: Người dùng không có quyền truy cập bảng tin lớp hoặc không phải tác giả bài đăng.
+- `404 Not Found`: Không tìm thấy lớp hoặc bài đăng còn hoạt động thuộc lớp đó.
+
+### 63. GET `/api/classes/{classroomId}/feed/posts/{postId}/comments` | Lấy bình luận
+
+Lấy bình luận chưa bị xóa mềm theo trang, mới nhất trước. Tác giả (tên, ảnh đại diện, vai trò) được trả kèm mỗi bình luận. Mặc định lấy 20 bình luận, tối đa 50 bình luận mỗi trang.
+
+```bash
+curl -X GET "http://localhost:8080/api/classes/1/feed/posts/12/comments?page=0&size=20" \
+	--cookie "access_token=<token>"
+```
+
+Response `200 OK` có cấu trúc phân trang như danh sách bài đăng, trong đó mỗi phần tử gồm `id`, `postId`, `parentCommentId`, `authorId`, `authorName`, `authorAvatar`, `authorRole`, `content`, `createdAt` và `updatedAt`.
+
+### 64. POST `/api/classes/{classroomId}/feed/posts/{postId}/comments` | Tạo bình luận
+
+Tạo bình luận cho bài đăng đang hoạt động. Tác giả lấy từ tài khoản đăng nhập; nội dung bắt buộc và tối đa 10.000 ký tự. Trả `201 Created` cùng dữ liệu bình luận mới.
+
+```bash
+curl -X POST http://localhost:8080/api/classes/1/feed/posts/12/comments \
+	-H "Content-Type: application/json" \
+	--cookie "access_token=<token>" \
+	-d '{"content":"Cảm ơn thầy/cô!"}'
+```
+
+### 65. DELETE `/api/classes/{classroomId}/feed/posts/{postId}/comments/{commentId}` | Xóa bình luận của mình
+
+Xóa mềm bình luận bằng cách ghi `deleted_at`; chỉ tác giả bình luận được xóa. Trả `204 No Content`.
+
+```bash
+curl -X DELETE http://localhost:8080/api/classes/1/feed/posts/12/comments/31 \
+	--cookie "access_token=<token>"
+```
+
+Các API bình luận yêu cầu đăng nhập và quyền truy cập lớp học. Trả `403 Forbidden` nếu người dùng không phải giáo viên phụ trách/học sinh của lớp hoặc không phải tác giả khi xóa; trả `404 Not Found` nếu lớp, bài đăng hoặc bình luận không còn hoạt động.
+
+### 66. PUT `/api/classes/{classroomId}/feed/posts/{postId}/comments/{commentId}` | Sửa bình luận của mình
+
+Cập nhật nội dung bình luận đang hoạt động. Chỉ tác giả bình luận được sửa; request body giống API tạo bình luận và giới hạn 10.000 ký tự. Trả `200 OK` cùng thông tin bình luận sau khi cập nhật.
+
+```bash
+curl -X PUT http://localhost:8080/api/classes/1/feed/posts/12/comments/31 \
+	-H "Content-Type: application/json" \
+	--cookie "access_token=<token>" \
+	-d '{"content":"Nội dung bình luận đã chỉnh sửa."}'
+```
+
+Trả `400 Bad Request` nếu nội dung rỗng hoặc dài hơn 10.000 ký tự, `403 Forbidden` nếu người dùng không có quyền truy cập lớp hoặc không phải tác giả, và `404 Not Found` nếu lớp, bài đăng hoặc bình luận không còn hoạt động.
+
+### 67. PUT `/api/classes/{classroomId}/feed/posts/{postId}/vote` | Đặt like/dislike
+
+Đặt hoặc đổi lượt vote của người dùng hiện tại. Mỗi người chỉ có một vote (`LIKE` hoặc `DISLIKE`) trên mỗi bài đăng; gửi lại loại đang chọn sẽ giữ nguyên. Trả số lượng like/dislike mới cùng `myVote`.
+
+```bash
+curl -X PUT http://localhost:8080/api/classes/1/feed/posts/12/vote \
+	-H "Content-Type: application/json" \
+	--cookie "access_token=<token>" \
+	-d '{"vote":"LIKE"}'
+```
+
+### 68. DELETE `/api/classes/{classroomId}/feed/posts/{postId}/vote` | Bỏ like/dislike
+
+Gỡ vote của người dùng hiện tại khỏi bài đăng. Trả số lượng like/dislike mới cùng `myVote` (là `null` nếu đã gỡ).
+
+```bash
+curl -X DELETE http://localhost:8080/api/classes/1/feed/posts/12/vote \
+	--cookie "access_token=<token>"
+```
+
+Cả hai API yêu cầu đăng nhập và quyền truy cập lớp; trả `403 Forbidden` nếu không có quyền vào lớp, `404 Not Found` nếu bài đăng không còn hoạt động, và `400 Bad Request` nếu vote không phải `LIKE` hoặc `DISLIKE`. API GET danh sách bài đăng đã bao gồm `likeCount`, `dislikeCount` và `myVote` cho từng bài, không cần request riêng từng bài đăng.
+
+### 69-70. Emoji reaction cho bài đăng
+
+`PUT /api/classes/{classroomId}/feed/posts/{postId}/reactions/emoji` đặt hoặc đổi emoji của người dùng hiện tại. Mỗi người có tối đa một emoji reaction cho mỗi bài; mã emoji lấy từ trường `unified` của emoji picker và phải dài tối đa 32 ký tự.
+
+```bash
+curl -X PUT http://localhost:8080/api/classes/1/feed/posts/12/reactions/emoji \
+	-H "Content-Type: application/json" \
+	--cookie "access_token=<token>" \
+	-d '{"emojiCode":"1f602"}'
+```
+
+`DELETE` cùng đường dẫn gỡ emoji reaction của người dùng hiện tại. Cả hai API trả danh sách `emojiCode`, `count`, `reactedByMe` mới; GET danh sách bài đăng cũng trả `emojiReactions` cho từng bài bằng một truy vấn tổng hợp theo trang.
+
+### 71-72. Emoji reaction cho bình luận
+
+`PUT /api/classes/{classroomId}/feed/posts/{postId}/comments/{commentId}/reactions/emoji` đặt hoặc đổi emoji cho bình luận; `DELETE` cùng đường dẫn gỡ reaction của người dùng hiện tại. Body PUT dùng `{"emojiCode":"1f602"}`; response là danh sách tổng hợp theo emoji. GET danh sách bình luận trả thêm `emojiReactions`, được tổng hợp theo trang để tránh N+1 query.
+
+Các API reaction yêu cầu người dùng đăng nhập và có quyền truy cập lớp. Trả `404 Not Found` nếu bài đăng hoặc bình luận đã bị xóa/không tồn tại; trả `400 Bad Request` nếu mã emoji không đúng định dạng.
 
 ## Điểm danh
 

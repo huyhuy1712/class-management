@@ -10,10 +10,19 @@ import {
 import { NavLink, useLocation, useParams } from 'react-router-dom'
 import useRoutePrefetch from '../../../query/useRoutePrefetch'
 import useResourceQuery from '../../../query/useResourceQuery'
+import { getTodayDate } from '../../../utils/dateUtils'
 
 function ClassDetailSidebar({ studentCount = 0 }) {
   const prefetch = useRoutePrefetch()
   const { classId } = useParams()
+  const todayLessonsQuery = useResourceQuery(
+    'lessons',
+    [classId, getTodayDate()],
+    { enabled: Boolean(classId), refetchInterval: false },
+  )
+  const feedQuery = useResourceQuery('classFeedPosts', [classId, 0, 20], {
+    enabled: Boolean(classId),
+  })
   const examsQuery = useResourceQuery('classExams', [classId])
   const materialsQuery = useResourceQuery('classDocuments', [classId])
   const homeworkQuery = useResourceQuery('classHomeworks', [classId])
@@ -58,6 +67,7 @@ function ClassDetailSidebar({ studentCount = 0 }) {
       label: 'Bảng tin',
       icon: Bell,
       to: `/teacher/classes/${classId}/announcements`,
+      count: feedQuery.data?.totalElements,
     },
     {
       label: 'Bảng điểm',
@@ -68,6 +78,7 @@ function ClassDetailSidebar({ studentCount = 0 }) {
       label: 'Điểm danh',
       icon: ClipboardCheck,
       to: `/teacher/classes/${classId}/attendance`,
+      count: todayLessonsQuery.data?.length,
     },
   ]
 

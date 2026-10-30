@@ -5,6 +5,7 @@ import useTeacherMaterials from './hooks/useTeacherMaterials'
 import useMaterialTargetOptions from './hooks/useMaterialTargetOptions'
 import MaterialEditorModal from './components/MaterialEditorModal'
 import MaterialList from './components/MaterialList'
+import FrogLoading from '../../../utils/FrogLoading'
 
 function getErrorMessage(error) {
   return error?.response?.data?.message || error?.message || 'Không thể thực hiện thao tác. Vui lòng thử lại.'
@@ -41,7 +42,9 @@ export default function TeacherMaterialsPage() {
     try {
       await manager.save(material)
       setEditorOpen(false)
-      if (material.id) setToast('Cập nhật tài liệu thành công.')
+      if (material.files?.length > 1) setToast(`Đã đăng ${material.files.length} tài liệu thành công.`)
+      else if (material.id) setToast('Cập nhật tài liệu thành công.')
+      else setToast('Đăng tài liệu thành công.')
       return { success: true }
     } catch (error) {
       const message = getErrorMessage(error)
@@ -108,7 +111,9 @@ export default function TeacherMaterialsPage() {
         </section>
 
         {manager.loading || targets.loading ? (
-          <div role="status" className="rounded-2xl border border-slate-200 bg-white py-14 text-center text-sm text-slate-500">Đang tải tài liệu và danh sách phân phối...</div>
+          <div className="rounded-2xl border border-slate-200 bg-white">
+            <FrogLoading label="Đang tải tài liệu và danh sách phân phối..." />
+          </div>
         ) : (
           <MaterialList
             materials={filteredMaterials}
@@ -133,13 +138,15 @@ export default function TeacherMaterialsPage() {
         )}
 
         {deleteCandidate && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/45 p-4" onMouseDown={(event) => event.target === event.currentTarget && setDeleteCandidate(null)}>
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/45 p-4" onMouseDown={(event) => event.target === event.currentTarget && !manager.pending && setDeleteCandidate(null)}>
             <section role="alertdialog" aria-modal="true" aria-labelledby="delete-material-title" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
               <h2 id="delete-material-title" className="text-lg font-bold text-slate-900">Xóa tài liệu?</h2>
               <p className="mt-2 break-words text-sm leading-6 text-slate-600">“{deleteCandidate.title}” và tệp đã tải lên sẽ bị xóa vĩnh viễn.</p>
               <div className="mt-6 flex justify-end gap-2">
-                <button type="button" onClick={() => setDeleteCandidate(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Hủy</button>
-                <button type="button" onClick={deleteMaterial} disabled={manager.pending} className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60">{manager.pending ? 'Đang xóa...' : 'Xóa tài liệu'}</button>
+                <button type="button" onClick={() => setDeleteCandidate(null)} disabled={manager.pending} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60">Hủy</button>
+                <button type="button" onClick={deleteMaterial} disabled={manager.pending} className="inline-flex min-w-36 items-center justify-center rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60">
+                  {manager.pending ? <FrogLoading compact label="Đang xóa..." /> : 'Xóa tài liệu'}
+                </button>
               </div>
             </section>
           </div>

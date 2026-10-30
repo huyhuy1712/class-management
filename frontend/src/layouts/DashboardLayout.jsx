@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import Sidebar from '../components/dashboard/Sidebar'
 import Header from '../components/dashboard/Header'
+import AiChatWidget from '../components/AiChatWidget'
 
 function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -20,6 +21,9 @@ function DashboardLayout({ children }) {
           {children}
         </main>
       </div>
+
+      {/* Trợ lý Học tập AI dành cho Giáo viên */}
+      <AiChatWidget />
     </div>
   )
 }

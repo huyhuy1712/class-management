@@ -24,6 +24,8 @@ public interface ExamRepository extends JpaRepository<Exam, Long> {
 
         List<Exam> findAllByTeacher_Username(String username);
 
+        long countByTeacher_Username(String username);
+
         @EntityGraph(attributePaths = {
                         "teacher",
                         "subject"

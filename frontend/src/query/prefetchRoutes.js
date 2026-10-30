@@ -2,6 +2,10 @@ export function routeQueries(path, userId, date) {
   const [pathname, search = ''] = path.split('?')
   const attemptReview = /^\/teacher\/exams\/[^/]+\/assignments\/[^/]+\/attempts\/([^/]+)$/.exec(pathname)
   if (attemptReview) return [['teacherAttemptReview', [attemptReview[1]]]]
+  const teacherFeed = /^\/teacher\/classes\/([^/]+)\/announcements$/.exec(pathname)
+  if (teacherFeed) return [['classFeedPosts', [teacherFeed[1], 0, 20]]]
+  const studentFeed = /^\/student\/classes\/([^/]+)\/announcements$/.exec(pathname)
+  if (studentFeed) return [['classFeedPosts', [studentFeed[1], 0, 20]]]
   const studentDetail = /^\/teacher\/classes\/([^/]+)\/students\/([^/]+)$/.exec(pathname)
   if (studentDetail) return [['classStudents', [studentDetail[1]]], ['studentClassExamResults', [studentDetail[1], studentDetail[2]]], ['attendances', [studentDetail[1]]]]
   const assignment = /^\/teacher\/exams\/([^/]+)\/assignments\/([^/]+)$/.exec(pathname)
@@ -16,6 +20,10 @@ export function routeQueries(path, userId, date) {
   const classExams = /^\/teacher\/classes\/([^/]+)\/assignments$/.exec(path)
   if (classExams) return [['teacherClasses', []], ['classExams', [classExams[1]]]]
   if (pathname === '/student/grades') return [['studentGrades', ['', '', '', '', '', '', 'newest', 0]]]
+  if (pathname === '/teacher/billing') {
+    const orderId = new URLSearchParams(search).get('orderId')
+    return [['billing', []], ...(orderId ? [['billingOrder', [orderId]]] : [])]
+  }
   const gradebook = /^\/teacher\/classes\/([^/]+)\/grades$/.exec(pathname)
   if (gradebook) return [['classGradebook', [gradebook[1], 0, '', '']], ['subjects', []]]
   const pages = {

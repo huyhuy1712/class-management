@@ -19,6 +19,16 @@ const materialService = {
     return (await api.post('/materials', body)).data
   },
 
+  uploadMany: async (material) => {
+    const body = new FormData()
+    if (material.content) body.append('content', material.content)
+    body.append('assignmentType', material.targetType)
+    material.classIds?.forEach((id) => body.append('classIds', String(id)))
+    material.studentIds?.forEach((id) => body.append('studentIds', String(id)))
+    material.files.forEach((file) => body.append('files', file))
+    return (await api.post('/materials/batch', body)).data
+  },
+
   update: async (material) => {
     const body = new FormData()
     body.append('title', material.title)

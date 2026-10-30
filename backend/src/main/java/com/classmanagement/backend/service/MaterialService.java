@@ -20,6 +20,14 @@ public interface MaterialService {
             List<Long> studentIds,
             MultipartFile file);
 
+    List<MaterialDocumentResponse> uploadDocuments(
+            String username,
+            String content,
+            MaterialAssignmentType assignmentType,
+            List<Long> classIds,
+            List<Long> studentIds,
+            List<MultipartFile> files);
+
     MaterialDocumentResponse updateDocument(
             Long materialId,
             String username,

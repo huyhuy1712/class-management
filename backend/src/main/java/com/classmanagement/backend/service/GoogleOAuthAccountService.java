@@ -14,17 +14,19 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
 import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
 public class GoogleOAuthAccountService {
     private static final String PROVIDER = "GOOGLE";
+    private static final String GOOGLE_USERNAME_PREFIX = "google - ";
+    private static final int USERNAME_MAX_LENGTH = 50;
 
     private final UserRepository users;
     private final UserAuthIdentityRepository identities;
     private final ImpersonationSessionRepository impersonationSessions;
+    private final GoogleAvatarStorage googleAvatarStorage;
 
     @Transactional
     public Result process(OAuth2User googleUser, Map<String, String> context) {
@@ -44,7 +46,7 @@ public class GoogleOAuthAccountService {
         if (linkedIdentity.isPresent()) {
             User user = users.findById(linkedIdentity.get().getUserId()).orElse(null);
             if (user != null) {
-                applyGoogleAvatarIfMissing(user, googleAvatarUrl(googleUser));
+                storeGoogleAvatar(user, googleAvatarUrl(googleUser));
             }
             return user == null ? new Result("account_unavailable", null) : accountResult(user);
         }
@@ -62,14 +64,14 @@ public class GoogleOAuthAccountService {
         if (fullName == null || fullName.isBlank()) fullName = email.substring(0, email.indexOf('@'));
 
         User user = users.save(User.builder()
-                .username("google-" + UUID.randomUUID().toString().replace("-", ""))
+                .username(createGoogleUsername(fullName))
                 .passwordHash(null)
                 .email(email)
                 .fullName(fullName.length() <= 100 ? fullName : fullName.substring(0, 100))
-                .avatar(googleAvatarUrl(googleUser))
                 .role(role)
                 .status(role == UserRole.TEACHER ? UserStatus.PENDING : UserStatus.ACTIVE)
                 .build());
+        storeGoogleAvatar(user, googleAvatarUrl(googleUser));
         if (role == UserRole.TEACHER) user.setTeacherCode("TC-" + user.getId());
         else user.setStudentCode("ST-" + user.getId());
         user = users.save(user);
@@ -83,6 +85,19 @@ public class GoogleOAuthAccountService {
         return accountResult(user);
     }
 
+    private String createGoogleUsername(String fullName) {
+        String normalizedName = fullName.trim().replaceAll("\\s+", " ");
+        for (int suffix = 1; ; suffix++) {
+            String suffixText = suffix == 1 ? "" : " (" + suffix + ")";
+            int nameLimit = USERNAME_MAX_LENGTH - GOOGLE_USERNAME_PREFIX.length() - suffixText.length();
+            String displayName = normalizedName.length() > nameLimit
+                    ? normalizedName.substring(0, nameLimit).stripTrailing()
+                    : normalizedName;
+            String username = GOOGLE_USERNAME_PREFIX + displayName + suffixText;
+            if (!users.existsByUsername(username)) return username;
+        }
+    }
+
     private Result link(String subject, String email, String avatarUrl, String username) {
         if (username == null || username.isBlank()) return new Result("link_requires_login", null);
         User user = users.findByUsername(username).orElse(null);
@@ -93,7 +108,7 @@ public class GoogleOAuthAccountService {
             if (!existing.get().getUserId().equals(user.getId())) {
                 return new Result("google_already_linked", null);
             }
-            applyGoogleAvatarIfMissing(user, avatarUrl);
+            storeGoogleAvatar(user, avatarUrl);
             return new Result("linked", user);
         }
         if (identities.findByUserIdAndProvider(user.getId(), PROVIDER).isPresent()) {
@@ -106,7 +121,7 @@ public class GoogleOAuthAccountService {
                 .providerSubject(subject)
                 .emailAtLink(email)
                 .build());
-        applyGoogleAvatarIfMissing(user, avatarUrl);
+        storeGoogleAvatar(user, avatarUrl);
         return new Result("linked", user);
     }
 
@@ -120,11 +135,21 @@ public class GoogleOAuthAccountService {
         return url;
     }
 
-    private void applyGoogleAvatarIfMissing(User user, String avatarUrl) {
-        if ((user.getAvatar() == null || user.getAvatar().isBlank()) && avatarUrl != null) {
-            user.setAvatar(avatarUrl);
-            users.save(user);
-        }
+    private void storeGoogleAvatar(User user, String avatarUrl) {
+        googleAvatarStorage.storeIfNeeded(user.getId(), user.getAvatar(), avatarUrl)
+                .ifPresent(objectPath -> {
+                    user.setAvatar(objectPath);
+                    try {
+                        users.save(user);
+                    } catch (RuntimeException exception) {
+                        try {
+                            googleAvatarStorage.delete(objectPath);
+                        } catch (RuntimeException cleanupException) {
+                            exception.addSuppressed(cleanupException);
+                        }
+                        throw exception;
+                    }
+                });
     }
 
     private Result accountResult(User user) {

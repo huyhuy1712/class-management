@@ -1,1 +1,4 @@
-/*    /index.html   200
+/api/* https://class-management-production-d631.up.railway.app/api/:splat 200
+/oauth2/* https://class-management-production-d631.up.railway.app/oauth2/:splat 200
+/login/oauth2/* https://class-management-production-d631.up.railway.app/login/oauth2/:splat 200
+/* /index.html 200
