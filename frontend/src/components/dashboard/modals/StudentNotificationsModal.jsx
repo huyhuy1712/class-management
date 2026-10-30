@@ -1,17 +1,15 @@
 import { useNavigate } from 'react-router-dom'
 import FrogLoading from '../../../utils/FrogLoading'
-import { Bell, CheckCircle2, Clock3, ClipboardCheck, X, XCircle, UserMinus } from 'lucide-react'
+import { Bell, CheckCircle2, Clock3, ClipboardCheck, ExternalLink, X, XCircle, UserMinus } from 'lucide-react'
 
 export default function StudentNotificationsModal({ notifications, loading, error, actionError, busy, onRead, onDelete, onDeleteAll, onClose }) {
   const navigate = useNavigate()
   const unreadCount = notifications.filter((item) => !item.read).length
   const sortedNotifications = [...notifications].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
-  const openNotification = (item) => {
+  const openHomework = (item) => {
     if (!item.read) onRead(item)
-    if (item.type === 'HOMEWORK_NEW' && item.referenceId) {
-      onClose()
-      navigate(`/student/homework/${item.referenceId}`)
-    }
+    onClose()
+    navigate(`/student/homework/${item.referenceId}`)
   }
 
   return (
@@ -42,7 +40,7 @@ export default function StudentNotificationsModal({ notifications, loading, erro
               <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${['REQUEST_REJECTED', 'CLASS_REMOVED'].includes(item.type) ? 'bg-white text-red-600' : item.read ? 'bg-slate-100 text-slate-500' : 'bg-white text-emerald-600'}`}>
                 {item.type === 'REQUEST_REJECTED' ? <XCircle size={17} /> : item.type === 'CLASS_REMOVED' ? <UserMinus size={17} /> : item.type === 'HOMEWORK_NEW' ? <ClipboardCheck size={17} /> : item.read ? <Clock3 size={17} /> : <CheckCircle2 size={17} />}
               </span>
-              <button type="button" disabled={busy} onClick={() => openNotification(item)} className="min-w-0 flex-1 text-left disabled:cursor-wait">
+              <button type="button" disabled={busy} onClick={() => onRead(item)} className="min-w-0 flex-1 text-left disabled:cursor-wait">
                 <div className="flex items-start justify-between gap-3">
                   <h3 className={`font-bold leading-5 ${['REQUEST_REJECTED', 'CLASS_REMOVED'].includes(item.type) ? 'text-red-800' : 'text-slate-900'}`}>{item.title}</h3>
                   {!item.read && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" aria-label="Chưa đọc" />}
@@ -50,6 +48,12 @@ export default function StudentNotificationsModal({ notifications, loading, erro
                 <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-slate-600">{item.message}</p>
                 {item.createdAt && <p className="mt-2 text-xs font-medium text-slate-400">{new Date(item.createdAt).toLocaleString('vi-VN')}</p>}
               </button>
+              {item.type === 'HOMEWORK_NEW' && item.referenceId && <button
+                type="button"
+                disabled={busy}
+                onClick={() => openHomework(item)}
+                className="self-center inline-flex shrink-0 items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-wait"
+              ><ExternalLink size={14} />Mở bài tập</button>}
               <button type="button" disabled={busy} onClick={() => onDelete(item.id)} aria-label="Xóa thông báo" className="self-start rounded-lg p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed"><X size={17} /></button>
             </article>
           ))}

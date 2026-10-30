@@ -810,7 +810,7 @@ public class HomeworkService {
         String name = safeName(file.getOriginalFilename());
         String type = contentType(extension);
         String path = storage.upload("homework/teachers/" + teacherId + "/" + UUID.randomUUID(),
-                "prompt." + extension, typed(file, type));
+                name, typed(file, type));
         return new UploadedFile(path, name, type, file.getSize());
     }
 
