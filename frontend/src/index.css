@@ -464,6 +464,107 @@ button:disabled {
   padding: 28px 32px 48px;
 }
 
+.admin-history-banner {
+  position: relative;
+  isolation: isolate;
+  min-height: 230px;
+  overflow: hidden;
+  padding: 36px;
+  color: #fff;
+  background: linear-gradient(115deg, #123f2b 0%, #126b3c 52%, #168447 100%);
+  border: 1px solid rgb(18 63 43 / 16%);
+  border-radius: 24px;
+  box-shadow: 0 14px 32px rgb(18 63 43 / 18%);
+}
+
+.admin-history-banner__decoration {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  top: -118px;
+  right: -52px;
+  width: 320px;
+  height: 320px;
+  border: 42px solid rgb(255 255 255 / 9%);
+  border-radius: 50%;
+}
+
+.admin-history-banner__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-height: 156px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 28px;
+}
+
+.admin-history-banner__icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  margin-bottom: 18px;
+  color: #fff;
+  background: rgb(255 255 255 / 16%);
+  border: 1px solid rgb(255 255 255 / 24%);
+  border-radius: 15px;
+}
+
+.admin-history-banner__eyebrow {
+  margin: 0 0 8px;
+  color: #c9f3d9;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+}
+
+.admin-history-banner__title {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(24px, 3vw, 34px);
+  font-weight: 800;
+  letter-spacing: -0.7px;
+  line-height: 1.2;
+}
+
+.admin-history-banner__description {
+  max-width: 680px;
+  margin: 10px 0 0;
+  color: #e4f6eb;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.admin-history-banner__scope {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 17px;
+  color: #fff;
+  background: rgb(255 255 255 / 12%);
+  border: 1px solid rgb(255 255 255 / 24%);
+  border-radius: 16px;
+}
+
+.admin-history-banner__scope > svg {
+  color: #c9f3d9;
+}
+
+.admin-history-banner__scope p {
+  margin: 0 0 4px;
+  color: #c9f3d9;
+  font-size: 11px;
+}
+
+.admin-history-banner__scope strong {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 /* =========================
    DASHBOARD + PAGE HEADING
 ========================= */
@@ -1601,6 +1702,31 @@ button:disabled {
 
   .admin-layout__content {
     padding: 20px;
+  }
+
+  .admin-history-banner {
+    min-height: 0;
+    padding: 24px;
+    border-radius: 20px;
+  }
+
+  .admin-history-banner__content {
+    min-height: 0;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .admin-history-banner__icon {
+    margin-bottom: 16px;
+  }
+
+  .admin-history-banner__description {
+    font-size: 13px;
+  }
+
+  .admin-history-banner__scope {
+    padding: 11px 14px;
   }
 
   .admin-welcome,

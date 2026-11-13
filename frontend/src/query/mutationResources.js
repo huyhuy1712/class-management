@@ -3,23 +3,23 @@ export function mutationResources(url, method) {
   if (!['post', 'put', 'patch', 'delete'].includes(String(method).toLowerCase())) return []
   const path = String(url ?? '').split('?')[0]
   if (/^\/exam-attempts\/[^/]+\/answers$/.test(path)) return []
-  if (/^\/(exam-attempts|exam-assignments)(?:\/|$)/.test(path)) return ['studentExams', 'studentAssignment', 'examAttemptResult', 'examCount', 'dashboard', 'exams', 'classExams', 'teacherAssignmentAttempts', 'teacherAssignmentExport', 'studentClassExamResults', 'classGradebook', 'teacherAttemptReview', 'studentGrades']
+  if (/^\/(exam-attempts|exam-assignments)(?:\/|$)/.test(path)) return ['studentExams', 'studentAssignment', 'examAttemptResult', 'examCount', 'dashboard', 'exams', 'classExams', 'teacherAssignmentAttempts', 'teacherAssignmentExport', 'studentClassExamResults', 'classGradebook', 'teacherAttemptReview', 'studentGrades', 'teacherActivity', 'studentActivity']
   if (/^\/notifications(?:\/|$)/.test(path)) return ['notifications']
   if (/^\/billing\/vip\/redeem$/.test(path)) return ['billing']
-  if (/^\/requests(?:\/|$)/.test(path)) return ['requests', 'studentGrades', 'notifications', 'studentClasses', 'teacherClasses', 'classStudents', 'teacherStudents', 'dashboard']
-  if (/^\/classes\/[^/]+\/attendances(?:\/|$)/.test(path)) return ['attendances', 'dashboard']
-  if (/^\/classes\/[^/]+\/lessons(?:\/|$)/.test(path)) return ['lessons']
-  if (/^\/classes\/[^/]+\/feed\/posts\/\d+\/comments(?:\/|$)/.test(path)) return ['classFeedPosts', 'classFeedComments']
-  if (/^\/classes\/[^/]+\/feed\/posts(?:\/|$)/.test(path)) return ['classFeedPosts']
-  if (/^\/materials(?:\/|$)/.test(path)) return ['teacherMaterials', 'classDocuments']
-  if (/^\/homework-assignments(?:\/|$)/.test(path)) return ['teacherHomeworks', 'teacherHomework', 'homeworkSubmissions', 'studentHomeworkSummary', 'classHomeworks', 'studentHomeworks', 'studentHomework']
+  if (/^\/requests(?:\/|$)/.test(path)) return ['requests', 'studentGrades', 'notifications', 'studentClasses', 'teacherClasses', 'classStudents', 'teacherStudents', 'dashboard', 'teacherActivity', 'studentActivity']
+  if (/^\/classes\/[^/]+\/attendances(?:\/|$)/.test(path)) return ['attendances', 'dashboard', 'teacherActivity', 'studentActivity']
+  if (/^\/classes\/[^/]+\/lessons(?:\/|$)/.test(path)) return ['lessons', 'teacherActivity']
+  if (/^\/classes\/[^/]+\/feed\/posts\/\d+\/comments(?:\/|$)/.test(path)) return ['classFeedPosts', 'classFeedComments', 'teacherActivity', 'studentActivity']
+  if (/^\/classes\/[^/]+\/feed\/posts(?:\/|$)/.test(path)) return ['classFeedPosts', 'teacherActivity', 'studentActivity']
+  if (/^\/materials(?:\/|$)/.test(path)) return ['teacherMaterials', 'classDocuments', 'teacherActivity']
+  if (/^\/homework-assignments(?:\/|$)/.test(path)) return ['teacherHomeworks', 'teacherHomework', 'homeworkSubmissions', 'studentHomeworkSummary', 'classHomeworks', 'studentHomeworks', 'studentHomework', 'teacherActivity', 'studentActivity']
   if (/^\/classes(?:\/|$)/.test(path)) {
-    const resources = ['teacherClasses', 'studentClasses', 'allClasses', 'classStudents', 'studentHomeworkSummary', 'teacherStudents', 'dashboard', 'exams', 'studentExams', 'studentAssignment', 'classExams', 'studentClassExamResults', 'classGradebook', 'teacherAttemptReview', 'studentGrades']
+    const resources = ['teacherClasses', 'studentClasses', 'allClasses', 'classStudents', 'studentHomeworkSummary', 'teacherStudents', 'dashboard', 'exams', 'studentExams', 'studentAssignment', 'classExams', 'studentClassExamResults', 'classGradebook', 'teacherAttemptReview', 'studentGrades', 'teacherActivity']
     const removesClassStudents = String(method).toLowerCase() === 'delete'
       && /^\/classes\/[^/]+\/students(?:\/[^/]+)?$/.test(path)
     return removesClassStudents ? [...resources, 'teacherMaterials'] : resources
   }
-  if (/^\/exams(?:\/|$)/.test(path)) return ['exams', 'examDetail', 'examConfiguration', 'examCount', 'dashboard', 'studentExams', 'studentAssignment', 'classExams', 'teacherAssignmentAttempts', 'teacherAssignmentExport', 'studentClassExamResults', 'classGradebook', 'teacherAttemptReview', 'studentGrades']
+  if (/^\/exams(?:\/|$)/.test(path)) return ['exams', 'examDetail', 'examConfiguration', 'examCount', 'dashboard', 'studentExams', 'studentAssignment', 'classExams', 'teacherAssignmentAttempts', 'teacherAssignmentExport', 'studentClassExamResults', 'classGradebook', 'teacherAttemptReview', 'studentGrades', 'teacherActivity']
   if (/^\/users(?:\/|$)/.test(path)) return ['profile', 'teacherStudents', 'classStudents', 'studentDirectory', 'teachers', 'dashboard']
   return []
 }

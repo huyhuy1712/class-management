@@ -9,6 +9,7 @@ import subjectService from '../services/subjectService'
 import materialService from '../services/materialService'
 import billingService from '../services/billingService'
 import homeworkService from '../services/homeworkService'
+import teacherActivityService from '../services/teacherActivityService'
 
 export function resourceOptions(resource, params) {
   const readers = {
@@ -85,6 +86,24 @@ export function resourceOptions(resource, params) {
     examAttemptResult: ({ signal }) => examService.getAttemptResult(params[0], { signal }),
     billing: ({ signal }) => billingService.getOverview({ signal }),
     billingOrder: ({ signal }) => billingService.getOrder(params[0], { signal }),
+    teacherActivity: ({ signal }) => teacherActivityService.getActivity({
+      page: Number(params[0] ?? 0),
+      size: Number(params[1] ?? 20),
+      q: params[2] ?? '',
+      category: params[3] ?? '',
+      from: params[4] ?? '',
+      to: params[5] ?? '',
+      sort: params[6] ?? 'newest',
+    }, { signal }),
+    studentActivity: ({ signal }) => teacherActivityService.getStudentActivity({
+      page: Number(params[0] ?? 0),
+      size: Number(params[1] ?? 20),
+      q: params[2] ?? '',
+      category: params[3] ?? '',
+      from: params[4] ?? '',
+      to: params[5] ?? '',
+      sort: params[6] ?? 'newest',
+    }, { signal }),
   }
   if (!readers[resource]) throw new Error(`Unknown query resource: ${resource}`)
   const classroomMembership = ['studentClasses', 'classStudents'].includes(resource)

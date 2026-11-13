@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { BookOpen, House, LogOut, Users } from "lucide-react";
+import { BookOpen, History, House, LogOut, Users } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { logout as logoutRequest } from "../../services/authService";
@@ -23,6 +23,12 @@ const menuItems = [
     path: "/admin/subjects",
     label: "Quản lý môn học",
     icon: BookOpen,
+    end: false,
+  },
+  {
+    path: "/admin/history",
+    label: "Lịch sử hoạt động",
+    icon: History,
     end: false,
   },
 ];

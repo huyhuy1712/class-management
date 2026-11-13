@@ -11,10 +11,15 @@ import {
   FileCheck,
   ClipboardList,
   ArrowUpRight,
+  Activity,
+  History,
+  LoaderCircle,
+  TriangleAlert,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import useRoutePrefetch from '../../query/useRoutePrefetch'
+import useResourceQuery from '../../query/useResourceQuery'
 import { formatExamDateTime } from "../../pages/teacher/exams/helpers/examHelpers";
 
 const features = [
@@ -51,9 +56,19 @@ const features = [
   },
 ];
 
+function formatActivityTime(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Thời gian không xác định'
+  return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
+}
+
 function StudentDashboard() {
   const prefetch = useRoutePrefetch()
   const navigate = useNavigate()
+  const recentActivityQuery = useResourceQuery('studentActivity', [
+    0, 3, '', '', '', '', 'newest',
+  ], { errorMessage: 'Không thể tải hoạt động gần đây.' })
+  const recentActivities = recentActivityQuery.data?.items ?? []
   const { studentName, classCount, loading, classError, error, completedExamCount, examCountLoading, examCountError, completedHomeworkCount, homeworkCountLoading, homeworkCountError, unstartedExams, unstartedExamsError } = useStudentDashboard();
   const [activeExamIndex, setActiveExamIndex] = useState(0)
   const [paused, setPaused] = useState(false)
@@ -306,6 +321,61 @@ function StudentDashboard() {
 
         </div>
 
+      </section>
+
+      <section className="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
+          <div className="flex items-center gap-3">
+            <span className="rounded-xl bg-emerald-50 p-2.5 text-emerald-700">
+              <History size={21} />
+            </span>
+            <div>
+              <h2 className="font-bold text-[#18301D]">Hoạt động gần đây</h2>
+              <p className="text-sm text-slate-500">3 thao tác học tập mới nhất</p>
+            </div>
+          </div>
+          <Link
+            to="/student/history"
+            className="text-sm font-semibold text-emerald-700 hover:text-emerald-800"
+          >
+            Xem tất cả
+          </Link>
+        </div>
+        {recentActivityQuery.errorMessage ? (
+          <div className="flex items-center gap-3 px-5 py-8 text-sm text-rose-700 sm:px-6">
+            <TriangleAlert size={18} />
+            <span>{recentActivityQuery.errorMessage}</span>
+            <button type="button" onClick={() => recentActivityQuery.refetch()} className="font-semibold underline">
+              Thử lại
+            </button>
+          </div>
+        ) : recentActivityQuery.isLoading ? (
+          <div className="flex items-center justify-center gap-2 px-5 py-8 text-sm text-slate-500">
+            <LoaderCircle size={18} className="animate-spin text-emerald-700" />
+            Đang tải hoạt động...
+          </div>
+        ) : recentActivities.length === 0 ? (
+          <p className="px-5 py-8 text-center text-sm text-slate-500">
+            Chưa có hoạt động nào được ghi nhận.
+          </p>
+        ) : (
+          <ol className="divide-y divide-slate-100">
+            {recentActivities.map((item) => (
+              <li key={item.id} className="flex items-start gap-3 px-5 py-4 sm:px-6">
+                <span className="mt-0.5 rounded-lg bg-emerald-50 p-2 text-emerald-700">
+                  <Activity size={17} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-[#18301D]">{item.summary}</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {formatActivityTime(item.occurredAt)}
+                    {item.classId ? ` · Lớp #${item.classId}` : ''}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
       </section>
 
       {(error || classError || examCountError || unstartedExamsError) && (

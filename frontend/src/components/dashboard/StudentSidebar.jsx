@@ -8,6 +8,7 @@ import {
   BarChart3,
   FileCheck,
   ClipboardCheck,
+  History,
   LogOut,
 } from "lucide-react";
 
@@ -43,6 +44,11 @@ const menuItems = [
     label: "Bài tập",
     icon: ClipboardCheck,
     path: "/student/homework",
+  },
+  {
+    label: "Lịch sử",
+    icon: History,
+    path: "/student/history",
   },
 ];
 

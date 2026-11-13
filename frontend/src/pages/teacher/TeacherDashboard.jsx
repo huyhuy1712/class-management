@@ -8,9 +8,11 @@ import {
   Coins,
   FileText,
   Gem,
+  History,
   RefreshCw,
   School,
   GraduationCap,
+  Activity,
 } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import FeatureCard from '../../components/dashboard/FeatureCard'
@@ -49,6 +51,9 @@ function TeacherDashboard() {
   const classesQuery = useResourceQuery('teacherClasses')
   const studentsQuery = useResourceQuery('teacherStudents')
   const billingQuery = useResourceQuery('billing')
+  const activityQuery = useResourceQuery('teacherActivity', [0, 3, '', '', '', '', 'newest'], {
+    errorMessage: 'Không thể tải hoạt động gần đây.',
+  })
   const classCount = classesQuery.data?.length ?? (classesQuery.isError ? '--' : '...')
   const studentCount = studentsQuery.data?.length ?? (studentsQuery.isError ? '--' : '...')
   const billing = billingQuery.data
@@ -237,6 +242,65 @@ function TeacherDashboard() {
           </div>
         </aside>
       </div>
+
+      <section className="mt-8 overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm shadow-emerald-950/5 sm:mt-10">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-50 px-5 py-4 sm:px-6">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+              <History size={20} />
+            </span>
+            <div>
+              <h2 className="font-bold text-slate-900">Hoạt động gần đây</h2>
+              <p className="text-xs text-slate-500">3 thao tác mới nhất của bạn</p>
+            </div>
+          </div>
+          <Link
+            to="/teacher/history"
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-emerald-100 px-3.5 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
+          >
+            Xem tất cả
+            <ArrowUpRight size={16} />
+          </Link>
+        </div>
+
+        {activityQuery.errorMessage ? (
+          <div role="alert" className="flex flex-wrap items-center justify-between gap-3 px-5 py-5 text-sm text-red-700 sm:px-6">
+            <span>{activityQuery.errorMessage}</span>
+            <button type="button" onClick={() => activityQuery.refetch()} className="font-semibold underline">
+              Thử tải lại
+            </button>
+          </div>
+        ) : activityQuery.isLoading ? (
+          <div className="flex min-h-28 items-center justify-center">
+            <FrogLoading compact label="Đang tải hoạt động..." />
+          </div>
+        ) : activityQuery.data?.items?.length ? (
+          <ol className="divide-y divide-slate-100">
+            {activityQuery.data.items.slice(0, 3).map((item) => (
+              <li key={item.id} className="flex items-center gap-3 px-5 py-4 sm:gap-4 sm:px-6">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                  <Activity size={18} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-slate-800">{item.summary}</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {new Intl.DateTimeFormat('vi-VN', {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    }).format(new Date(item.occurredAt))}
+                    {item.classId ? ` · Lớp #${item.classId}` : ''}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <div className="px-5 py-8 text-center sm:px-6">
+            <p className="text-sm font-semibold text-slate-700">Chưa có hoạt động nào</p>
+            <p className="mt-1 text-xs text-slate-500">Các thao tác của bạn sẽ hiển thị tại đây.</p>
+          </div>
+        )}
+      </section>
 
     </DashboardLayout>
   )

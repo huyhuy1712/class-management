@@ -9,6 +9,14 @@ const adminService = {
     return response.data
   },
 
+  getActivity: async (params, options = {}) => {
+    const response = await api.get('/admin/activity', { ...options, params })
+    if (!response.data || !Array.isArray(response.data.items)) {
+      throw new Error('Invalid admin activity response')
+    }
+    return response.data
+  },
+
   getUsers: async () => {
     const response = await api.get('/admin/users')
     if (!Array.isArray(response.data)) {

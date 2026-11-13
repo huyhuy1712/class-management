@@ -27,17 +27,19 @@ export function routeQueries(path, userId, date) {
   const gradebook = /^\/teacher\/classes\/([^/]+)\/grades$/.exec(pathname)
   if (gradebook) return [['classGradebook', [gradebook[1], 0, '', '']], ['subjects', []]]
   const pages = {
-    '/teacher': ['teacherClasses', 'teacherStudents', 'exams', 'teacherHomeworks', 'billing'],
+    '/teacher': ['teacherClasses', 'teacherStudents', 'exams', 'teacherHomeworks', 'billing', 'teacherActivity'],
     '/teacher/classes': ['teacherClasses'],
     '/teacher/exams': ['exams'],
     '/teacher/homework': ['teacherHomeworks'],
     '/teacher/exams/create': ['subjects', 'teacherClasses', 'teacherStudents'],
     '/teacher/materials': ['teacherMaterials', 'teacherClasses', 'teacherStudents'],
-    '/student': ['studentClasses', 'dashboard', 'examCount', 'studentHomeworks'],
+    '/teacher/history': ['teacherActivity'],
+    '/student': ['studentClasses', 'dashboard', 'examCount', 'studentHomeworks', 'studentActivity'],
     '/student/classes': ['studentClasses', 'dashboard'],
     '/student/teachers': ['studentClasses', 'allClasses', 'teachers'],
     '/student/exams': ['studentClasses', 'studentExams'],
     '/student/homework': ['studentHomeworks'],
+    '/student/history': ['studentActivity'],
   }
   if (pathname === '/teacher/homework') {
     const classId = new URLSearchParams(search).get('classId')
@@ -46,6 +48,25 @@ export function routeQueries(path, userId, date) {
   if (/^\/(teacher|student)\/profile$/.test(path)) return [['profile', [userId]]]
   const studentAssignment = /^\/student\/exams\/([^/]+)$/.exec(path)
   const attempt = /^\/student\/exam-attempts\/([^/]+)(\/result)?$/.exec(path)
+  if (pathname === '/teacher') {
+    return [
+      ['teacherClasses', []],
+      ['teacherStudents', []],
+      ['exams', []],
+      ['teacherHomeworks', []],
+      ['billing', []],
+      ['teacherActivity', [0, 3, '', '', '', '', 'newest']],
+    ]
+  }
+  if (pathname === '/student') {
+    return [
+      ['studentClasses', []],
+      ['dashboard', []],
+      ['examCount', []],
+      ['studentHomeworks', []],
+      ['studentActivity', [0, 3, '', '', '', '', 'newest']],
+    ]
+  }
   if (attempt) return [[attempt[2] ? 'examAttemptResult' : 'examAttempt', [attempt[1]]]]
   if (studentAssignment) return [['studentAssignment', [studentAssignment[1]]]]
   const classroom = /^\/(teacher|student)\/classes\/([^/]+)(?:\/attendance)?$/.exec(path)
