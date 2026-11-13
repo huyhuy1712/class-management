@@ -1,22 +1,33 @@
 package com.classmanagement.backend.service.ai;
 
+import com.classmanagement.backend.dto.exam.StudentExamResponse;
+import com.classmanagement.backend.dto.exam.StudentGradesResponse;
 import com.classmanagement.backend.entity.Classroom;
+import com.classmanagement.backend.entity.Exam;
+import com.classmanagement.backend.entity.ExamAssignment;
 import com.classmanagement.backend.entity.Lesson;
 import com.classmanagement.backend.entity.Subject;
 import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.entity.enums.ClassroomStatus;
+import com.classmanagement.backend.entity.enums.ExamAssignmentStatus;
+import com.classmanagement.backend.entity.enums.ExamStatus;
 import com.classmanagement.backend.entity.enums.UserRole;
 import com.classmanagement.backend.repository.LessonRepository;
 import com.classmanagement.backend.repository.classroom.ClassStudentRepository;
 import com.classmanagement.backend.repository.classroom.ClassroomRepository;
+import com.classmanagement.backend.repository.exam.ExamAssignmentRepository;
+import com.classmanagement.backend.repository.exam.ExamRepository;
 import com.classmanagement.backend.repository.projection.ClassroomSummaryProjection;
+import com.classmanagement.backend.service.exam.StudentExamReadService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Proxy;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -26,6 +37,10 @@ class AiToolDispatcherTest {
     private List<Classroom> mockTeacherClassrooms = new ArrayList<>();
     private List<Lesson> mockLessons = new ArrayList<>();
     private List<ClassroomSummaryProjection> mockStudentSummaries = new ArrayList<>();
+    private List<Exam> mockTeacherExams = new ArrayList<>();
+    private List<ExamAssignment> mockTeacherAssignments = new ArrayList<>();
+    private StudentExamResponse.Page mockStudentExamPage;
+    private StudentGradesResponse mockStudentGradesResponse;
 
     private AiToolDispatcher aiToolDispatcher;
     private User teacherUser;
@@ -36,6 +51,10 @@ class AiToolDispatcherTest {
         mockTeacherClassrooms.clear();
         mockLessons.clear();
         mockStudentSummaries.clear();
+        mockTeacherExams.clear();
+        mockTeacherAssignments.clear();
+        mockStudentExamPage = null;
+        mockStudentGradesResponse = null;
 
         ClassroomRepository classroomRepo = createProxy(ClassroomRepository.class, (method, args) -> {
             if ("findAllByTeacher_Id".equals(method.getName())) {
@@ -58,7 +77,33 @@ class AiToolDispatcherTest {
             return null;
         });
 
-        aiToolDispatcher = new AiToolDispatcher(classroomRepo, classStudentRepo, lessonRepo);
+        ExamRepository examRepo = createProxy(ExamRepository.class, (method, args) -> {
+            if ("findAllByTeacher_Username".equals(method.getName())) {
+                return mockTeacherExams;
+            }
+            return null;
+        });
+
+        ExamAssignmentRepository examAssignmentRepo = createProxy(ExamAssignmentRepository.class, (method, args) -> {
+            if ("findAllByExam_IdIn".equals(method.getName())) {
+                return mockTeacherAssignments;
+            }
+            return null;
+        });
+
+        StudentExamReadService studentExamService = new StudentExamReadService(null, null) {
+            @Override
+            public StudentExamResponse.Page list(String username, int page, int size, String query, Long classId, LocalDate date, String sort) {
+                return mockStudentExamPage;
+            }
+
+            @Override
+            public StudentGradesResponse grades(String username, Long classId, Long subjectId, LocalDate from, LocalDate to, String query, String status, String sort, int page, int size, boolean includeCharts) {
+                return mockStudentGradesResponse;
+            }
+        };
+
+        aiToolDispatcher = new AiToolDispatcher(classroomRepo, classStudentRepo, lessonRepo, examRepo, examAssignmentRepo, studentExamService);
 
         teacherUser = User.builder()
                 .id(1L)
@@ -76,29 +121,40 @@ class AiToolDispatcherTest {
     }
 
     @Test
-    @DisplayName("getToolsForRole: Giáo viên nhận 2 công cụ tra cứu lớp học và lịch dạy")
+    @DisplayName("getToolsForRole: Giáo viên nhận 4 công cụ (lớp học, lịch dạy, đề thi, bài giao)")
     void getToolsForRole_teacher() {
         List<Map<String, Object>> tools = aiToolDispatcher.getToolsForRole("TEACHER");
-        assertEquals(2, tools.size());
+        assertEquals(4, tools.size());
 
-        @SuppressWarnings("unchecked")
-        Map<String, Object> fn1 = (Map<String, Object>) tools.get(0).get("function");
-        @SuppressWarnings("unchecked")
-        Map<String, Object> fn2 = (Map<String, Object>) tools.get(1).get("function");
+        Set<String> toolNames = new HashSet<>();
+        for (Map<String, Object> tool : tools) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> fn = (Map<String, Object>) tool.get("function");
+            toolNames.add((String) fn.get("name"));
+        }
 
-        assertEquals("getTeacherClasses", fn1.get("name"));
-        assertEquals("getTeacherTodaySchedule", fn2.get("name"));
+        assertTrue(toolNames.contains("getTeacherClasses"));
+        assertTrue(toolNames.contains("getTeacherTodaySchedule"));
+        assertTrue(toolNames.contains("getTeacherExams"));
+        assertTrue(toolNames.contains("getTeacherAssignments"));
     }
 
     @Test
-    @DisplayName("getToolsForRole: Học sinh nhận 1 công cụ tra cứu lớp học")
+    @DisplayName("getToolsForRole: Học sinh nhận 3 công cụ (lớp học, bài thi được giao, bảng điểm)")
     void getToolsForRole_student() {
         List<Map<String, Object>> tools = aiToolDispatcher.getToolsForRole("STUDENT");
-        assertEquals(1, tools.size());
+        assertEquals(3, tools.size());
 
-        @SuppressWarnings("unchecked")
-        Map<String, Object> fn1 = (Map<String, Object>) tools.get(0).get("function");
-        assertEquals("getStudentClasses", fn1.get("name"));
+        Set<String> toolNames = new HashSet<>();
+        for (Map<String, Object> tool : tools) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> fn = (Map<String, Object>) tool.get("function");
+            toolNames.add((String) fn.get("name"));
+        }
+
+        assertTrue(toolNames.contains("getStudentClasses"));
+        assertTrue(toolNames.contains("getStudentExams"));
+        assertTrue(toolNames.contains("getStudentGrades"));
     }
 
     @Test
@@ -123,7 +179,7 @@ class AiToolDispatcherTest {
     }
 
     @Test
-    @DisplayName("executeGetTeacherClasses: Trả về danh sách lớp học khi giáo viên có lớp")
+    @DisplayName("executeGetTeacherClasses: Trả về danh sách lớp học kèm nút đường dẫn chi tiết")
     void executeGetTeacherClasses_success() {
         Subject math = Subject.builder().id(10L).name("Toán Học").code("MATH").build();
         Classroom classroom = Classroom.builder()
@@ -143,7 +199,7 @@ class AiToolDispatcherTest {
         assertTrue(result.contains("Lớp 12A1"));
         assertTrue(result.contains("CLS12A1"));
         assertTrue(result.contains("Toán Học"));
-        assertTrue(result.contains("2025-2026"));
+        assertTrue(result.contains("[👉 Đến lớp học](/teacher/classes/100)"));
     }
 
     @Test
@@ -154,7 +210,7 @@ class AiToolDispatcherTest {
     }
 
     @Test
-    @DisplayName("executeGetTeacherTodaySchedule: Trả về lịch dạy trong ngày hôm nay của giáo viên")
+    @DisplayName("executeGetTeacherTodaySchedule: Trả về lịch dạy trong ngày kèm nút đường dẫn vào lớp")
     void executeGetTeacherTodaySchedule_hasLessons() {
         Subject math = Subject.builder().id(10L).name("Toán Học").build();
         Classroom classroom = Classroom.builder()
@@ -184,29 +240,69 @@ class AiToolDispatcherTest {
         assertNotNull(result);
         assertTrue(result.contains("Lịch dạy hôm nay"));
         assertTrue(result.contains("Lớp 12A1"));
-        assertTrue(result.contains("Ôn tập Đạo hàm"));
-        assertTrue(result.contains("08:00 - 09:30"));
+        assertTrue(result.contains("[👉 Đến lớp](/teacher/classes/100)"));
     }
 
     @Test
-    @DisplayName("executeGetTeacherTodaySchedule: Trả về thông báo không có tiết dạy khi ngày hôm nay trống")
-    void executeGetTeacherTodaySchedule_noLessons() {
-        Classroom classroom = Classroom.builder()
-                .id(100L)
-                .name("Lớp 12A1")
+    @DisplayName("executeGetTeacherExams: Trả về danh sách đề thi kèm nút xem chi tiết")
+    void executeGetTeacherExams_success() {
+        Subject math = Subject.builder().id(10L).name("Toán Học").build();
+        Exam exam = Exam.builder()
+                .id(200L)
+                .title("Đề kiểm tra 15 phút Đạo hàm")
+                .code("EXAM-MATH-15")
+                .subject(math)
                 .teacher(teacherUser)
+                .timeLimit(15)
+                .status(ExamStatus.PUBLISHED)
                 .build();
 
-        mockTeacherClassrooms.add(classroom);
+        mockTeacherExams.add(exam);
 
-        String result = aiToolDispatcher.executeTool("getTeacherTodaySchedule", "{}", teacherUser);
-        assertTrue(result.contains("không có lịch dạy nào trên hệ thống"));
+        String result = aiToolDispatcher.executeTool("getTeacherExams", "{}", teacherUser);
+        assertNotNull(result);
+        assertTrue(result.contains("Đề kiểm tra 15 phút Đạo hàm"));
+        assertTrue(result.contains("EXAM-MATH-15"));
+        assertTrue(result.contains("[👉 Xem chi tiết đề thi](/teacher/exams/200)"));
     }
 
     @Test
-    @DisplayName("executeGetStudentClasses: Trả về danh sách lớp học của học sinh")
+    @DisplayName("executeGetTeacherExams: Thông báo khi giáo viên chưa có đề thi nào")
+    void executeGetTeacherExams_empty() {
+        String result = aiToolDispatcher.executeTool("getTeacherExams", "{}", teacherUser);
+        assertTrue(result.contains("chưa tạo đề thi nào"));
+    }
+
+    @Test
+    @DisplayName("executeGetTeacherAssignments: Trả về danh sách bài kiểm tra đã giao kèm nút quản lý")
+    void executeGetTeacherAssignments_success() {
+        Exam exam = Exam.builder()
+                .id(200L)
+                .title("Đề kiểm tra 15 phút Đạo hàm")
+                .teacher(teacherUser)
+                .build();
+        mockTeacherExams.add(exam);
+
+        ExamAssignment assignment = ExamAssignment.builder()
+                .id(300L)
+                .exam(exam)
+                .status(ExamAssignmentStatus.OPEN)
+                .openTime(LocalDateTime.of(2026, 11, 14, 8, 0))
+                .closeTime(LocalDateTime.of(2026, 11, 14, 22, 0))
+                .build();
+        mockTeacherAssignments.add(assignment);
+
+        String result = aiToolDispatcher.executeTool("getTeacherAssignments", "{}", teacherUser);
+        assertNotNull(result);
+        assertTrue(result.contains("Đề kiểm tra 15 phút Đạo hàm"));
+        assertTrue(result.contains("[👉 Quản lý bài kiểm tra](/teacher/exams/200/assignments/300)"));
+    }
+
+    @Test
+    @DisplayName("executeGetStudentClasses: Trả về danh sách lớp học kèm nút vào lớp")
     void executeGetStudentClasses_success() {
         ClassroomSummaryProjection summary = createProxy(ClassroomSummaryProjection.class, (method, args) -> switch (method.getName()) {
+            case "getId" -> 105L;
             case "getName" -> "Lớp 10B2";
             case "getSubjectName" -> "Vật Lý";
             case "getTeacherName" -> "Thầy Hoàng";
@@ -220,15 +316,81 @@ class AiToolDispatcherTest {
         assertNotNull(result);
         assertTrue(result.contains("Lớp 10B2"));
         assertTrue(result.contains("Vật Lý"));
-        assertTrue(result.contains("Thầy Hoàng"));
-        assertTrue(result.contains("2025-2026"));
+        assertTrue(result.contains("[👉 Đến lớp học](/student/classes/105)"));
     }
 
     @Test
-    @DisplayName("executeGetStudentClasses: Trả về thông báo khi học sinh chưa tham gia lớp nào")
-    void executeGetStudentClasses_empty() {
-        String result = aiToolDispatcher.executeTool("getStudentClasses", "{}", studentUser);
-        assertTrue(result.contains("chưa tham gia lớp học nào"));
+    @DisplayName("executeGetStudentExams: Trả về danh sách bài thi được giao kèm nút vào làm bài")
+    void executeGetStudentExams_success() {
+        StudentExamResponse examItem = new StudentExamResponse(
+                401L,
+                200L,
+                "Bài kiểm tra 1 tiết Đại số",
+                "EXAM-MATH-45",
+                "Mô tả bài thi",
+                "CLASS",
+                List.of(),
+                LocalDateTime.of(2026, 11, 14, 8, 0),
+                LocalDateTime.of(2026, 11, 14, 20, 0),
+                45,
+                1,
+                0,
+                null,
+                "NOT_STARTED",
+                true,
+                false,
+                null
+        );
+
+        mockStudentExamPage = new StudentExamResponse.Page(
+                List.of(examItem),
+                0,
+                10,
+                1,
+                new StudentExamResponse.Stats(0, 1, 0)
+        );
+
+        String result = aiToolDispatcher.executeTool("getStudentExams", "{}", studentUser);
+        assertNotNull(result);
+        assertTrue(result.contains("Bài kiểm tra 1 tiết Đại số"));
+        assertTrue(result.contains("[👉 Vào phòng thi](/student/exams/401)"));
+    }
+
+    @Test
+    @DisplayName("executeGetStudentGrades: Trả về bảng điểm kèm nút xem chi tiết kết quả")
+    void executeGetStudentGrades_success() {
+        StudentGradesResponse.Item gradeItem = new StudentGradesResponse.Item(
+                999L,
+                401L,
+                "Bài kiểm tra 1 tiết Đại số",
+                "EXAM-MATH-45",
+                10L,
+                "Toán Học",
+                List.of(),
+                1,
+                "GRADED",
+                true,
+                BigDecimal.valueOf(9.5),
+                OffsetDateTime.now(),
+                2400,
+                "Làm bài rất tốt!"
+        );
+
+        mockStudentGradesResponse = new StudentGradesResponse(
+                null,
+                null,
+                null,
+                List.of(gradeItem),
+                0,
+                10,
+                1
+        );
+
+        String result = aiToolDispatcher.executeTool("getStudentGrades", "{}", studentUser);
+        assertNotNull(result);
+        assertTrue(result.contains("Bài kiểm tra 1 tiết Đại số"));
+        assertTrue(result.contains("9.5/10"));
+        assertTrue(result.contains("[👉 Xem chi tiết kết quả](/student/exam-attempts/999/result)"));
     }
 
     @FunctionalInterface

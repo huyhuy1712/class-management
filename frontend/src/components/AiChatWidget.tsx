@@ -13,6 +13,7 @@ import {
   BookOpen,
   User,
   ChevronDown,
+  ArrowRight,
 } from 'lucide-react'
 import useAuthStore from '../stores/authStore'
 import { sendChatMessage, getQuotaStatus, getLocalGuestQuota } from '../services/aiChatService'
@@ -365,6 +366,28 @@ export const AiChatWidget: React.FC = () => {
                               p: ({ children }) => (
                                 <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>
                               ),
+                              a: ({ href, children, ...props }: any) => {
+                                const isInternal = href && (href.startsWith('/') || href.startsWith('#'))
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      e.stopPropagation()
+                                      if (isInternal && href) {
+                                        navigate(href)
+                                      } else if (href) {
+                                        window.open(href, '_blank', 'noopener,noreferrer')
+                                      }
+                                    }}
+                                    className="inline-flex items-center gap-1.5 my-1 mx-0.5 px-3 py-1 rounded-xl bg-[#0F3822] text-[#D8F3DC] text-xs font-semibold hover:bg-[#165031] active:scale-95 transition-all shadow-xs cursor-pointer border border-emerald-600/30 group"
+                                    title={typeof children === 'string' ? children : href}
+                                  >
+                                    <span>{children}</span>
+                                    <ArrowRight size={12} className="text-[#D8F3DC] opacity-90 transition-transform group-hover:translate-x-0.5" />
+                                  </button>
+                                )
+                              },
                               ul: ({ children }) => (
                                 <ul className="my-2 ml-4 list-disc space-y-1">{children}</ul>
                               ),
