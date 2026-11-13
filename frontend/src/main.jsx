@@ -6,6 +6,8 @@ import { BrowserRouter } from 'react-router-dom'
 
 import App from './App.jsx'
 import './index.css'
+import './styles/admin/admin.css'
+import './styles/admin/mission-management.css'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

@@ -2,6 +2,7 @@ package com.classmanagement.backend.controller;
 
 import com.classmanagement.backend.dto.billing.BillingOrderResponse;
 import com.classmanagement.backend.dto.billing.BillingOverviewResponse;
+import com.classmanagement.backend.dto.billing.BillingMissionResponse;
 import com.classmanagement.backend.dto.billing.CreateBillingOrderRequest;
 import com.classmanagement.backend.dto.billing.MomoIpnRequest;
 import com.classmanagement.backend.dto.billing.MomoIpnResponse;
@@ -9,6 +10,7 @@ import com.classmanagement.backend.dto.billing.RedeemVipRequest;
 import com.classmanagement.backend.service.billing.BillingService;
 import jakarta.validation.Valid;
 import java.util.UUID;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +18,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -31,6 +34,17 @@ public class BillingController {
         return billingService.overview(authentication.getName());
     }
 
+    @GetMapping("/missions")
+    public List<BillingMissionResponse> missions(Authentication authentication) {
+        return billingService.missions(authentication.getName());
+    }
+
+    @PostMapping("/missions/{missionCode}/claim")
+    public BillingMissionResponse claimMission(
+            Authentication authentication, @PathVariable String missionCode) {
+        return billingService.claimMission(authentication.getName(), missionCode);
+    }
+
     @PostMapping("/orders")
     public ResponseEntity<BillingOrderResponse> createOrder(
             Authentication authentication,
@@ -43,6 +57,18 @@ public class BillingController {
     public BillingOrderResponse orderStatus(
             Authentication authentication, @PathVariable UUID orderId) {
         return billingService.orderStatus(authentication.getName(), orderId);
+    }
+
+    @GetMapping("/invoices")
+    public List<com.classmanagement.backend.dto.billing.BillingInvoiceResponse> invoices(
+            Authentication authentication) {
+        return billingService.invoices(authentication.getName());
+    }
+
+    @GetMapping("/invoices/{invoiceId}")
+    public com.classmanagement.backend.dto.billing.BillingInvoiceResponse invoice(
+            Authentication authentication, @PathVariable UUID invoiceId) {
+        return billingService.invoice(authentication.getName(), invoiceId);
     }
 
     @PostMapping("/vip/redeem")

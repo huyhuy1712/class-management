@@ -8,6 +8,11 @@ import com.classmanagement.backend.entity.ExamMedia;
 import com.classmanagement.backend.entity.enums.ExamMediaType;
 import com.classmanagement.backend.exception.ExamMediaException;
 import com.classmanagement.backend.service.*;
+import com.classmanagement.backend.entity.User;
+import com.classmanagement.backend.entity.enums.UserRole;
+import com.classmanagement.backend.entity.enums.UserStatus;
+import com.classmanagement.backend.repository.UserRepository;
+import com.classmanagement.backend.service.billing.TeacherEntitlementService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -27,6 +32,8 @@ public class ExamMediaServiceImpl implements ExamMediaService {
     private final StorageService storageService;
     private final ExamMediaValidator validator;
     private final ExamMediaLifecycle lifecycle;
+    private final UserRepository users;
+    private final TeacherEntitlementService entitlements;
 
     @Override
     public ExamMediaResponse uploadGeneratedImage(String username, UUID draftToken, byte[] png) {
@@ -87,6 +94,12 @@ public class ExamMediaServiceImpl implements ExamMediaService {
 
     @Override
     public ExamMediaResponse upload(String username, UUID draftToken, ExamMediaType type, MultipartFile file) {
+        User teacher = users.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy giáo viên"));
+        if (teacher.getRole() != UserRole.TEACHER || teacher.getStatus() != UserStatus.ACTIVE) {
+            throw new IllegalArgumentException("Chỉ giáo viên đang hoạt động được tải media đề thi");
+        }
+        entitlements.requireVipFeature(teacher.getId(), "tải tệp media đề thi");
         if (draftToken == null) throw new IllegalArgumentException("Thiếu draft token");
         var format = validator.validate(type, file);
         // Reservation commits before the provider call so even interrupted uploads are tracked.

@@ -7,6 +7,7 @@ import {
   BookOpen,
   Gem,
   ClipboardCheck,
+  History,
   LogOut 
 } from 'lucide-react'
 import { useState } from 'react'
@@ -21,6 +22,7 @@ const menuItems = [
   { label: 'Đề thi', icon: FileText, path: '/teacher/exams' },
   { label: 'Bài tập', icon: ClipboardCheck, path: '/teacher/homework' },
   { label: 'Tài liệu', icon: BookOpen, path: '/teacher/materials' },
+  { label: 'Lịch sử', icon: History, path: '/teacher/history' },
   { label: 'VIP & Point', icon: Gem, path: '/teacher/billing' },
 ]
 

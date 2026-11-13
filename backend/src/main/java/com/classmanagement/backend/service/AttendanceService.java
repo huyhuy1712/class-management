@@ -15,6 +15,11 @@ List<AttendanceResponse> createAttendance(
             Long classroomId,
             CreateAttendanceRequest request);
 
+List<AttendanceResponse> createAttendance(
+        Long classroomId,
+        CreateAttendanceRequest request,
+        String username);
+
 List<AttendanceResponse> markAbsentForUnrecordedStudents(
         Long classroomId,
         LocalDate date);

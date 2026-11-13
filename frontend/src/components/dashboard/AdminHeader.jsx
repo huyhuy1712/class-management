@@ -10,6 +10,7 @@ export default function AdminHeader({ onMenuClick }) {
   const pageTitle = {
     "/admin/users": "Quản lý tài khoản",
     "/admin/subjects": "Quản lý môn học",
+    "/admin/missions": "Quản lý nhiệm vụ",
   }[location.pathname] || "Tổng quan";
   const displayName = user?.fullName || user?.username || "Administrator";
   const initial = displayName.charAt(0).toUpperCase();

@@ -34,7 +34,9 @@ function ClassSelector({
 
       <div className="grid max-h-[360px] grid-cols-1 gap-3 overflow-y-auto p-4 lg:grid-cols-2">
         {sortByText(classes, (item) => item.name).map((classroom) => {
-          const checked = selectedClasses.includes(classroom.id)
+          const checked = selectedClasses.some(
+            (id) => String(id) === String(classroom.id),
+          )
           const active = classroom.status === 'ACTIVE'
 
           return (

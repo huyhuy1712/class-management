@@ -17,15 +17,35 @@ function getFileTitle(file) {
   return file.name.replace(/\.[^.]+$/, '') || file.name
 }
 
-export default function MaterialEditorModal({ material, classes, students, targetError, targetLoading = false, retryTargets, saving, onClose, onSave }) {
-  const [form, setForm] = useState(() => material ? {
-    ...material,
-    content: material.content ?? '',
-    classIds: [...(material.classIds ?? [])],
-    studentIds: [...(material.studentIds ?? [])],
-    file: null,
-    files: [],
-  } : emptyForm)
+export default function MaterialEditorModal({
+  material,
+  initialTargetType = emptyForm.targetType,
+  initialClassIds = [],
+  classes,
+  students,
+  targetError,
+  targetLoading = false,
+  retryTargets,
+  saving,
+  onClose,
+  onSave,
+}) {
+  const [form, setForm] = useState(() =>
+    material
+      ? {
+          ...material,
+          content: material.content ?? '',
+          classIds: [...(material.classIds ?? [])],
+          studentIds: [...(material.studentIds ?? [])],
+          file: null,
+          files: [],
+        }
+      : {
+          ...emptyForm,
+          targetType: initialTargetType,
+          classIds: [...initialClassIds],
+        },
+  )
   const [selectedStudentClassId, setSelectedStudentClassId] = useState(() => {
     const existingClassId = material?.studentClassIds
       ? Object.values(material.studentClassIds)[0]

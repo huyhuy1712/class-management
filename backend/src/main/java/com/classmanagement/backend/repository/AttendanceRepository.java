@@ -5,6 +5,8 @@ import java.util.List;
 
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.classmanagement.backend.entity.Attendance;
 import com.classmanagement.backend.entity.enums.AttendanceStatus;
@@ -52,4 +54,7 @@ List<Attendance> findAllByClassroom_IdAndStudent_IdOrderByDateDesc(
 long countByStudent_IdAndStatusIn(
         Long studentId,
         List<AttendanceStatus> statuses);
+
+@Query("select count(distinct a.date) from Attendance a where a.classroom.teacher.id = :teacherId")
+long countDistinctDatesByTeacherId(@Param("teacherId") Long teacherId);
 }

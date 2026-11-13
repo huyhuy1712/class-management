@@ -1,0 +1,16 @@
+package com.classmanagement.backend.entity.enums;
+
+public enum MissionType {
+    CLASS_CREATED,
+    STUDENT_ADDED_TO_CLASS,
+    DOCUMENT_CREATED,
+    DOCUMENT_ASSIGNED,
+    EXAM_CREATED,
+    EXAM_PUBLISHED,
+    HOMEWORK_CREATED,
+    HOMEWORK_ASSIGNED,
+    FIRST_CLASS,
+    FIRST_EXAM,
+    FIRST_PUBLISHED_EXAM,
+    STUDENT_COUNT
+}

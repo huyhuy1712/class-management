@@ -9,6 +9,7 @@ import com.classmanagement.backend.entity.enums.UserStatus;
 import com.classmanagement.backend.exception.ResourceNotFoundException;
 import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.service.StorageService;
+import com.classmanagement.backend.service.billing.TeacherEntitlementService;
 import com.classmanagement.backend.service.homework.files.HomeworkFileService;
 import com.classmanagement.backend.service.homework.files.HomeworkFileService.UploadedFile;
 import com.classmanagement.backend.service.homework.notifications.HomeworkNotificationService;
@@ -49,6 +50,7 @@ public class HomeworkService {
     private final HomeworkNotificationService notificationService;
     private final HomeworkReadService homeworkReadService;
     private final HomeworkWriteService writes;
+    private final TeacherEntitlementService entitlements;
 
     @Transactional
     public HomeworkDtos.Assignment create(
@@ -366,6 +368,23 @@ public class HomeworkService {
             long assignmentId, String username, String answerText, List<MultipartFile> requestedImages,
             List<MultipartFile> requestedFiles, MultipartFile requestedAudio) {
         User student = user(username, UserRole.STUDENT);
+        long totalSubmissions = jdbc.queryForObject("""
+                SELECT COALESCE(COUNT(*) + SUM(resubmission_count), 0)
+                FROM homework_submissions
+                WHERE assignment_id = ?
+                """, Long.class, assignmentId);
+        Long teacherId = jdbc.queryForObject(
+                "SELECT teacher_id FROM homework_assignments WHERE id = ?",
+                Long.class, assignmentId);
+        if (teacherId == null) {
+            throw new ResourceNotFoundException("Không tìm thấy bài tập");
+        }
+        if (!entitlements.hasVip(teacherId)
+                && totalSubmissions >= TeacherEntitlementService.FREE_ATTEMPT_LIMIT) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.PAYMENT_REQUIRED,
+                    "Bài tập đã đạt giới hạn 10 lượt làm của gói miễn phí. Hãy nâng cấp VIP để tiếp tục.");
+        }
         AssignmentGate gate = jdbc.query("""
                 SELECT h.status assignment_status, h.due_at, s.id submission_id, s.status submission_status
                 FROM homework_assignment_recipients r

@@ -28,6 +28,7 @@ import ClassDocumentsTab from '../components/classroom/detail/ClassDocumentsTab'
 import StudentDetailPage from '../pages/teacher/classroom/StudentDetailPage'
 import TeacherProfilePage from '../pages/teacher/TeacherProfilePage'
 import TeacherMaterialsPage from '../pages/teacher/materials/TeacherMaterialsPage'
+import TeacherHistoryPage from '../pages/teacher/TeacherHistoryPage'
 import ExamManagementPage from '../pages/teacher/exams/ExamManagementPage'
 const ExamDetailPage = lazy(() => import('../pages/teacher/exams/ExamDetailPage'))
 const TeacherAssignmentDetailPage = lazy(() => import('../pages/teacher/exams/TeacherAssignmentDetailPage'))
@@ -43,8 +44,10 @@ const TeacherHomeworkDetailPage = lazy(() => import('../pages/teacher/homework/T
 // Student
 // =============================
 import StudentProfilePage from '../pages/student/StudentProfilePage'
+import MissionManagementPage from '../pages/admin/MissionManagementPage'
 import StudentHome from '../pages/student/StudentHome'
 import StudentAttendancePage from '../pages/student/StudentAttendancePage'
+import StudentHistoryPage from '../pages/student/StudentHistoryPage'
 import JoinClassPage from '../pages/student/JoinClassPage' 
 import StudentClassDetailPage from '../pages/student/classroom/StudentClassDetailPage'
 
@@ -56,6 +59,7 @@ import AdminDashboardLayout from "../layouts/AdminDashboardLayout";
 import AdminDashboard from "../components/dashboard/AdminDashboard";
 import UserManagementPage from "../pages/admin/UserManagementPage";
 import SubjectManagementPage from "../pages/admin/SubjectManagementPage";
+import AdminHistoryPage from "../pages/admin/AdminHistoryPage";
 
 
 // =============================
@@ -97,6 +101,7 @@ function AppRoutes() {
       <Route path="/teacher/profile" element={<TeacherProfilePage />} />
       <Route path="/teacher/billing" element={<TeacherBillingPage />} />
       <Route path="/teacher/materials" element={<TeacherMaterialsPage />} />
+      <Route path="/teacher/history" element={<TeacherHistoryPage />} />
 
       {/* Nested Route classDetail */}
       <Route path="/teacher/classes/:classId" element={<ClassDetailPage />}>
@@ -116,6 +121,7 @@ function AppRoutes() {
       <Route path="/student/profile" element={<StudentProfilePage />} />
       <Route path="/student" element={<StudentHome />} />
       <Route path="/student/attendance" element={<StudentAttendancePage />} />
+      <Route path="/student/history" element={<StudentHistoryPage />} />
       <Route path="/student/classes" element={<JoinClassPage />} />
       <Route path="/student/classes/:classId" element={<StudentClassDetailPage />} />
       <Route path="/student/exams" element={<StudentExamListPage />} />
@@ -156,6 +162,8 @@ function AppRoutes() {
         <Route index element={<AdminDashboard />} />
         <Route path="users" element={<UserManagementPage />} />
         <Route path="subjects" element={<SubjectManagementPage />} />
+        <Route path="history" element={<AdminHistoryPage />} />
+        <Route path="missions" element={<MissionManagementPage />} />
       </Route>
 
 

@@ -9,6 +9,14 @@ const adminService = {
     return response.data
   },
 
+  getActivity: async (params, options = {}) => {
+    const response = await api.get('/admin/activity', { ...options, params })
+    if (!response.data || !Array.isArray(response.data.items)) {
+      throw new Error('Invalid admin activity response')
+    }
+    return response.data
+  },
+
   getUsers: async () => {
     const response = await api.get('/admin/users')
     if (!Array.isArray(response.data)) {
@@ -53,6 +61,16 @@ const adminService = {
     const response = await api.post(`/admin/impersonation/${userId}`, { reason })
     return response.data
   },
+
+  getMissions: async ({ signal } = {}) => {
+    const response = await api.get('/admin/missions', { signal })
+    if (!Array.isArray(response.data)) throw new Error('Invalid admin missions response')
+    return response.data
+  },
+
+  createMission: async (mission) => (await api.post('/admin/missions', mission)).data,
+  updateMission: async (missionId, mission) => (await api.put(`/admin/missions/${missionId}`, mission)).data,
+  deleteMission: async (missionId) => { await api.delete(`/admin/missions/${missionId}`) },
 }
 
 export default adminService
