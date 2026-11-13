@@ -12,6 +12,7 @@ import { loadExamDraft, saveExamDraft } from '../draft/examDraftStorage'
 import useSaveExamContent from './hooks/useSaveExamContent'
 import useSaveExam from './hooks/useSaveExam'
 import ExamSaveStatus from './components/layout/ExamSaveStatus'
+import ExamAssignmentLinks from './components/layout/ExamAssignmentLinks'
 import { getExamConfig } from './helpers/examPayload'
 import EditExamModal from '../components/EditExamModal'
 import PdfImportReview from './components/layout/PdfImportReview'
@@ -70,6 +71,12 @@ function ExamBuilderPage({ editingExam } = {}) {
             <strong>Bản nháp sao chép từ: {state.sourceTitle}</strong>
             <p className="mt-1">Sửa và lưu nội dung → kiểm tra người được giao, lịch thi → quay lại danh sách để xuất bản. Khi xuất bản, đề mới sẽ được giao theo cấu hình đã chọn. Đề cũ và kết quả cũ được giữ nguyên.</p>
           </div>}
+          {isEditing && (
+            <ExamAssignmentLinks
+              examId={editingExam.id}
+              assignments={editingExam.assignments}
+            />
+          )}
           {isEditing && !readOnly && <button type="button" disabled={saving} onClick={() => setConfigurationOpen(true)} className="mb-4 w-fit rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-700">Cấu hình và đối tượng giao đề</button>}
 
           {isEditing ? <div className="mb-4 text-sm text-slate-600"><p>Mã đề: {editingExam.code || '—'} · Trạng thái: {editingExam.status === 'PUBLISHED' ? 'Đã xuất bản' : 'Bản nháp'}</p>{readOnly && <p className="mt-2 font-semibold text-amber-700">Đề thi đã xuất bản hoặc không còn là bản nháp. Bạn chỉ có thể xem nội dung.</p>}{(saveContent.message || draftMessage) && <p role="status" className="mt-1">{saveContent.message || draftMessage}</p>}</div> : <ExamSaveStatus config={examConfig} message={saveExam.message || draftMessage} uncertain={saveExam.uncertain} saving={saveExam.saving} onConfirmRetry={saveExam.confirmRetry} />}

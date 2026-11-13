@@ -9,6 +9,7 @@ import subjectService from '../services/subjectService'
 import materialService from '../services/materialService'
 import billingService from '../services/billingService'
 import homeworkService from '../services/homeworkService'
+import adminService from '../services/adminService'
 
 export function resourceOptions(resource, params) {
   const readers = {
@@ -84,17 +85,21 @@ export function resourceOptions(resource, params) {
     examAttempt: ({ signal }) => examService.getAttempt(params[0], { signal }),
     examAttemptResult: ({ signal }) => examService.getAttemptResult(params[0], { signal }),
     billing: ({ signal }) => billingService.getOverview({ signal }),
+    billingMissions: ({ signal }) => billingService.getMissions({ signal }),
     billingOrder: ({ signal }) => billingService.getOrder(params[0], { signal }),
+    billingInvoices: ({ signal }) => billingService.getInvoices({ signal }),
+    adminMissions: ({ signal }) => adminService.getMissions({ signal }),
   }
   if (!readers[resource]) throw new Error(`Unknown query resource: ${resource}`)
   const classroomMembership = ['studentClasses', 'classStudents'].includes(resource)
   const realtime = ['notifications', 'requests', 'lessons', 'studentExams', 'studentAssignment', 'classExams', 'teacherAssignmentAttempts', 'teacherHomeworks', 'teacherHomework', 'homeworkSubmissions', 'classHomeworks', 'studentHomeworks', 'studentHomework'].includes(resource)
   return {
     queryFn: readers[resource],
-    staleTime: classroomMembership ? 10_000 : realtime || resource === 'billing' || resource === 'classFeedPosts' ? 15_000 : resource === 'teacherMaterials' ? 15_000 : resource === 'subjects' ? 30 * 60_000 : 60_000,
+    staleTime: ['billing', 'billingMissions', 'billingInvoices'].includes(resource) ? 0 : classroomMembership ? 10_000 : realtime || resource === 'classFeedPosts' ? 15_000 : resource === 'subjects' ? 30 * 60_000 : 60_000,
+    ...(['billing', 'billingMissions', 'billingInvoices'].includes(resource) ? { refetchOnWindowFocus: true } : {}),
     ...(classroomMembership
       ? { refetchInterval: 10_000 }
-      : realtime ? { refetchInterval: 60_000 } : resource === 'billing' ? { refetchInterval: 60_000 } : resource === 'billingOrder'
+      : realtime ? { refetchInterval: 60_000 } : ['billing', 'billingMissions'].includes(resource) ? { refetchInterval: 60_000 } : resource === 'billingOrder'
         ? { refetchInterval: (query) => ['PENDING', 'CREATING'].includes(query.state.data?.status) ? 10_000 : false }
         : {}),
   }

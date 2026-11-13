@@ -9,6 +9,8 @@ import java.util.Collection;
 import java.util.Optional;
 
 public interface MaterialRepository extends JpaRepository<Material, Long> {
+    long countByTeacher_IdAndType(Long teacherId, MaterialType type);
+
     List<Material> findAllByTeacher_IdAndTypeOrderByCreatedAtDesc(Long teacherId, MaterialType type);
 
     Optional<Material> findByIdAndTeacher_Id(Long id, Long teacherId);

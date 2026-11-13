@@ -21,11 +21,11 @@ class TeacherEntitlementServiceTest {
 
         assertDoesNotThrow(() -> entitlements.requireClassCapacity(5L, 0));
         assertEquals(402, assertThrows(ResponseStatusException.class,
-                () -> entitlements.requireClassCapacity(5L, 1)).getStatusCode().value());
-        assertDoesNotThrow(() -> entitlements.requireExamCapacity(5L, 2));
+                () -> entitlements.requireClassCapacity(5L, 5)).getStatusCode().value());
+        assertDoesNotThrow(() -> entitlements.requireExamCapacity(5L, 4));
         assertEquals(402, assertThrows(ResponseStatusException.class,
-                () -> entitlements.requireExamCapacity(5L, 3)).getStatusCode().value());
-        assertDoesNotThrow(() -> entitlements.requireAttemptLimit(5L, 2));
+                () -> entitlements.requireExamCapacity(5L, 5)).getStatusCode().value());
+        assertDoesNotThrow(() -> entitlements.requireAttemptLimit(5L, 10));
         assertThrows(ResponseStatusException.class, () -> entitlements.requireAttemptLimit(5L, 0));
     }
 

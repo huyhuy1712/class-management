@@ -9,9 +9,12 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class TeacherEntitlementService {
-    public static final long FREE_CLASS_LIMIT = 1;
-    public static final long FREE_EXAM_LIMIT = 3;
-    public static final int FREE_ATTEMPT_LIMIT = 2;
+    public static final long FREE_CLASS_LIMIT = 5;
+    public static final long FREE_EXAM_LIMIT = 5;
+    public static final long FREE_HOMEWORK_LIMIT = 5;
+    public static final long FREE_MATERIAL_LIMIT = 5;
+    public static final long FREE_ATTENDANCE_LIMIT = 5;
+    public static final int FREE_ATTEMPT_LIMIT = 10;
 
     private final TeacherVipSubscriptionRepository subscriptions;
 
@@ -25,19 +28,41 @@ public class TeacherEntitlementService {
 
     public void requireClassCapacity(Long teacherId, long currentClassCount) {
         if (!hasVip(teacherId) && currentClassCount >= FREE_CLASS_LIMIT) {
-            throw upgradeRequired("Gói miễn phí chỉ tạo được 1 lớp. Hãy nâng VIP để tạo thêm lớp.");
+            throw upgradeRequired("Bạn đã đạt giới hạn 5 lớp của gói miễn phí. Hãy nâng cấp VIP để tiếp tục.");
         }
     }
 
     public void requireExamCapacity(Long teacherId, long currentExamCount) {
         if (!hasVip(teacherId) && currentExamCount >= FREE_EXAM_LIMIT) {
-            throw upgradeRequired("Gói miễn phí chỉ tạo được 3 đề. Hãy nâng VIP để tạo thêm đề.");
+            throw upgradeRequired("Bạn đã đạt giới hạn 5 đề kiểm tra của gói miễn phí. Hãy nâng cấp VIP để tiếp tục.");
+        }
+    }
+
+    public void requireHomeworkCapacity(Long teacherId, long currentCount) {
+        if (!hasVip(teacherId) && currentCount >= FREE_HOMEWORK_LIMIT) {
+            throw upgradeRequired("Bạn đã đạt giới hạn 5 bài tập của gói miễn phí. Hãy nâng cấp VIP để tiếp tục.");
+        }
+    }
+
+    public void requireMaterialCapacity(Long teacherId, long currentCount) {
+        requireMaterialCapacity(teacherId, currentCount, 1);
+    }
+
+    public void requireMaterialCapacity(Long teacherId, long currentCount, long additionalCount) {
+        if (!hasVip(teacherId) && currentCount + additionalCount > FREE_MATERIAL_LIMIT) {
+            throw upgradeRequired("Bạn đã đạt giới hạn 5 tài liệu của gói miễn phí. Hãy nâng cấp VIP để tiếp tục.");
+        }
+    }
+
+    public void requireAttendanceCapacity(Long teacherId, long currentCount) {
+        if (!hasVip(teacherId) && currentCount >= FREE_ATTENDANCE_LIMIT) {
+            throw upgradeRequired("Bạn đã đạt giới hạn 5 phiên điểm danh của gói miễn phí. Hãy nâng cấp VIP để tiếp tục.");
         }
     }
 
     public void requireAttemptLimit(Long teacherId, int maxAttempts) {
         if (!hasVip(teacherId) && (maxAttempts == 0 || maxAttempts > FREE_ATTEMPT_LIMIT)) {
-            throw upgradeRequired("Gói miễn phí giới hạn 2 lượt thi cho mỗi học sinh.");
+            throw upgradeRequired("Gói miễn phí chỉ cho phép tối đa 10 lượt làm bài. Hãy nâng cấp VIP để tiếp tục.");
         }
     }
 

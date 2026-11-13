@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BookOpen } from 'lucide-react'
+import { BookOpen, Plus } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import FrogLoading from '../../../utils/FrogLoading'
 import useResourceQuery from '../../../query/useResourceQuery'
@@ -17,8 +17,10 @@ export default function ClassDocumentsTab({ classId: providedClassId } = {}) {
   const isTeacher = user?.role === 'TEACHER'
   const query = useResourceQuery('classDocuments', [classId])
   const materials = useTeacherMaterials({ enabled: false })
+  const [createOpen, setCreateOpen] = useState(false)
   const [editCandidate, setEditCandidate] = useState(null)
-  const targets = useMaterialTargetOptions({ enabled: Boolean(editCandidate) })
+  const editorOpen = isTeacher && (createOpen || Boolean(editCandidate))
+  const targets = useMaterialTargetOptions({ enabled: editorOpen })
   const [removeCandidate, setRemoveCandidate] = useState(null)
   const [actionError, setActionError] = useState('')
   const [actionSuccess, setActionSuccess] = useState('')
@@ -41,8 +43,13 @@ export default function ClassDocumentsTab({ classId: providedClassId } = {}) {
       setActionError('')
       setActionSuccess('')
       await materials.save(material)
+      setCreateOpen(false)
       setEditCandidate(null)
-      setActionSuccess('Tài liệu và phân phối đã được cập nhật.')
+      setActionSuccess(
+        material.id
+          ? 'Tài liệu và phân phối đã được cập nhật.'
+          : 'Đã đăng tài liệu cho lớp.',
+      )
       return { success: true }
     } catch (error) {
       const message = error.response?.data?.message || error.message || 'Không thể cập nhật tài liệu.'
@@ -53,7 +60,7 @@ export default function ClassDocumentsTab({ classId: providedClassId } = {}) {
 
   return (
     <section className="min-h-[420px] rounded-2xl border border-emerald-100 bg-slate-50 p-5 shadow-sm sm:p-7">
-      <header className="mb-7 flex items-center gap-3">
+      <header className="mb-7 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
           <BookOpen size={22} />
         </span>
@@ -61,6 +68,20 @@ export default function ClassDocumentsTab({ classId: providedClassId } = {}) {
           <h2 className="text-xl font-bold text-[#18301D]">Tài liệu</h2>
           <p className="mt-0.5 text-sm text-slate-500">Tài liệu được chia sẻ với lớp học</p>
         </div>
+        {isTeacher && (
+          <button
+            type="button"
+            onClick={() => {
+              setActionError('')
+              setActionSuccess('')
+              setCreateOpen(true)
+            }}
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-200 sm:ml-auto sm:w-auto"
+          >
+            <Plus size={17} />
+            Đăng tài liệu
+          </button>
+        )}
       </header>
       {query.isError && query.data && (
         <p role="alert" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -91,16 +112,21 @@ export default function ClassDocumentsTab({ classId: providedClassId } = {}) {
           />
         </>
       )}
-      {editCandidate && (
+      {editorOpen && (
         <MaterialEditorModal
           material={editCandidate}
+          initialTargetType="CLASS"
+          initialClassIds={[classId]}
           classes={targets.classes}
           students={targets.students}
           targetError={targets.error}
           targetLoading={targets.loading}
           retryTargets={targets.retry}
           saving={materials.pending}
-          onClose={() => setEditCandidate(null)}
+          onClose={() => {
+            setCreateOpen(false)
+            setEditCandidate(null)
+          }}
           onSave={handleSave}
         />
       )}

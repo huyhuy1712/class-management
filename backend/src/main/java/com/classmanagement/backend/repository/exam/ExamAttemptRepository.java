@@ -68,4 +68,7 @@ public interface ExamAttemptRepository
         boolean existsByAssignment_Exam_Id(Long examId);
 
         boolean existsByAssignment_Id(Long assignmentId);
+
+        @Query("select coalesce(sum(a.attemptCount), 0) from ExamAttempt a where a.assignment.id = :assignmentId")
+        long sumAttemptCountByAssignmentId(@Param("assignmentId") Long assignmentId);
 }

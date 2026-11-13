@@ -9,7 +9,7 @@ import StudentClassTabs from './components/StudentClassTabs'
 export default function StudentClassDetailPage() {
   const { classId } = useParams()
   const detail = useStudentClassDetail(classId)
-  const [tab, setTab] = useState('attendance')
+  const [tab, setTab] = useState('students')
   return (
     <StudentDashboardLayout>
       <main className="p-4 sm:p-8">

@@ -91,6 +91,12 @@ Các API `/api/auth/password-reset/**` là public để phục vụ luồng khô
 | 52 | PATCH | `/api/exams/{examId}/publish` | Xuất bản đề và kích hoạt phân công |
 | 53 | PATCH | `/api/exams/{examId}/unpublish` | Đưa đề và phân công về nháp |
 | 54 | GET | `/api/billing/me` | Lấy catalog, số dư point, VIP và 20 giao dịch gần nhất của giáo viên |
+| 54a | GET | `/api/billing/missions` | Lấy danh sách nhiệm vụ Point và trạng thái đã nhận của giáo viên |
+| 54b | POST | `/api/billing/missions/{missionCode}/claim` | Nhận Point cho nhiệm vụ đã hoàn thành |
+| 54c | GET | `/api/admin/missions` | Admin lấy danh sách nhiệm vụ |
+| 54d | POST | `/api/admin/missions` | Admin tạo nhiệm vụ |
+| 54e | PUT | `/api/admin/missions/{missionId}` | Admin cập nhật nhiệm vụ |
+| 54f | DELETE | `/api/admin/missions/{missionId}` | Admin xóa nhiệm vụ; Point đã nhận, claim và lịch sử ledger của giáo viên được giữ nguyên |
 | 55 | POST | `/api/billing/orders` | Tạo order MoMo từ product code và request ID idempotent |
 | 56 | GET | `/api/billing/orders/{orderId}` | Kiểm tra trạng thái order của giáo viên hiện tại |
 | 57 | POST | `/api/billing/vip/redeem` | Đổi point lấy gói VIP |
