@@ -57,7 +57,6 @@ function TeacherDashboard() {
   const classCount = classesQuery.data?.length ?? (classesQuery.isError ? '--' : '...')
   const studentCount = studentsQuery.data?.length ?? (studentsQuery.isError ? '--' : '...')
   const billing = billingQuery.data
-  const pointBalance = billing?.pointsBalance
   const latestLedgerEntry = billing?.recentLedger?.[0]
 
   const statistics = [
@@ -198,7 +197,7 @@ function TeacherDashboard() {
                 <div className="rounded-xl bg-gradient-to-br from-amber-50 via-orange-50 to-white p-4">
                   <p className="text-sm font-medium text-amber-800">Tổng Point hiện có</p>
                   <p className="mt-2 flex items-center gap-2 text-3xl font-extrabold tracking-tight text-slate-900">
-                    {new Intl.NumberFormat('vi-VN').format(pointBalance)}
+                    0
                     <Coins size={22} className="text-amber-500" />
                   </p>
                 </div>

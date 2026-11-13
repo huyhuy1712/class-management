@@ -1,6 +1,7 @@
 package com.classmanagement.backend.repository.exam;
 
 import com.classmanagement.backend.entity.Exam;
+import com.classmanagement.backend.entity.enums.ExamStatus;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -25,6 +26,7 @@ public interface ExamRepository extends JpaRepository<Exam, Long> {
         List<Exam> findAllByTeacher_Username(String username);
 
         long countByTeacher_Username(String username);
+        long countByTeacher_UsernameAndStatus(String username, ExamStatus status);
 
         @EntityGraph(attributePaths = {
                         "teacher",

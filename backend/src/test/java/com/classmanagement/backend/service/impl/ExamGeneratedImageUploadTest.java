@@ -6,6 +6,7 @@ import com.classmanagement.backend.exception.ExamMediaException;
 import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.repository.exam.ExamMediaRepository;
 import com.classmanagement.backend.service.StorageService;
+import com.classmanagement.backend.service.billing.TeacherEntitlementService;
 import com.classmanagement.backend.service.exam.media.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
@@ -67,7 +68,9 @@ class ExamGeneratedImageUploadTest {
         } catch (ReflectiveOperationException error) {
             throw new AssertionError(error);
         }
-        return new ExamMediaServiceImpl(storage,new ExamMediaValidator(5_000_000,8_000_000,16_000_000),lifecycle);
+        TeacherEntitlementService entitlements = org.mockito.Mockito.mock(TeacherEntitlementService.class);
+        return new ExamMediaServiceImpl(storage,new ExamMediaValidator(5_000_000,8_000_000,16_000_000),
+                lifecycle, users, entitlements);
     }
     private byte[] png() throws Exception {
         var output=new ByteArrayOutputStream();var image=new BufferedImage(10,10,BufferedImage.TYPE_INT_RGB);

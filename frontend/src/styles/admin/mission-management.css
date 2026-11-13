@@ -1,0 +1,150 @@
+.admin-mission-modal {
+  max-width: 760px;
+}
+
+.admin-mission-stats {
+  margin-bottom: 25px;
+}
+
+.admin-mission-stats .admin-stat-card__icon.blue {
+  color: #15803d;
+  background: #effbf3;
+}
+
+.admin-mission-stats .admin-stat-card__icon.purple {
+  color: #7c3aed;
+  background: #f5f3ff;
+}
+
+.admin-mission-stats .admin-stat-card__icon.orange {
+  color: #dc2626;
+  background: #fff1f2;
+}
+
+.admin-mission-modal .admin-form-grid {
+  gap: 20px;
+}
+
+.admin-mission-modal .admin-form-field textarea {
+  min-height: 92px;
+}
+
+.admin-mission-page .admin-table-wrap {
+  border-top: 1px solid var(--admin-border);
+}
+
+.admin-mission-page .admin-table {
+  min-width: 980px;
+}
+
+.admin-mission-page .admin-table th,
+.admin-mission-page .admin-table td {
+  padding: 18px 24px;
+}
+
+.admin-mission-page .admin-table th:nth-child(1) {
+  width: 29%;
+}
+
+.admin-mission-page .admin-table th:nth-child(2) {
+  width: 18%;
+}
+
+.admin-mission-page .admin-table th:nth-child(3) {
+  width: 19%;
+}
+
+.admin-mission-page .admin-table th:nth-child(4) {
+  width: 12%;
+}
+
+.admin-mission-page .admin-table th:nth-child(5) {
+  width: 14%;
+}
+
+.admin-mission-page .admin-table td:last-child {
+  min-width: 190px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.admin-mission-name strong {
+  margin-bottom: 7px;
+}
+
+.admin-mission-name small {
+  max-width: 280px;
+}
+
+.admin-mission-code {
+  color: #687485;
+  font-family: Consolas, monospace;
+  font-size: 13px;
+}
+
+.admin-mission-type {
+  color: #405246;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.admin-mission-points {
+  color: var(--admin-primary);
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.admin-status-badge.inactive {
+  color: #be123c;
+  background: #fff1f2;
+}
+
+.admin-mission-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  margin-left: 7px;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 650;
+  transition: 0.2s;
+}
+
+.admin-mission-action--edit {
+  color: #15803d;
+  background: #f0fdf4;
+  border-color: #dcfce7;
+}
+
+.admin-mission-action--edit:hover {
+  background: #dcfce7;
+}
+
+.admin-mission-action--delete {
+  color: #dc2626;
+  background: #fff5f5;
+  border-color: #fee2e2;
+}
+
+.admin-mission-action--delete:hover {
+  background: #fee2e2;
+}
+
+.admin-mission-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 760px) {
+  .admin-mission-modal .admin-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-mission-modal .admin-form-field--full {
+    grid-column: auto;
+  }
+}

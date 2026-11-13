@@ -98,7 +98,8 @@ class MaterialServiceImplTest {
                 storage,
                 assignmentManager,
                 mapper,
-                new MaterialFileSupport(storage));
+                new MaterialFileSupport(storage),
+                org.mockito.Mockito.mock(com.classmanagement.backend.service.billing.TeacherEntitlementService.class));
 
         List<MaterialDocumentResponse> result = service.uploadDocuments(
                 "teacher", null, MaterialAssignmentType.ALL, null, null, files);
@@ -273,7 +274,8 @@ class MaterialServiceImplTest {
                 new MaterialAssignmentManager(assignments, classTargets, excludedTargets, studentTargets,
                         classrooms, classStudents, users),
                 new MaterialDocumentMapper(assignments, classTargets, excludedTargets, studentTargets, storage),
-                new MaterialFileSupport(storage));
+                new MaterialFileSupport(storage),
+                org.mockito.Mockito.mock(com.classmanagement.backend.service.billing.TeacherEntitlementService.class));
     }
 
     private <T> T repository(Class<T> type) {

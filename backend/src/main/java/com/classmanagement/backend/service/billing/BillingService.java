@@ -5,23 +5,49 @@ import com.classmanagement.backend.dto.billing.BillingOverviewResponse;
 import com.classmanagement.backend.dto.billing.MomoIpnRequest;
 import com.classmanagement.backend.dto.billing.RedeemVipRequest;
 import com.classmanagement.backend.dto.billing.CreateBillingOrderRequest;
+import com.classmanagement.backend.dto.billing.BillingInvoiceResponse;
 import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.entity.billing.BillingOrder;
 import com.classmanagement.backend.entity.billing.TeacherPointLedgerEntry;
 import com.classmanagement.backend.entity.billing.TeacherPointWallet;
 import com.classmanagement.backend.entity.billing.TeacherVipSubscription;
+import com.classmanagement.backend.entity.billing.TeacherMissionClaim;
+import com.classmanagement.backend.entity.billing.BillingInvoice;
+import com.classmanagement.backend.entity.billing.BillingInvoiceItem;
+import com.classmanagement.backend.entity.billing.Mission;
+import com.classmanagement.backend.entity.enums.MissionType;
+import com.classmanagement.backend.entity.enums.ExamStatus;
+import com.classmanagement.backend.entity.enums.MaterialType;
+import com.classmanagement.backend.repository.classroom.ClassStudentRepository;
+import com.classmanagement.backend.repository.classroom.ClassroomRepository;
+import com.classmanagement.backend.repository.exam.ExamRepository;
+import com.classmanagement.backend.repository.MaterialAssignmentRepository;
+import com.classmanagement.backend.repository.MaterialRepository;
+import com.classmanagement.backend.dto.billing.BillingMissionResponse;
+import com.classmanagement.backend.dto.billing.MissionAdminResponse;
+import com.classmanagement.backend.dto.billing.MissionRequest;
+import com.classmanagement.backend.repository.billing.TeacherMissionClaimRepository;
+import com.classmanagement.backend.repository.billing.MissionRepository;
 import com.classmanagement.backend.entity.enums.UserRole;
 import com.classmanagement.backend.entity.enums.UserStatus;
 import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.repository.billing.BillingOrderRepository;
+import com.classmanagement.backend.repository.billing.BillingInvoiceRepository;
+import com.classmanagement.backend.repository.billing.BillingInvoiceItemRepository;
 import com.classmanagement.backend.repository.billing.TeacherPointLedgerRepository;
 import com.classmanagement.backend.repository.billing.TeacherPointWalletRepository;
 import com.classmanagement.backend.repository.billing.TeacherVipSubscriptionRepository;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.text.Normalizer;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -32,9 +58,19 @@ import org.springframework.web.server.ResponseStatusException;
 public class BillingService {
     private final UserRepository users;
     private final BillingOrderRepository orders;
+    private final BillingInvoiceRepository invoices;
+    private final BillingInvoiceItemRepository invoiceItems;
     private final TeacherPointWalletRepository wallets;
     private final TeacherPointLedgerRepository ledger;
     private final TeacherVipSubscriptionRepository subscriptions;
+    private final TeacherMissionClaimRepository missionClaims;
+    private final MissionRepository missions;
+    private final ClassroomRepository classrooms;
+    private final ExamRepository exams;
+    private final ClassStudentRepository classStudents;
+    private final MaterialRepository materials;
+    private final MaterialAssignmentRepository materialAssignments;
+    private final JdbcTemplate jdbc;
     private final BillingProductCatalog catalog;
     private final MomoPaymentClient momo;
     private final TransactionTemplate transactions;
@@ -42,20 +78,197 @@ public class BillingService {
     public BillingService(
             UserRepository users,
             BillingOrderRepository orders,
+            BillingInvoiceRepository invoices,
+            BillingInvoiceItemRepository invoiceItems,
             TeacherPointWalletRepository wallets,
             TeacherPointLedgerRepository ledger,
             TeacherVipSubscriptionRepository subscriptions,
+            TeacherMissionClaimRepository missionClaims,
+            MissionRepository missions,
+            ClassroomRepository classrooms,
+            ExamRepository exams,
+            ClassStudentRepository classStudents,
+            MaterialRepository materials,
+            MaterialAssignmentRepository materialAssignments,
+            JdbcTemplate jdbc,
             BillingProductCatalog catalog,
             MomoPaymentClient momo,
             PlatformTransactionManager transactionManager) {
         this.users = users;
         this.orders = orders;
+        this.invoices = invoices;
+        this.invoiceItems = invoiceItems;
         this.wallets = wallets;
         this.ledger = ledger;
         this.subscriptions = subscriptions;
+        this.missionClaims = missionClaims;
+        this.missions = missions;
+        this.classrooms = classrooms;
+        this.exams = exams;
+        this.classStudents = classStudents;
+        this.materials = materials;
+        this.materialAssignments = materialAssignments;
+        this.jdbc = jdbc;
         this.catalog = catalog;
         this.momo = momo;
         this.transactions = new TransactionTemplate(transactionManager);
+    }
+
+    public List<BillingMissionResponse> missions(String username) {
+        User teacher = requireTeacher(username);
+        var claims = missionClaims.findByTeacherId(teacher.getId()).stream()
+                .collect(Collectors.toMap(
+                        item -> item.getMissionCode(),
+                        Function.identity()));
+        MissionProgress progress = loadMissionProgress(teacher);
+        return missions.findAllByStatusOrderBySortOrderAscIdAsc("ACTIVE").stream()
+                .map(mission -> {
+                    var claim = claims.get(mission.getCode());
+                    boolean eligible = claim == null
+                            && isMissionEligible(mission.getMissionType(), mission.getTargetValue(), progress);
+                    return new BillingMissionResponse(
+                            mission.getCode(), mission.getName(), mission.getDescription(), mission.getRewardPoints(),
+                            claim == null ? "AVAILABLE" : "CLAIMED",
+                            claim == null ? null : claim.getClaimedAt(),
+                            eligible);
+                })
+                .toList();
+    }
+
+    public BillingMissionResponse claimMission(String username, String missionCode) {
+        User teacher = requireTeacher(username);
+        var mission = missions.findByCode(missionCode)
+                .filter(item -> "ACTIVE".equals(item.getStatus()))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy nhiệm vụ"));
+
+        return transactions.execute(status -> {
+            TeacherPointWallet wallet = lockWallet(teacher.getId());
+            if (missionClaims.findByTeacherIdAndMissionCode(teacher.getId(), mission.getCode()).isPresent()) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Nhiệm vụ đã được nhận");
+            }
+            if (!isMissionEligible(mission.getMissionType(), mission.getTargetValue(),
+                    loadMissionProgress(teacher))) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Nhiệm vụ chưa hoàn thành");
+            }
+
+            long balanceAfter = wallet.getPointsBalance() + mission.getRewardPoints();
+            wallet.setPointsBalance(balanceAfter);
+            wallet.setUpdatedAt(now());
+            wallets.save(wallet);
+
+            TeacherMissionClaim claim = new TeacherMissionClaim();
+            claim.setTeacherId(teacher.getId());
+            claim.setMissionCode(mission.getCode());
+            claim.setRewardPoints(mission.getRewardPoints());
+            missionClaims.saveAndFlush(claim);
+            saveLedger(teacher.getId(), "mission:" + teacher.getId() + ":" + mission.getCode(), TeacherPointLedgerEntry.Type.CREDIT,
+                    mission.getRewardPoints(), "MISSION_REWARD:" + mission.getCode(), null, balanceAfter);
+
+            return new BillingMissionResponse(
+                    mission.getCode(), mission.getName(), mission.getDescription(), mission.getRewardPoints(),
+                    "CLAIMED", now(), false);
+        });
+    }
+
+    private MissionProgress loadMissionProgress(User teacher) {
+        return new MissionProgress(
+                classrooms.countByTeacher_Id(teacher.getId()),
+                classStudents.countDistinctStudentsByTeacherId(teacher.getId()),
+                materials.countByTeacher_IdAndType(teacher.getId(), MaterialType.DOCUMENT),
+                materialAssignments.countByMaterial_Teacher_IdAndMaterial_Type(
+                        teacher.getId(), MaterialType.DOCUMENT),
+                exams.countByTeacher_Username(teacher.getUsername()),
+                exams.countByTeacher_UsernameAndStatus(teacher.getUsername(), ExamStatus.PUBLISHED),
+                countHomeworkAssignments(teacher.getId()));
+    }
+
+    private boolean isMissionEligible(MissionType missionType, int targetValue, MissionProgress progress) {
+        return switch (missionType) {
+            case CLASS_CREATED, FIRST_CLASS -> progress.classes() >= targetValue;
+            case STUDENT_ADDED_TO_CLASS, STUDENT_COUNT -> progress.students() >= targetValue;
+            case DOCUMENT_CREATED -> progress.documents() >= targetValue;
+            case DOCUMENT_ASSIGNED -> progress.assignedDocuments() >= targetValue;
+            case EXAM_CREATED, FIRST_EXAM -> progress.exams() >= targetValue;
+            case EXAM_PUBLISHED, FIRST_PUBLISHED_EXAM -> progress.publishedExams() >= targetValue;
+            case HOMEWORK_CREATED, HOMEWORK_ASSIGNED -> progress.homeworks() >= targetValue;
+            default -> false;
+        };
+    }
+
+    private record MissionProgress(
+            long classes,
+            long students,
+            long documents,
+            long assignedDocuments,
+            long exams,
+            long publishedExams,
+            long homeworks) {}
+
+    private long countHomeworkAssignments(Long teacherId) {
+        Long count = jdbc.queryForObject(
+                "select count(*) from homework_assignments where teacher_id = ?",
+                Long.class,
+                teacherId);
+        return count == null ? 0 : count;
+    }
+
+    public List<MissionAdminResponse> adminMissions() {
+        return missions.findAllByOrderBySortOrderAscIdAsc().stream()
+                .map(MissionAdminResponse::from)
+                .toList();
+    }
+
+    public MissionAdminResponse createMission(MissionRequest request) {
+        Mission mission = new Mission();
+        mission.setCode(generateMissionCode(request.name()));
+        applyMission(mission, request);
+        return MissionAdminResponse.from(missions.save(mission));
+    }
+
+    public MissionAdminResponse updateMission(Long missionId, MissionRequest request) {
+        Mission mission = missions.findById(missionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy nhiệm vụ"));
+        applyMission(mission, request);
+        return MissionAdminResponse.from(missions.save(mission));
+    }
+
+    public void deleteMission(Long missionId) {
+        transactions.executeWithoutResult(status -> {
+            Mission mission = missions.findById(missionId)
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND, "Không tìm thấy nhiệm vụ"));
+            missions.delete(mission);
+        });
+    }
+
+    private void applyMission(Mission mission, MissionRequest request) {
+        mission.setName(request.name().trim());
+        mission.setDescription(request.description().trim());
+        mission.setRewardPoints(request.rewardPoints());
+        mission.setMissionType(request.missionType());
+        mission.setTargetValue(request.targetValue());
+        mission.setStatus(request.status().trim());
+        mission.setSortOrder(request.sortOrder());
+        mission.setUpdatedAt(now());
+    }
+
+    private String generateMissionCode(String name) {
+        String base = Normalizer.normalize(name, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("(^-|-$)", "");
+        if (base.isBlank()) {
+            base = "mission";
+        }
+        base = base.substring(0, Math.min(base.length(), 50));
+
+        String code = base;
+        int suffix = 2;
+        while (missions.existsByCode(code) || missionClaims.existsByMissionCode(code)) {
+            code = base + "-" + suffix++;
+        }
+        return code;
     }
 
     public BillingOverviewResponse overview(String username) {
@@ -217,8 +430,68 @@ public class BillingService {
             } else {
                 extendVip(order.getTeacherId(), catalog.require(order.getProductCode()), order.getId());
             }
+            createInvoice(order, ipn.transId());
             return true;
         }));
+    }
+
+    public List<BillingInvoiceResponse> invoices(String username) {
+        User teacher = requireTeacher(username);
+        return invoices.findTop50ByTeacherIdOrderByIssuedAtDesc(teacher.getId()).stream()
+                .map(invoice -> BillingInvoiceResponse.from(invoice,
+                        invoiceItems.findByInvoiceIdOrderByLineNumberAsc(invoice.getId())))
+                .toList();
+    }
+
+    public BillingInvoiceResponse invoice(String username, UUID invoiceId) {
+        User teacher = requireTeacher(username);
+        BillingInvoice invoice = invoices.findByIdAndTeacherId(invoiceId, teacher.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hóa đơn"));
+        return BillingInvoiceResponse.from(invoice,
+                invoiceItems.findByInvoiceIdOrderByLineNumberAsc(invoice.getId()));
+    }
+
+    private void createInvoice(BillingOrder order, String transactionId) {
+        if (invoices.findByBillingOrderId(order.getId()).isPresent()) return;
+        User teacher = users.findById(order.getTeacherId())
+                .orElseThrow(() -> new IllegalStateException("Không tìm thấy người mua của hóa đơn"));
+        BillingProductCatalog.Product product = catalog.require(order.getProductCode());
+
+        BillingInvoice invoice = new BillingInvoice();
+        invoice.setId(UUID.randomUUID());
+        invoice.setInvoiceNumber("INV-" + now().toLocalDate().toString().replace("-", "")
+                + "-" + invoice.getId().toString().substring(0, 8).toUpperCase(Locale.ROOT));
+        invoice.setTeacherId(order.getTeacherId());
+        invoice.setBillingOrderId(order.getId());
+        invoice.setStatus(BillingInvoice.Status.ISSUED);
+        invoice.setCurrency("VND");
+        invoice.setPaymentMethod("MOMO");
+        invoice.setPaymentTransactionId(transactionId);
+        invoice.setCustomerUsername(teacher.getUsername());
+        invoice.setCustomerFullName(teacher.getFullName());
+        invoice.setCustomerEmail(teacher.getEmail());
+        invoice.setCustomerPhone(teacher.getPhone());
+        invoice.setSubtotalVnd(order.getAmountVnd());
+        invoice.setDiscountVnd(0);
+        invoice.setTotalVnd(order.getAmountVnd());
+        invoice.setPaidAt(order.getPaidAt());
+        invoices.saveAndFlush(invoice);
+
+        BillingInvoiceItem item = new BillingInvoiceItem();
+        item.setInvoiceId(invoice.getId());
+        item.setLineNumber(1);
+        item.setProductCode(product.code());
+        item.setProductName(product.name());
+        item.setProductType(product.type().name());
+        item.setQuantity(1);
+        item.setUnitPriceVnd(product.amountVnd());
+        item.setLineTotalVnd(product.amountVnd());
+        item.setPointsGranted(product.pointsGranted());
+        item.setPointsRequired(product.pointsRequired());
+        item.setVipTier(product.vipTier() == null ? null : product.vipTier().name());
+        item.setDeviceLimit(product.deviceLimit());
+        item.setDurationMonths(product.durationMonths());
+        invoiceItems.save(item);
     }
 
     private BillingOrder createOrReuseOrder(

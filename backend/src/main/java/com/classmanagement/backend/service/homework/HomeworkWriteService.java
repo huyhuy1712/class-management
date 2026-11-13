@@ -10,6 +10,7 @@ import com.classmanagement.backend.service.homework.files.HomeworkFileService;
 import com.classmanagement.backend.service.homework.notifications.HomeworkNotificationService;
 import com.classmanagement.backend.service.homework.queries.HomeworkReadService;
 import com.classmanagement.backend.service.homework.recipients.HomeworkRecipientResolver;
+import com.classmanagement.backend.service.billing.TeacherEntitlementService;
 import com.classmanagement.backend.service.impl.material.MaterialAssignmentManager;
 import com.classmanagement.backend.service.impl.material.MaterialDistribution;
 import com.classmanagement.backend.service.impl.material.MaterialFileSupport;
@@ -32,6 +33,7 @@ public class HomeworkWriteService {
     private final HomeworkFileService homeworkFiles;
     private final HomeworkRecipientResolver recipientResolver;
     private final HomeworkNotificationService notifications;
+    private final TeacherEntitlementService entitlements;
 
     public HomeworkDtos.Assignment create(
             String username,
@@ -48,6 +50,13 @@ public class HomeworkWriteService {
             MultipartFile file,
             MultipartFile audioFile) {
         User teacher = reads.requireUser(username, UserRole.TEACHER);
+        entitlements.requireHomeworkCapacity(
+                teacher.getId(),
+                jdbc.queryForObject("SELECT COUNT(*) FROM homework_assignments WHERE teacher_id = ?",
+                        Long.class, teacher.getId()));
+        if (hasFile(file) || hasFile(audioFile)) {
+            entitlements.requireVipFeature(teacher.getId(), "tải tệp lên bài tập");
+        }
         String normalizedTitle = title == null ? "" : title.trim();
         String normalizedInstructions = instructions == null ? "" : instructions.trim();
         if (normalizedTitle.isEmpty() || normalizedTitle.length() > 255)
@@ -108,6 +117,7 @@ public class HomeworkWriteService {
                     jdbc.update("INSERT INTO homework_assignment_classes (assignment_id, class_id) VALUES (?, ?)",
                             assignmentId, classroom.getId());
                 }
+
             }
             if (assignmentType == MaterialAssignmentType.STUDENT) {
                 Map<Long, Long> studentClasses = distribution.studentClassIds();
@@ -117,6 +127,7 @@ public class HomeworkWriteService {
                             VALUES (?, ?, ?)
                             """, assignmentId, studentId, studentClasses.get(studentId));
                 }
+
             }
             for (var recipient : recipients.students().entrySet()) {
                 jdbc.update("""
@@ -139,6 +150,10 @@ public class HomeworkWriteService {
         }
     }
 
+    private static boolean hasFile(MultipartFile file) {
+        return file != null && !file.isEmpty();
+    }
+
     public HomeworkDtos.Assignment update(long assignmentId, String username, String title,
             String instructions, Long subjectId, String gradeLevel, String purpose,
             MaterialAssignmentType assignmentType, List<Long> classIds, List<Long> studentIds,
@@ -146,6 +161,9 @@ public class HomeworkWriteService {
             boolean removeFile, boolean removeAudio) {
         User teacher = reads.requireUser(username, UserRole.TEACHER);
         reads.requireOwnedAssignment(assignmentId, teacher.getId());
+        if (hasFile(file) || hasFile(audioFile)) {
+            entitlements.requireVipFeature(teacher.getId(), "tải tệp lên bài tập");
+        }
 
         String normalizedTitle = title == null ? "" : title.trim();
         String normalizedInstructions = instructions == null ? "" : instructions.trim();

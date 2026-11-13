@@ -24,6 +24,7 @@ import com.classmanagement.backend.repository.classroom.ClassStudentRepository;
 import com.classmanagement.backend.repository.classroom.ClassroomRepository;
 import com.classmanagement.backend.service.MaterialService;
 import com.classmanagement.backend.service.StorageService;
+import com.classmanagement.backend.service.billing.TeacherEntitlementService;
 import com.classmanagement.backend.service.impl.material.MaterialAssignmentManager;
 import com.classmanagement.backend.service.impl.material.MaterialDistribution;
 import com.classmanagement.backend.service.impl.material.MaterialDocumentMapper;
@@ -59,6 +60,7 @@ public class MaterialServiceImpl implements MaterialService {
     private final MaterialAssignmentManager assignmentManager;
     private final MaterialDocumentMapper documentMapper;
     private final MaterialFileSupport fileSupport;
+    private final TeacherEntitlementService entitlements;
 
     @Override
     @Transactional(readOnly = true)
@@ -80,6 +82,9 @@ public class MaterialServiceImpl implements MaterialService {
             List<Long> studentIds,
             MultipartFile file) {
         User teacher = requireTeacher(username);
+        entitlements.requireMaterialCapacity(
+                teacher.getId(),
+                materialRepository.countByTeacher_IdAndType(teacher.getId(), MaterialType.DOCUMENT));
         String normalizedTitle = title == null ? "" : title.trim();
         if (normalizedTitle.isEmpty() || normalizedTitle.length() > 255) {
             throw new IllegalArgumentException("Tên tài liệu không được để trống và tối đa 255 ký tự");
@@ -144,6 +149,10 @@ public class MaterialServiceImpl implements MaterialService {
         }
 
         User teacher = requireTeacher(username);
+        entitlements.requireMaterialCapacity(
+                teacher.getId(),
+                materialRepository.countByTeacher_IdAndType(teacher.getId(), MaterialType.DOCUMENT),
+                files.size());
         long totalSize = 0;
         List<PreparedDocument> prepared = new java.util.ArrayList<>(files.size());
         for (MultipartFile file : files) {

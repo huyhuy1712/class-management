@@ -115,8 +115,8 @@ public class ExamAttemptService {
         positive(assignmentId);
         User student = user(username, UserRole.STUDENT);
         Long examId = data.assignmentExamId(assignmentId).orElseThrow(() -> missing());
-        exams.findSharedLockedById(examId).orElseThrow(() -> missing());
         var assignment = assignments.findById(assignmentId).orElseThrow(() -> missing());
+        var exam = exams.findSharedLockedById(examId).orElseThrow(() -> missing());
         var attempt =
                 attempts.findLockedByAssignment_IdAndStudent_Id(assignmentId, student.getId())
                         .orElse(null);
@@ -127,6 +127,12 @@ public class ExamAttemptService {
             throw new ConflictException("Số lượt đã thay đổi, hãy tải lại trước khi bắt đầu");
         if (attempt != null && attempt.getStatus() == ExamAttemptStatus.IN_PROGRESS)
             return view(attempt, false);
+        long totalAttempts = attempts.sumAttemptCountByAssignmentId(assignmentId);
+        if (!entitlements.hasVip(exam.getTeacher().getId())
+                && totalAttempts >= com.classmanagement.backend.service.billing.TeacherEntitlementService.FREE_ATTEMPT_LIMIT) {
+            throw new ConflictException(
+                    "Bài kiểm tra đã đạt giới hạn 10 lượt làm của gói miễn phí. Hãy nâng cấp VIP để tiếp tục.");
+        }
         var access =
                 eligibility
                         .findAccessible(assignmentId, student.getId())
@@ -347,8 +353,8 @@ public class ExamAttemptService {
         if (!a.getExam().getTeacher().getId().equals(teacher.getId())) throw missing();
         if (classId != null && !data.classAllowed(assignmentId, classId)) throw missing();
         var result = data.list(assignmentId, page, size, status, q, sort, classId);
-                if (export && result.totalElements() > 50) {
-                        entitlements.requireVipFeature(teacher.getId(), "xuất Excel cho hơn 50 học sinh");
+                if (export) {
+                        entitlements.requireVipFeature(teacher.getId(), "xuất bảng điểm");
                 }
         var items =
                 result.items().stream()

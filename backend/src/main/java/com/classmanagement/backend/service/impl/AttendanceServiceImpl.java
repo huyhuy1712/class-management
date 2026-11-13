@@ -121,7 +121,29 @@ public List<AttendanceResponse> attendAsStudent(Long classroomId, String usernam
 public List<AttendanceResponse> createAttendance(
             Long classroomId,
             CreateAttendanceRequest request) {
+        return createAttendanceInternal(classroomId, request);
+}
 
+@Transactional
+@Override
+public List<AttendanceResponse> createAttendance(
+            Long classroomId,
+            CreateAttendanceRequest request,
+            String username) {
+        Classroom classroom = classroomRepository.findById(classroomId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy lớp học"));
+        if (classroom.getTeacher() == null || !classroom.getTeacher().getUsername().equals(username)) {
+            throw new IllegalArgumentException("Không tìm thấy lớp học của bạn");
+        }
+        entitlements.requireAttendanceCapacity(
+                classroom.getTeacher().getId(),
+                attendanceRepository.countDistinctDatesByTeacherId(classroom.getTeacher().getId()));
+        return createAttendanceInternal(classroomId, request);
+}
+
+private List<AttendanceResponse> createAttendanceInternal(
+            Long classroomId,
+            CreateAttendanceRequest request) {
         Classroom classroom = classroomRepository
                 .findById(classroomId)
                 .orElseThrow(() -> new IllegalArgumentException(
@@ -385,9 +407,7 @@ public AttendanceExportResult exportAttendance(
     List<ClassStudent> classStudents =
             classStudentRepository
                     .findAllByClassroomId(classroomId);
-        if (classStudents.size() > 50) {
-                entitlements.requireVipFeature(classroom.getTeacher().getId(), "xuất Excel cho lớp trên 50 học sinh");
-        }
+        entitlements.requireVipFeature(classroom.getTeacher().getId(), "xuất bảng điểm điểm danh");
 
     List<Attendance> attendances =
             attendanceRepository

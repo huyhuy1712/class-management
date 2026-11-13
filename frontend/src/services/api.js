@@ -31,6 +31,15 @@ api.interceptors.response.use((response) => {
     }, 0)
   }
   return response
+}, (error) => {
+  if (error.response?.status === 402 && typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('free-tier-limit', {
+      detail: {
+        message: error.response.data?.message || 'Bạn đã đạt giới hạn của gói miễn phí. Hãy nâng cấp VIP để tiếp tục.',
+      },
+    }))
+  }
+  return Promise.reject(error)
 })
 
 export default api

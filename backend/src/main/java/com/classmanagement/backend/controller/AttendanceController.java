@@ -51,7 +51,7 @@ public ResponseEntity<?> createAttendance(
         if (!violations.isEmpty()) throw new IllegalArgumentException(violations.iterator().next().getMessage());
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body( attendanceService.createAttendance( classroomId, request));
+                .body(attendanceService.createAttendance(classroomId, request, authentication.getName()));
     }
 
 @PostMapping("/{classroomId}/attendances/absent-all")

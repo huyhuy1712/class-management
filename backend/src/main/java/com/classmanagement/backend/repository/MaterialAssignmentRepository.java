@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface MaterialAssignmentRepository extends JpaRepository<MaterialAssignment, Long> {
+    long countByMaterial_Teacher_IdAndMaterial_Type(Long teacherId, com.classmanagement.backend.entity.enums.MaterialType type);
 
     @EntityGraph(attributePaths = "material")
     @Query("select assignment from MaterialAssignment assignment "

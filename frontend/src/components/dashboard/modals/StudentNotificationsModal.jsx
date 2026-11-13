@@ -11,6 +11,11 @@ export default function StudentNotificationsModal({ notifications, loading, erro
     onClose()
     navigate(`/student/homework/${item.referenceId}`)
   }
+  const openClass = (item) => {
+    if (!item.read) onRead(item)
+    onClose()
+    navigate(`/student/classes/${item.referenceId}`)
+  }
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-[2px]" onClick={onClose}>
@@ -54,6 +59,12 @@ export default function StudentNotificationsModal({ notifications, loading, erro
                 onClick={() => openHomework(item)}
                 className="self-center inline-flex shrink-0 items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-wait"
               ><ExternalLink size={14} />Mở bài tập</button>}
+              {item.type === 'REQUEST_APPROVED' && item.referenceType === 'CLASS' && item.referenceId && <button
+                type="button"
+                disabled={busy}
+                onClick={() => openClass(item)}
+                className="self-center inline-flex shrink-0 items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-wait"
+              ><ExternalLink size={14} />Vào lớp</button>}
               <button type="button" disabled={busy} onClick={() => onDelete(item.id)} aria-label="Xóa thông báo" className="self-start rounded-lg p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed"><X size={17} /></button>
             </article>
           ))}

@@ -44,6 +44,7 @@ const TeacherHomeworkDetailPage = lazy(() => import('../pages/teacher/homework/T
 // Student
 // =============================
 import StudentProfilePage from '../pages/student/StudentProfilePage'
+import MissionManagementPage from '../pages/admin/MissionManagementPage'
 import StudentHome from '../pages/student/StudentHome'
 import StudentAttendancePage from '../pages/student/StudentAttendancePage'
 import StudentHistoryPage from '../pages/student/StudentHistoryPage'
@@ -162,6 +163,7 @@ function AppRoutes() {
         <Route path="users" element={<UserManagementPage />} />
         <Route path="subjects" element={<SubjectManagementPage />} />
         <Route path="history" element={<AdminHistoryPage />} />
+        <Route path="missions" element={<MissionManagementPage />} />
       </Route>
 
 
