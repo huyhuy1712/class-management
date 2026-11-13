@@ -3,8 +3,12 @@ package com.classmanagement.backend.service.impl;
 import com.classmanagement.backend.dto.ai.AiChatMessageDto;
 import com.classmanagement.backend.dto.ai.AiChatRequest;
 import com.classmanagement.backend.dto.ai.AiChatResponse;
+import com.classmanagement.backend.entity.User;
+import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.service.AiChatService;
+import com.classmanagement.backend.service.ai.AiToolDispatcher;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -44,6 +48,8 @@ public class AiChatServiceImpl implements AiChatService {
     private Integer guestLimit;
 
     private final RestClient restClient;
+    private final UserRepository userRepository;
+    private final AiToolDispatcher aiToolDispatcher;
 
     // Lưu trữ số lượt đã dùng của Guest theo guestKey (clientId hoặc IP)
     private final Map<String, AtomicInteger> guestUsageMap = new ConcurrentHashMap<>();
@@ -65,7 +71,8 @@ public class AiChatServiceImpl implements AiChatService {
             "đánh bạc", "cá độ", "lô đề", "tài xỉu", "bầu cử chính trị", "xuyên tạc"
     );
 
-    public AiChatServiceImpl() {
+    @Autowired
+    public AiChatServiceImpl(UserRepository userRepository, AiToolDispatcher aiToolDispatcher) {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(Duration.ofSeconds(10));
         requestFactory.setReadTimeout(Duration.ofSeconds(30));
@@ -73,15 +80,50 @@ public class AiChatServiceImpl implements AiChatService {
         this.restClient = RestClient.builder()
                 .requestFactory(requestFactory)
                 .build();
+        this.userRepository = userRepository;
+        this.aiToolDispatcher = aiToolDispatcher;
+    }
+
+    public AiChatServiceImpl() {
+        this(null, null);
     }
 
     // Constructor phục vụ Unit Test linh hoạt
     public AiChatServiceImpl(String apiKey, String baseUrl, String model, int guestLimit) {
-        this();
+        this(null, null);
         this.apiKey = apiKey;
         this.baseUrl = baseUrl;
         this.model = model;
         this.guestLimit = guestLimit;
+        this.temperature = 0.2;
+        this.maxTokens = 1000;
+    }
+
+    // Constructor phục vụ Unit Test kèm Repository & ToolDispatcher
+    public AiChatServiceImpl(String apiKey, String baseUrl, String model, int guestLimit,
+                             UserRepository userRepository, AiToolDispatcher aiToolDispatcher) {
+        this(userRepository, aiToolDispatcher);
+        this.apiKey = apiKey;
+        this.baseUrl = baseUrl;
+        this.model = model;
+        this.guestLimit = guestLimit;
+        this.temperature = 0.2;
+        this.maxTokens = 1000;
+    }
+
+    // Constructor phục vụ Unit Test với Mock RestClient
+    public AiChatServiceImpl(String apiKey, String baseUrl, String model, int guestLimit,
+                             UserRepository userRepository, AiToolDispatcher aiToolDispatcher,
+                             RestClient restClient) {
+        this.apiKey = apiKey;
+        this.baseUrl = baseUrl;
+        this.model = model;
+        this.guestLimit = guestLimit;
+        this.userRepository = userRepository;
+        this.aiToolDispatcher = aiToolDispatcher;
+        this.restClient = restClient;
+        this.temperature = 0.2;
+        this.maxTokens = 1000;
     }
 
     @Override
@@ -116,13 +158,15 @@ public class AiChatServiceImpl implements AiChatService {
                     .build();
         }
 
+        User currentUser = resolveCurrentUser(authentication);
+
         // 3. Xử lý câu trả lời qua RestClient gọi OpenAI/Groq API hoặc Fallback thông minh
         String reply;
         if (apiKey != null && !apiKey.trim().isEmpty() && !"not-configured".equalsIgnoreCase(apiKey.trim())) {
             try {
-                reply = callOpenAiCompatibleApi(userMessage, request.getHistory(), role);
+                reply = callOpenAiCompatibleApi(userMessage, request.getHistory(), role, currentUser);
             } catch (Exception e) {
-                log.warn("Lỗi khi kết nối OpenAI-compatible API: {}. Chuyển sang phản hồi học tập dự phòng.", e.getMessage());
+                log.warn("Lỗi khi kết nối OpenAI-compatible API", e);
                 reply = generateSmartFallbackReply(userMessage, role);
             }
         } else {
@@ -207,13 +251,16 @@ public class AiChatServiceImpl implements AiChatService {
     }
 
     // ==========================================
-    // CALL OPENAI-COMPATIBLE API VIA RESTCLIENT (LUỒNG 1)
+    // CALL OPENAI-COMPATIBLE API VIA RESTCLIENT (LUỒNG 1 & LUỒNG 2 TOOL CALLING)
     // ==========================================
-    private String callOpenAiCompatibleApi(String userMessage, List<? extends AiChatRequest.ChatMessageItem> history, String role) {
+    private String callOpenAiCompatibleApi(String userMessage, List<? extends AiChatRequest.ChatMessageItem> history, String role, User currentUser) {
         String systemPrompt = buildSystemPrompt(role);
 
-        List<Map<String, String>> messages = new ArrayList<>();
-        messages.add(Map.of("role", "system", "content", systemPrompt));
+        List<Map<String, Object>> messages = new ArrayList<>();
+        Map<String, Object> sysMsg = new HashMap<>();
+        sysMsg.put("role", "system");
+        sysMsg.put("content", systemPrompt);
+        messages.add(sysMsg);
 
         // Nối lịch sử trò chuyện (tối đa 10 tin nhắn gần nhất) để giữ ngữ cảnh Luồng 1
         if (history != null && !history.isEmpty()) {
@@ -222,19 +269,35 @@ public class AiChatServiceImpl implements AiChatService {
                 AiChatRequest.ChatMessageItem h = history.get(i);
                 if (h != null && h.getContent() != null && !h.getContent().isBlank()) {
                     String msgRole = "assistant".equalsIgnoreCase(h.getRole()) ? "assistant" : "user";
-                    messages.add(Map.of("role", msgRole, "content", h.getContent()));
+                    Map<String, Object> histMsg = new HashMap<>();
+                    histMsg.put("role", msgRole);
+                    histMsg.put("content", h.getContent());
+                    messages.add(histMsg);
                 }
             }
         }
 
         // Tin nhắn mới nhất của người dùng
-        messages.add(Map.of("role", "user", "content", userMessage));
+        Map<String, Object> userMsg = new HashMap<>();
+        userMsg.put("role", "user");
+        userMsg.put("content", userMessage);
+        messages.add(userMsg);
+
+        // Chuẩn bị danh sách Tools phù hợp với role nếu có user đăng nhập
+        List<Map<String, Object>> tools = null;
+        if (currentUser != null && aiToolDispatcher != null) {
+            tools = aiToolDispatcher.getToolsForRole(role);
+        }
 
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("model", model);
         requestBody.put("temperature", temperature);
         requestBody.put("max_tokens", maxTokens);
         requestBody.put("messages", messages);
+        if (tools != null && !tools.isEmpty()) {
+            requestBody.put("tools", tools);
+            requestBody.put("tool_choice", "auto");
+        }
 
         String endpointUrl = baseUrl;
         if (!endpointUrl.endsWith("/chat/completions")) {
@@ -254,13 +317,100 @@ public class AiChatServiceImpl implements AiChatService {
             if (!choices.isEmpty()) {
                 Map<?, ?> firstChoice = (Map<?, ?>) choices.get(0);
                 Map<?, ?> messageObj = (Map<?, ?>) firstChoice.get("message");
-                if (messageObj != null && messageObj.containsKey("content")) {
-                    return (String) messageObj.get("content");
+                if (messageObj != null) {
+                    // Kiểm tra xem mô hình có gọi Tool Calling không
+                    if (messageObj.containsKey("tool_calls") && messageObj.get("tool_calls") != null) {
+                        List<?> toolCalls = (List<?>) messageObj.get("tool_calls");
+                        if (!toolCalls.isEmpty()) {
+                            return handleToolCallsAndRoundTrip(messages, messageObj, toolCalls, currentUser, endpointUrl, role);
+                        }
+                    }
+
+                    // Phản hồi văn bản trực tiếp thông thường
+                    if (messageObj.containsKey("content") && messageObj.get("content") != null) {
+                        return (String) messageObj.get("content");
+                    }
                 }
             }
         }
 
         return generateSmartFallbackReply(userMessage, role);
+    }
+
+    private String handleToolCallsAndRoundTrip(List<Map<String, Object>> messages,
+                                              Map<?, ?> assistantMessageObj,
+                                              List<?> toolCalls,
+                                              User currentUser,
+                                              String endpointUrl,
+                                              String role) {
+        // 1. Thêm tin nhắn của assistant chứa tool_calls vào messages
+        Map<String, Object> assistantMessage = new HashMap<>();
+        assistantMessage.put("role", "assistant");
+        assistantMessage.put("content", assistantMessageObj.get("content"));
+        assistantMessage.put("tool_calls", toolCalls);
+        messages.add(assistantMessage);
+
+        // 2. Thực thi từng tool call qua AiToolDispatcher và nối kết quả vào messages
+        for (Object tcObj : toolCalls) {
+            if (!(tcObj instanceof Map<?, ?> tcMap)) {
+                continue;
+            }
+            String toolCallId = (String) tcMap.get("id");
+            Map<?, ?> functionMap = (Map<?, ?>) tcMap.get("function");
+            String functionName = functionMap != null ? (String) functionMap.get("name") : null;
+            Object rawArgs = functionMap != null ? functionMap.get("arguments") : "{}";
+            String argumentsJson = rawArgs instanceof String ? (String) rawArgs : String.valueOf(rawArgs);
+
+            log.info("AI invoked tool: {} for user: {} with args: {}", functionName, currentUser != null ? currentUser.getUsername() : "anonymous", argumentsJson);
+
+            String toolResult = aiToolDispatcher.executeTool(functionName, argumentsJson, currentUser);
+
+            Map<String, Object> toolMessage = new HashMap<>();
+            toolMessage.put("role", "tool");
+            toolMessage.put("tool_call_id", toolCallId);
+            toolMessage.put("name", functionName);
+            toolMessage.put("content", toolResult);
+            messages.add(toolMessage);
+        }
+
+        // 3. Thực hiện Round 2: Gửi lại messages kèm tool output về cho LLM tổng hợp câu trả lời tự nhiên
+        Map<String, Object> round2Body = new HashMap<>();
+        round2Body.put("model", model);
+        round2Body.put("temperature", temperature);
+        round2Body.put("max_tokens", maxTokens);
+        round2Body.put("messages", messages);
+
+        try {
+            Map<?, ?> round2Response = restClient.post()
+                    .uri(endpointUrl)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(round2Body)
+                    .retrieve()
+                    .body(Map.class);
+
+            if (round2Response != null && round2Response.containsKey("choices")) {
+                List<?> choices = (List<?>) round2Response.get("choices");
+                if (!choices.isEmpty()) {
+                    Map<?, ?> firstChoice = (Map<?, ?>) choices.get(0);
+                    Map<?, ?> messageObj = (Map<?, ?>) firstChoice.get("message");
+                    if (messageObj != null && messageObj.containsKey("content") && messageObj.get("content") != null) {
+                        return (String) messageObj.get("content");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Lỗi ở Round 2 khi gửi kết quả tool về LLM: {}", e.getMessage(), e);
+        }
+
+        // Nếu Round 2 gặp sự cố, tổng hợp câu trả lời trực tiếp từ kết quả tool
+        StringBuilder fallbackSummary = new StringBuilder("Dưới đây là thông tin tra cứu được từ hệ thống:\n\n");
+        for (Map<String, Object> msg : messages) {
+            if ("tool".equals(msg.get("role"))) {
+                fallbackSummary.append(msg.get("content")).append("\n");
+            }
+        }
+        return fallbackSummary.toString().trim();
     }
 
     // ==========================================
@@ -348,6 +498,24 @@ public class AiChatServiceImpl implements AiChatService {
             }
         }
         return "STUDENT";
+    }
+
+    private User resolveCurrentUser(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken) {
+            return null;
+        }
+        if (userRepository == null) {
+            return null;
+        }
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof User) {
+            return (User) principal;
+        }
+        String username = authentication.getName();
+        if (username == null || username.isBlank()) {
+            return null;
+        }
+        return userRepository.findByUsername(username).orElse(null);
     }
 
     private String resolveGuestKey(String clientSessionId, String clientIp) {
