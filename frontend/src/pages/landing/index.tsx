@@ -1426,8 +1426,8 @@ function LandingPage() {
         </div>
       )}
 
-      {/* TRỢ LÝ HỌC TẬP AI DÙNG THỬ */}
-      <AiChatWidget />
+      {/* TRỢ LÝ HỌC TẬP AI DÙNG THỬ (KHÁCH TRẢI NGHIỆM) */}
+      <AiChatWidget forceGuest={true} />
     </div>
   )
 }

@@ -23,6 +23,8 @@ public class AiChatRequest {
 
     private String clientSessionId;
 
+    private Boolean forceGuest;
+
     @Getter
     @Setter
     @Builder

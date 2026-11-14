@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import {
-  Bot,
   Sparkles,
   X,
   Send,
@@ -14,9 +13,16 @@ import {
   User,
   ChevronDown,
   ArrowRight,
+  LogIn,
 } from 'lucide-react'
+import frogLogo from '../assets/logos/logo.png'
 import useAuthStore from '../stores/authStore'
-import { sendChatMessage, getQuotaStatus, getLocalGuestQuota } from '../services/aiChatService'
+import {
+  sendChatMessage,
+  getQuotaStatus,
+  getLocalGuestQuota,
+  setLocalGuestQuota,
+} from '../services/aiChatService'
 
 interface ChatMessage {
   id: string
@@ -26,7 +32,11 @@ interface ChatMessage {
   time: string
 }
 
-const STORAGE_KEY = 'ai_chat_messages'
+export interface AiChatWidgetProps {
+  forceGuest?: boolean
+}
+
+const DISMISS_PROMPTS_KEY = 'ai_chat_quick_prompts_dismissed'
 
 const getWelcomeMessage = (currentRole: string): ChatMessage => {
   let welcome = ''
@@ -50,27 +60,39 @@ const getWelcomeMessage = (currentRole: string): ChatMessage => {
   }
 }
 
-export const AiChatWidget: React.FC = () => {
+export const AiChatWidget: React.FC<AiChatWidgetProps> = ({ forceGuest = false }) => {
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // Kiểm tra xem có đang ở trang landing hoặc bị ép buộc chế độ khách không
+  const isLanding = forceGuest || location.pathname === '/' || location.pathname === '/landing'
+
   const authUser = useAuthStore((state: any) => state.user)
 
-  // Xác định vai trò hiện tại
-  const role: 'TEACHER' | 'STUDENT' | 'ADMIN' | 'GUEST' = authUser?.role
-    ? authUser.role === 'TEACHER'
-      ? 'TEACHER'
-      : authUser.role === 'ADMIN'
-        ? 'ADMIN'
-        : 'STUDENT'
-    : 'GUEST'
+  // Xác định vai trò: nếu ở landing page thì LUÔN là GUEST, không bị dính quyền của phiên trước
+  const role: 'TEACHER' | 'STUDENT' | 'ADMIN' | 'GUEST' = isLanding
+    ? 'GUEST'
+    : authUser?.role
+      ? authUser.role === 'TEACHER'
+        ? 'TEACHER'
+        : authUser.role === 'ADMIN'
+          ? 'ADMIN'
+          : 'STUDENT'
+      : 'GUEST'
 
   const isGuest = role === 'GUEST'
+
+  // Phân tách key lưu lịch sử chat riêng biệt để tránh rò rỉ dữ liệu giữa Landing Page và Dashboard
+  const storageKey = isGuest
+    ? 'ai_chat_messages_guest'
+    : `ai_chat_messages_${authUser?.id || 'auth'}`
 
   const [isOpen, setIsOpen] = useState(false)
 
   // Khôi phục lịch sử chat từ localStorage nếu có
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY)
+      const saved = localStorage.getItem(storageKey)
       if (saved) {
         const parsed = JSON.parse(saved)
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -85,32 +107,41 @@ export const AiChatWidget: React.FC = () => {
 
   const [inputMessage, setInputMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+
   const [remainingQuota, setRemainingQuota] = useState<number | null>(
     isGuest ? getLocalGuestQuota() : null
   )
   const [limitReached, setLimitReached] = useState<boolean>(
     isGuest ? getLocalGuestQuota() <= 0 : false
   )
-  const [showQuickPrompts, setShowQuickPrompts] = useState(true)
+
+  // Quản lý gợi ý nhanh: kiểm tra sessionStorage để chỉ xuất hiện 1 lần trong phiên làm việc
+  const [showQuickPrompts, setShowQuickPrompts] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem(DISMISS_PROMPTS_KEY) !== 'true'
+    } catch {
+      return true
+    }
+  })
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Lưu lịch sử chat vào localStorage mỗi khi messages thay đổi
+  // Lưu lịch sử chat vào localStorage mỗi khi messages hoặc storageKey thay đổi
   useEffect(() => {
     if (messages && messages.length > 0) {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(messages))
+        localStorage.setItem(storageKey, JSON.stringify(messages))
       } catch (e) {
         console.error('Lỗi khi lưu lịch sử chat vào localStorage:', e)
       }
     }
-  }, [messages])
+  }, [messages, storageKey])
 
-  // Đồng bộ quota từ server khi mở widget hoặc khi auth thay đổi
+  // Đồng bộ quota từ server khi mở widget hoặc khi auth/chế độ thay đổi
   useEffect(() => {
     if (isGuest) {
-      getQuotaStatus()
+      getQuotaStatus(true)
         .then((res) => {
           if (typeof res?.remainingQuota === 'number') {
             setRemainingQuota(res.remainingQuota)
@@ -118,7 +149,6 @@ export const AiChatWidget: React.FC = () => {
           }
         })
         .catch(() => {
-          // Dùng giá trị từ localStorage
           const local = getLocalGuestQuota()
           setRemainingQuota(local)
           setLimitReached(local <= 0)
@@ -127,7 +157,7 @@ export const AiChatWidget: React.FC = () => {
       setRemainingQuota(null)
       setLimitReached(false)
     }
-  }, [isGuest, authUser])
+  }, [isGuest, authUser, isLanding])
 
   // Tự động cuộn xuống tin nhắn mới nhất
   useEffect(() => {
@@ -143,19 +173,31 @@ export const AiChatWidget: React.FC = () => {
     }
   }, [isOpen, limitReached])
 
+  // Đóng gợi ý và ghi nhớ vào sessionStorage
+  const handleDismissQuickPrompts = () => {
+    setShowQuickPrompts(false)
+    try {
+      sessionStorage.setItem(DISMISS_PROMPTS_KEY, 'true')
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   // Danh sách câu hỏi gợi ý nhanh theo vai trò
   const quickPrompts =
     role === 'TEACHER'
       ? [
-          'Gợi ý ma trận đề kiểm tra 15 phút môn Tin học',
-          'Soạn 3 câu hỏi trắc nghiệm Toán phân hóa',
-          'Phương pháp xây dựng bài giảng tích cực',
+          'Lịch dạy hôm nay của tôi',
+          'Tình hình điểm danh lớp học',
+          'Các bài tập tôi đã giao',
+          'Gợi ý ma trận đề kiểm tra 15 phút Toán',
         ]
       : role === 'STUDENT'
         ? [
-            'Giải thích định luật II Newton',
-            'Phương pháp tìm nguyên hàm và tích phân',
-            'Cách phân biệt thì Hiện tại hoàn thành và Quá khứ đơn',
+            'Xem tình hình điểm danh của em',
+            'Bài tập về nhà sắp đến hạn',
+            'Các bài thi được giao cho em',
+            'Bảng điểm các bài kiểm tra vừa làm',
           ]
         : [
             'Hệ thống FrogH có những tính năng học tập gì?',
@@ -172,7 +214,7 @@ export const AiChatWidget: React.FC = () => {
     }
 
     if (showQuickPrompts) {
-      setShowQuickPrompts(false)
+      handleDismissQuickPrompts()
     }
 
     const userMsg: ChatMessage = {
@@ -198,7 +240,7 @@ export const AiChatWidget: React.FC = () => {
       }))
 
     try {
-      const data = await sendChatMessage(text, history)
+      const data = await sendChatMessage(text, history, isGuest)
 
       const replyContent =
         data.reply || 'Xin lỗi, tôi chưa xử lý được câu hỏi này. Bạn vui lòng thử lại nhé!'
@@ -216,6 +258,13 @@ export const AiChatWidget: React.FC = () => {
       if (typeof data.remainingQuota === 'number') {
         setRemainingQuota(data.remainingQuota)
         setLimitReached(data.limitReached || data.remainingQuota <= 0)
+      } else if (isGuest) {
+        // Fallback trừ lượt nếu backend không trả về
+        const currentQuota = remainingQuota ?? getLocalGuestQuota()
+        const newQuota = Math.max(0, currentQuota - 1)
+        setRemainingQuota(newQuota)
+        setLocalGuestQuota(newQuota)
+        setLimitReached(newQuota <= 0)
       }
     } catch (err: any) {
       const errorText =
@@ -242,12 +291,13 @@ export const AiChatWidget: React.FC = () => {
     }
   }
 
-  // Xoá lịch sử trò chuyện (clear localStorage và đặt state messages về câu chào ban đầu)
+  // Xoá lịch sử trò chuyện
   const handleClearHistory = () => {
     try {
-      localStorage.removeItem(STORAGE_KEY)
+      localStorage.removeItem(storageKey)
+      sessionStorage.removeItem(DISMISS_PROMPTS_KEY)
     } catch (e) {
-      console.error('Lỗi khi xoá lịch sử chat từ localStorage:', e)
+      console.error('Lỗi khi xoá lịch sử chat:', e)
     }
     setMessages([getWelcomeMessage(role)])
     setShowQuickPrompts(true)
@@ -259,14 +309,15 @@ export const AiChatWidget: React.FC = () => {
       {isOpen && (
         <div className="mb-3 flex h-[580px] max-h-[calc(100dvh-12rem)] w-[360px] sm:w-[440px] flex-col overflow-hidden rounded-2xl border border-emerald-900/15 bg-white shadow-2xl transition-all duration-300 animate-in fade-in slide-in-from-bottom-5">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-white/10 bg-[#0F3822] px-4 py-3.5 text-white">
+          <div className="flex items-center justify-between border-b border-white/10 bg-[#0F3822] px-4 py-3 text-white">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#D8F3DC] text-[#0F3822] shadow-2xs">
-                <Bot size={20} />
+              {/* Logo con ếch chủ đạo */}
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#D8F3DC] p-1 shadow-2xs overflow-hidden">
+                <img src={frogLogo} alt="FrogH AI" className="h-full w-full object-contain" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-bold text-white">Trợ lý Học tập AI</h4>
+                  <h4 className="text-sm font-bold text-white tracking-wide">Trợ lý Học tập FrogH</h4>
                   <span className="flex h-2 w-2 relative">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -327,171 +378,219 @@ export const AiChatWidget: React.FC = () => {
             </div>
           </div>
 
-          {/* Body: Danh sách tin nhắn */}
-          <div className="flex-1 overflow-y-auto bg-[#F8FAF9] p-4 space-y-3.5">
-            {messages.map((msg) => {
-              const isUser = msg.role === 'user'
-              const textContent = msg.content || msg.text || ''
+          {/* Body: Danh sách tin nhắn & Overlay khi hết lượt */}
+          <div className="relative flex-1 overflow-hidden bg-[#F8FAF9]">
+            {/* Vùng tin nhắn (làm mờ và xám khi hết lượt) */}
+            <div
+              className={`h-full overflow-y-auto p-4 space-y-3.5 transition-all duration-300 ${
+                isGuest && limitReached
+                  ? 'filter grayscale-[85%] opacity-35 blur-[1px] pointer-events-none select-none'
+                  : ''
+              }`}
+            >
+              {messages.map((msg) => {
+                const isUser = msg.role === 'user'
+                const textContent = msg.content || msg.text || ''
 
-              return (
-                <div
-                  key={msg.id}
-                  className={`flex items-start gap-2 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
-                >
+                return (
                   <div
-                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                      isUser
-                        ? 'bg-[#0F3822] text-[#D8F3DC]'
-                        : 'bg-[#D8F3DC] text-[#0F3822]'
-                    }`}
+                    key={msg.id}
+                    className={`flex items-start gap-2.5 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
                   >
-                    {isUser ? <User size={14} /> : <Bot size={14} />}
-                  </div>
+                    {/* Avatar */}
+                    {isUser ? (
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#0F3822] text-[#D8F3DC] text-xs font-bold shadow-2xs">
+                        <User size={14} />
+                      </div>
+                    ) : (
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#D8F3DC] p-0.5 shadow-2xs overflow-hidden">
+                        <img src={frogLogo} alt="FrogH" className="h-full w-full object-contain" />
+                      </div>
+                    )}
 
-                  <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} max-w-[85%]`}>
-                    <div
-                      className={`rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm leading-relaxed shadow-2xs ${
-                        isUser
-                          ? 'rounded-tr-xs bg-[#0F3822] text-white whitespace-pre-line'
-                          : 'rounded-tl-xs border border-gray-100 bg-white text-gray-800'
-                      }`}
-                    >
-                      {isUser ? (
-                        textContent
-                      ) : (
-                        <div className="prose prose-sm max-w-none">
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            components={{
-                              p: ({ children }) => (
-                                <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>
-                              ),
-                              a: ({ href, children, ...props }: any) => {
-                                const isInternal = href && (href.startsWith('/') || href.startsWith('#'))
-                                return (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.preventDefault()
-                                      e.stopPropagation()
-                                      if (isInternal && href) {
-                                        navigate(href)
-                                      } else if (href) {
-                                        window.open(href, '_blank', 'noopener,noreferrer')
-                                      }
-                                    }}
-                                    className="inline-flex items-center gap-1.5 my-1 mx-0.5 px-3 py-1 rounded-xl bg-[#0F3822] text-[#D8F3DC] text-xs font-semibold hover:bg-[#165031] active:scale-95 transition-all shadow-xs cursor-pointer border border-emerald-600/30 group"
-                                    title={typeof children === 'string' ? children : href}
-                                  >
-                                    <span>{children}</span>
-                                    <ArrowRight size={12} className="text-[#D8F3DC] opacity-90 transition-transform group-hover:translate-x-0.5" />
-                                  </button>
-                                )
-                              },
-                              ul: ({ children }) => (
-                                <ul className="my-2 ml-4 list-disc space-y-1">{children}</ul>
-                              ),
-                              ol: ({ children }) => (
-                                <ol className="my-2 ml-4 list-decimal space-y-1">{children}</ol>
-                              ),
-                              li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-                              strong: ({ children }) => (
-                                <strong className="font-bold text-[#0F3822]">{children}</strong>
-                              ),
-                              code: ({ inline, className, children, ...props }: any) => {
-                                return inline ? (
-                                  <code
-                                    className="rounded bg-emerald-100/70 px-1 py-0.5 font-mono text-[11px] font-semibold text-[#0F3822]"
-                                    {...props}
-                                  >
+                    <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} max-w-[85%]`}>
+                      <div
+                        className={`rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed shadow-2xs ${
+                          isUser
+                            ? 'rounded-tr-xs bg-[#0F3822] text-white whitespace-pre-line font-medium'
+                            : 'rounded-tl-xs border border-gray-100 bg-white text-gray-800'
+                        }`}
+                      >
+                        {isUser ? (
+                          textContent
+                        ) : (
+                          <div className="prose prose-sm max-w-none">
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                p: ({ children }) => (
+                                  <p className="mb-2 last:mb-0 leading-relaxed text-[13px] text-gray-700">
                                     {children}
-                                  </code>
-                                ) : (
-                                  <pre className="my-2 overflow-x-auto rounded-xl bg-gray-900 p-3 font-mono text-xs text-gray-100 shadow-inner">
-                                    <code {...props}>{children}</code>
-                                  </pre>
-                                )
-                              },
-                              table: ({ children }) => (
-                                <div className="my-2 overflow-x-auto rounded-lg border border-gray-200">
-                                  <table className="min-w-full divide-y divide-gray-200 text-xs">
+                                  </p>
+                                ),
+                                a: ({ href, children }: any) => {
+                                  const isInternal =
+                                    href && (href.startsWith('/') || href.startsWith('#'))
+                                  return (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                        if (isInternal && href) {
+                                          navigate(href)
+                                        } else if (href) {
+                                          window.open(href, '_blank', 'noopener,noreferrer')
+                                        }
+                                      }}
+                                      className="inline-flex items-center gap-1.5 my-1 mx-0.5 px-3 py-1 rounded-xl bg-[#0F3822] text-[#D8F3DC] text-xs font-semibold hover:bg-[#165031] active:scale-95 transition-all shadow-xs border border-emerald-600/30 cursor-pointer group"
+                                      title={typeof children === 'string' ? children : href}
+                                    >
+                                      <span>{children}</span>
+                                      <ArrowRight
+                                        size={12}
+                                        className="text-[#D8F3DC] opacity-90 transition-transform group-hover:translate-x-0.5"
+                                      />
+                                    </button>
+                                  )
+                                },
+                                ul: ({ children }) => (
+                                  <ul className="my-1.5 ml-3.5 list-disc space-y-1 text-[13px]">
                                     {children}
-                                  </table>
-                                </div>
-                              ),
-                              th: ({ children }) => (
-                                <th className="bg-emerald-50 px-2.5 py-1.5 text-left font-bold text-[#0F3822]">
-                                  {children}
-                                </th>
-                              ),
-                              td: ({ children }) => (
-                                <td className="border-t border-gray-100 px-2.5 py-1.5 text-gray-700">
-                                  {children}
-                                </td>
-                              ),
-                              blockquote: ({ children }) => (
-                                <blockquote className="my-2 border-l-2 border-emerald-600 pl-2.5 italic text-gray-600">
-                                  {children}
-                                </blockquote>
-                              ),
-                              h1: ({ children }) => (
-                                <h1 className="mb-2 mt-1 text-base font-bold text-[#0F3822]">
-                                  {children}
-                                </h1>
-                              ),
-                              h2: ({ children }) => (
-                                <h2 className="mb-1.5 mt-1 text-sm font-bold text-[#0F3822]">
-                                  {children}
-                                </h2>
-                              ),
-                              h3: ({ children }) => (
-                                <h3 className="mb-1 text-xs font-bold text-[#0F3822]">
-                                  {children}
-                                </h3>
-                              ),
-                            }}
-                          >
-                            {textContent}
-                          </ReactMarkdown>
-                        </div>
-                      )}
+                                  </ul>
+                                ),
+                                ol: ({ children }) => (
+                                  <ol className="my-1.5 ml-3.5 list-decimal space-y-1 text-[13px]">
+                                    {children}
+                                  </ol>
+                                ),
+                                li: ({ children }) => (
+                                  <li className="leading-relaxed">{children}</li>
+                                ),
+                                strong: ({ children }) => (
+                                  <strong className="font-semibold text-[#0F3822]">
+                                    {children}
+                                  </strong>
+                                ),
+                                code: ({ inline, className, children, ...props }: any) => {
+                                  return inline ? (
+                                    <code
+                                      className="rounded bg-[#D8F3DC]/80 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-[#0F3822]"
+                                      {...props}
+                                    >
+                                      {children}
+                                    </code>
+                                  ) : (
+                                    <pre className="my-2 overflow-x-auto rounded-xl bg-[#0F3822]/95 p-3 font-mono text-xs text-[#D8F3DC] shadow-inner border border-emerald-900/40">
+                                      <code {...props}>{children}</code>
+                                    </pre>
+                                  )
+                                },
+                                table: ({ children }) => (
+                                  <div className="my-2 overflow-x-auto rounded-xl border border-gray-200">
+                                    <table className="min-w-full divide-y divide-gray-200 text-xs">
+                                      {children}
+                                    </table>
+                                  </div>
+                                ),
+                                th: ({ children }) => (
+                                  <th className="bg-[#D8F3DC]/50 px-2.5 py-1.5 text-left font-bold text-[#0F3822]">
+                                    {children}
+                                  </th>
+                                ),
+                                td: ({ children }) => (
+                                  <td className="border-t border-gray-100 px-2.5 py-1.5 text-gray-700">
+                                    {children}
+                                  </td>
+                                ),
+                                blockquote: ({ children }) => (
+                                  <blockquote className="my-2 border-l-2 border-[#10B981] bg-emerald-50/60 py-1 px-2.5 rounded-r-lg text-xs italic text-gray-700">
+                                    {children}
+                                  </blockquote>
+                                ),
+                                h1: ({ children }) => (
+                                  <h1 className="mb-1.5 mt-2 text-sm font-bold text-[#0F3822]">
+                                    {children}
+                                  </h1>
+                                ),
+                                h2: ({ children }) => (
+                                  <h2 className="mb-1.5 mt-2 text-[13px] font-bold text-[#0F3822]">
+                                    {children}
+                                  </h2>
+                                ),
+                                h3: ({ children }) => (
+                                  <h3 className="mb-1 mt-1 text-xs font-bold text-[#0F3822]">
+                                    {children}
+                                  </h3>
+                                ),
+                              }}
+                            >
+                              {textContent}
+                            </ReactMarkdown>
+                          </div>
+                        )}
+                      </div>
+                      <span className="mt-1 px-1 text-[10px] text-gray-400">{msg.time}</span>
                     </div>
-                    <span className="mt-1 px-1 text-[10px] text-gray-400">{msg.time}</span>
                   </div>
-                </div>
-              )
-            })}
+                )
+              })}
 
-            {/* Hiệu ứng đang soạn phản hồi */}
-            {isLoading && (
-              <div className="flex items-start gap-2">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#D8F3DC] text-[#0F3822]">
-                  <Bot size={14} />
-                </div>
-                <div className="rounded-2xl rounded-tl-xs border border-gray-100 bg-white px-4 py-3 shadow-2xs">
-                  <div className="flex items-center gap-1.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#10B981] animate-bounce"></span>
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#10B981] animate-bounce [animation-delay:0.2s]"></span>
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#10B981] animate-bounce [animation-delay:0.4s]"></span>
+              {/* Hiệu ứng đang soạn phản hồi */}
+              {isLoading && (
+                <div className="flex items-start gap-2.5">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#D8F3DC] p-0.5 shadow-2xs overflow-hidden">
+                    <img src={frogLogo} alt="FrogH" className="h-full w-full object-contain" />
+                  </div>
+                  <div className="rounded-2xl rounded-tl-xs border border-gray-100 bg-white px-4 py-3 shadow-2xs">
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#10B981] animate-bounce"></span>
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#10B981] animate-bounce [animation-delay:0.2s]"></span>
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#10B981] animate-bounce [animation-delay:0.4s]"></span>
+                    </div>
                   </div>
                 </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* OVERLAY KHI HẾT LƯỢT DÙNG THỬ (LÀM XÁM & HIỆN THẺ ĐĂNG NHẬP Ở TRUNG TÂM) */}
+            {isGuest && limitReached && (
+              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-6 text-center bg-white/70 backdrop-blur-xs animate-in fade-in duration-300">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-red-600 mb-3 shadow-inner ring-4 ring-red-50">
+                  <Lock size={26} />
+                </div>
+                <h4 className="text-sm font-bold text-gray-900 mb-1.5">
+                  Đã hết 3 lượt hỏi thử miễn phí
+                </h4>
+                <p className="text-xs text-gray-600 leading-relaxed max-w-[280px] mb-4">
+                  Bạn đã sử dụng hết số câu hỏi dùng thử. Hãy đăng nhập tài khoản Học sinh hoặc Giáo
+                  viên để tiếp tục trò chuyện không giới hạn.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => navigate('/login')}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#0F3822] px-5 py-2.5 text-xs font-bold text-[#D8F3DC] shadow-lg transition-all hover:bg-[#165132] hover:scale-105 active:scale-95 cursor-pointer"
+                >
+                  <LogIn size={15} />
+                  <span>Đăng nhập ngay</span>
+                </button>
               </div>
             )}
-
-            <div ref={messagesEndRef} />
           </div>
 
-          {/* Quick Prompts gợi ý */}
+          {/* Quick Prompts gợi ý (Chỉ hiện khi chưa tắt trong phiên này) */}
           {showQuickPrompts && !limitReached && quickPrompts.length > 0 && (
             <div className="relative border-t border-gray-100 bg-white px-3 py-2">
               <button
                 type="button"
-                onClick={() => setShowQuickPrompts(false)}
-                title="Đóng gợi ý"
-                aria-label="Đóng gợi ý"
-                className="absolute top-2 right-2 rounded-md p-0.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                onClick={handleDismissQuickPrompts}
+                title="Đóng gợi ý trong phiên này"
+                aria-label="Đóng gợi ý trong phiên này"
+                className="absolute top-2 right-2 rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
               >
-                <X size={14} />
+                <X size={13} />
               </button>
 
               <span className="block text-[11px] font-semibold text-gray-400 mb-1.5 pr-6">
@@ -503,7 +602,7 @@ export const AiChatWidget: React.FC = () => {
                     key={idx}
                     type="button"
                     onClick={() => handleSendMessage(prompt)}
-                    className="truncate max-w-[100%] rounded-lg border border-emerald-900/10 bg-[#F8FAF9] px-2.5 py-1 text-left text-[11px] font-medium text-[#0F3822] transition hover:bg-[#D8F3DC] hover:text-[#0F3822]"
+                    className="truncate max-w-[100%] rounded-lg border border-emerald-900/10 bg-[#F8FAF9] px-2.5 py-1 text-left text-[11px] font-medium text-[#0F3822] transition hover:bg-[#D8F3DC] hover:text-[#0F3822] active:scale-95"
                   >
                     {prompt}
                   </button>
@@ -512,24 +611,21 @@ export const AiChatWidget: React.FC = () => {
             </div>
           )}
 
-          {/* Footer: Ô nhập hoặc Khung thông báo hết lượt */}
+          {/* Footer: Ô nhập hoặc Khung khóa khi hết lượt */}
           {isGuest && limitReached ? (
-            <div className="border-t border-red-100 bg-red-50/70 p-4 text-center">
-              <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-red-100 text-red-600 mb-2">
-                <Lock size={18} />
+            <div className="border-t border-gray-200 bg-gray-50/90 px-4 py-2.5 flex items-center justify-between text-xs text-gray-500">
+              <div className="flex items-center gap-1.5">
+                <Lock size={14} className="text-red-500" />
+                <span className="text-[11px] font-medium text-gray-600">
+                  Khung chat đã tạm khóa (Hết lượt)
+                </span>
               </div>
-              <h5 className="text-xs font-bold text-red-800">
-                Bạn đã sử dụng hết 3 lượt hỏi thử miễn phí
-              </h5>
-              <p className="mt-1 text-[11px] text-gray-600">
-                Vui lòng đăng nhập tài khoản Học sinh hoặc Giáo viên để tiếp tục trò chuyện không giới hạn.
-              </p>
               <button
                 type="button"
                 onClick={() => navigate('/login')}
-                className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-[#0F3822] px-4 py-2 text-xs font-bold text-[#D8F3DC] shadow-md transition hover:bg-[#165132]"
+                className="text-xs font-bold text-[#0F3822] hover:underline"
               >
-                <span>Đăng nhập ngay</span>
+                Đăng nhập
               </button>
             </div>
           ) : (
@@ -550,7 +646,7 @@ export const AiChatWidget: React.FC = () => {
                   onClick={() => handleSendMessage()}
                   disabled={!inputMessage.trim() || isLoading}
                   aria-label="Gửi tin nhắn"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0F3822] text-[#D8F3DC] transition hover:bg-[#165132] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0F3822] text-[#D8F3DC] transition hover:bg-[#165132] disabled:cursor-not-allowed disabled:opacity-40 active:scale-95"
                 >
                   <Send size={15} />
                 </button>
@@ -567,21 +663,26 @@ export const AiChatWidget: React.FC = () => {
         </div>
       )}
 
-      {/* 2. NÚT TRÒN NỔI (FLOATING BUTTON) */}
+      {/* 2. NÚT TRÒN NỔI (FLOATING BUTTON VỚI ICON CON ẾCH FROGH) */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        aria-label="Mở Trợ lý Học tập AI"
+        aria-label="Mở Trợ lý Học tập FrogH AI"
         className="group relative flex h-14 w-14 items-center justify-center rounded-full bg-[#0F3822] text-[#D8F3DC] shadow-xl ring-4 ring-[#D8F3DC]/60 transition-all duration-300 hover:scale-105 hover:bg-[#165132] hover:shadow-2xl active:scale-95"
       >
         {isOpen ? (
           <X size={26} className="transition-transform duration-200" />
         ) : (
           <>
-            <Bot size={28} className="transition-transform group-hover:rotate-6" />
+            {/* Biểu tượng con ếch FrogH chủ đạo */}
+            <img
+              src={frogLogo}
+              alt="FrogH AI"
+              className="h-9 w-9 object-contain drop-shadow transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6"
+            />
             <span className="absolute -top-1 -right-1 flex h-4 w-4">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-4 w-4 bg-[#10B981] text-[9px] font-extrabold text-white items-center justify-center">
+              <span className="relative inline-flex rounded-full h-4 w-4 bg-[#10B981] text-[9px] font-extrabold text-white items-center justify-center shadow-xs">
                 ✨
               </span>
             </span>
@@ -591,7 +692,7 @@ export const AiChatWidget: React.FC = () => {
         {/* Tooltip khi chưa mở */}
         {!isOpen && (
           <span className="pointer-events-none absolute right-16 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-xl bg-[#0F3822] px-3 py-1.5 text-xs font-semibold text-white shadow-lg opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-            Trợ lý Học tập AI
+            Trợ lý Học tập FrogH AI
           </span>
         )}
       </button>

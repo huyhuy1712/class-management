@@ -128,7 +128,7 @@ public class AiChatServiceImpl implements AiChatService {
 
     @Override
     public AiChatResponse chat(AiChatRequest request, String clientIp, Authentication authentication) {
-        String role = resolveRole(authentication);
+        String role = Boolean.TRUE.equals(request.getForceGuest()) ? "GUEST" : resolveRole(authentication);
         boolean isGuest = "GUEST".equals(role);
         String guestKey = isGuest ? resolveGuestKey(request.getClientSessionId(), clientIp) : null;
 
@@ -158,7 +158,7 @@ public class AiChatServiceImpl implements AiChatService {
                     .build();
         }
 
-        User currentUser = resolveCurrentUser(authentication);
+        User currentUser = isGuest ? null : resolveCurrentUser(authentication);
 
         // 3. Xử lý câu trả lời qua RestClient gọi OpenAI/Groq API hoặc Fallback thông minh
         String reply;
