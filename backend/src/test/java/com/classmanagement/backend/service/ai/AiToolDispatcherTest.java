@@ -2,16 +2,10 @@ package com.classmanagement.backend.service.ai;
 
 import com.classmanagement.backend.dto.exam.StudentExamResponse;
 import com.classmanagement.backend.dto.exam.StudentGradesResponse;
-import com.classmanagement.backend.entity.Classroom;
-import com.classmanagement.backend.entity.Exam;
-import com.classmanagement.backend.entity.ExamAssignment;
-import com.classmanagement.backend.entity.Lesson;
-import com.classmanagement.backend.entity.Subject;
-import com.classmanagement.backend.entity.User;
-import com.classmanagement.backend.entity.enums.ClassroomStatus;
-import com.classmanagement.backend.entity.enums.ExamAssignmentStatus;
-import com.classmanagement.backend.entity.enums.ExamStatus;
-import com.classmanagement.backend.entity.enums.UserRole;
+import com.classmanagement.backend.dto.homework.HomeworkDtos;
+import com.classmanagement.backend.entity.*;
+import com.classmanagement.backend.entity.enums.*;
+import com.classmanagement.backend.repository.AttendanceRepository;
 import com.classmanagement.backend.repository.LessonRepository;
 import com.classmanagement.backend.repository.classroom.ClassStudentRepository;
 import com.classmanagement.backend.repository.classroom.ClassroomRepository;
@@ -19,6 +13,7 @@ import com.classmanagement.backend.repository.exam.ExamAssignmentRepository;
 import com.classmanagement.backend.repository.exam.ExamRepository;
 import com.classmanagement.backend.repository.projection.ClassroomSummaryProjection;
 import com.classmanagement.backend.service.exam.StudentExamReadService;
+import com.classmanagement.backend.service.homework.queries.HomeworkReadService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,11 +29,15 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class AiToolDispatcherTest {
 
-    private List<Classroom> mockTeacherClassrooms = new ArrayList<>();
-    private List<Lesson> mockLessons = new ArrayList<>();
-    private List<ClassroomSummaryProjection> mockStudentSummaries = new ArrayList<>();
-    private List<Exam> mockTeacherExams = new ArrayList<>();
-    private List<ExamAssignment> mockTeacherAssignments = new ArrayList<>();
+    private final List<Classroom> mockTeacherClassrooms = new ArrayList<>();
+    private final List<Lesson> mockLessons = new ArrayList<>();
+    private final List<ClassroomSummaryProjection> mockStudentSummaries = new ArrayList<>();
+    private final List<Exam> mockTeacherExams = new ArrayList<>();
+    private final List<ExamAssignment> mockTeacherAssignments = new ArrayList<>();
+    private final List<Attendance> mockAttendances = new ArrayList<>();
+    private final List<HomeworkDtos.Assignment> mockTeacherHomeworks = new ArrayList<>();
+    private final List<HomeworkDtos.StudentAssignment> mockStudentHomeworks = new ArrayList<>();
+
     private StudentExamResponse.Page mockStudentExamPage;
     private StudentGradesResponse mockStudentGradesResponse;
 
@@ -53,12 +52,19 @@ class AiToolDispatcherTest {
         mockStudentSummaries.clear();
         mockTeacherExams.clear();
         mockTeacherAssignments.clear();
+        mockAttendances.clear();
+        mockTeacherHomeworks.clear();
+        mockStudentHomeworks.clear();
         mockStudentExamPage = null;
         mockStudentGradesResponse = null;
 
         ClassroomRepository classroomRepo = createProxy(ClassroomRepository.class, (method, args) -> {
             if ("findAllByTeacher_Id".equals(method.getName())) {
                 return mockTeacherClassrooms;
+            }
+            if ("findById".equals(method.getName()) && args != null && args.length > 0) {
+                Long id = (Long) args[0];
+                return mockTeacherClassrooms.stream().filter(c -> c.getId().equals(id)).findFirst();
             }
             return null;
         });
@@ -73,6 +79,11 @@ class AiToolDispatcherTest {
         LessonRepository lessonRepo = createProxy(LessonRepository.class, (method, args) -> {
             if ("findAllByClassroom_IdAndLessonDateOrderByStartTimeAsc".equals(method.getName())) {
                 return mockLessons;
+            }
+            if ("save".equals(method.getName()) && args != null && args.length > 0) {
+                Lesson l = (Lesson) args[0];
+                mockLessons.add(l);
+                return l;
             }
             return null;
         });
@@ -103,7 +114,38 @@ class AiToolDispatcherTest {
             }
         };
 
-        aiToolDispatcher = new AiToolDispatcher(classroomRepo, classStudentRepo, lessonRepo, examRepo, examAssignmentRepo, studentExamService);
+        AttendanceRepository attendanceRepo = createProxy(AttendanceRepository.class, (method, args) -> {
+            if ("findAllByClassroomIdAndDate".equals(method.getName())
+                    || "findAllByClassroom_IdOrderByDateDesc".equals(method.getName())
+                    || "findAllByStudent_Id".equals(method.getName())
+                    || "findAllByClassroom_IdAndStudent_IdOrderByDateDesc".equals(method.getName())) {
+                return mockAttendances;
+            }
+            return null;
+        });
+
+        HomeworkReadService homeworkReadService = new HomeworkReadService(null, null, null) {
+            @Override
+            public List<HomeworkDtos.Assignment> listForTeacher(String username, Long classId) {
+                return mockTeacherHomeworks;
+            }
+
+            @Override
+            public List<HomeworkDtos.StudentAssignment> listForStudent(String username, Long classId) {
+                return mockStudentHomeworks;
+            }
+        };
+
+        aiToolDispatcher = new AiToolDispatcher(
+                classroomRepo,
+                classStudentRepo,
+                lessonRepo,
+                examRepo,
+                examAssignmentRepo,
+                studentExamService,
+                attendanceRepo,
+                homeworkReadService
+        );
 
         teacherUser = User.builder()
                 .id(1L)
@@ -121,10 +163,10 @@ class AiToolDispatcherTest {
     }
 
     @Test
-    @DisplayName("getToolsForRole: Giáo viên nhận 4 công cụ (lớp học, lịch dạy, đề thi, bài giao)")
+    @DisplayName("getToolsForRole: Giáo viên nhận 7 công cụ đầy đủ (lớp, lịch dạy, đề thi, bài giao, mở điểm danh, thống kê điểm danh, bài tập)")
     void getToolsForRole_teacher() {
         List<Map<String, Object>> tools = aiToolDispatcher.getToolsForRole("TEACHER");
-        assertEquals(4, tools.size());
+        assertEquals(7, tools.size());
 
         Set<String> toolNames = new HashSet<>();
         for (Map<String, Object> tool : tools) {
@@ -137,13 +179,16 @@ class AiToolDispatcherTest {
         assertTrue(toolNames.contains("getTeacherTodaySchedule"));
         assertTrue(toolNames.contains("getTeacherExams"));
         assertTrue(toolNames.contains("getTeacherAssignments"));
+        assertTrue(toolNames.contains("openQuickAttendanceSession"));
+        assertTrue(toolNames.contains("getTeacherClassAttendance"));
+        assertTrue(toolNames.contains("getTeacherHomeworks"));
     }
 
     @Test
-    @DisplayName("getToolsForRole: Học sinh nhận 3 công cụ (lớp học, bài thi được giao, bảng điểm)")
+    @DisplayName("getToolsForRole: Học sinh nhận 5 công cụ (lớp học, bài thi, bảng điểm, chuyên cần, bài tập về nhà)")
     void getToolsForRole_student() {
         List<Map<String, Object>> tools = aiToolDispatcher.getToolsForRole("STUDENT");
-        assertEquals(3, tools.size());
+        assertEquals(5, tools.size());
 
         Set<String> toolNames = new HashSet<>();
         for (Map<String, Object> tool : tools) {
@@ -155,6 +200,8 @@ class AiToolDispatcherTest {
         assertTrue(toolNames.contains("getStudentClasses"));
         assertTrue(toolNames.contains("getStudentExams"));
         assertTrue(toolNames.contains("getStudentGrades"));
+        assertTrue(toolNames.contains("getStudentAttendanceSummary"));
+        assertTrue(toolNames.contains("getStudentHomeworks"));
     }
 
     @Test
@@ -299,6 +346,112 @@ class AiToolDispatcherTest {
     }
 
     @Test
+    @DisplayName("openQuickAttendanceSession: Mở phiên điểm danh nhanh thành công khi chưa có buổi học hôm nay")
+    void openQuickAttendanceSession_newSession() {
+        Classroom classroom = Classroom.builder()
+                .id(100L)
+                .name("Lớp 12A1")
+                .code("CLS12A1")
+                .teacher(teacherUser)
+                .build();
+        mockTeacherClassrooms.add(classroom);
+
+        String result = aiToolDispatcher.executeTool("openQuickAttendanceSession", "{\"classId\": 100, \"durationMinutes\": 20}", teacherUser);
+        assertNotNull(result);
+        assertTrue(result.contains("Đã mở phiên điểm danh nhanh thành công cho lớp **Lớp 12A1**"));
+        assertTrue(result.contains("Mã điểm danh:"));
+        assertTrue(result.contains("20 phút"));
+        assertTrue(result.contains("[👉 Mở phòng điểm danh lớp Lớp 12A1](/teacher/classes/100/attendance)"));
+    }
+
+    @Test
+    @DisplayName("openQuickAttendanceSession: Trả về thông tin phiên đã tồn tại nếu hôm nay đã mở điểm danh")
+    void openQuickAttendanceSession_existingSession() {
+        Classroom classroom = Classroom.builder()
+                .id(100L)
+                .name("Lớp 12A1")
+                .code("CLS12A1")
+                .teacher(teacherUser)
+                .build();
+        mockTeacherClassrooms.add(classroom);
+
+        Lesson existing = Lesson.builder()
+                .id(888L)
+                .classroom(classroom)
+                .title("Buổi học hôm nay")
+                .lessonDate(LocalDate.now())
+                .attendanceCode("999888")
+                .startTime(LocalDateTime.now())
+                .lateTime(LocalDateTime.now().plusMinutes(15))
+                .endTime(LocalDateTime.now().plusHours(2))
+                .build();
+        mockLessons.add(existing);
+
+        String result = aiToolDispatcher.executeTool("openQuickAttendanceSession", "{\"classId\": 100}", teacherUser);
+        assertNotNull(result);
+        assertTrue(result.contains("đã được kích hoạt trước đó"));
+        assertTrue(result.contains("999888"));
+        assertTrue(result.contains("[👉 Mở phòng điểm danh lớp Lớp 12A1](/teacher/classes/100/attendance)"));
+    }
+
+    @Test
+    @DisplayName("getTeacherClassAttendance: Trả về thống kê điểm danh của lớp học")
+    void getTeacherClassAttendance_success() {
+        Classroom classroom = Classroom.builder()
+                .id(100L)
+                .name("Lớp 12A1")
+                .code("CLS12A1")
+                .teacher(teacherUser)
+                .build();
+        mockTeacherClassrooms.add(classroom);
+
+        Attendance a1 = Attendance.builder().id(1L).classroom(classroom).date(LocalDate.now()).status(AttendanceStatus.PRESENT).build();
+        Attendance a2 = Attendance.builder().id(2L).classroom(classroom).date(LocalDate.now()).status(AttendanceStatus.LATE).build();
+        Attendance a3 = Attendance.builder().id(3L).classroom(classroom).date(LocalDate.now()).status(AttendanceStatus.ABSENT).build();
+        mockAttendances.addAll(List.of(a1, a2, a3));
+
+        String result = aiToolDispatcher.executeTool("getTeacherClassAttendance", "{\"classId\": 100}", teacherUser);
+        assertNotNull(result);
+        assertTrue(result.contains("Tình hình điểm danh lớp **Lớp 12A1**"));
+        assertTrue(result.contains("Có mặt: 1 học sinh"));
+        assertTrue(result.contains("Đi muộn: 1 học sinh"));
+        assertTrue(result.contains("Vắng mặt: 1 học sinh"));
+        assertTrue(result.contains("[👉 Quản lý chi tiết điểm danh lớp Lớp 12A1](/teacher/classes/100/attendance)"));
+    }
+
+    @Test
+    @DisplayName("getTeacherHomeworks: Trả về danh sách bài tập đã giao kèm thống kê nộp bài")
+    void getTeacherHomeworks_success() {
+        HomeworkDtos.Assignment hw = new HomeworkDtos.Assignment(
+                55L,
+                "Bài tập Đại số chương 2",
+                "Giải các bài tập trong SGK",
+                10L,
+                "Toán Học",
+                "12",
+                "HOMEWORK",
+                "CLASS",
+                LocalDateTime.of(2026, 11, 20, 23, 59),
+                BigDecimal.valueOf(10),
+                "PUBLISHED",
+                null, null, null, null,
+                35, 30, 25,
+                LocalDateTime.now(),
+                List.of(100L),
+                List.of()
+        );
+        mockTeacherHomeworks.add(hw);
+
+        String result = aiToolDispatcher.executeTool("getTeacherHomeworks", "{\"classId\": 100}", teacherUser);
+        assertNotNull(result);
+        assertTrue(result.contains("Bài tập Đại số chương 2"));
+        assertTrue(result.contains("Đã nộp: 30/35"));
+        assertTrue(result.contains("Đã chấm: 25"));
+        assertTrue(result.contains("[👉 Chấm bài: Bài tập Đại số chương 2](/teacher/homework/55)"));
+        assertTrue(result.contains("[👉 Quản lý bài tập của lớp](/teacher/classes/100/homework)"));
+    }
+
+    @Test
     @DisplayName("executeGetStudentClasses: Trả về danh sách lớp học kèm nút vào lớp")
     void executeGetStudentClasses_success() {
         ClassroomSummaryProjection summary = createProxy(ClassroomSummaryProjection.class, (method, args) -> switch (method.getName()) {
@@ -391,6 +544,70 @@ class AiToolDispatcherTest {
         assertTrue(result.contains("Bài kiểm tra 1 tiết Đại số"));
         assertTrue(result.contains("9.5/10"));
         assertTrue(result.contains("[👉 Xem chi tiết kết quả](/student/exam-attempts/999/result)"));
+    }
+
+    @Test
+    @DisplayName("getStudentAttendanceSummary: Trả về thống kê chuyên cần và lịch sử điểm danh của học sinh")
+    void getStudentAttendanceSummary_success() {
+        Classroom classroom = Classroom.builder().id(100L).name("Lớp 12A1").build();
+        Attendance a1 = Attendance.builder().id(1L).classroom(classroom).date(LocalDate.of(2026, 11, 1)).status(AttendanceStatus.PRESENT).build();
+        Attendance a2 = Attendance.builder().id(2L).classroom(classroom).date(LocalDate.of(2026, 11, 2)).status(AttendanceStatus.LATE).note("Kẹt xe").build();
+        Attendance a3 = Attendance.builder().id(3L).classroom(classroom).date(LocalDate.of(2026, 11, 3)).status(AttendanceStatus.PRESENT).build();
+        Attendance a4 = Attendance.builder().id(4L).classroom(classroom).date(LocalDate.of(2026, 11, 4)).status(AttendanceStatus.ABSENT).note("Ốm sốt").build();
+        mockAttendances.addAll(List.of(a1, a2, a3, a4));
+
+        String result = aiToolDispatcher.executeTool("getStudentAttendanceSummary", "{}", studentUser);
+        assertNotNull(result);
+        assertTrue(result.contains("Tổng số buổi đã điểm danh: 4"));
+        assertTrue(result.contains("Có mặt đúng giờ: 2 buổi"));
+        assertTrue(result.contains("Đi muộn: 1 buổi"));
+        assertTrue(result.contains("Vắng mặt: 1 buổi"));
+        assertTrue(result.contains("Tỷ lệ chuyên cần: **75.0%**"));
+        assertTrue(result.contains("[👉 Xem lịch sử điểm danh đầy đủ](/student/attendance)"));
+    }
+
+    @Test
+    @DisplayName("getStudentHomeworks: Trả về danh sách bài tập về nhà được giao cho học sinh")
+    void getStudentHomeworks_success() {
+        HomeworkDtos.Assignment a = new HomeworkDtos.Assignment(
+                77L,
+                "Bài tập Hóa học Hữu cơ",
+                "Làm bài 1, 2, 3",
+                20L,
+                "Hóa Học",
+                "12",
+                "HOMEWORK",
+                "CLASS",
+                LocalDateTime.of(2026, 11, 18, 20, 0),
+                BigDecimal.valueOf(10),
+                "PUBLISHED",
+                null, null, null, null,
+                30, 20, 15,
+                LocalDateTime.now(),
+                List.of(100L),
+                List.of()
+        );
+
+        HomeworkDtos.StudentAssignment sa = new HomeworkDtos.StudentAssignment(
+                a,
+                "SUBMITTED",
+                "Em đã hoàn thành bài tập",
+                List.of(),
+                List.of(),
+                null, null,
+                LocalDateTime.now(),
+                null,
+                null
+        );
+
+        mockStudentHomeworks.add(sa);
+
+        String result = aiToolDispatcher.executeTool("getStudentHomeworks", "{\"classId\": 100}", studentUser);
+        assertNotNull(result);
+        assertTrue(result.contains("Bài tập Hóa học Hữu cơ"));
+        assertTrue(result.contains("Đã nộp bài"));
+        assertTrue(result.contains("[👉 Làm bài tập: Bài tập Hóa học Hữu cơ](/student/homework/77)"));
+        assertTrue(result.contains("[👉 Vào lớp học](/student/classes/100)"));
     }
 
     @FunctionalInterface
