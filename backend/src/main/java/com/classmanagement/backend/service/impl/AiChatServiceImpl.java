@@ -17,6 +17,7 @@ import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
@@ -304,13 +305,7 @@ public class AiChatServiceImpl implements AiChatService {
             endpointUrl = endpointUrl.endsWith("/") ? endpointUrl + "chat/completions" : endpointUrl + "/chat/completions";
         }
 
-        Map<?, ?> response = restClient.post()
-                .uri(endpointUrl)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(requestBody)
-                .retrieve()
-                .body(Map.class);
+        Map<?, ?> response = postChatCompletionsWithToolRetry(endpointUrl, requestBody, tools);
 
         if (response != null && response.containsKey("choices")) {
             List<?> choices = (List<?>) response.get("choices");
@@ -413,6 +408,60 @@ public class AiChatServiceImpl implements AiChatService {
         return fallbackSummary.toString().trim();
     }
 
+    /**
+     * Gửi request Round 1 tới LLM; nếu nhà cung cấp (vd: Groq) báo lỗi 400 do LLM truyền sai kiểu
+     * tham số tùy chọn (như classId: null), tự động thử lại bằng schema không tham số để tool chạy được.
+     */
+    private Map<?, ?> postChatCompletionsWithToolRetry(String endpointUrl,
+                                                       Map<String, Object> requestBody,
+                                                       List<Map<String, Object>> tools) {
+        try {
+            return restClient.post()
+                    .uri(endpointUrl)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(requestBody)
+                    .retrieve()
+                    .body(Map.class);
+        } catch (HttpClientErrorException.BadRequest ex) {
+            if (tools == null || tools.isEmpty()) {
+                throw ex;
+            }
+            log.warn("LLM Round 1 lỗi BadRequest với schema đầy đủ ({}), thử lại với schema tool tối giản: {}",
+                    ex.getStatusCode(), ex.getResponseBodyAsString());
+
+            Map<String, Object> retryBody = new HashMap<>(requestBody);
+            retryBody.put("tools", stripOptionalToolParameters(tools));
+            return restClient.post()
+                    .uri(endpointUrl)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(retryBody)
+                    .retrieve()
+                    .body(Map.class);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> stripOptionalToolParameters(List<Map<String, Object>> tools) {
+        List<Map<String, Object>> simplified = new ArrayList<>(tools.size());
+        for (Map<String, Object> tool : tools) {
+            Map<String, Object> toolCopy = new HashMap<>(tool);
+            Object fnObj = tool.get("function");
+            if (fnObj instanceof Map<?, ?> fnMap) {
+                Map<String, Object> fnCopy = new HashMap<>((Map<String, Object>) fnMap);
+                Map<String, Object> emptyParams = new HashMap<>();
+                emptyParams.put("type", "object");
+                emptyParams.put("properties", Map.of());
+                emptyParams.put("required", List.of());
+                fnCopy.put("parameters", emptyParams);
+                toolCopy.put("function", fnCopy);
+            }
+            simplified.add(toolCopy);
+        }
+        return simplified;
+    }
+
     // ==========================================
     // SYSTEM PROMPT BUILDER
     // ==========================================
@@ -434,7 +483,7 @@ public class AiChatServiceImpl implements AiChatService {
             sb.append("4. PHONG CÁCH KHÁCH: Thân thiện, giải đáp khái niệm học tập cơ bản và giới thiệu các tính năng học tập hấp dẫn của nền tảng FrogH.\n");
         }
 
-        sb.append("5. ĐỊNH DẠNG TRẢ LỜI: Trả lời bằng Markdown rõ ràng, dùng bullet points, in đậm từ khóa quan trọng và khối code nếu cần.");
+        sb.append("5. ĐỊNH DẠNG TRẢ LỜI & ĐƯỜNG DẪN: Trả lời bằng Markdown chuẩn gọn gàng, dùng bullet points hoặc danh sách rõ ràng; TUYỆT ĐỐI KHÔNG dùng thẻ HTML thô như `<br>`. Khi gọi công cụ với tham số tùy chọn (như `classId`), nếu không có ID số nguyên dương cụ thể thì BỎ QUA hoàn toàn trường đó (truyền `{}`), KHÔNG truyền `null`, chuỗi rỗng hay `0`. Khi công cụ trả về đường dẫn nội bộ dạng `[👉 ...](/...)`, BẮT BUỘC giữ nguyên chính xác đường dẫn tương đối bắt đầu bằng dấu `/` đó để người dùng bấm chuyển trang trực tiếp, KHÔNG tự ý thêm domain giả (như `https://froghedu.com`) và KHÔNG tự bịa URL.");
         return sb.toString();
     }
 
@@ -445,11 +494,11 @@ public class AiChatServiceImpl implements AiChatService {
         String lower = userMessage.toLowerCase(Locale.ROOT);
 
         // 1. Câu hỏi liên quan đến Hệ thống FrogH
-        if (lower.contains("frogh") || lower.contains("hệ thống") || lower.contains("lớp học") || lower.contains("điểm danh") || lower.contains("tra cứu") || lower.contains("bảng điểm") || lower.contains("bài thi")) {
+        if (lower.contains("frogh") || lower.contains("hệ thống") || lower.contains("lớp học") || lower.contains("điểm danh") || lower.contains("tra cứu") || lower.contains("bảng điểm") || lower.contains("bài thi") || lower.contains("bài tập")) {
             if ("TEACHER".equals(role)) {
-                return "Chào Thầy/Cô! Trên hệ thống FrogH, Thầy/Cô có thể tạo lớp học, phân công giảng dạy, mở phiên điểm danh kèm mật mã bảo vệ, tổ chức kỳ thi tự động chấm điểm và theo dõi sự tiến bộ của từng học sinh trong mục Quản lý lớp học.";
+                return "Chào Thầy/Cô! Hiện chưa thể kết nối dịch vụ AI trực tuyến để đọc dữ liệu tự động, Thầy/Cô có thể kiểm tra trực tiếp tại [👉 Quản lý bài tập](/teacher/homework) hoặc [👉 Ngân hàng đề thi](/teacher/exams) và [👉 Quản lý lớp học](/teacher/classes).";
             } else if ("STUDENT".equals(role)) {
-                return "Chào bạn! Tại FrogH, bạn có thể xem danh sách lớp học đã tham gia, kiểm tra tình hình chuyên cần điểm danh từng buổi, và làm bài thi trực tuyến kèm xem điểm số chi tiết ngay sau khi nộp bài. Bạn cần trợ giúp phần nào?";
+                return "Chào bạn! Hiện chưa thể kết nối dịch vụ AI trực tuyến, bạn có thể xem nhanh tại [👉 Bài tập về nhà](/student/homework), [👉 Bài kiểm tra](/student/exams) hoặc [👉 Kết quả học tập](/student/grades).";
             } else {
                 return "Chào bạn! Hệ thống FrogH Education cung cấp giải pháp toàn diện cho việc quản trị lớp học, điểm danh chuyên cần tự động, thi trực tuyến và tra cứu kết quả học tập minh bạch. Bạn có thể đăng nhập tài khoản Học sinh hoặc Giáo viên để trải nghiệm đầy đủ các tính năng!";
             }

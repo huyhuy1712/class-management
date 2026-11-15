@@ -5,6 +5,7 @@ import com.classmanagement.backend.dto.exam.StudentGradesResponse;
 import com.classmanagement.backend.dto.homework.HomeworkDtos;
 import com.classmanagement.backend.entity.*;
 import com.classmanagement.backend.entity.enums.*;
+import com.classmanagement.backend.exception.ResourceNotFoundException;
 import com.classmanagement.backend.repository.AttendanceRepository;
 import com.classmanagement.backend.repository.LessonRepository;
 import com.classmanagement.backend.repository.classroom.ClassStudentRepository;
@@ -127,11 +128,23 @@ class AiToolDispatcherTest {
         HomeworkReadService homeworkReadService = new HomeworkReadService(null, null, null) {
             @Override
             public List<HomeworkDtos.Assignment> listForTeacher(String username, Long classId) {
+                if (classId != null && classId <= 0) {
+                    throw new ResourceNotFoundException("Không tìm thấy lớp đang hoạt động");
+                }
+                if (classId != null && classId == 999L) {
+                    throw new ResourceNotFoundException("Không tìm thấy lớp đang hoạt động");
+                }
                 return mockTeacherHomeworks;
             }
 
             @Override
             public List<HomeworkDtos.StudentAssignment> listForStudent(String username, Long classId) {
+                if (classId != null && classId <= 0) {
+                    throw new IllegalArgumentException("Lớp học không hợp lệ");
+                }
+                if (classId != null && classId == 999L) {
+                    throw new ResourceNotFoundException("Không tìm thấy lớp đang hoạt động");
+                }
                 return mockStudentHomeworks;
             }
         };
@@ -310,7 +323,52 @@ class AiToolDispatcherTest {
         assertNotNull(result);
         assertTrue(result.contains("Đề kiểm tra 15 phút Đạo hàm"));
         assertTrue(result.contains("EXAM-MATH-15"));
+        assertTrue(result.contains("Đã xuất bản"));
+        assertTrue(result.contains("Chưa giao"));
         assertTrue(result.contains("[👉 Xem chi tiết đề thi](/teacher/exams/200)"));
+    }
+
+    @Test
+    @DisplayName("executeGetTeacherExams: Bao gồm cả đề đang soạn (DRAFT) chưa giao và đề đã giao theo thứ tự mới nhất")
+    void executeGetTeacherExams_includesDraftAndAssignedNewestFirst() {
+        Subject math = Subject.builder().id(10L).name("Toán Học").build();
+        Exam oldPublished = Exam.builder()
+                .id(201L)
+                .title("Đề giữa kì toán")
+                .code("EX-10-RGBMOZ")
+                .subject(math)
+                .teacher(teacherUser)
+                .timeLimit(45)
+                .status(ExamStatus.PUBLISHED)
+                .createdAt(LocalDateTime.of(2026, 11, 13, 17, 21))
+                .build();
+        Exam newDraft = Exam.builder()
+                .id(202L)
+                .title("Đề ôn tập chương mới (Đang soạn)")
+                .code("EX-10-DRAFT1")
+                .subject(math)
+                .teacher(teacherUser)
+                .status(ExamStatus.DRAFT)
+                .createdAt(LocalDateTime.of(2026, 11, 14, 18, 0))
+                .build();
+
+        mockTeacherExams.add(oldPublished);
+        mockTeacherExams.add(newDraft);
+        mockTeacherAssignments.add(ExamAssignment.builder()
+                .id(301L)
+                .exam(oldPublished)
+                .status(ExamAssignmentStatus.OPEN)
+                .build());
+
+        String result = aiToolDispatcher.executeTool("getTeacherExams", "{}", teacherUser);
+        assertNotNull(result);
+        assertTrue(result.contains("Đang soạn (Nháp)"));
+        assertTrue(result.contains("Chưa giao"));
+        assertTrue(result.contains("Đã giao 1 đợt"));
+        assertTrue(result.contains("[👉 Xem chi tiết đề thi](/teacher/exams/202)"));
+        assertTrue(result.contains("[👉 Xem chi tiết đề thi](/teacher/exams/201)"));
+        // Đề mới hơn phải đứng trước đề cũ hơn
+        assertTrue(result.indexOf("Đề ôn tập chương mới") < result.indexOf("Đề giữa kì toán"));
     }
 
     @Test
@@ -321,14 +379,23 @@ class AiToolDispatcherTest {
     }
 
     @Test
-    @DisplayName("executeGetTeacherAssignments: Trả về danh sách bài kiểm tra đã giao kèm nút quản lý")
+    @DisplayName("executeGetTeacherAssignments: Trả về danh sách bài kiểm tra đã giao kèm đề chưa giao và nút quản lý")
     void executeGetTeacherAssignments_success() {
         Exam exam = Exam.builder()
                 .id(200L)
                 .title("Đề kiểm tra 15 phút Đạo hàm")
                 .teacher(teacherUser)
+                .status(ExamStatus.PUBLISHED)
+                .build();
+        Exam draftExam = Exam.builder()
+                .id(205L)
+                .title("Đề nháp chưa giao")
+                .code("EX-DRAFT")
+                .teacher(teacherUser)
+                .status(ExamStatus.DRAFT)
                 .build();
         mockTeacherExams.add(exam);
+        mockTeacherExams.add(draftExam);
 
         ExamAssignment assignment = ExamAssignment.builder()
                 .id(300L)
@@ -343,6 +410,27 @@ class AiToolDispatcherTest {
         assertNotNull(result);
         assertTrue(result.contains("Đề kiểm tra 15 phút Đạo hàm"));
         assertTrue(result.contains("[👉 Quản lý bài kiểm tra](/teacher/exams/200/assignments/300)"));
+        assertTrue(result.contains("Đề nháp chưa giao"));
+        assertTrue(result.contains("[👉 Xem chi tiết đề thi](/teacher/exams/205)"));
+    }
+
+    @Test
+    @DisplayName("executeGetTeacherAssignments: Khi chưa giao đợt nào vẫn liệt kê đề đang soạn/chưa giao")
+    void executeGetTeacherAssignments_noAssignmentsStillListsDrafts() {
+        Exam draftExam = Exam.builder()
+                .id(206L)
+                .title("Đề kiểm tra đang soạn")
+                .code("EX-206")
+                .teacher(teacherUser)
+                .status(ExamStatus.DRAFT)
+                .build();
+        mockTeacherExams.add(draftExam);
+
+        String result = aiToolDispatcher.executeTool("getTeacherAssignments", "{}", teacherUser);
+        assertNotNull(result);
+        assertTrue(result.contains("Đề kiểm tra đang soạn"));
+        assertTrue(result.contains("Đang soạn (Nháp)"));
+        assertTrue(result.contains("[👉 Xem chi tiết đề thi](/teacher/exams/206)"));
     }
 
     @Test
@@ -449,6 +537,38 @@ class AiToolDispatcherTest {
         assertTrue(result.contains("Đã chấm: 25"));
         assertTrue(result.contains("[👉 Chấm bài: Bài tập Đại số chương 2](/teacher/homework/55)"));
         assertTrue(result.contains("[👉 Quản lý bài tập của lớp](/teacher/classes/100/homework)"));
+    }
+
+    @Test
+    @DisplayName("getTeacherHomeworks: Đọc ổn định khi LLM truyền {}, null, 0, chuỗi rỗng hoặc classId không tồn tại")
+    void getTeacherHomeworks_handlesInvalidOrNullClassId() {
+        HomeworkDtos.Assignment hw = new HomeworkDtos.Assignment(
+                56L,
+                "Bài tập Hình học không gian",
+                "Làm bài 1-5",
+                10L,
+                "Toán Học",
+                "12",
+                "HOMEWORK",
+                "ALL",
+                LocalDateTime.of(2026, 11, 22, 23, 59),
+                BigDecimal.valueOf(10),
+                "OPEN",
+                null, null, null, null,
+                40, 12, 5,
+                LocalDateTime.now(),
+                List.of(),
+                List.of()
+        );
+        mockTeacherHomeworks.add(hw);
+
+        for (String args : List.of("{}", "{\"classId\": null}", "{\"classId\": 0}", "{\"classId\": \"\"}", "{\"classId\": \"all\"}", "{\"classId\": 999}")) {
+            String result = aiToolDispatcher.executeTool("getTeacherHomeworks", args, teacherUser);
+            assertNotNull(result);
+            assertTrue(result.contains("Bài tập Hình học không gian"), "Thất bại với args: " + args + " -> " + result);
+            assertTrue(result.contains("[👉 Chấm bài: Bài tập Hình học không gian](/teacher/homework/56)"));
+            assertFalse(result.contains("Đã xảy ra lỗi"), "Không được báo lỗi với args: " + args);
+        }
     }
 
     @Test
@@ -608,6 +728,41 @@ class AiToolDispatcherTest {
         assertTrue(result.contains("Đã nộp bài"));
         assertTrue(result.contains("[👉 Làm bài tập: Bài tập Hóa học Hữu cơ](/student/homework/77)"));
         assertTrue(result.contains("[👉 Vào lớp học](/student/classes/100)"));
+    }
+
+    @Test
+    @DisplayName("getStudentHomeworks: Xử lý REOPENED và classId null/0/không tồn tại không bị lỗi")
+    void getStudentHomeworks_handlesReopenedAndInvalidClassId() {
+        HomeworkDtos.Assignment a = new HomeworkDtos.Assignment(
+                78L,
+                "Bài tập Ngữ Văn nghị luận",
+                "Viết đoạn văn 200 chữ",
+                30L,
+                "Ngữ Văn",
+                "12",
+                "HOMEWORK",
+                "ALL",
+                LocalDateTime.of(2026, 11, 25, 21, 0),
+                BigDecimal.valueOf(10),
+                "OPEN",
+                null, null, null, null,
+                30, 10, 5,
+                LocalDateTime.now(),
+                List.of(),
+                List.of()
+        );
+        mockStudentHomeworks.add(new HomeworkDtos.StudentAssignment(
+                a, "REOPENED", "Bài làm cũ", List.of(), List.of(),
+                null, null, LocalDateTime.now(), null, null
+        ));
+
+        for (String args : List.of("{}", "{\"classId\": null}", "{\"classId\": 0}", "{\"classId\": 999}")) {
+            String result = aiToolDispatcher.executeTool("getStudentHomeworks", args, studentUser);
+            assertNotNull(result);
+            assertTrue(result.contains("Bài tập Ngữ Văn nghị luận"));
+            assertTrue(result.contains("Được mở lại (Cần nộp lại)"));
+            assertTrue(result.contains("[👉 Làm bài tập: Bài tập Ngữ Văn nghị luận](/student/homework/78)"));
+        }
     }
 
     @FunctionalInterface

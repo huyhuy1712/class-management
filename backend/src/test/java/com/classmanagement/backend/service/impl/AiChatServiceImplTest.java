@@ -365,5 +365,116 @@ class AiChatServiceImplTest {
         assertTrue(response.getReply().contains("Dưới đây là thông tin tra cứu được từ hệ thống"), "Khi Round 2 lỗi, phải tự tổng hợp từ dữ liệu Tool");
         assertTrue(response.getReply().contains("Lớp 10A1 (Toán)"));
     }
+
+    @Test
+    @DisplayName("Tool Calling: Tự động thử lại với tool schema tối giản khi Round 1 bị 400 BadRequest (tool_use_failed)")
+    void toolCalling_retriesWithSimplifiedSchemaOnBadRequest() {
+        com.classmanagement.backend.entity.User domainTeacher = com.classmanagement.backend.entity.User.builder()
+                .id(1L)
+                .username("teacher1")
+                .role(com.classmanagement.backend.entity.enums.UserRole.TEACHER)
+                .build();
+
+        com.classmanagement.backend.repository.UserRepository userRepo =
+                (com.classmanagement.backend.repository.UserRepository) java.lang.reflect.Proxy.newProxyInstance(
+                        com.classmanagement.backend.repository.UserRepository.class.getClassLoader(),
+                        new Class<?>[]{com.classmanagement.backend.repository.UserRepository.class},
+                        (proxy, method, args) -> {
+                            if ("findByUsername".equals(method.getName())) {
+                                return java.util.Optional.of(domainTeacher);
+                            }
+                            return null;
+                        }
+                );
+
+        com.classmanagement.backend.service.ai.AiToolDispatcher dispatcher =
+                new com.classmanagement.backend.service.ai.AiToolDispatcher(null, null, null) {
+                    @Override
+                    public java.util.List<java.util.Map<String, Object>> getToolsForRole(String role) {
+                        java.util.Map<String, Object> props = java.util.Map.of(
+                                "classId", java.util.Map.of("type", "integer", "description", "ID lớp"));
+                        return java.util.List.of(java.util.Map.of(
+                                "type", "function",
+                                "function", java.util.Map.of(
+                                        "name", "getTeacherHomeworks",
+                                        "parameters", java.util.Map.of(
+                                                "type", "object",
+                                                "properties", props,
+                                                "required", java.util.List.of()))));
+                    }
+
+                    @Override
+                    public String executeTool(String toolName, String argumentsJson, com.classmanagement.backend.entity.User currentUser) {
+                        return "Danh sách bài tập: Bài tập Hàm số (/teacher/homework/55)";
+                    }
+                };
+
+        java.util.concurrent.atomic.AtomicInteger callCount = new java.util.concurrent.atomic.AtomicInteger(0);
+        org.springframework.http.client.ClientHttpRequestFactory mockFactory = (uri, httpMethod) -> new org.springframework.http.client.ClientHttpRequest() {
+            private final org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            private final java.io.ByteArrayOutputStream outputStream = new java.io.ByteArrayOutputStream();
+            private final java.util.Map<String, Object> attributes = new java.util.HashMap<>();
+
+            @Override public org.springframework.http.HttpMethod getMethod() { return httpMethod; }
+            @Override public java.net.URI getURI() { return uri; }
+            @Override public org.springframework.http.HttpHeaders getHeaders() { return headers; }
+            @Override public java.io.OutputStream getBody() { return outputStream; }
+            @Override public java.util.Map<String, Object> getAttributes() { return attributes; }
+
+            @Override public org.springframework.http.client.ClientHttpResponse execute() {
+                int count = callCount.incrementAndGet();
+                String bodyStr;
+                org.springframework.http.HttpStatus status;
+                if (count == 1) {
+                    status = org.springframework.http.HttpStatus.BAD_REQUEST;
+                    bodyStr = "{\"error\":{\"code\":\"tool_use_failed\",\"message\":\"expected integer, but got null\"}}";
+                } else if (count == 2) {
+                    status = org.springframework.http.HttpStatus.OK;
+                    bodyStr = """
+                            {"choices":[{"message":{"role":"assistant","tool_calls":[{"id":"call_hw","type":"function","function":{"name":"getTeacherHomeworks","arguments":"{}"}}]}}]}
+                            """;
+                } else {
+                    status = org.springframework.http.HttpStatus.OK;
+                    bodyStr = """
+                            {"choices":[{"message":{"role":"assistant","content":"Thầy/Cô đã giao Bài tập Hàm số."}}]}
+                            """;
+                }
+                byte[] respBytes = bodyStr.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                return new org.springframework.http.client.ClientHttpResponse() {
+                    @Override public org.springframework.http.HttpStatusCode getStatusCode() { return status; }
+                    @Override public String getStatusText() { return status.getReasonPhrase(); }
+                    @Override public void close() {}
+                    @Override public java.io.InputStream getBody() { return new java.io.ByteArrayInputStream(respBytes); }
+                    @Override public org.springframework.http.HttpHeaders getHeaders() {
+                        org.springframework.http.HttpHeaders h = new org.springframework.http.HttpHeaders();
+                        h.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+                        return h;
+                    }
+                };
+            }
+        };
+
+        org.springframework.web.client.RestClient testRestClient = org.springframework.web.client.RestClient.builder()
+                .requestFactory(mockFactory)
+                .build();
+
+        AiChatServiceImpl service = new AiChatServiceImpl(
+                "dummy-api-key",
+                "https://api.groq.com/openai/v1",
+                "llama-3.3-70b-versatile",
+                3,
+                userRepo,
+                dispatcher,
+                testRestClient
+        );
+
+        User teacherPrincipal = new User("teacher1", "pass", List.of(new SimpleGrantedAuthority("ROLE_TEACHER")));
+        Authentication teacherAuth = new UsernamePasswordAuthenticationToken(teacherPrincipal, null, teacherPrincipal.getAuthorities());
+
+        AiChatResponse response = service.chat(AiChatRequest.builder().message("Các bài tập tôi đã giao").build(), "127.0.0.1", teacherAuth);
+        assertNotNull(response);
+        assertEquals(3, callCount.get(), "Phải thực hiện đúng 3 lần gọi HTTP (1 lỗi 400 -> 1 retry Round 1 -> 1 Round 2)");
+        assertTrue(response.getReply().contains("Bài tập Hàm số"));
+    }
 }
 

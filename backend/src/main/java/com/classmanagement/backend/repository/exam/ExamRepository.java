@@ -23,6 +23,7 @@ public interface ExamRepository extends JpaRepository<Exam, Long> {
         @Lock(LockModeType.PESSIMISTIC_WRITE)
         Optional<Exam> findLockedByIdAndTeacher_Username(Long id, String username);
 
+        @EntityGraph(attributePaths = {"subject", "teacher"})
         List<Exam> findAllByTeacher_Username(String username);
 
         long countByTeacher_Username(String username);

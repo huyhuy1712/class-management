@@ -37,6 +37,10 @@ boolean existsByClassroom_IdAndStudent_IdAndDateAndIdNot(
                 LocalDate date,
                 Long attendanceId);
 
+@EntityGraph(attributePaths = {
+        "classroom",
+        "lesson"
+})
 List<Attendance> findAllByClassroomIdAndDate(
                 Long classroomId,
                 LocalDate date);
@@ -47,6 +51,10 @@ List<Attendance> findAllByClassroomIdAndDate(
 })
 List<Attendance> findAllByStudent_Id(Long studentId);
 
+@EntityGraph(attributePaths = {
+        "classroom",
+        "lesson"
+})
 List<Attendance> findAllByClassroom_IdAndStudent_IdOrderByDateDesc(
         Long classroomId,
         Long studentId);
