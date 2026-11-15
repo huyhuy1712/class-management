@@ -41,6 +41,7 @@ export interface AiChatWidgetProps {
 
 const DISMISS_PROMPTS_KEY = 'ai_chat_quick_prompts_dismissed'
 const GUEST_LOCKED_KEY = 'frogh_ai_guest_locked'
+const TABLE_LINE_BREAK_TOKEN = '\uE000FROGH_BR\uE000'
 
 const readGuestLockedFlag = (): boolean => {
   try {
@@ -63,20 +64,55 @@ const writeGuestLockedFlag = (locked: boolean) => {
 }
 
 /**
- * Chuẩn hóa delimiter LaTeX (\[...\], \(...\)) sang chuẩn remark-math ($$...$$, $...$),
- * bỏ qua các khối code fenced để không làm hỏng ví dụ lập trình.
+ * Chuẩn hóa nội dung Markdown trả về từ AI:
+ * 1) Chuyển delimiter LaTeX (\[...\], \(...\)) sang chuẩn remark-math ($$...$$, $...$).
+ * 2) Chuyển thẻ HTML thô <br>, <br/>, <br /> thành ngắt dòng hợp lệ (giữ nguyên bên trong code block / inline code):
+ *    - Trong hàng bảng Markdown (`| ... |`): dùng token an toàn để tách dòng trong `td`/`th` mà không vỡ cấu trúc bảng.
+ *    - Ngoài bảng: chuyển thành Markdown line break (`  \n`).
  */
-const normalizeMathDelimiters = (content: string): string => {
+const normalizeAssistantContent = (content: string): string => {
   if (!content) return content
   return content
-    .split(/(```[\s\S]*?```)/g)
+    .split(/(```[\s\S]*?```|`[^`\n]+`)/g)
     .map((segment) => {
-      if (segment.startsWith('```')) return segment
-      return segment
+      if (segment.startsWith('```') || segment.startsWith('`')) return segment
+      const withMath = segment
         .replace(/\\\[([\s\S]*?)\\\]/g, (_m, expr) => `\n$$\n${expr.trim()}\n$$\n`)
         .replace(/\\\((.+?)\\\)/g, (_m, expr) => `$${expr.trim()}$`)
+      return withMath
+        .split('\n')
+        .map((line) => {
+          if (!/<br\s*\/?>/i.test(line)) return line
+          const isTableRow = /^\s*\|/.test(line)
+          return line.replace(/<br\s*\/?>/gi, isTableRow ? TABLE_LINE_BREAK_TOKEN : '  \n')
+        })
+        .join('\n')
     })
     .join('')
+}
+
+/**
+ * Thay thế TABLE_LINE_BREAK_TOKEN trong cây React children bằng thẻ `<br />` an toàn (không dùng rehype-raw).
+ */
+const renderWithLineBreaks = (children: React.ReactNode): React.ReactNode => {
+  return React.Children.map(children, (child) => {
+    if (typeof child === 'string') {
+      if (!child.includes(TABLE_LINE_BREAK_TOKEN)) return child
+      const parts = child.split(TABLE_LINE_BREAK_TOKEN)
+      return parts.map((part, idx) => (
+        <React.Fragment key={idx}>
+          {idx > 0 && <br />}
+          {part}
+        </React.Fragment>
+      ))
+    }
+    if (React.isValidElement<{ children?: React.ReactNode }>(child) && child.props?.children != null) {
+      return React.cloneElement(child, {
+        children: renderWithLineBreaks(child.props.children),
+      })
+    }
+    return child
+  })
 }
 
 const getWelcomeMessage = (currentRole: string): ChatMessage => {
@@ -485,7 +521,7 @@ export const AiChatWidget: React.FC<AiChatWidgetProps> = ({ forceGuest = false }
                               components={{
                                 p: ({ children }) => (
                                   <p className="mb-2 last:mb-0 leading-relaxed text-[13px] text-gray-700">
-                                    {children}
+                                    {renderWithLineBreaks(children)}
                                   </p>
                                 ),
                                 a: ({ href, children }: any) => {
@@ -525,7 +561,7 @@ export const AiChatWidget: React.FC<AiChatWidgetProps> = ({ forceGuest = false }
                                   </ol>
                                 ),
                                 li: ({ children }) => (
-                                  <li className="leading-relaxed">{children}</li>
+                                  <li className="leading-relaxed">{renderWithLineBreaks(children)}</li>
                                 ),
                                 strong: ({ children }) => (
                                   <strong className="font-semibold text-[#0F3822]">
@@ -555,17 +591,17 @@ export const AiChatWidget: React.FC<AiChatWidgetProps> = ({ forceGuest = false }
                                 ),
                                 th: ({ children }) => (
                                   <th className="bg-[#D8F3DC]/50 px-2.5 py-1.5 text-left font-bold text-[#0F3822]">
-                                    {children}
+                                    {renderWithLineBreaks(children)}
                                   </th>
                                 ),
                                 td: ({ children }) => (
-                                  <td className="border-t border-gray-100 px-2.5 py-1.5 text-gray-700">
-                                    {children}
+                                  <td className="border-t border-gray-100 px-2.5 py-1.5 text-gray-700 align-top">
+                                    {renderWithLineBreaks(children)}
                                   </td>
                                 ),
                                 blockquote: ({ children }) => (
                                   <blockquote className="my-2 border-l-2 border-[#10B981] bg-emerald-50/60 py-1 px-2.5 rounded-r-lg text-xs italic text-gray-700">
-                                    {children}
+                                    {renderWithLineBreaks(children)}
                                   </blockquote>
                                 ),
                                 h1: ({ children }) => (
@@ -585,7 +621,7 @@ export const AiChatWidget: React.FC<AiChatWidgetProps> = ({ forceGuest = false }
                                 ),
                               }}
                             >
-                              {normalizeMathDelimiters(textContent)}
+                              {normalizeAssistantContent(textContent)}
                             </ReactMarkdown>
                           </div>
                         )}
