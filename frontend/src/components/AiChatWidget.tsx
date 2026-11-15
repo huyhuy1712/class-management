@@ -63,19 +63,39 @@ const writeGuestLockedFlag = (locked: boolean) => {
   }
 }
 
+const SPA_LINK_LINE_PATTERN =
+  /^\[[^\]]+\]\(\/[^\s)]+\)(?:\s*\|\s*\[[^\]]+\]\(\/[^\s)]+\))*$/
+
 /**
  * Chuẩn hóa nội dung Markdown trả về từ AI:
  * 1) Chuyển delimiter LaTeX (\[...\], \(...\)) sang chuẩn remark-math ($$...$$, $...$).
  * 2) Chuyển thẻ HTML thô <br>, <br/>, <br /> thành ngắt dòng hợp lệ (giữ nguyên bên trong code block / inline code):
  *    - Trong hàng bảng Markdown (`| ... |`): dùng token an toàn để tách dòng trong `td`/`th` mà không vỡ cấu trúc bảng.
  *    - Ngoài bảng: chuyển thành Markdown line break (`  \n`).
+ * 3) Gỡ thụt lề / backtick / fenced code bọc quanh link nội bộ `[👉 ...](/...)` để luôn render thành nút bấm điều hướng.
  */
 const normalizeAssistantContent = (content: string): string => {
   if (!content) return content
-  return content
+  const unwrappedAndFormatted = content
     .split(/(```[\s\S]*?```|`[^`\n]+`)/g)
     .map((segment) => {
-      if (segment.startsWith('```') || segment.startsWith('`')) return segment
+      if (segment.startsWith('```')) {
+        const fencedInner = segment
+          .replace(/^```[^\n]*\n?/, '')
+          .replace(/\n?```$/, '')
+          .trim()
+        if (SPA_LINK_LINE_PATTERN.test(fencedInner)) {
+          return `\n${fencedInner}\n`
+        }
+        return segment
+      }
+      if (segment.startsWith('`')) {
+        const inlineInner = segment.slice(1, -1).trim()
+        if (SPA_LINK_LINE_PATTERN.test(inlineInner)) {
+          return inlineInner
+        }
+        return segment
+      }
       const withMath = segment
         .replace(/\\\[([\s\S]*?)\\\]/g, (_m, expr) => `\n$$\n${expr.trim()}\n$$\n`)
         .replace(/\\\((.+?)\\\)/g, (_m, expr) => `$${expr.trim()}$`)
@@ -85,6 +105,20 @@ const normalizeAssistantContent = (content: string): string => {
           if (!/<br\s*\/?>/i.test(line)) return line
           const isTableRow = /^\s*\|/.test(line)
           return line.replace(/<br\s*\/?>/gi, isTableRow ? TABLE_LINE_BREAK_TOKEN : '  \n')
+        })
+        .join('\n')
+    })
+    .join('')
+
+  return unwrappedAndFormatted
+    .split(/(```[\s\S]*?```)/g)
+    .map((segment) => {
+      if (segment.startsWith('```')) return segment
+      return segment
+        .split('\n')
+        .map((line) => {
+          const trimmedLine = line.trim()
+          return SPA_LINK_LINE_PATTERN.test(trimmedLine) ? `\n${trimmedLine}` : line
         })
         .join('\n')
     })
@@ -113,6 +147,100 @@ const renderWithLineBreaks = (children: React.ReactNode): React.ReactNode => {
     }
     return child
   })
+}
+
+type ChatRole = 'TEACHER' | 'STUDENT' | 'ADMIN' | 'GUEST'
+
+const PUBLIC_GUEST_ROUTES = new Set(['/', '/landing', '/login', '/signup', '/forgot-password'])
+const AUTH_LANDING_ROUTES = new Set(['/', '/landing'])
+
+const TEACHER_STATIC_ROUTES = new Set([
+  '/teacher',
+  '/teacher/classes',
+  '/teacher/profile',
+  '/teacher/billing',
+  '/teacher/materials',
+  '/teacher/history',
+  '/teacher/exams',
+  '/teacher/exams/create',
+  '/teacher/exams/create/online',
+  '/teacher/homework',
+  '/teacher/homework/create',
+])
+
+const STUDENT_STATIC_ROUTES = new Set([
+  '/student',
+  '/student/profile',
+  '/student/attendance',
+  '/student/history',
+  '/student/classes',
+  '/student/exams',
+  '/student/homework',
+  '/student/grades',
+])
+
+const ADMIN_STATIC_ROUTES = new Set([
+  '/admin',
+  '/admin/users',
+  '/admin/subjects',
+  '/admin/history',
+  '/admin/missions',
+])
+
+const TEACHER_DYNAMIC_ROUTE_REGEX =
+  /^\/teacher\/(?:classes\/\d+(?:\/(?:assignments|homework|materials|announcements|grades|attendance|students\/\d+))?|exams\/\d+(?:\/assignments\/\d+(?:\/attempts\/\d+)?)?|homework\/\d+(?:\/(?:edit|submissions\/\d+))?)$/
+const STUDENT_DYNAMIC_ROUTE_REGEX =
+  /^\/student\/(?:classes\/\d+|homework\/\d+|exams\/\d+|exam-attempts\/\d+(?:\/result)?)$/
+const FAKE_FROGH_DOMAIN_REGEX = /^https?:\/\/(?:[a-z0-9-]+\.)*frogh[a-z0-9.-]*(?::\d+)?(\/.*)?$/i
+
+const normalizeInternalRoutePath = (rawPath: string): string => {
+  const withoutQuery = rawPath.split('?')[0].split('#')[0].trim()
+  return withoutQuery.length > 1 ? withoutQuery.replace(/\/+$/, '') : withoutQuery
+}
+
+/**
+ * Chỉ cho phép điều hướng tới các route tồn tại trong AppRoutes.jsx và hợp lệ theo vai trò hiện tại.
+ * Chặn tuyệt đối link chéo quyền, link ảo hoặc URL ngoài hệ thống.
+ */
+const resolveAuthorizedChatRoute = (href: string | undefined, currentRole: ChatRole): string | null => {
+  if (!href) return null
+  const trimmed = href.trim()
+  if (!trimmed) return null
+
+  let candidatePath: string | null = null
+  if (trimmed.startsWith('/')) {
+    candidatePath = normalizeInternalRoutePath(trimmed)
+  } else {
+    const fakeDomainMatch = trimmed.match(FAKE_FROGH_DOMAIN_REGEX)
+    if (fakeDomainMatch) {
+      candidatePath = normalizeInternalRoutePath(fakeDomainMatch[1] || '/')
+    }
+  }
+
+  if (!candidatePath || !candidatePath.startsWith('/')) {
+    return null
+  }
+
+  switch (currentRole) {
+    case 'TEACHER':
+      return AUTH_LANDING_ROUTES.has(candidatePath) ||
+        TEACHER_STATIC_ROUTES.has(candidatePath) ||
+        TEACHER_DYNAMIC_ROUTE_REGEX.test(candidatePath)
+        ? candidatePath
+        : null
+    case 'STUDENT':
+      return AUTH_LANDING_ROUTES.has(candidatePath) ||
+        STUDENT_STATIC_ROUTES.has(candidatePath) ||
+        STUDENT_DYNAMIC_ROUTE_REGEX.test(candidatePath)
+        ? candidatePath
+        : null
+    case 'ADMIN':
+      return AUTH_LANDING_ROUTES.has(candidatePath) || ADMIN_STATIC_ROUTES.has(candidatePath)
+        ? candidatePath
+        : null
+    default:
+      return PUBLIC_GUEST_ROUTES.has(candidatePath) ? candidatePath : null
+  }
 }
 
 const getWelcomeMessage = (currentRole: string): ChatMessage => {
@@ -525,22 +653,22 @@ export const AiChatWidget: React.FC<AiChatWidgetProps> = ({ forceGuest = false }
                                   </p>
                                 ),
                                 a: ({ href, children }: any) => {
-                                  const isInternal =
-                                    href && (href.startsWith('/') || href.startsWith('#'))
+                                  const authorizedRoute = resolveAuthorizedChatRoute(href, role)
+                                  if (!authorizedRoute) {
+                                    return (
+                                      <span className="font-medium text-gray-700">{children}</span>
+                                    )
+                                  }
                                   return (
                                     <button
                                       type="button"
                                       onClick={(e) => {
                                         e.preventDefault()
                                         e.stopPropagation()
-                                        if (isInternal && href) {
-                                          navigate(href)
-                                        } else if (href) {
-                                          window.open(href, '_blank', 'noopener,noreferrer')
-                                        }
+                                        navigate(authorizedRoute)
                                       }}
                                       className="inline-flex items-center gap-1.5 my-1 mx-0.5 px-3 py-1 rounded-xl bg-[#0F3822] text-[#D8F3DC] text-xs font-semibold hover:bg-[#165031] active:scale-95 transition-all shadow-xs border border-emerald-600/30 cursor-pointer group"
-                                      title={typeof children === 'string' ? children : href}
+                                      title={typeof children === 'string' ? children : authorizedRoute}
                                     >
                                       <span>{children}</span>
                                       <ArrowRight

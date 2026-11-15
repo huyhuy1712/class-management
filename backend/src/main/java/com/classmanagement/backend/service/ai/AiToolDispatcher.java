@@ -912,12 +912,15 @@ public class AiToolDispatcher {
         for (StudentExamResponse item : examPage.items()) {
             String close = item.closeTime() != null ? item.closeTime().format(DATE_TIME_FORMATTER) : "Không giới hạn";
             String duration = item.timeLimit() != null ? item.timeLimit() + " phút" : "Không giới hạn";
+            String examTarget = (item.assignmentId() != null && item.assignmentId() > 0)
+                    ? "/student/exams/" + item.assignmentId()
+                    : "/student/exams";
             sb.append("- Bài thi: **").append(item.title()).append("**")
                     .append(" (Mã: `").append(item.code()).append("`")
                     .append(", Trạng thái: ").append(item.attemptStatus() != null ? item.attemptStatus() : "Chưa làm")
                     .append(", Thời gian: ").append(duration)
                     .append(", Hạn nộp: ").append(close)
-                    .append(") -> [👉 Vào phòng thi](/student/exams/").append(item.assignmentId()).append(")\n");
+                    .append(") -> [👉 Vào phòng thi](").append(examTarget).append(")\n");
         }
         return sb.toString();
     }
@@ -935,11 +938,14 @@ public class AiToolDispatcher {
         for (StudentGradesResponse.Item item : grades.items()) {
             String scoreStr = item.score() != null ? item.score().toString() + "/10" : "Chờ chấm";
             String time = item.submittedAt() != null ? item.submittedAt().format(DATE_TIME_FORMATTER) : "Chưa rõ";
+            String resultTarget = (item.attemptId() != null && item.attemptId() > 0)
+                    ? "/student/exam-attempts/" + item.attemptId() + "/result"
+                    : "/student/grades";
             sb.append("- Bài thi: **").append(item.title()).append("**")
                     .append(" - Điểm số: **").append(scoreStr).append("**")
                     .append(" (Môn: ").append(item.subjectName() != null ? item.subjectName() : "Chưa rõ")
                     .append(", Nộp lúc: ").append(time).append(")")
-                    .append(" -> [👉 Xem chi tiết kết quả](/student/exam-attempts/").append(item.attemptId()).append("/result)\n");
+                    .append(" -> [👉 Xem chi tiết kết quả](").append(resultTarget).append(")\n");
         }
         return sb.toString();
     }
@@ -1048,12 +1054,13 @@ public class AiToolDispatcher {
             }
 
             long assignmentId = a != null ? a.id() : 0;
+            String hwTarget = assignmentId > 0 ? "/student/homework/" + assignmentId : "/student/homework";
             sb.append("- Bài tập: **").append(title).append("**")
                     .append(" (Môn: ").append(subjectName)
                     .append(", Hạn nộp: ").append(due)
                     .append(", Trạng thái bài: ").append(formatHomeworkStatus(a != null ? a.status() : null))
                     .append(", Nộp bài: ").append(status).append(")")
-                    .append(" -> [👉 Làm bài tập: ").append(title).append("](/student/homework/").append(assignmentId).append(")\n");
+                    .append(" -> [👉 Làm bài tập: ").append(title).append("](").append(hwTarget).append(")\n");
         }
         if (classId != null) {
             sb.append("-> [👉 Vào lớp học](/student/classes/").append(classId).append(")\n");

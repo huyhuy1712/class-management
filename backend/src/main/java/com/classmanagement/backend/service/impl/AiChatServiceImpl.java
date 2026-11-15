@@ -24,6 +24,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Slf4j
@@ -77,6 +78,63 @@ public class AiChatServiceImpl implements AiChatService {
             "tán gái", "tán trai", "người yêu", "tỏ tình", "thất tình", "bói tình yêu", "mai mối",
             "đánh bạc", "cá độ", "lô đề", "tài xỉu", "bầu cử chính trị", "xuyên tạc"
     );
+
+    // ==========================================
+    // ROUTE WHITELIST THEO VAI TRÒ (CHỐNG LINK ẢO / VƯỢT QUYỀN)
+    // ==========================================
+    private static final Set<String> PUBLIC_GUEST_ROUTES = Set.of(
+            "/", "/landing", "/login", "/signup", "/forgot-password"
+    );
+
+    private static final Set<String> AUTH_LANDING_ROUTES = Set.of(
+            "/", "/landing"
+    );
+
+    private static final Set<String> TEACHER_STATIC_ROUTES = Set.of(
+            "/teacher",
+            "/teacher/classes",
+            "/teacher/profile",
+            "/teacher/billing",
+            "/teacher/materials",
+            "/teacher/history",
+            "/teacher/exams",
+            "/teacher/exams/create",
+            "/teacher/exams/create/online",
+            "/teacher/homework",
+            "/teacher/homework/create"
+    );
+
+    private static final Set<String> STUDENT_STATIC_ROUTES = Set.of(
+            "/student",
+            "/student/profile",
+            "/student/attendance",
+            "/student/history",
+            "/student/classes",
+            "/student/exams",
+            "/student/homework",
+            "/student/grades"
+    );
+
+    private static final Set<String> ADMIN_STATIC_ROUTES = Set.of(
+            "/admin",
+            "/admin/users",
+            "/admin/subjects",
+            "/admin/history",
+            "/admin/missions"
+    );
+
+    private static final Pattern TEACHER_DYNAMIC_ROUTE_PATTERN = Pattern.compile(
+            "^/teacher/(?:classes/\\d+(?:/(?:assignments|homework|materials|announcements|grades|attendance|students/\\d+))?|exams/\\d+(?:/assignments/\\d+(?:/attempts/\\d+)?)?|homework/\\d+(?:/(?:edit|submissions/\\d+))?)$"
+    );
+
+    private static final Pattern STUDENT_DYNAMIC_ROUTE_PATTERN = Pattern.compile(
+            "^/student/(?:classes/\\d+|homework/\\d+|exams/\\d+|exam-attempts/\\d+(?:/result)?)$"
+    );
+
+    private static final Pattern MARKDOWN_LINK_PATTERN = Pattern.compile("\\[([^\\]]+)\\]\\(([^)\\s]+)\\)");
+    private static final Pattern TOOL_INTERNAL_PATH_PATTERN = Pattern.compile("/(?:teacher|student|admin|login|signup|landing|forgot-password)(?:/[A-Za-z0-9._-]+)*");
+    private static final Pattern FAKE_FROGH_DOMAIN_PATTERN = Pattern.compile("(?i)^https?://(?:[a-z0-9-]+\\.)*frogh[a-z0-9.-]*(?::\\d+)?(/.*)?$");
+    private static final Pattern BARE_EXTERNAL_URL_PATTERN = Pattern.compile("(?i)https?://[^\\s)<>\"']+");
 
     @Autowired
     public AiChatServiceImpl(UserRepository userRepository, AiToolDispatcher aiToolDispatcher) {
@@ -351,9 +409,9 @@ public class AiChatServiceImpl implements AiChatService {
                         }
                     }
 
-                    // Phản hồi văn bản trực tiếp thông thường
+                    // Phản hồi văn bản trực tiếp thông thường (chưa gọi tool -> không cho phép ID động tự bịa)
                     if (messageObj.containsKey("content") && messageObj.get("content") != null) {
-                        return (String) messageObj.get("content");
+                        return sanitizeOutgoingLinks((String) messageObj.get("content"), role, Set.of());
                     }
                 }
             }
@@ -375,7 +433,8 @@ public class AiChatServiceImpl implements AiChatService {
         assistantMessage.put("tool_calls", toolCalls);
         messages.add(assistantMessage);
 
-        // 2. Thực thi từng tool call qua AiToolDispatcher và nối kết quả vào messages
+        // 2. Thực thi từng tool call qua AiToolDispatcher và ghi nhận các đường dẫn hợp lệ do tool trả về
+        Set<String> toolReturnedPaths = new HashSet<>();
         for (Object tcObj : toolCalls) {
             if (!(tcObj instanceof Map<?, ?> tcMap)) {
                 continue;
@@ -389,6 +448,7 @@ public class AiChatServiceImpl implements AiChatService {
             log.info("AI invoked tool: {} for user: {} with args: {}", functionName, currentUser != null ? currentUser.getUsername() : "anonymous", argumentsJson);
 
             String toolResult = aiToolDispatcher.executeTool(functionName, argumentsJson, currentUser);
+            toolReturnedPaths.addAll(extractAuthorizedToolPaths(toolResult, role));
 
             Map<String, Object> toolMessage = new HashMap<>();
             toolMessage.put("role", "tool");
@@ -420,7 +480,7 @@ public class AiChatServiceImpl implements AiChatService {
                     Map<?, ?> firstChoice = (Map<?, ?>) choices.get(0);
                     Map<?, ?> messageObj = (Map<?, ?>) firstChoice.get("message");
                     if (messageObj != null && messageObj.containsKey("content") && messageObj.get("content") != null) {
-                        return (String) messageObj.get("content");
+                        return sanitizeOutgoingLinks((String) messageObj.get("content"), role, toolReturnedPaths);
                     }
                 }
             }
@@ -435,7 +495,7 @@ public class AiChatServiceImpl implements AiChatService {
                 fallbackSummary.append(msg.get("content")).append("\n");
             }
         }
-        return fallbackSummary.toString().trim();
+        return sanitizeOutgoingLinks(fallbackSummary.toString().trim(), role, toolReturnedPaths);
     }
 
     /**
@@ -507,29 +567,41 @@ public class AiChatServiceImpl implements AiChatService {
 
         if ("TEACHER".equals(role)) {
             sb.append("4. PHONG CÁCH & QUYỀN GIÁO VIÊN: Hỗ trợ sư phạm chuyên nghiệp, gợi ý ma trận đề thi, soạn câu hỏi trắc nghiệm/tự luận, thiết kế bài giảng. Chỉ được phép truy vấn lớp học, đề thi, bài tập, điểm danh và kho tài liệu thuộc tài khoản Giáo viên hiện tại.\n");
+            sb.append("\nBẢN ĐỒ TÍNH NĂNG DÀNH CHO GIÁO VIÊN (CHỈ SỬ DỤNG ĐÚNG CÁC ĐƯỜNG DẪN `/teacher/...` DƯỚI ĐÂY):\n");
+            sb.append("- **Trang chủ**: `/teacher` — Tổng quan nhanh lớp học, lịch dạy hôm nay và việc cần làm.\n");
+            sb.append("- **Lớp học**: Tạo lớp, tự sinh mã mời và quản lý học sinh tại `/teacher/classes` (chi tiết lớp gồm 7 tab: Học sinh, Bài kiểm tra, Bài tập, Tài liệu, Bảng tin, Bảng điểm, Điểm danh).\n");
+            sb.append("- **Đề thi**: Soạn đề trực tuyến (Exam Builder) hoặc nhập từ PDF tại `/teacher/exams`, `/teacher/exams/create`, `/teacher/exams/create/online` (quản lý cả đề Nháp chưa giao và Đã xuất bản/đã giao), xem thống kê và chấm tự luận.\n");
+            sb.append("- **Bài tập**: Tạo và giao bài tập kèm hạn nộp, theo dõi nộp & chấm bài tại `/teacher/homework` và `/teacher/homework/create`.\n");
+            sb.append("- **Điểm danh**: Mở phiên điểm danh trong tab Điểm danh của lớp để sinh **mã OTP 6 chữ số** có thời hạn.\n");
+            sb.append("- **Tài liệu** (`QUYỀN AI: CHỈ ĐƯỢC ĐỌC DỮ LIỆU QUA TOOL`): Hỗ trợ tệp PDF, Word (`.doc/.docx`), PowerPoint (`.ppt/.pptx`), Excel (`.xls/.xlsx`), TXT, ZIP (tối đa 10 MB/tệp, tổng lô 35 MB). Đăng và phân phối cho Tất cả học sinh (có thể loại trừ lớp), Theo lớp hoặc Từng học sinh tại `/teacher/materials`. AI chỉ đọc danh sách tài liệu của giáo viên qua `getTeacherMaterials`, KHÔNG sửa/xóa tài liệu.\n");
+            sb.append("- **Lịch sử hoạt động** (`QUYỀN AI: CHỈ HƯỚNG DẪN CÁCH DÙNG, CẤM TRUY CẬP/CAN THIỆP DỮ LIỆU`): Nằm ở `/teacher/history` (theo dõi Lớp học, Đề thi, Bài tập, Điểm số, Tài liệu, Điểm danh, Buổi học, Bảng tin lớp, Học sinh). Hỗ trợ tìm từ khóa, lọc loại hoạt động, lọc khoảng ngày (Từ ngày - Đến ngày) và sắp xếp Mới nhất/Cũ nhất. AI TUYỆT ĐỐI KHÔNG được đọc hay chỉnh sửa/xóa dữ liệu Lịch sử cá nhân.\n");
+            sb.append("- **VIP & Point** (`QUYỀN AI: CHỈ HƯỚNG DẪN CÁCH DÙNG, TUYỆT ĐỐI CẤM TRUY CẬP/CAN THIỆP`): Tại `/teacher/billing`, gồm 2 tab (**Mua Point & VIP**, **Nhiệm vụ nhận Point**) và nút xem **Hóa đơn đã thanh toán**:\n");
+            sb.append("  + *Gói Miễn phí*: Giới hạn tối đa 5 lớp học, 5 đề thi, 5 bài tập, 5 tài liệu, 5 phiên điểm danh và 10 lượt làm bài/đề.\n");
+            sb.append("  + *Các gói VIP*: Mở khóa **KHÔNG GIỚI HẠN** số lớp học, đề thi, bài tập, tài liệu, phiên điểm danh và lượt làm bài; các gói chỉ khác nhau theo số thiết bị (**VIP Cá nhân 1 thiết bị**, **VIP 5 thiết bị**, **VIP 10 thiết bị**) và chu kỳ **1 tháng / 3 tháng / 12 tháng** (TUYỆT ĐỐI KHÔNG tự bịa các con số giới hạn khác như 500 hay 2000 cho gói VIP).\n");
+            sb.append("  + *Point & Thanh toán*: Giáo viên có thể mua Point (các gói 20–1000 Point, 5.000đ/Point) hoặc nâng cấp VIP trực tiếp qua **MoMo**, đổi Point sang VIP, hoặc làm **Nhiệm vụ nhận Point** (Tạo lớp đầu tiên +5 Point, Tạo đề thi đầu tiên +10 Point, Xuất bản đề thi đầu tiên +10 Point, Thêm 10 học sinh +5 Point) rồi bấm nhận thưởng trên giao diện.\n");
+            sb.append("  + *RÀNG BUỘC BẢO MẬT VIP & POINT*: AI KHÔNG BAO GIỜ được phép kiểm tra số dư Point, xem trạng thái VIP/hóa đơn/đơn hàng MoMo, cộng/tặng/đổi Point hay kích hoạt VIP thay người dùng dưới mọi hình thức để chống vượt quyền và gian lận điểm VIP.\n");
+            sb.append("- **Hồ sơ cá nhân**: `/teacher/profile` để cập nhật thông tin, ảnh đại diện, đổi mật khẩu.\n\n");
         } else if ("STUDENT".equals(role)) {
-            sb.append("4. PHONG CÁCH & QUYỀN HỌC SINH: Khuyến khích tư duy phản biện, hướng dẫn từng bước giải bài tập, phân tích logic. TUYỆT ĐỐI NGHIÊM CẤM Học sinh yêu cầu thao tác hoặc xem dữ liệu của Giáo viên (như tạo/mở phiên điểm danh, sinh mã OTP điểm danh, xem bảng điểm/chuyên cần của học sinh khác, chỉnh sửa đề thi, hoặc sử dụng mục VIP & Point vốn chỉ dành cho Giáo viên); nếu có yêu cầu này phải từ chối rõ ràng là vượt quyền hạn.\n");
+            sb.append("4. PHONG CÁCH & QUYỀN HỌC SINH: Khuyến khích tư duy phản biện, hướng dẫn từng bước giải bài tập, phân tích logic. TUYỆT ĐỐI NGHIÊM CẤM Học sinh yêu cầu thao tác hoặc xem dữ liệu của Giáo viên (như tạo/mở phiên điểm danh, sinh mã OTP điểm danh, xem bảng điểm/chuyên cần của học sinh khác, chỉnh sửa đề thi, hoặc truy cập các tính năng Giáo viên/VIP & Point). TUYỆT ĐỐI KHÔNG chèn bất kỳ đường dẫn `/teacher/...` hay `/admin/...` nào vào câu trả lời.\n");
+            sb.append("\nBẢN ĐỒ TÍNH NĂNG DÀNH CHO HỌC SINH (CHỈ SỬ DỤNG ĐÚNG CÁC ĐƯỜNG DẪN `/student/...` DƯỚI ĐÂY):\n");
+            sb.append("- **Trang chủ**: `/student` — Tổng quan lớp học, bài tập/bài thi cần làm và thông báo.\n");
+            sb.append("- **Lớp học**: Tham gia lớp bằng Mã lớp do Giáo viên cung cấp tại `/student/classes`. Khi mở từng lớp sẽ có 6 tab: Học sinh, Điểm danh, Bài kiểm tra, Bài tập, Tài liệu, Bảng tin.\n");
+            sb.append("- **Bài kiểm tra**: Xem danh sách bài thi được giao và vào phòng thi tại `/student/exams`.\n");
+            sb.append("- **Thông tin điểm số**: Xem kết quả bài đã chấm và biểu đồ tiến độ tại `/student/grades`.\n");
+            sb.append("- **Bài tập**: Xem danh sách bài tập, hạn nộp, nộp bài trực tuyến và xem nhận xét tại `/student/homework`.\n");
+            sb.append("- **Điểm danh**: Xem chuyên cần và nhập mã OTP 6 chữ số đúng hạn tại `/student/attendance` (hoặc trong tab Điểm danh của lớp).\n");
+            sb.append("- **Tài liệu** (`QUYỀN AI: CHỈ ĐƯỢC ĐỌC DỮ LIỆU QUA TOOL`): Học sinh xem & tải tài liệu được Giáo viên chia sẻ tại tab **Tài liệu** bên trong từng lớp (qua `/student/classes`). AI dùng công cụ chỉ-đọc `getStudentMaterials` để tra cứu tài liệu cho học sinh (KHÔNG có đường dẫn `/student/materials` riêng).\n");
+            sb.append("- **Lịch sử hoạt động** (`QUYỀN AI: CHỈ HƯỚNG DẪN CÁCH DÙNG, CẤM TRUY CẬP/CAN THIỆP DỮ LIỆU`): Nằm ở `/student/history` (xem lại thao tác với Lớp học, Bài kiểm tra, Bài tập, Điểm danh, Bảng tin lớp; hỗ trợ lọc từ khóa, loại hoạt động, khoảng ngày và sắp xếp). AI TUYỆT ĐỐI KHÔNG đọc hay sửa nhật ký lịch sử.\n");
+            sb.append("- **VIP & Point**: Chỉ áp dụng cho tài khoản Giáo viên; Học sinh không sử dụng và không có quyền truy cập mục này.\n");
+            sb.append("- **Hồ sơ cá nhân**: `/student/profile` để cập nhật thông tin, ảnh đại diện, đổi mật khẩu.\n\n");
+        } else if ("ADMIN".equals(role)) {
+            sb.append("4. QUYỀN QUẢN TRỊ VIÊN: CHỈ sử dụng các đường dẫn thuộc `/admin`: `/admin`, `/admin/users`, `/admin/subjects`, `/admin/history`, `/admin/missions`.\n\n");
         } else {
-            sb.append("4. PHONG CÁCH & QUYỀN KHÁCH: Thân thiện, giải đáp khái niệm học tập cơ bản và giới thiệu chi tiết các tính năng nền tảng FrogH. Khách chưa đăng nhập KHÔNG có quyền tra cứu dữ liệu cá nhân (lớp học, đề thi, bài tập, tài liệu, điểm số); hãy hướng dẫn người dùng đăng nhập tại `/login`.\n");
+            sb.append("4. PHONG CÁCH & QUYỀN KHÁCH: Thân thiện, giải đáp khái niệm học tập cơ bản và giới thiệu tính năng nền tảng FrogH (Quản lý lớp học, Đề thi trực tuyến, Bài tập, Chia sẻ tài liệu, Điểm danh OTP, Bảng điểm, Lịch sử hoạt động). Khách chưa đăng nhập KHÔNG có quyền tra cứu dữ liệu cá nhân và KHÔNG được chèn đường dẫn nội bộ `/teacher/...`, `/student/...` hay `/admin/...`; chỉ được phép hướng dẫn đăng nhập tại `/login` hoặc đăng ký tại `/signup`.\n\n");
         }
 
-        sb.append("\nBẢN ĐỒ TOÀN BỘ TÍNH NĂNG HỆ THỐNG FROGH EDUCATION (NẮM RÕ ĐỂ HƯỚNG DẪN CHÍNH XÁC):\n");
-        sb.append("- **Trang chủ**: `/teacher` (Giáo viên) hoặc `/student` (Học sinh) — Tổng quan nhanh lớp học, lịch trình và việc cần làm.\n");
-        sb.append("- **Lớp học**: Giáo viên tạo lớp, tự sinh mã mời và quản lý học sinh tại `/teacher/classes` (chi tiết lớp gồm 7 tab: Học sinh, Bài kiểm tra, Bài tập, Tài liệu, Bảng tin, Bảng điểm, Điểm danh). Học sinh tham gia lớp bằng mã lớp tại `/student/classes` và mở từng lớp (`/student/classes/{classId}`) gồm 6 tab: Học sinh, Điểm danh, Bài kiểm tra, Bài tập, Tài liệu, Bảng tin.\n");
-        sb.append("- **Đề thi**: Giáo viên soạn đề trực tuyến (Exam Builder) hoặc nhập từ PDF tại `/teacher/exams` & `/teacher/exams/create` (gồm cả đề Nháp chưa giao và Đã xuất bản/đã giao), xem thống kê và chấm tự luận. Học sinh xem danh sách & vào phòng thi tại `/student/exams`, xem kết quả & biểu đồ tại `/student/grades`.\n");
-        sb.append("- **Bài tập**: Giáo viên giao bài tập kèm hạn nộp, theo dõi nộp & chấm bài tại `/teacher/homework`. Học sinh xem, nộp bài và xem nhận xét tại `/student/homework`.\n");
-        sb.append("- **Điểm danh**: Giáo viên mở phiên điểm danh trong lớp để sinh **mã OTP 6 chữ số** có thời hạn; Học sinh vào lớp hoặc `/student/attendance` nhập OTP đúng hạn để ghi nhận Có mặt/Đi muộn.\n");
-        sb.append("- **Tài liệu** (`QUYỀN AI: CHỈ ĐƯỢC ĐỌC DỮ LIỆU QUA TOOL`): Hỗ trợ tệp PDF, Word (`.doc/.docx`), PowerPoint (`.ppt/.pptx`), Excel (`.xls/.xlsx`), TXT, ZIP (tối đa 10 MB/tệp, tổng lô 35 MB). Giáo viên đăng và phân phối cho Tất cả học sinh (có thể loại trừ lớp), Theo lớp hoặc Từng học sinh tại `/teacher/materials`; Học sinh xem & tải tài liệu tại tab **Tài liệu** trong từng lớp (`/student/classes/{classId}`). AI chỉ đọc danh sách tài liệu hợp lệ của người dùng (qua `getTeacherMaterials` / `getStudentMaterials`), KHÔNG được sửa/xóa tài liệu.\n");
-        sb.append("- **Lịch sử hoạt động** (`QUYỀN AI: CHỈ HƯỚNG DẪN CÁCH DÙNG, CẤM TRUY CẬP/CAN THIỆP DỮ LIỆU`): Nằm ở `/teacher/history` (Giáo viên: theo dõi Lớp học, Đề thi, Bài tập, Điểm số, Tài liệu, Điểm danh, Buổi học, Bảng tin lớp, Học sinh) và `/student/history` (Học sinh: Lớp học, Bài kiểm tra, Bài tập, Điểm danh, Bảng tin lớp). Hỗ trợ tìm từ khóa, lọc loại hoạt động, lọc khoảng ngày (Từ ngày - Đến ngày) và sắp xếp Mới nhất/Cũ nhất. AI TUYỆT ĐỐI KHÔNG được đọc hay chỉnh sửa/xóa dữ liệu Lịch sử cá nhân.\n");
-        sb.append("- **VIP & Point** (`QUYỀN AI: CHỈ HƯỚNG DẪN CÁCH DÙNG, TUYỆT ĐỐI CẤM TRUY CẬP/CAN THIỆP`): Là tính năng dành riêng cho **Giáo viên** tại `/teacher/billing`, gồm 2 tab (**Mua Point & VIP**, **Nhiệm vụ nhận Point**) và nút xem **Hóa đơn đã thanh toán**:\n");
-        sb.append("  + *Gói Miễn phí*: Giới hạn tối đa 5 lớp học, 5 đề thi, 5 bài tập, 5 tài liệu, 5 phiên điểm danh và 10 lượt làm bài/đề.\n");
-        sb.append("  + *Các gói VIP*: Mở khóa **KHÔNG GIỚI HẠN** số lớp học, đề thi, bài tập, tài liệu, phiên điểm danh và lượt làm bài; các gói chỉ khác nhau theo số thiết bị (**VIP Cá nhân 1 thiết bị**, **VIP 5 thiết bị**, **VIP 10 thiết bị**) và chu kỳ **1 tháng / 3 tháng / 12 tháng** (TUYỆT ĐỐI KHÔNG tự bịa các con số giới hạn khác như 500 hay 2000 cho gói VIP).\n");
-        sb.append("  + *Point & Thanh toán*: Giáo viên có thể mua Point (các gói 20–1000 Point, 5.000đ/Point) hoặc nâng cấp VIP trực tiếp qua **MoMo**, đổi Point sang VIP, hoặc làm **Nhiệm vụ nhận Point** (Tạo lớp đầu tiên +5 Point, Tạo đề thi đầu tiên +10 Point, Xuất bản đề thi đầu tiên +10 Point, Thêm 10 học sinh +5 Point) rồi bấm nhận thưởng trên giao diện.\n");
-        sb.append("  + *RÀNG BUỘC BẢO MẬT VIP & POINT*: AI KHÔNG BAO GIỜ được phép kiểm tra số dư Point, xem trạng thái VIP/hóa đơn/đơn hàng MoMo, cộng/tặng/đổi Point hay kích hoạt VIP thay người dùng dưới mọi hình thức để chống vượt quyền và gian lận điểm VIP. Nếu người dùng hỏi kiểm tra số dư hoặc nhờ cộng/đổi điểm, phải từ chối rõ ràng và hướng dẫn tự thao tác trên giao diện.\n");
-        sb.append("- **Hồ sơ cá nhân**: `/teacher/profile` (Giáo viên) hoặc `/student/profile` (Học sinh) để cập nhật thông tin, ảnh đại diện, đổi mật khẩu.\n\n");
-
-        sb.append("5. CHÍNH XÁC DỮ LIỆU & HƯỚNG DẪN KHI TRỐNG: Khi người dùng hỏi về dữ liệu cá nhân trong phạm vi được phép (lớp học, đề thi, bài tập, điểm số, điểm danh, tài liệu), BẮT BUỘC phải gọi công cụ tra cứu tương ứng, TUYỆT ĐỐI KHÔNG tự bịa dữ liệu giả. Nếu công cụ báo chưa có dữ liệu nào, phải thông báo trung thực là chưa có dữ liệu và trình bày đầy đủ hướng dẫn tạo/tham gia cùng các nút đường dẫn từ kết quả công cụ. Riêng với **Lịch sử** và **VIP & Point**, TUYỆT ĐỐI KHÔNG gọi hay bịa bất kỳ số liệu cá nhân nào.\n");
-        sb.append("6. ĐỊNH DẠNG TRẢ LỜI & ĐƯỜNG DẪN: Trả lời bằng Markdown chuẩn gọn gàng, dùng ký hiệu LaTeX `$...$` hoặc `$$...$$` cho công thức toán/lý/hóa, TUYỆT ĐỐI KHÔNG dùng thẻ HTML thô như `<br>`. Khi gọi công cụ với tham số tùy chọn (như `classId`), nếu không có ID số nguyên dương cụ thể thì BỎ QUA hoàn toàn trường đó (truyền `{}`), KHÔNG truyền `null`, chuỗi rỗng hay `0`. Khi gắn link điều hướng nội bộ dạng `[👉 ...](/...)`, BẮT BUỘC giữ nguyên đường dẫn tương đối bắt đầu bằng dấu `/` phù hợp đúng với vai trò hiện tại, KHÔNG tự ý thêm domain giả (như `https://froghedu.com`) và KHÔNG tự bịa URL.");
+        sb.append("5. CHÍNH XÁC DỮ LIỆU & HƯỚNG DẪN KHI TRỐNG: Khi người dùng hỏi về dữ liệu cá nhân trong phạm vi được phép (lớp học, đề thi, bài tập, điểm số, điểm danh, tài liệu), BẮT BUỘC phải gọi công cụ tra cứu tương ứng, TUYỆT ĐỐI KHÔNG tự bịa dữ liệu giả hay ID giả. Nếu công cụ báo chưa có dữ liệu nào, phải thông báo trung thực là chưa có dữ liệu và trình bày đầy đủ hướng dẫn tạo/tham gia cùng các nút đường dẫn từ kết quả công cụ. Riêng với **Lịch sử** và **VIP & Point**, TUYỆT ĐỐI KHÔNG gọi hay bịa bất kỳ số liệu cá nhân nào.\n");
+        sb.append("6. ĐỊNH DẠNG TRẢ LỜI & ĐƯỜNG DẪN: Trả lời bằng Markdown chuẩn gọn gàng, dùng ký hiệu LaTeX `$...$` hoặc `$$...$$` cho công thức toán/lý/hóa, TUYỆT ĐỐI KHÔNG dùng thẻ HTML thô như `<br>`. Khi gọi công cụ với tham số tùy chọn (như `classId`), nếu không có ID số nguyên dương cụ thể thì BỎ QUA hoàn toàn trường đó (truyền `{}`), KHÔNG truyền `null`, chuỗi rỗng hay `0`. Khi gắn link điều hướng nội bộ dạng `[👉 ...](/...)`, BẮT BUỘC viết ở dòng riêng KHÔNG thụt lề 4 khoảng trắng, KHÔNG bọc trong backtick hay code block, CHỈ dùng đúng các đường dẫn hợp lệ cho vai trò hiện tại (hoặc đường dẫn chính xác do công cụ vừa trả về), KHÔNG tự ý thêm domain giả (như `https://froghedu.com`) và KHÔNG tự bịa URL.");
         return sb.toString();
     }
 
@@ -625,6 +697,163 @@ public class AiChatServiceImpl implements AiChatService {
     // ==========================================
     // HELPER METHODS
     // ==========================================
+    private static final Pattern FENCED_CODE_BLOCK_PATTERN = Pattern.compile("```[\\s\\S]*?```");
+
+    private Set<String> extractAuthorizedToolPaths(String toolResult, String role) {
+        if (toolResult == null || toolResult.isBlank()) {
+            return Set.of();
+        }
+        Set<String> paths = new HashSet<>();
+        Matcher matcher = TOOL_INTERNAL_PATH_PATTERN.matcher(toolResult);
+        while (matcher.find()) {
+            String normalized = normalizeInternalPath(matcher.group());
+            if (isStaticOrDynamicRolePath(normalized, role)) {
+                paths.add(normalized);
+            }
+        }
+        return paths;
+    }
+
+    private String sanitizeOutgoingLinks(String reply, String role, Set<String> toolReturnedPaths) {
+        if (reply == null || reply.isBlank()) {
+            return reply;
+        }
+        Matcher codeMatcher = FENCED_CODE_BLOCK_PATTERN.matcher(reply);
+        StringBuilder result = new StringBuilder();
+        int lastEnd = 0;
+        while (codeMatcher.find()) {
+            result.append(sanitizeProseSegment(reply.substring(lastEnd, codeMatcher.start()), role, toolReturnedPaths));
+            result.append(codeMatcher.group());
+            lastEnd = codeMatcher.end();
+        }
+        result.append(sanitizeProseSegment(reply.substring(lastEnd), role, toolReturnedPaths));
+        return result.toString();
+    }
+
+    private String sanitizeProseSegment(String segment, String role, Set<String> toolReturnedPaths) {
+        if (segment == null || segment.isBlank()) {
+            return segment;
+        }
+        Matcher mdMatcher = MARKDOWN_LINK_PATTERN.matcher(segment);
+        StringBuilder afterMarkdown = new StringBuilder();
+        while (mdMatcher.find()) {
+            String label = mdMatcher.group(1);
+            String rawHref = mdMatcher.group(2);
+            String allowedPath = resolveAllowedHref(rawHref, role, toolReturnedPaths);
+            if (allowedPath != null) {
+                mdMatcher.appendReplacement(afterMarkdown, Matcher.quoteReplacement("[" + label + "](" + allowedPath + ")"));
+            } else {
+                log.warn("SECURITY: Stripped unauthorized/hallucinated markdown link '{}' for role {}", rawHref, role);
+                mdMatcher.appendReplacement(afterMarkdown, Matcher.quoteReplacement(stripLeadingPointerEmoji(label)));
+            }
+        }
+        mdMatcher.appendTail(afterMarkdown);
+
+        Matcher bareUrlMatcher = BARE_EXTERNAL_URL_PATTERN.matcher(afterMarkdown.toString());
+        StringBuilder finalResult = new StringBuilder();
+        while (bareUrlMatcher.find()) {
+            String rawUrl = bareUrlMatcher.group();
+            String coreUrl = rawUrl.replaceAll("[.,;:!?]+$", "");
+            String trailingPunct = rawUrl.substring(coreUrl.length());
+            String allowedPath = resolveAllowedHref(coreUrl, role, toolReturnedPaths);
+            if (allowedPath != null) {
+                bareUrlMatcher.appendReplacement(finalResult, Matcher.quoteReplacement(allowedPath + trailingPunct));
+            } else {
+                log.warn("SECURITY: Stripped unverified external URL '{}' for role {}", coreUrl, role);
+                bareUrlMatcher.appendReplacement(finalResult, Matcher.quoteReplacement("(liên kết không khả dụng)" + trailingPunct));
+            }
+        }
+        bareUrlMatcher.appendTail(finalResult);
+        return finalResult.toString();
+    }
+
+    private String resolveAllowedHref(String rawHref, String role, Set<String> toolReturnedPaths) {
+        if (rawHref == null) {
+            return null;
+        }
+        String trimmed = rawHref.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        if (trimmed.startsWith("/")) {
+            String normalized = normalizeInternalPath(trimmed);
+            return isAuthorizedRouteForRole(normalized, role, toolReturnedPaths) ? normalized : null;
+        }
+        Matcher fakeDomainMatcher = FAKE_FROGH_DOMAIN_PATTERN.matcher(trimmed);
+        if (fakeDomainMatcher.matches()) {
+            String extractedPath = fakeDomainMatcher.group(1);
+            String candidate = (extractedPath == null || extractedPath.isBlank()) ? "/" : extractedPath;
+            String normalized = normalizeInternalPath(candidate);
+            return isAuthorizedRouteForRole(normalized, role, toolReturnedPaths) ? normalized : null;
+        }
+        return null;
+    }
+
+    private boolean isAuthorizedRouteForRole(String path, String role, Set<String> toolReturnedPaths) {
+        String normalized = normalizeInternalPath(path);
+        if (normalized == null || !normalized.startsWith("/")) {
+            return false;
+        }
+        String upperRole = role == null ? "GUEST" : role.toUpperCase(Locale.ROOT);
+        return switch (upperRole) {
+            case "TEACHER" -> AUTH_LANDING_ROUTES.contains(normalized)
+                    || TEACHER_STATIC_ROUTES.contains(normalized)
+                    || (TEACHER_DYNAMIC_ROUTE_PATTERN.matcher(normalized).matches()
+                    && toolReturnedPaths != null && toolReturnedPaths.contains(normalized));
+            case "STUDENT" -> AUTH_LANDING_ROUTES.contains(normalized)
+                    || STUDENT_STATIC_ROUTES.contains(normalized)
+                    || (STUDENT_DYNAMIC_ROUTE_PATTERN.matcher(normalized).matches()
+                    && toolReturnedPaths != null && toolReturnedPaths.contains(normalized));
+            case "ADMIN" -> AUTH_LANDING_ROUTES.contains(normalized)
+                    || ADMIN_STATIC_ROUTES.contains(normalized);
+            default -> PUBLIC_GUEST_ROUTES.contains(normalized);
+        };
+    }
+
+    private boolean isStaticOrDynamicRolePath(String normalized, String role) {
+        if (normalized == null || !normalized.startsWith("/")) {
+            return false;
+        }
+        String upperRole = role == null ? "GUEST" : role.toUpperCase(Locale.ROOT);
+        return switch (upperRole) {
+            case "TEACHER" -> AUTH_LANDING_ROUTES.contains(normalized)
+                    || TEACHER_STATIC_ROUTES.contains(normalized)
+                    || TEACHER_DYNAMIC_ROUTE_PATTERN.matcher(normalized).matches();
+            case "STUDENT" -> AUTH_LANDING_ROUTES.contains(normalized)
+                    || STUDENT_STATIC_ROUTES.contains(normalized)
+                    || STUDENT_DYNAMIC_ROUTE_PATTERN.matcher(normalized).matches();
+            case "ADMIN" -> AUTH_LANDING_ROUTES.contains(normalized)
+                    || ADMIN_STATIC_ROUTES.contains(normalized);
+            default -> PUBLIC_GUEST_ROUTES.contains(normalized);
+        };
+    }
+
+    private String normalizeInternalPath(String rawPath) {
+        if (rawPath == null) {
+            return null;
+        }
+        String path = rawPath.trim();
+        int queryIdx = path.indexOf('?');
+        if (queryIdx >= 0) {
+            path = path.substring(0, queryIdx);
+        }
+        int hashIdx = path.indexOf('#');
+        if (hashIdx >= 0) {
+            path = path.substring(0, hashIdx);
+        }
+        while (path.length() > 1 && path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        return path;
+    }
+
+    private String stripLeadingPointerEmoji(String label) {
+        if (label == null) {
+            return "";
+        }
+        return label.replaceFirst("^\\s*👉\\s*", "").trim();
+    }
+
     private String resolveRole(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken) {
             return "GUEST";

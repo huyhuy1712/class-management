@@ -539,5 +539,218 @@ class AiChatServiceImplTest {
                     "Phải chặn yêu cầu can thiệp VIP/Lịch sử: " + prompt + " -> " + res.getReply());
         }
     }
+
+    @Test
+    @DisplayName("Link Security (Round 1): Gỡ link chéo quyền, link ảo không tồn tại, ID bịa đặt và domain ngoài; giữ link hợp lệ & code block")
+    void round1LinkSanitization_blocksCrossRoleHallucinatedExternalAndDynamicRoutes() {
+        com.classmanagement.backend.entity.User studentEntity = com.classmanagement.backend.entity.User.builder()
+                .id(2L)
+                .username("student1")
+                .fullName("Học sinh A")
+                .role(com.classmanagement.backend.entity.enums.UserRole.STUDENT)
+                .build();
+
+        com.classmanagement.backend.entity.User teacherEntity = com.classmanagement.backend.entity.User.builder()
+                .id(1L)
+                .username("teacher1")
+                .fullName("Thầy A")
+                .role(com.classmanagement.backend.entity.enums.UserRole.TEACHER)
+                .build();
+
+        com.classmanagement.backend.repository.UserRepository userRepo =
+                (com.classmanagement.backend.repository.UserRepository) java.lang.reflect.Proxy.newProxyInstance(
+                        com.classmanagement.backend.repository.UserRepository.class.getClassLoader(),
+                        new Class<?>[]{com.classmanagement.backend.repository.UserRepository.class},
+                        (proxy, method, args) -> {
+                            if ("findByUsername".equals(method.getName())) {
+                                String username = (String) args[0];
+                                if ("student1".equals(username)) return java.util.Optional.of(studentEntity);
+                                if ("teacher1".equals(username)) return java.util.Optional.of(teacherEntity);
+                            }
+                            return null;
+                        }
+                );
+
+        java.util.concurrent.atomic.AtomicReference<String> nextReplyRef = new java.util.concurrent.atomic.AtomicReference<>("");
+        org.springframework.http.client.ClientHttpRequestFactory mockFactory = (uri, httpMethod) -> new org.springframework.http.client.ClientHttpRequest() {
+            private final org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            private final java.io.ByteArrayOutputStream outputStream = new java.io.ByteArrayOutputStream();
+            private final java.util.Map<String, Object> attributes = new java.util.HashMap<>();
+
+            @Override public org.springframework.http.HttpMethod getMethod() { return httpMethod; }
+            @Override public java.net.URI getURI() { return uri; }
+            @Override public org.springframework.http.HttpHeaders getHeaders() { return headers; }
+            @Override public java.io.OutputStream getBody() { return outputStream; }
+            @Override public java.util.Map<String, Object> getAttributes() { return attributes; }
+
+            @Override public org.springframework.http.client.ClientHttpResponse execute() {
+                String safeBody;
+                try {
+                    safeBody = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(
+                            java.util.Map.of("choices", java.util.List.of(
+                                    java.util.Map.of("message", java.util.Map.of("role", "assistant", "content", nextReplyRef.get()))
+                            ))
+                    );
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+                byte[] respBytes = safeBody.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                return new org.springframework.http.client.ClientHttpResponse() {
+                    @Override public org.springframework.http.HttpStatusCode getStatusCode() { return org.springframework.http.HttpStatus.OK; }
+                    @Override public String getStatusText() { return "OK"; }
+                    @Override public void close() {}
+                    @Override public java.io.InputStream getBody() { return new java.io.ByteArrayInputStream(respBytes); }
+                    @Override public org.springframework.http.HttpHeaders getHeaders() {
+                        org.springframework.http.HttpHeaders h = new org.springframework.http.HttpHeaders();
+                        h.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+                        return h;
+                    }
+                };
+            }
+        };
+
+        AiChatServiceImpl service = new AiChatServiceImpl(
+                "dummy-api-key",
+                "https://api.groq.com/openai/v1",
+                "llama-3.3-70b-versatile",
+                3,
+                userRepo,
+                null,
+                org.springframework.web.client.RestClient.builder().requestFactory(mockFactory).build()
+        );
+
+        // 1. STUDENT: chặn link teacher/admin/ảo/ngoài/ID động chưa gọi tool, giữ /student/classes và code block
+        User studentPrincipal = new User("student1", "pass", List.of(new SimpleGrantedAuthority("ROLE_STUDENT")));
+        Authentication studentAuth = new UsernamePasswordAuthenticationToken(studentPrincipal, null, studentPrincipal.getAuthorities());
+        nextReplyRef.set(String.join("\n",
+                "[👉 VIP & Point](/teacher/billing)",
+                "[👉 Admin](/admin/users)",
+                "[👉 Tài liệu](/student/materials)",
+                "[👉 Đề ảo](/student/exams/999)",
+                "[👉 Web lạ](https://example.com/phishing)",
+                "Xem thêm tại https://froghedu.com/teacher/exams.",
+                "[👉 Lớp học](/student/classes)",
+                "```md",
+                "[code](/teacher/billing) https://example.com/keep-in-code",
+                "```"
+        ));
+        String studentReply = service.chat(AiChatRequest.builder().message("Hỏi đường dẫn").build(), "127.0.0.1", studentAuth).getReply();
+        String studentProse = studentReply.substring(0, studentReply.indexOf("```md"));
+        assertFalse(studentProse.contains("(/teacher/billing)"));
+        assertFalse(studentProse.contains("(/admin/users)"));
+        assertFalse(studentProse.contains("(/student/materials)"));
+        assertFalse(studentProse.contains("(/student/exams/999)"));
+        assertFalse(studentProse.contains("https://example.com/phishing"));
+        assertFalse(studentProse.contains("https://froghedu.com"));
+        assertTrue(studentProse.contains("VIP & Point"));
+        assertTrue(studentProse.contains("[👉 Lớp học](/student/classes)"));
+        assertTrue(studentReply.contains("[code](/teacher/billing) https://example.com/keep-in-code"));
+
+        // 2. GUEST: chỉ giữ public route (/login), chặn route nội bộ
+        nextReplyRef.set("[👉 Đăng nhập](/login) [👉 Lớp GV](/teacher/classes) [👉 Lớp HS](/student/classes)");
+        String guestReply = service.chat(AiChatRequest.builder().message("Cách đăng nhập hệ thống?").build(), "10.0.0.1", null).getReply();
+        assertTrue(guestReply.contains("[👉 Đăng nhập](/login)"));
+        assertFalse(guestReply.contains("/teacher/classes"));
+        assertFalse(guestReply.contains("/student/classes"));
+
+        // 3. TEACHER: tự sửa fake frogh domain thành route nội bộ hợp lệ của Teacher, nhưng vẫn chặn route ảo & route Student
+        User teacherPrincipal = new User("teacher1", "pass", List.of(new SimpleGrantedAuthority("ROLE_TEACHER")));
+        Authentication teacherAuth = new UsernamePasswordAuthenticationToken(teacherPrincipal, null, teacherPrincipal.getAuthorities());
+        nextReplyRef.set("[👉 Đề thi](https://froghedu.com/teacher/exams) [👉 VIP ảo](/teacher/vip) [👉 Điểm HS](/student/grades)");
+        String teacherReply = service.chat(AiChatRequest.builder().message("Hướng dẫn tạo đề").build(), "127.0.0.1", teacherAuth).getReply();
+        assertTrue(teacherReply.contains("[👉 Đề thi](/teacher/exams)"));
+        assertFalse(teacherReply.contains("https://froghedu.com"));
+        assertFalse(teacherReply.contains("/teacher/vip"));
+        assertFalse(teacherReply.contains("/student/grades"));
+    }
+
+    @Test
+    @DisplayName("Link Security (Round 2): Chỉ cho phép link ID động thực sự do Tool trả về, chặn ID bịa đặt ở Round 2")
+    void round2LinkSanitization_allowsToolReturnedDynamicIdsAndBlocksHallucinatedIds() {
+        com.classmanagement.backend.entity.User domainTeacher = com.classmanagement.backend.entity.User.builder()
+                .id(1L)
+                .username("teacher1")
+                .fullName("Nguyễn Văn A")
+                .role(com.classmanagement.backend.entity.enums.UserRole.TEACHER)
+                .build();
+
+        com.classmanagement.backend.repository.UserRepository userRepo =
+                (com.classmanagement.backend.repository.UserRepository) java.lang.reflect.Proxy.newProxyInstance(
+                        com.classmanagement.backend.repository.UserRepository.class.getClassLoader(),
+                        new Class<?>[]{com.classmanagement.backend.repository.UserRepository.class},
+                        (proxy, method, args) -> "findByUsername".equals(method.getName()) ? java.util.Optional.of(domainTeacher) : null
+                );
+
+        com.classmanagement.backend.service.ai.AiToolDispatcher dispatcher =
+                new com.classmanagement.backend.service.ai.AiToolDispatcher(null, null, null) {
+                    @Override
+                    public java.util.List<java.util.Map<String, Object>> getToolsForRole(String role) {
+                        return java.util.List.of(java.util.Map.of(
+                                "type", "function",
+                                "function", java.util.Map.of(
+                                        "name", "getTeacherHomeworks",
+                                        "parameters", java.util.Map.of(
+                                                "type", "object",
+                                                "properties", java.util.Map.of(),
+                                                "required", java.util.List.of()))));
+                    }
+
+                    @Override
+                    public String executeTool(String toolName, String argumentsJson, com.classmanagement.backend.entity.User currentUser) {
+                        return "Danh sách bài tập: Bài tập Hàm số (/teacher/homework/55)";
+                    }
+                };
+
+        java.util.concurrent.atomic.AtomicInteger callCount = new java.util.concurrent.atomic.AtomicInteger(0);
+        org.springframework.http.client.ClientHttpRequestFactory mockFactory = (uri, httpMethod) -> new org.springframework.http.client.ClientHttpRequest() {
+            private final org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            private final java.io.ByteArrayOutputStream outputStream = new java.io.ByteArrayOutputStream();
+            private final java.util.Map<String, Object> attributes = new java.util.HashMap<>();
+
+            @Override public org.springframework.http.HttpMethod getMethod() { return httpMethod; }
+            @Override public java.net.URI getURI() { return uri; }
+            @Override public org.springframework.http.HttpHeaders getHeaders() { return headers; }
+            @Override public java.io.OutputStream getBody() { return outputStream; }
+            @Override public java.util.Map<String, Object> getAttributes() { return attributes; }
+
+            @Override public org.springframework.http.client.ClientHttpResponse execute() {
+                int count = callCount.incrementAndGet();
+                String bodyStr = (count == 1)
+                        ? "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"tool_calls\":[{\"id\":\"call_hw\",\"type\":\"function\",\"function\":{\"name\":\"getTeacherHomeworks\",\"arguments\":\"{}\"}}]}}]}"
+                        : "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"[👉 Mở bài tập 55](/teacher/homework/55) và [👉 Mở bài tập ảo](/teacher/homework/999) hoặc [👉 Xem danh sách](/teacher/homework)\"}}]}";
+                byte[] respBytes = bodyStr.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                return new org.springframework.http.client.ClientHttpResponse() {
+                    @Override public org.springframework.http.HttpStatusCode getStatusCode() { return org.springframework.http.HttpStatus.OK; }
+                    @Override public String getStatusText() { return "OK"; }
+                    @Override public void close() {}
+                    @Override public java.io.InputStream getBody() { return new java.io.ByteArrayInputStream(respBytes); }
+                    @Override public org.springframework.http.HttpHeaders getHeaders() {
+                        org.springframework.http.HttpHeaders h = new org.springframework.http.HttpHeaders();
+                        h.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+                        return h;
+                    }
+                };
+            }
+        };
+
+        AiChatServiceImpl service = new AiChatServiceImpl(
+                "dummy-api-key",
+                "https://api.groq.com/openai/v1",
+                "llama-3.3-70b-versatile",
+                3,
+                userRepo,
+                dispatcher,
+                org.springframework.web.client.RestClient.builder().requestFactory(mockFactory).build()
+        );
+
+        User teacherPrincipal = new User("teacher1", "pass", List.of(new SimpleGrantedAuthority("ROLE_TEACHER")));
+        Authentication teacherAuth = new UsernamePasswordAuthenticationToken(teacherPrincipal, null, teacherPrincipal.getAuthorities());
+
+        String reply = service.chat(AiChatRequest.builder().message("Các bài tập tôi đã giao").build(), "127.0.0.1", teacherAuth).getReply();
+        assertTrue(reply.contains("[👉 Mở bài tập 55](/teacher/homework/55)"), "Phải giữ lại dynamic ID được tool trả về: " + reply);
+        assertTrue(reply.contains("[👉 Xem danh sách](/teacher/homework)"), "Phải giữ lại static route hợp lệ của role: " + reply);
+        assertFalse(reply.contains("/teacher/homework/999"), "Phải chặn dynamic ID bịa đặt không có trong tool result: " + reply);
+        assertTrue(reply.contains("Mở bài tập ảo"), "Phải giữ lại text nhãn sau khi gỡ link ảo: " + reply);
+    }
 }
 
