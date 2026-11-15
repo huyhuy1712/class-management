@@ -3,6 +3,7 @@ package com.classmanagement.backend.service.ai;
 import com.classmanagement.backend.dto.exam.StudentExamResponse;
 import com.classmanagement.backend.dto.exam.StudentGradesResponse;
 import com.classmanagement.backend.dto.homework.HomeworkDtos;
+import com.classmanagement.backend.dto.material.MaterialDocumentResponse;
 import com.classmanagement.backend.entity.*;
 import com.classmanagement.backend.entity.enums.*;
 import com.classmanagement.backend.exception.ResourceNotFoundException;
@@ -13,6 +14,7 @@ import com.classmanagement.backend.repository.classroom.ClassroomRepository;
 import com.classmanagement.backend.repository.exam.ExamAssignmentRepository;
 import com.classmanagement.backend.repository.exam.ExamRepository;
 import com.classmanagement.backend.repository.projection.ClassroomSummaryProjection;
+import com.classmanagement.backend.service.MaterialService;
 import com.classmanagement.backend.service.exam.StudentExamReadService;
 import com.classmanagement.backend.service.homework.queries.HomeworkReadService;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,6 +40,8 @@ class AiToolDispatcherTest {
     private final List<Attendance> mockAttendances = new ArrayList<>();
     private final List<HomeworkDtos.Assignment> mockTeacherHomeworks = new ArrayList<>();
     private final List<HomeworkDtos.StudentAssignment> mockStudentHomeworks = new ArrayList<>();
+    private final List<MaterialDocumentResponse> mockTeacherMaterials = new ArrayList<>();
+    private final Map<Long, List<MaterialDocumentResponse>> mockClassMaterials = new HashMap<>();
 
     private StudentExamResponse.Page mockStudentExamPage;
     private StudentGradesResponse mockStudentGradesResponse;
@@ -56,6 +60,8 @@ class AiToolDispatcherTest {
         mockAttendances.clear();
         mockTeacherHomeworks.clear();
         mockStudentHomeworks.clear();
+        mockTeacherMaterials.clear();
+        mockClassMaterials.clear();
         mockStudentExamPage = null;
         mockStudentGradesResponse = null;
 
@@ -149,6 +155,20 @@ class AiToolDispatcherTest {
             }
         };
 
+        MaterialService materialService = createProxy(MaterialService.class, (method, args) -> {
+            if ("getTeacherDocuments".equals(method.getName())) {
+                return mockTeacherMaterials;
+            }
+            if ("getClassDocuments".equals(method.getName()) && args != null && args.length > 0) {
+                Long cid = (Long) args[0];
+                if (cid == null || cid <= 0 || cid == 999L) {
+                    throw new ResourceNotFoundException("Không tìm thấy lớp học");
+                }
+                return mockClassMaterials.getOrDefault(cid, List.of());
+            }
+            return null;
+        });
+
         aiToolDispatcher = new AiToolDispatcher(
                 classroomRepo,
                 classStudentRepo,
@@ -157,7 +177,8 @@ class AiToolDispatcherTest {
                 examAssignmentRepo,
                 studentExamService,
                 attendanceRepo,
-                homeworkReadService
+                homeworkReadService,
+                materialService
         );
 
         teacherUser = User.builder()
@@ -176,10 +197,10 @@ class AiToolDispatcherTest {
     }
 
     @Test
-    @DisplayName("getToolsForRole: Giáo viên nhận 7 công cụ đầy đủ (lớp, lịch dạy, đề thi, bài giao, mở điểm danh, thống kê điểm danh, bài tập)")
+    @DisplayName("getToolsForRole: Giáo viên nhận 8 công cụ đầy đủ (bao gồm Tài liệu chỉ-đọc, KHÔNG có VIP/Lịch sử)")
     void getToolsForRole_teacher() {
         List<Map<String, Object>> tools = aiToolDispatcher.getToolsForRole("TEACHER");
-        assertEquals(7, tools.size());
+        assertEquals(8, tools.size());
 
         Set<String> toolNames = new HashSet<>();
         for (Map<String, Object> tool : tools) {
@@ -195,13 +216,20 @@ class AiToolDispatcherTest {
         assertTrue(toolNames.contains("openQuickAttendanceSession"));
         assertTrue(toolNames.contains("getTeacherClassAttendance"));
         assertTrue(toolNames.contains("getTeacherHomeworks"));
+        assertTrue(toolNames.contains("getTeacherMaterials"));
+        assertTrue(toolNames.stream().noneMatch(name ->
+                name.toLowerCase(Locale.ROOT).contains("vip")
+                        || name.toLowerCase(Locale.ROOT).contains("point")
+                        || name.toLowerCase(Locale.ROOT).contains("billing")
+                        || name.toLowerCase(Locale.ROOT).contains("history")
+        ));
     }
 
     @Test
-    @DisplayName("getToolsForRole: Học sinh nhận 5 công cụ (lớp học, bài thi, bảng điểm, chuyên cần, bài tập về nhà)")
+    @DisplayName("getToolsForRole: Học sinh nhận 6 công cụ (bao gồm Tài liệu chỉ-đọc, KHÔNG có VIP/Lịch sử)")
     void getToolsForRole_student() {
         List<Map<String, Object>> tools = aiToolDispatcher.getToolsForRole("STUDENT");
-        assertEquals(5, tools.size());
+        assertEquals(6, tools.size());
 
         Set<String> toolNames = new HashSet<>();
         for (Map<String, Object> tool : tools) {
@@ -215,6 +243,13 @@ class AiToolDispatcherTest {
         assertTrue(toolNames.contains("getStudentGrades"));
         assertTrue(toolNames.contains("getStudentAttendanceSummary"));
         assertTrue(toolNames.contains("getStudentHomeworks"));
+        assertTrue(toolNames.contains("getStudentMaterials"));
+        assertTrue(toolNames.stream().noneMatch(name ->
+                name.toLowerCase(Locale.ROOT).contains("vip")
+                        || name.toLowerCase(Locale.ROOT).contains("point")
+                        || name.toLowerCase(Locale.ROOT).contains("billing")
+                        || name.toLowerCase(Locale.ROOT).contains("history")
+        ));
     }
 
     @Test
@@ -763,6 +798,176 @@ class AiToolDispatcherTest {
             assertTrue(result.contains("Được mở lại (Cần nộp lại)"));
             assertTrue(result.contains("[👉 Làm bài tập: Bài tập Ngữ Văn nghị luận](/student/homework/78)"));
         }
+    }
+
+    @Test
+    @DisplayName("RBAC Security: Cấm tuyệt đối Học sinh thực thi các công cụ dành riêng cho Giáo viên")
+    void executeTool_rbacBlocksStudentFromTeacherTools() {
+        // Giả lập lớp của giáo viên để đảm bảo openQuickAttendanceSession không thể ghi DB dù học sinh cố gọi
+        mockTeacherClassrooms.add(Classroom.builder().id(100L).name("Lớp 12A1").teacher(studentUser).build());
+
+        List<String> teacherTools = List.of(
+                "getTeacherClasses",
+                "getTeacherTodaySchedule",
+                "getTeacherExams",
+                "getTeacherAssignments",
+                "openQuickAttendanceSession",
+                "getTeacherClassAttendance",
+                "getTeacherHomeworks",
+                "getTeacherMaterials"
+        );
+
+        for (String tool : teacherTools) {
+            String res = aiToolDispatcher.executeTool(tool, "{\"classId\": 100}", studentUser);
+            assertNotNull(res);
+            assertTrue(res.contains("Từ chối truy cập"), "Học sinh phải bị chặn ở tool: " + tool + ", nhận: " + res);
+        }
+        assertTrue(mockLessons.isEmpty(), "Không được tạo buổi học điểm danh khi học sinh gọi trái phép");
+    }
+
+    @Test
+    @DisplayName("RBAC Security: Cấm Giáo viên hoặc tài khoản không hoạt động gọi công cụ sai vai trò")
+    void executeTool_rbacBlocksWrongRoleAndInactiveUser() {
+        List<String> studentTools = List.of(
+                "getStudentClasses",
+                "getStudentExams",
+                "getStudentGrades",
+                "getStudentAttendanceSummary",
+                "getStudentHomeworks",
+                "getStudentMaterials"
+        );
+        for (String tool : studentTools) {
+            String res = aiToolDispatcher.executeTool(tool, "{}", teacherUser);
+            assertTrue(res.contains("Từ chối truy cập"), "Giáo viên không được gọi tool học sinh: " + tool);
+        }
+
+        User bannedStudent = User.builder()
+                .id(99L)
+                .username("banned_hs")
+                .role(UserRole.STUDENT)
+                .status(UserStatus.BANNED)
+                .build();
+        String bannedRes = aiToolDispatcher.executeTool("getStudentClasses", "{}", bannedStudent);
+        assertTrue(bannedRes.contains("Từ chối truy cập"));
+    }
+
+    @Test
+    @DisplayName("getTeacherMaterials: Đọc dữ liệu tài liệu chỉ-đọc và hướng dẫn khi kho tài liệu rỗng")
+    void getTeacherMaterials_successAndEmptyState() {
+        String emptyRes = aiToolDispatcher.executeTool("getTeacherMaterials", "{}", teacherUser);
+        assertTrue(emptyRes.contains("chưa tải lên tài liệu"));
+        assertTrue(emptyRes.contains("[👉 Mở Kho tài liệu](/teacher/materials)"));
+
+        mockTeacherClassrooms.add(Classroom.builder().id(100L).name("Toán 12A1").teacher(teacherUser).build());
+        mockTeacherMaterials.add(MaterialDocumentResponse.builder()
+                .id(11L)
+                .title("Đề cương ôn tập Hình học")
+                .fileName("de-cuong-hinh-12.pdf")
+                .fileSize(2_097_152L)
+                .targetType("CLASS")
+                .classIds(List.of(100L))
+                .createdAt(LocalDateTime.of(2026, 11, 15, 9, 30))
+                .build());
+
+        String res = aiToolDispatcher.executeTool("getTeacherMaterials", "{}", teacherUser);
+        assertTrue(res.contains("Đề cương ôn tập Hình học"));
+        assertTrue(res.contains("de-cuong-hinh-12.pdf"));
+        assertTrue(res.contains("2.0 MB"));
+        assertTrue(res.contains("Toán 12A1"));
+        assertTrue(res.contains("[👉 Mở Kho tài liệu](/teacher/materials)"));
+    }
+
+    @Test
+    @DisplayName("getStudentMaterials: Chỉ đọc tài liệu của các lớp học sinh tham gia và hướng dẫn khi trống")
+    void getStudentMaterials_successAndEmptyState() {
+        String noClassRes = aiToolDispatcher.executeTool("getStudentMaterials", "{}", studentUser);
+        assertTrue(noClassRes.contains("chưa tham gia lớp học nào"));
+        assertTrue(noClassRes.contains("[👉 Tham gia lớp học ngay](/student/classes)"));
+
+        ClassroomSummaryProjection summary = createProxy(ClassroomSummaryProjection.class, (method, args) -> switch (method.getName()) {
+            case "getId" -> 105L;
+            case "getName" -> "Lớp 10B2";
+            default -> null;
+        });
+        mockStudentSummaries.add(summary);
+
+        String emptyDocsRes = aiToolDispatcher.executeTool("getStudentMaterials", "{}", studentUser);
+        assertTrue(emptyDocsRes.contains("chưa có tài liệu học tập nào được Giáo viên chia sẻ"));
+        assertTrue(emptyDocsRes.contains("[👉 Mở Lớp học của tôi](/student/classes)"));
+
+        mockClassMaterials.put(105L, List.of(MaterialDocumentResponse.builder()
+                .id(22L)
+                .title("Slide Chương 3 - Động lực học")
+                .fileName("chuong-3.pptx")
+                .fileSize(512_000L)
+                .targetType("CLASS")
+                .classIds(List.of(105L))
+                .createdAt(LocalDateTime.of(2026, 11, 15, 14, 0))
+                .build()));
+
+        String docsRes = aiToolDispatcher.executeTool("getStudentMaterials", "{}", studentUser);
+        assertTrue(docsRes.contains("Lớp 10B2"));
+        assertTrue(docsRes.contains("Slide Chương 3 - Động lực học"));
+        assertTrue(docsRes.contains("chuong-3.pptx"));
+        assertTrue(docsRes.contains("[👉 Mở tab Tài liệu của lớp](/student/classes/105)"));
+    }
+
+    @Test
+    @DisplayName("Restricted Security: Từ chối mọi lời gọi công cụ liên quan VIP, Point, Billing hoặc Lịch sử")
+    void executeTool_blocksVipBillingAndHistoryAccess() {
+        List<String> forbiddenTools = List.of(
+                "getTeacherVipPoints",
+                "addVipPoints",
+                "redeemVip",
+                "claimMission",
+                "getBillingInvoices",
+                "createMomoOrder",
+                "getTeacherHistory",
+                "getStudentActivityLog"
+        );
+        for (String tool : forbiddenTools) {
+            String teacherRes = aiToolDispatcher.executeTool(tool, "{}", teacherUser);
+            assertTrue(teacherRes.contains("Từ chối truy cập"), "Phải chặn tool nhạy cảm cho GV: " + tool);
+            String studentRes = aiToolDispatcher.executeTool(tool, "{}", studentUser);
+            assertTrue(studentRes.contains("Từ chối truy cập"), "Phải chặn tool nhạy cảm cho HS: " + tool);
+        }
+    }
+
+    @Test
+    @DisplayName("Empty-State Guidance: Khi chưa có dữ liệu DB, trả về thông báo chính xác kèm hướng dẫn & nút tạo/tham gia")
+    void executeTool_emptyStatesProvideAccurateGuidanceAndLinks() {
+        String teacherClassesEmpty = aiToolDispatcher.executeTool("getTeacherClasses", "{}", teacherUser);
+        assertTrue(teacherClassesEmpty.contains("chưa được phân công phụ trách lớp học nào"));
+        assertTrue(teacherClassesEmpty.contains("[👉 Mở Quản lý lớp học](/teacher/classes)"));
+
+        String teacherExamsEmpty = aiToolDispatcher.executeTool("getTeacherExams", "{}", teacherUser);
+        assertTrue(teacherExamsEmpty.contains("chưa tạo đề thi nào"));
+        assertTrue(teacherExamsEmpty.contains("/teacher/exams/create"));
+
+        String teacherHomeworksEmpty = aiToolDispatcher.executeTool("getTeacherHomeworks", "{}", teacherUser);
+        assertTrue(teacherHomeworksEmpty.contains("chưa giao bài tập về nhà nào"));
+        assertTrue(teacherHomeworksEmpty.contains("/teacher/homework/create"));
+
+        String studentClassesEmpty = aiToolDispatcher.executeTool("getStudentClasses", "{}", studentUser);
+        assertTrue(studentClassesEmpty.contains("chưa tham gia lớp học nào"));
+        assertTrue(studentClassesEmpty.contains("Mã lớp học"));
+        assertTrue(studentClassesEmpty.contains("[👉 Tham gia lớp học ngay](/student/classes)"));
+
+        String studentExamsEmpty = aiToolDispatcher.executeTool("getStudentExams", "{}", studentUser);
+        assertTrue(studentExamsEmpty.contains("chưa có bài thi"));
+        assertTrue(studentExamsEmpty.contains("/student/exams"));
+
+        String studentGradesEmpty = aiToolDispatcher.executeTool("getStudentGrades", "{}", studentUser);
+        assertTrue(studentGradesEmpty.contains("chưa có điểm bài thi"));
+        assertTrue(studentGradesEmpty.contains("/student/grades"));
+
+        String studentAttendanceEmpty = aiToolDispatcher.executeTool("getStudentAttendanceSummary", "{}", studentUser);
+        assertTrue(studentAttendanceEmpty.contains("chưa có dữ liệu điểm danh"));
+        assertTrue(studentAttendanceEmpty.contains("/student/attendance"));
+
+        String studentHomeworksEmpty = aiToolDispatcher.executeTool("getStudentHomeworks", "{}", studentUser);
+        assertTrue(studentHomeworksEmpty.contains("không có bài tập về nhà nào"));
+        assertTrue(studentHomeworksEmpty.contains("/student/homework"));
     }
 
     @FunctionalInterface

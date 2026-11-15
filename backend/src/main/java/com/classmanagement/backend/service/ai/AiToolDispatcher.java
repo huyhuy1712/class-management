@@ -3,6 +3,7 @@ package com.classmanagement.backend.service.ai;
 import com.classmanagement.backend.dto.exam.StudentExamResponse;
 import com.classmanagement.backend.dto.exam.StudentGradesResponse;
 import com.classmanagement.backend.dto.homework.HomeworkDtos;
+import com.classmanagement.backend.dto.material.MaterialDocumentResponse;
 import com.classmanagement.backend.entity.Attendance;
 import com.classmanagement.backend.entity.Classroom;
 import com.classmanagement.backend.entity.Exam;
@@ -12,6 +13,8 @@ import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.entity.enums.AttendanceStatus;
 import com.classmanagement.backend.entity.enums.ExamAssignmentStatus;
 import com.classmanagement.backend.entity.enums.ExamStatus;
+import com.classmanagement.backend.entity.enums.UserRole;
+import com.classmanagement.backend.entity.enums.UserStatus;
 import com.classmanagement.backend.repository.AttendanceRepository;
 import com.classmanagement.backend.repository.LessonRepository;
 import com.classmanagement.backend.repository.classroom.ClassStudentRepository;
@@ -19,6 +22,7 @@ import com.classmanagement.backend.repository.classroom.ClassroomRepository;
 import com.classmanagement.backend.repository.exam.ExamAssignmentRepository;
 import com.classmanagement.backend.repository.exam.ExamRepository;
 import com.classmanagement.backend.repository.projection.ClassroomSummaryProjection;
+import com.classmanagement.backend.service.MaterialService;
 import com.classmanagement.backend.service.exam.StudentExamReadService;
 import com.classmanagement.backend.service.homework.queries.HomeworkReadService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -45,12 +49,38 @@ public class AiToolDispatcher {
     private final StudentExamReadService studentExamReadService;
     private final AttendanceRepository attendanceRepository;
     private final HomeworkReadService homeworkReadService;
+    private final MaterialService materialService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy");
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+    private static final Set<String> TEACHER_TOOLS = Set.of(
+            "getTeacherClasses",
+            "getTeacherTodaySchedule",
+            "getTeacherExams",
+            "getTeacherAssignments",
+            "openQuickAttendanceSession",
+            "getTeacherClassAttendance",
+            "getTeacherHomeworks",
+            "getTeacherMaterials"
+    );
+
+    private static final Set<String> STUDENT_TOOLS = Set.of(
+            "getStudentClasses",
+            "getStudentExams",
+            "getStudentGrades",
+            "getStudentAttendanceSummary",
+            "getStudentHomeworks",
+            "getStudentMaterials"
+    );
+
+    private static final List<String> RESTRICTED_DOMAIN_KEYWORDS = List.of(
+            "vip", "point", "billing", "order", "invoice", "mission",
+            "history", "activity", "wallet", "momo", "redeem"
+    );
 
     @Autowired
     public AiToolDispatcher(ClassroomRepository classroomRepository,
@@ -60,7 +90,8 @@ public class AiToolDispatcher {
                             ExamAssignmentRepository examAssignmentRepository,
                             StudentExamReadService studentExamReadService,
                             AttendanceRepository attendanceRepository,
-                            HomeworkReadService homeworkReadService) {
+                            HomeworkReadService homeworkReadService,
+                            MaterialService materialService) {
         this.classroomRepository = classroomRepository;
         this.classStudentRepository = classStudentRepository;
         this.lessonRepository = lessonRepository;
@@ -69,6 +100,20 @@ public class AiToolDispatcher {
         this.studentExamReadService = studentExamReadService;
         this.attendanceRepository = attendanceRepository;
         this.homeworkReadService = homeworkReadService;
+        this.materialService = materialService;
+    }
+
+    public AiToolDispatcher(ClassroomRepository classroomRepository,
+                            ClassStudentRepository classStudentRepository,
+                            LessonRepository lessonRepository,
+                            ExamRepository examRepository,
+                            ExamAssignmentRepository examAssignmentRepository,
+                            StudentExamReadService studentExamReadService,
+                            AttendanceRepository attendanceRepository,
+                            HomeworkReadService homeworkReadService) {
+        this(classroomRepository, classStudentRepository, lessonRepository,
+                examRepository, examAssignmentRepository, studentExamReadService,
+                attendanceRepository, homeworkReadService, null);
     }
 
     public AiToolDispatcher(ClassroomRepository classroomRepository,
@@ -140,6 +185,14 @@ public class AiToolDispatcher {
                     "Đọc danh sách các bài tập về nhà giáo viên đã giao cho học sinh/lớp học (bao gồm cả đang mở và đã đóng) kèm môn học, hạn nộp, thống kê số bài đã nộp, đã chấm và đường dẫn chấm bài (/teacher/homework/{id}).",
                     teacherHomeworkProps
             ));
+
+            Map<String, Object> teacherMaterialProps = new HashMap<>();
+            teacherMaterialProps.put("classId", buildProperty("integer", "CHỈ truyền số nguyên dương (> 0) nếu lọc tài liệu phân phối cho 1 ID lớp cụ thể. BỎ QUA trường này (gửi {}) để đọc toàn bộ Kho tài liệu; không truyền null hay 0."));
+            tools.add(buildToolSchema(
+                    "getTeacherMaterials",
+                    "Đọc CHỈ-ĐỌC danh sách tài liệu học tập (PDF, Word, PowerPoint, Excel, TXT, ZIP) giáo viên đã tải lên Kho tài liệu kèm phạm vi phân phối (tất cả lớp, theo lớp, từng học sinh) và đường dẫn (/teacher/materials).",
+                    teacherMaterialProps
+            ));
         } else if ("STUDENT".equalsIgnoreCase(role)) {
             tools.add(buildToolSchema(
                     "getStudentClasses",
@@ -172,18 +225,44 @@ public class AiToolDispatcher {
                     "Đọc danh sách bài tập về nhà đã giao cho học sinh kèm hạn nộp, trạng thái làm bài (chưa nộp, đã nộp, đã chấm điểm, yêu cầu làm lại) và đường dẫn làm bài tập (/student/homework/{id}).",
                     studentHomeworkProps
             ));
+
+            Map<String, Object> studentMaterialProps = new HashMap<>();
+            studentMaterialProps.put("classId", buildProperty("integer", "CHỈ truyền số nguyên dương (> 0) nếu lọc tài liệu của 1 lớp đang học. BỎ QUA trường này (gửi {}) để đọc tài liệu từ tất cả các lớp bạn tham gia; không truyền null hay 0."));
+            tools.add(buildToolSchema(
+                    "getStudentMaterials",
+                    "Đọc CHỈ-ĐỌC danh sách tài liệu học tập được giáo viên chia sẻ cho học sinh trong các lớp đang học kèm đường dẫn vào lớp để xem/tải tệp.",
+                    studentMaterialProps
+            ));
         }
         return tools;
     }
 
     /**
      * Điều phối thực thi công cụ dựa trên tên hàm và dữ liệu người dùng hiện tại.
-     * Chạy trong transaction để đảm bảo các quan hệ lazy của JPA được tải an toàn khi open-in-view=false.
+     * Kiểm tra phân quyền RBAC nghiêm ngặt trước khi thực thi và chạy trong transaction để tải lazy JPA an toàn.
      */
     @Transactional
     public String executeTool(String toolName, String argumentsJson, User currentUser) {
-        if (currentUser == null) {
-            return "Lỗi: Không thể xác thực thông tin người dùng.";
+        if (currentUser == null || currentUser.getRole() == null) {
+            return "Lỗi: Không thể xác thực thông tin người dùng hoặc vai trò truy cập.";
+        }
+        if (currentUser.getStatus() != null && currentUser.getStatus() != UserStatus.ACTIVE) {
+            return "Từ chối truy cập: Tài khoản của bạn hiện không ở trạng thái hoạt động.";
+        }
+        if (isRestrictedDomainTool(toolName)) {
+            log.warn("SECURITY: Chặn AI truy cập vùng nhạy cảm '{}' từ tài khoản '{}' (role={})",
+                    toolName, currentUser.getUsername(), currentUser.getRole());
+            return "Từ chối truy cập: Hệ thống nghiêm cấm AI truy cập, tra cứu hoặc chỉnh sửa dữ liệu thuộc mục VIP & Point, Thanh toán hay Lịch sử hoạt động để đảm bảo an toàn phân quyền. AI chỉ hỗ trợ giải thích cách sử dụng các tính năng này.";
+        }
+        if (TEACHER_TOOLS.contains(toolName) && currentUser.getRole() != UserRole.TEACHER) {
+            log.warn("SECURITY: Từ chối truy cập công cụ Giáo viên '{}' từ tài khoản '{}' (role={})",
+                    toolName, currentUser.getUsername(), currentUser.getRole());
+            return "Từ chối truy cập: Chức năng '" + toolName + "' chỉ dành riêng cho tài khoản Giáo viên. Bạn không có quyền truy cập dữ liệu hoặc thực hiện thao tác của Giáo viên.";
+        }
+        if (STUDENT_TOOLS.contains(toolName) && currentUser.getRole() != UserRole.STUDENT) {
+            log.warn("SECURITY: Từ chối truy cập công cụ Học sinh '{}' từ tài khoản '{}' (role={})",
+                    toolName, currentUser.getUsername(), currentUser.getRole());
+            return "Từ chối truy cập: Chức năng '" + toolName + "' chỉ dành riêng cho tài khoản Học sinh.";
         }
 
         try {
@@ -202,6 +281,8 @@ public class AiToolDispatcher {
                     return executeGetTeacherClassAttendance(currentUser, argumentsJson);
                 case "getTeacherHomeworks":
                     return executeGetTeacherHomeworks(currentUser, argumentsJson);
+                case "getTeacherMaterials":
+                    return executeGetTeacherMaterials(currentUser, argumentsJson);
                 case "getStudentClasses":
                     return executeGetStudentClasses(currentUser);
                 case "getStudentExams":
@@ -212,6 +293,8 @@ public class AiToolDispatcher {
                     return executeGetStudentAttendanceSummary(currentUser, argumentsJson);
                 case "getStudentHomeworks":
                     return executeGetStudentHomeworks(currentUser, argumentsJson);
+                case "getStudentMaterials":
+                    return executeGetStudentMaterials(currentUser, argumentsJson);
                 default:
                     return "Không tìm thấy công cụ: " + toolName;
             }
@@ -221,11 +304,23 @@ public class AiToolDispatcher {
         }
     }
 
+    private boolean isRestrictedDomainTool(String toolName) {
+        if (toolName == null || toolName.isBlank()) {
+            return false;
+        }
+        String lower = toolName.toLowerCase(Locale.ROOT);
+        return RESTRICTED_DOMAIN_KEYWORDS.stream().anyMatch(lower::contains);
+    }
+
     private String executeGetTeacherClasses(User teacher) {
         if (classroomRepository == null) return "Chức năng tra cứu lớp học tạm thời không khả dụng.";
         List<Classroom> classrooms = classroomRepository.findAllByTeacher_Id(teacher.getId());
         if (classrooms.isEmpty()) {
-            return "Thầy/Cô hiện chưa được phân công phụ trách lớp học nào trên hệ thống.";
+            return "Thầy/Cô hiện chưa được phân công phụ trách lớp học nào trên hệ thống.\n"
+                    + "Hướng dẫn tạo lớp học mới trên FrogH:\n"
+                    + "1. Vào mục **Quản lý lớp học** -> chọn **Tạo lớp học**.\n"
+                    + "2. Nhập tên lớp, chọn môn học, niên khóa và bấm lưu để nhận mã mời lớp cho học sinh tham gia.\n"
+                    + "[👉 Mở Quản lý lớp học](/teacher/classes)";
         }
         StringBuilder sb = new StringBuilder("Danh sách lớp học Thầy/Cô đang phụ trách:\n");
         for (Classroom c : classrooms) {
@@ -245,7 +340,9 @@ public class AiToolDispatcher {
         }
         List<Classroom> classrooms = classroomRepository.findAllByTeacher_Id(teacher.getId());
         if (classrooms.isEmpty()) {
-            return "Thầy/Cô hiện chưa có lớp học nào trên hệ thống.";
+            return "Thầy/Cô hiện chưa có lớp học nào trên hệ thống nên chưa có lịch dạy.\n"
+                    + "Thầy/Cô hãy tạo lớp học đầu tiên để bắt đầu lên lịch buổi học và điểm danh:\n"
+                    + "[👉 Tạo / Quản lý lớp học](/teacher/classes)";
         }
 
         LocalDate today = LocalDate.now();
@@ -264,7 +361,9 @@ public class AiToolDispatcher {
         }
 
         if (scheduleItems.isEmpty()) {
-            return "Hôm nay (" + today.format(DATE_FORMATTER) + ") Thầy/Cô không có tiết dạy nào được lên lịch.";
+            return "Hôm nay (" + today.format(DATE_FORMATTER) + ") Thầy/Cô không có tiết dạy nào được lên lịch.\n"
+                    + "Nếu muốn bắt đầu buổi học ngay hôm nay, Thầy/Cô có thể mở một lớp học và tạo phiên điểm danh (hoặc nhắn tôi: *\"Mở điểm danh nhanh\"*):\n"
+                    + "[👉 Xem danh sách lớp học](/teacher/classes)";
         }
 
         StringBuilder sb = new StringBuilder("Lịch dạy hôm nay (" + today.format(DATE_FORMATTER) + ") của Thầy/Cô:\n");
@@ -278,7 +377,12 @@ public class AiToolDispatcher {
         if (examRepository == null) return "Chức năng tra cứu đề thi tạm thời không khả dụng.";
         List<Exam> exams = new ArrayList<>(examRepository.findAllByTeacher_Username(teacher.getUsername()));
         if (exams.isEmpty()) {
-            return "Thầy/Cô hiện chưa tạo đề thi nào trong ngân hàng đề thi.\n[👉 Tạo đề thi mới](/teacher/exams)";
+            return "Thầy/Cô hiện chưa tạo đề thi nào trong ngân hàng đề thi.\n"
+                    + "Hướng dẫn tạo đề thi mới trên FrogH:\n"
+                    + "1. Vào mục **Đề thi** -> bấm **Tạo đề thi** (hỗ trợ soạn câu hỏi trực tuyến hoặc nhập nhanh từ file PDF).\n"
+                    + "2. Thiết lập tiêu đề, môn học, thời lượng làm bài và thêm câu hỏi.\n"
+                    + "3. Khi hoàn tất, bấm **Xuất bản** và chọn lớp học để giao đề thi.\n"
+                    + "[👉 Tạo đề thi mới](/teacher/exams/create) | [👉 Mở ngân hàng đề thi](/teacher/exams)";
         }
         exams.sort(newestExamComparator());
 
@@ -309,7 +413,11 @@ public class AiToolDispatcher {
         }
         List<Exam> exams = new ArrayList<>(examRepository.findAllByTeacher_Username(teacher.getUsername()));
         if (exams.isEmpty()) {
-            return "Thầy/Cô hiện chưa có đề thi hoặc bài kiểm tra nào trên hệ thống.\n[👉 Mở ngân hàng đề thi](/teacher/exams)";
+            return "Thầy/Cô hiện chưa có đề thi hoặc bài kiểm tra nào trên hệ thống.\n"
+                    + "Để giao bài kiểm tra cho học sinh:\n"
+                    + "1. Tạo đề thi mới trong **Ngân hàng đề thi** (hoặc tải lên từ PDF).\n"
+                    + "2. Bấm **Xuất bản** và chọn **Giao đề** cho lớp học kèm thời gian mở/đóng.\n"
+                    + "[👉 Tạo đề thi mới](/teacher/exams/create) | [👉 Mở ngân hàng đề thi](/teacher/exams)";
         }
         exams.sort(newestExamComparator());
 
@@ -443,7 +551,9 @@ public class AiToolDispatcher {
         } else {
             List<Classroom> teacherClasses = classroomRepository.findAllByTeacher_Id(teacher.getId());
             if (teacherClasses.isEmpty()) {
-                return "Thầy/Cô hiện chưa phụ trách lớp học nào để mở điểm danh.";
+                return "Thầy/Cô hiện chưa phụ trách lớp học nào để mở điểm danh.\n"
+                        + "Hãy tạo lớp học trước khi mở phiên điểm danh:\n"
+                        + "[👉 Tạo / Quản lý lớp học](/teacher/classes)";
             }
             if (teacherClasses.size() == 1) {
                 targetClass = teacherClasses.get(0);
@@ -586,7 +696,11 @@ public class AiToolDispatcher {
             StringBuilder emptySb = new StringBuilder();
             emptySb.append("Thầy/Cô hiện chưa giao bài tập về nhà nào")
                     .append(classId != null ? " cho lớp này." : " trong mục Bài tập.")
-                    .append("\n[👉 Mở trang Quản lý bài tập](/teacher/homework)\n");
+                    .append("\nHướng dẫn giao bài tập mới trên FrogH:\n")
+                    .append("1. Vào mục **Bài tập** -> bấm **Tạo bài tập**.\n")
+                    .append("2. Nhập tiêu đề, nội dung/tệp đính kèm, hạn nộp và chọn lớp hoặc học sinh nhận bài.\n")
+                    .append("3. Bấm **Giao bài tập** để hệ thống gửi thông báo cho học sinh.\n")
+                    .append("[👉 Tạo bài tập mới](/teacher/homework/create) | [👉 Mở trang Quản lý bài tập](/teacher/homework)\n");
             if (classId == null && examRepository != null && examAssignmentRepository != null) {
                 String examAssignmentsSummary = executeGetTeacherAssignments(teacher);
                 if (!examAssignmentsSummary.contains("chưa có đề thi") && !examAssignmentsSummary.contains("chưa giao đợt thi")) {
@@ -668,11 +782,108 @@ public class AiToolDispatcher {
         return status;
     }
 
+    private String executeGetTeacherMaterials(User teacher, String argumentsJson) {
+        if (materialService == null) {
+            return "Chức năng tra cứu tài liệu tạm thời không khả dụng.";
+        }
+        Long classId = extractLong(argumentsJson, "classId");
+        boolean fallbackAll = false;
+        List<MaterialDocumentResponse> materials;
+        if (classId != null) {
+            try {
+                materials = materialService.getClassDocuments(classId, teacher.getUsername());
+            } catch (RuntimeException ex) {
+                log.warn("Không thể lọc tài liệu theo classId={}, chuyển sang lấy toàn bộ kho tài liệu của {}: {}",
+                        classId, teacher.getUsername(), ex.getMessage());
+                classId = null;
+                fallbackAll = true;
+                materials = materialService.getTeacherDocuments(teacher.getUsername());
+            }
+        } else {
+            materials = materialService.getTeacherDocuments(teacher.getUsername());
+        }
+
+        if (materials == null || materials.isEmpty()) {
+            return "Thầy/Cô hiện chưa tải lên tài liệu học tập nào"
+                    + (classId != null ? " cho lớp này." : " trong Kho tài liệu.")
+                    + "\nHướng dẫn đăng tài liệu trên FrogH:\n"
+                    + "1. Vào mục **Tài liệu** -> bấm **Đăng tài liệu**.\n"
+                    + "2. Nhập tiêu đề, ghi chú (nếu cần), chọn tệp (hỗ trợ PDF, Word, PowerPoint, Excel, TXT, ZIP; tối đa 10 MB/tệp).\n"
+                    + "3. Chọn phạm vi phân phối (**Tất cả học sinh**, **Theo lớp** hoặc **Từng học sinh**) và bấm lưu.\n"
+                    + "[👉 Mở Kho tài liệu](/teacher/materials)"
+                    + (classId != null ? " | [👉 Tài liệu của lớp](/teacher/classes/" + classId + "/materials)\n" : "\n");
+        }
+
+        Map<Long, String> classNameById = resolveTeacherClassNames(teacher);
+        StringBuilder sb = new StringBuilder(
+                fallbackAll
+                        ? "Không tìm thấy lớp được chỉ định, dưới đây là toàn bộ tài liệu trong Kho tài liệu của Thầy/Cô (tổng " + materials.size() + " tài liệu):\n"
+                        : "Danh sách tài liệu học tập của Thầy/Cô (tổng " + materials.size() + " tài liệu):\n");
+        int count = 0;
+        for (MaterialDocumentResponse doc : materials) {
+            if (count++ >= 15) break;
+            String title = doc.getTitle() != null && !doc.getTitle().isBlank() ? doc.getTitle() : doc.getFileName();
+            String fileName = doc.getFileName() != null ? doc.getFileName() : "Tệp đính kèm";
+            String sizeText = formatFileSize(doc.getFileSize());
+            String scope = formatMaterialTargetScope(doc, classNameById);
+            String created = doc.getCreatedAt() != null ? doc.getCreatedAt().format(DATE_TIME_FORMATTER) : "Chưa rõ";
+            sb.append("- Tài liệu: **").append(title).append("**")
+                    .append(" (Tệp: `").append(fileName).append("`")
+                    .append(sizeText != null ? ", " + sizeText : "")
+                    .append(", Phân phối: ").append(scope)
+                    .append(", Đăng lúc: ").append(created).append(")\n");
+        }
+        if (classId != null) {
+            sb.append("-> [👉 Mở tab Tài liệu của lớp](/teacher/classes/").append(classId).append("/materials) | [👉 Mở Kho tài liệu](/teacher/materials)\n");
+        } else {
+            sb.append("-> [👉 Mở Kho tài liệu](/teacher/materials)\n");
+        }
+        return sb.toString();
+    }
+
+    private String formatMaterialTargetScope(MaterialDocumentResponse doc, Map<Long, String> classNameById) {
+        String targetType = doc.getTargetType();
+        if ("ALL".equalsIgnoreCase(targetType)) {
+            if (doc.getExcludedClassIds() != null && !doc.getExcludedClassIds().isEmpty()) {
+                return "Tất cả lớp (trừ " + doc.getExcludedClassIds().size() + " lớp)";
+            }
+            return "Tất cả học sinh";
+        }
+        if ("CLASS".equalsIgnoreCase(targetType) && doc.getClassIds() != null && !doc.getClassIds().isEmpty()) {
+            List<String> names = doc.getClassIds().stream()
+                    .map(id -> classNameById.getOrDefault(id, "Lớp #" + id))
+                    .toList();
+            return String.join(", ", names);
+        }
+        if ("STUDENT".equalsIgnoreCase(targetType)) {
+            int studentCount = doc.getStudentIds() != null ? doc.getStudentIds().size() : 0;
+            return studentCount + " học sinh";
+        }
+        return "Theo phân phối";
+    }
+
+    private String formatFileSize(Long fileSize) {
+        if (fileSize == null || fileSize <= 0) {
+            return null;
+        }
+        if (fileSize >= 1024L * 1024L) {
+            return String.format(Locale.US, "%.1f MB", fileSize / (1024.0 * 1024.0));
+        }
+        if (fileSize >= 1024L) {
+            return Math.max(1L, Math.round(fileSize / 1024.0)) + " KB";
+        }
+        return fileSize + " B";
+    }
+
     private String executeGetStudentClasses(User student) {
         if (classStudentRepository == null) return "Chức năng tra cứu lớp học tạm thời không khả dụng.";
         List<ClassroomSummaryProjection> summaries = classStudentRepository.findClassSummariesByStudentId(student.getId());
         if (summaries.isEmpty()) {
-            return "Bạn hiện chưa tham gia lớp học nào trên hệ thống.";
+            return "Bạn hiện chưa tham gia lớp học nào trên hệ thống FrogH.\n"
+                    + "Hướng dẫn tham gia lớp học:\n"
+                    + "1. Xin **Mã lớp học** (Class Code) từ Giáo viên bộ môn của bạn.\n"
+                    + "2. Mở trang **Lớp học** -> nhập mã lớp vào ô tham gia lớp và xác nhận.\n"
+                    + "[👉 Tham gia lớp học ngay](/student/classes)";
         }
         StringBuilder sb = new StringBuilder("Danh sách các lớp học bạn đang tham gia:\n");
         for (ClassroomSummaryProjection c : summaries) {
@@ -691,7 +902,11 @@ public class AiToolDispatcher {
         if (studentExamReadService == null) return "Chức năng tra cứu bài thi tạm thời không khả dụng.";
         StudentExamResponse.Page examPage = studentExamReadService.list(student.getUsername(), 0, 10, "", null, null, "newest");
         if (examPage == null || examPage.items() == null || examPage.items().isEmpty()) {
-            return "Bạn hiện chưa có bài thi hoặc bài kiểm tra nào được giao.";
+            return "Bạn hiện chưa có bài thi hoặc bài kiểm tra nào được giao.\n"
+                    + "Hướng dẫn:\n"
+                    + "- Khi Giáo viên xuất bản và giao đề cho lớp của bạn, bài kiểm tra sẽ xuất hiện ở mục **Bài thi**.\n"
+                    + "- Nếu bạn chưa vào lớp học nào, hãy xin mã lớp từ Giáo viên để tham gia lớp trước nhé.\n"
+                    + "[👉 Xem mục Bài thi](/student/exams) | [👉 Kiểm tra Lớp học của tôi](/student/classes)";
         }
         StringBuilder sb = new StringBuilder("Danh sách bài thi / bài kiểm tra được giao cho bạn:\n");
         for (StudentExamResponse item : examPage.items()) {
@@ -711,7 +926,10 @@ public class AiToolDispatcher {
         if (studentExamReadService == null) return "Chức năng tra cứu điểm số tạm thời không khả dụng.";
         StudentGradesResponse grades = studentExamReadService.grades(student.getUsername(), null, null, null, null, "", null, "newest", 0, 10, false);
         if (grades == null || grades.items() == null || grades.items().isEmpty()) {
-            return "Bạn hiện chưa có điểm bài thi nào được ghi nhận trên hệ thống.";
+            return "Bạn hiện chưa có điểm bài thi nào được ghi nhận trên hệ thống.\n"
+                    + "Hướng dẫn:\n"
+                    + "- Vào mục **Bài thi** để hoàn thành và nộp các bài kiểm tra được giao (hoặc chờ Giáo viên chấm điểm đối với phần tự luận).\n"
+                    + "[👉 Xem Bảng điểm](/student/grades) | [👉 Vào mục Bài thi](/student/exams)";
         }
         StringBuilder sb = new StringBuilder("Kết quả điểm số các bài kiểm tra gần nhất của bạn:\n");
         for (StudentGradesResponse.Item item : grades.items()) {
@@ -739,7 +957,11 @@ public class AiToolDispatcher {
         }
 
         if (attendances == null || attendances.isEmpty()) {
-            return "Bạn hiện chưa có dữ liệu điểm danh nào được ghi nhận trên hệ thống.";
+            return "Bạn hiện chưa có dữ liệu điểm danh nào được ghi nhận trên hệ thống.\n"
+                    + "Hướng dẫn điểm danh:\n"
+                    + "1. Đảm bảo bạn đã tham gia lớp học bằng mã lớp từ Giáo viên.\n"
+                    + "2. Khi Giáo viên mở buổi điểm danh, vào mục **Điểm danh** và nhập **mã OTP 6 chữ số** trước khi hết hạn.\n"
+                    + "[👉 Mở trang Điểm danh](/student/attendance) | [👉 Lớp học của tôi](/student/classes)";
         }
 
         long presentCount = attendances.stream().filter(a -> a.getStatus() == AttendanceStatus.PRESENT).count();
@@ -798,7 +1020,11 @@ public class AiToolDispatcher {
             }
         }
         if (homeworks == null || homeworks.isEmpty()) {
-            return "Bạn hiện không có bài tập về nhà nào cần nộp.\n[👉 Mở mục Bài tập](/student/homework)";
+            return "Bạn hiện không có bài tập về nhà nào cần nộp.\n"
+                    + "Hướng dẫn:\n"
+                    + "- Các bài tập mới do Giáo viên giao sẽ tự động hiển thị trong mục **Bài tập** kèm hạn nộp.\n"
+                    + "- Nếu bạn chưa tham gia lớp nào, hãy vào mục **Lớp học** để nhập mã lớp do Giáo viên cung cấp.\n"
+                    + "[👉 Mở mục Bài tập](/student/homework) | [👉 Lớp học của tôi](/student/classes)";
         }
 
         StringBuilder sb = new StringBuilder(
@@ -834,6 +1060,78 @@ public class AiToolDispatcher {
         } else {
             sb.append("-> [👉 Xem tất cả bài tập](/student/homework)\n");
         }
+        return sb.toString();
+    }
+
+    private String executeGetStudentMaterials(User student, String argumentsJson) {
+        if (materialService == null || classStudentRepository == null) {
+            return "Chức năng tra cứu tài liệu tạm thời không khả dụng.";
+        }
+        List<ClassroomSummaryProjection> enrolledClasses = classStudentRepository.findClassSummariesByStudentId(student.getId());
+        if (enrolledClasses == null || enrolledClasses.isEmpty()) {
+            return "Bạn hiện chưa tham gia lớp học nào nên chưa có tài liệu học tập được chia sẻ.\n"
+                    + "Hướng dẫn xem tài liệu trên FrogH:\n"
+                    + "1. Vào mục **Lớp học** và nhập **Mã lớp** từ Giáo viên để tham gia lớp.\n"
+                    + "2. Mở lớp học đó và chọn tab **Tài liệu** để xem và tải về các tệp học tập.\n"
+                    + "[👉 Tham gia lớp học ngay](/student/classes)";
+        }
+
+        Long requestedClassId = extractLong(argumentsJson, "classId");
+        List<ClassroomSummaryProjection> targetClasses = enrolledClasses;
+        boolean fallbackAll = false;
+        if (requestedClassId != null) {
+            List<ClassroomSummaryProjection> matched = enrolledClasses.stream()
+                    .filter(c -> Objects.equals(c.getId(), requestedClassId))
+                    .toList();
+            if (!matched.isEmpty()) {
+                targetClasses = matched;
+            } else {
+                fallbackAll = true;
+            }
+        }
+
+        StringBuilder sb = new StringBuilder(
+                fallbackAll
+                        ? "Không tìm thấy lớp được chỉ định trong danh sách lớp bạn tham gia, dưới đây là tài liệu từ tất cả lớp của bạn:\n"
+                        : "Danh sách tài liệu học tập được chia sẻ trong các lớp của bạn:\n");
+        int totalDocs = 0;
+        int listedDocs = 0;
+        for (ClassroomSummaryProjection classroom : targetClasses) {
+            List<MaterialDocumentResponse> docs;
+            try {
+                docs = materialService.getClassDocuments(classroom.getId(), student.getUsername());
+            } catch (RuntimeException ex) {
+                log.warn("Bỏ qua đọc tài liệu lớp {} cho {}: {}", classroom.getId(), student.getUsername(), ex.getMessage());
+                continue;
+            }
+            if (docs == null || docs.isEmpty()) {
+                continue;
+            }
+            totalDocs += docs.size();
+            if (listedDocs >= 15) {
+                continue;
+            }
+            sb.append("\n**Lớp ").append(classroom.getName()).append("** -> [👉 Mở tab Tài liệu của lớp](/student/classes/")
+                    .append(classroom.getId()).append(")\n");
+            for (MaterialDocumentResponse doc : docs) {
+                if (listedDocs++ >= 15) break;
+                String title = doc.getTitle() != null && !doc.getTitle().isBlank() ? doc.getTitle() : doc.getFileName();
+                String fileName = doc.getFileName() != null ? doc.getFileName() : "Tệp đính kèm";
+                String sizeText = formatFileSize(doc.getFileSize());
+                String created = doc.getCreatedAt() != null ? doc.getCreatedAt().format(DATE_TIME_FORMATTER) : "Chưa rõ";
+                sb.append("- **").append(title).append("** (Tệp: `").append(fileName).append("`")
+                        .append(sizeText != null ? ", " + sizeText : "")
+                        .append(", Đăng lúc: ").append(created).append(")\n");
+            }
+        }
+
+        if (totalDocs == 0) {
+            return "Hiện chưa có tài liệu học tập nào được Giáo viên chia sẻ trong lớp của bạn.\n"
+                    + "Hướng dẫn xem tài liệu trên FrogH:\n"
+                    + "- Mở lớp học của bạn -> chọn tab **Tài liệu** để xem và tải về các tệp bài giảng (PDF, Word, PPT, Excel...) khi Giáo viên đăng tải.\n"
+                    + "[👉 Mở Lớp học của tôi](/student/classes)";
+        }
+        sb.append("\nTổng cộng tìm thấy ").append(totalDocs).append(" tài liệu khả dụng. Hãy mở lớp tương ứng và chọn tab **Tài liệu** để xem hoặc tải tệp.");
         return sb.toString();
     }
 

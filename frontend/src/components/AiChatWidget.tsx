@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
+import 'katex/dist/katex.min.css'
 import {
   Sparkles,
   X,
@@ -37,6 +40,44 @@ export interface AiChatWidgetProps {
 }
 
 const DISMISS_PROMPTS_KEY = 'ai_chat_quick_prompts_dismissed'
+const GUEST_LOCKED_KEY = 'frogh_ai_guest_locked'
+
+const readGuestLockedFlag = (): boolean => {
+  try {
+    return localStorage.getItem(GUEST_LOCKED_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
+const writeGuestLockedFlag = (locked: boolean) => {
+  try {
+    if (locked) {
+      localStorage.setItem(GUEST_LOCKED_KEY, 'true')
+    } else {
+      localStorage.removeItem(GUEST_LOCKED_KEY)
+    }
+  } catch {
+    // Bỏ qua lỗi storage nếu bị trình duyệt chặn
+  }
+}
+
+/**
+ * Chuẩn hóa delimiter LaTeX (\[...\], \(...\)) sang chuẩn remark-math ($$...$$, $...$),
+ * bỏ qua các khối code fenced để không làm hỏng ví dụ lập trình.
+ */
+const normalizeMathDelimiters = (content: string): string => {
+  if (!content) return content
+  return content
+    .split(/(```[\s\S]*?```)/g)
+    .map((segment) => {
+      if (segment.startsWith('```')) return segment
+      return segment
+        .replace(/\\\[([\s\S]*?)\\\]/g, (_m, expr) => `\n$$\n${expr.trim()}\n$$\n`)
+        .replace(/\\\((.+?)\\\)/g, (_m, expr) => `$${expr.trim()}$`)
+    })
+    .join('')
+}
 
 const getWelcomeMessage = (currentRole: string): ChatMessage => {
   let welcome = ''
@@ -111,8 +152,9 @@ export const AiChatWidget: React.FC<AiChatWidgetProps> = ({ forceGuest = false }
   const [remainingQuota, setRemainingQuota] = useState<number | null>(
     isGuest ? getLocalGuestQuota() : null
   )
+  // Chỉ khóa overlay từ câu hỏi thứ 4 trở đi (hoặc khi đã bị đánh dấu khóa từ trước)
   const [limitReached, setLimitReached] = useState<boolean>(
-    isGuest ? getLocalGuestQuota() <= 0 : false
+    isGuest ? getLocalGuestQuota() <= 0 && readGuestLockedFlag() : false
   )
 
   // Quản lý gợi ý nhanh: kiểm tra sessionStorage để chỉ xuất hiện 1 lần trong phiên làm việc
@@ -145,13 +187,19 @@ export const AiChatWidget: React.FC<AiChatWidgetProps> = ({ forceGuest = false }
         .then((res) => {
           if (typeof res?.remainingQuota === 'number') {
             setRemainingQuota(res.remainingQuota)
-            setLimitReached(res.limitReached || res.remainingQuota <= 0)
+            if (res.remainingQuota > 0) {
+              writeGuestLockedFlag(false)
+              setLimitReached(false)
+            } else {
+              // Giữ nguyên khả năng đọc câu trả lời thứ 3 cho đến khi khách bấm gửi câu thứ 4
+              setLimitReached(readGuestLockedFlag())
+            }
           }
         })
         .catch(() => {
           const local = getLocalGuestQuota()
           setRemainingQuota(local)
-          setLimitReached(local <= 0)
+          setLimitReached(local <= 0 && readGuestLockedFlag())
         })
     } else {
       setRemainingQuota(null)
@@ -213,6 +261,14 @@ export const AiChatWidget: React.FC<AiChatWidgetProps> = ({ forceGuest = false }
       return
     }
 
+    // Khi đã hỏi xong 3 câu (remainingQuota === 0) mà khách tiếp tục hỏi câu thứ 4 -> mới khóa khung chat
+    if (isGuest && remainingQuota !== null && remainingQuota <= 0) {
+      writeGuestLockedFlag(true)
+      setLimitReached(true)
+      setInputMessage('')
+      return
+    }
+
     if (showQuickPrompts) {
       handleDismissQuickPrompts()
     }
@@ -257,14 +313,17 @@ export const AiChatWidget: React.FC<AiChatWidgetProps> = ({ forceGuest = false }
 
       if (typeof data.remainingQuota === 'number') {
         setRemainingQuota(data.remainingQuota)
-        setLimitReached(data.limitReached || data.remainingQuota <= 0)
+        // Không khóa ngay khi vừa nhận câu trả lời thứ 3 để người dùng kịp đọc; chỉ khóa ở lần gửi thứ 4 trở đi
+        if (data.remainingQuota > 0) {
+          writeGuestLockedFlag(false)
+          setLimitReached(false)
+        }
       } else if (isGuest) {
         // Fallback trừ lượt nếu backend không trả về
         const currentQuota = remainingQuota ?? getLocalGuestQuota()
         const newQuota = Math.max(0, currentQuota - 1)
         setRemainingQuota(newQuota)
         setLocalGuestQuota(newQuota)
-        setLimitReached(newQuota <= 0)
       }
     } catch (err: any) {
       const errorText =
@@ -419,9 +478,10 @@ export const AiChatWidget: React.FC<AiChatWidgetProps> = ({ forceGuest = false }
                         {isUser ? (
                           textContent
                         ) : (
-                          <div className="prose prose-sm max-w-none">
+                          <div className="prose prose-sm max-w-none [&_.katex-display]:overflow-x-auto [&_.katex-display]:py-1 [&_.katex]:text-[13px]">
                             <ReactMarkdown
-                              remarkPlugins={[remarkGfm]}
+                              remarkPlugins={[remarkGfm, remarkMath]}
+                              rehypePlugins={[rehypeKatex]}
                               components={{
                                 p: ({ children }) => (
                                   <p className="mb-2 last:mb-0 leading-relaxed text-[13px] text-gray-700">
@@ -525,7 +585,7 @@ export const AiChatWidget: React.FC<AiChatWidgetProps> = ({ forceGuest = false }
                                 ),
                               }}
                             >
-                              {textContent}
+                              {normalizeMathDelimiters(textContent)}
                             </ReactMarkdown>
                           </div>
                         )}
@@ -637,7 +697,11 @@ export const AiChatWidget: React.FC<AiChatWidgetProps> = ({ forceGuest = false }
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Hỏi về bài học, định nghĩa, bài tập..."
+                  placeholder={
+                    isGuest && remainingQuota !== null && remainingQuota <= 0
+                      ? 'Đã dùng hết 3 lượt miễn phí — gửi tiếp hoặc đăng nhập...'
+                      : 'Hỏi về bài học, định nghĩa, bài tập...'
+                  }
                   disabled={isLoading}
                   className="flex-1 rounded-xl border border-gray-200 bg-[#F8FAF9] px-3.5 py-2 text-xs sm:text-sm text-gray-800 placeholder-gray-400 outline-none transition focus:border-[#10B981] focus:bg-white focus:ring-1 focus:ring-[#10B981] disabled:opacity-50"
                 />
@@ -654,7 +718,11 @@ export const AiChatWidget: React.FC<AiChatWidgetProps> = ({ forceGuest = false }
 
               {isGuest && (
                 <div className="mt-1.5 flex items-center justify-between px-1 text-[10px] text-gray-400">
-                  <span>Chế độ Khách trải nghiệm</span>
+                  <span>
+                    {remainingQuota !== null && remainingQuota <= 0
+                      ? 'Câu hỏi thứ 4 sẽ yêu cầu đăng nhập'
+                      : 'Chế độ Khách trải nghiệm'}
+                  </span>
                   <span>Còn {remainingQuota ?? 3}/3 lượt</span>
                 </div>
               )}
