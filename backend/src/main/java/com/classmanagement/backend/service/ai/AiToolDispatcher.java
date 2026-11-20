@@ -11,6 +11,7 @@ import com.classmanagement.backend.entity.ExamAssignment;
 import com.classmanagement.backend.entity.Lesson;
 import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.entity.enums.AttendanceStatus;
+import com.classmanagement.backend.entity.enums.ClassroomStatus;
 import com.classmanagement.backend.entity.enums.ExamAssignmentStatus;
 import com.classmanagement.backend.entity.enums.ExamStatus;
 import com.classmanagement.backend.entity.enums.UserRole;
@@ -23,6 +24,7 @@ import com.classmanagement.backend.repository.exam.ExamAssignmentRepository;
 import com.classmanagement.backend.repository.exam.ExamRepository;
 import com.classmanagement.backend.repository.projection.ClassroomSummaryProjection;
 import com.classmanagement.backend.service.MaterialService;
+import com.classmanagement.backend.service.billing.TeacherEntitlementService;
 import com.classmanagement.backend.service.exam.StudentExamReadService;
 import com.classmanagement.backend.service.homework.queries.HomeworkReadService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -30,12 +32,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.function.Supplier;
 
 @Slf4j
 @Service
@@ -50,6 +55,8 @@ public class AiToolDispatcher {
     private final AttendanceRepository attendanceRepository;
     private final HomeworkReadService homeworkReadService;
     private final MaterialService materialService;
+    private final TeacherEntitlementService teacherEntitlementService;
+    private final TransactionTemplate transactionTemplate;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -79,7 +86,7 @@ public class AiToolDispatcher {
 
     private static final List<String> RESTRICTED_DOMAIN_KEYWORDS = List.of(
             "vip", "point", "billing", "order", "invoice", "mission",
-            "history", "activity", "wallet", "momo", "redeem"
+            "history", "activity", "wallet", "vnpay", "momo", "payment", "redeem"
     );
 
     @Autowired
@@ -91,7 +98,9 @@ public class AiToolDispatcher {
                             StudentExamReadService studentExamReadService,
                             AttendanceRepository attendanceRepository,
                             HomeworkReadService homeworkReadService,
-                            MaterialService materialService) {
+                            MaterialService materialService,
+                            TeacherEntitlementService teacherEntitlementService,
+                            PlatformTransactionManager transactionManager) {
         this.classroomRepository = classroomRepository;
         this.classStudentRepository = classStudentRepository;
         this.lessonRepository = lessonRepository;
@@ -101,6 +110,22 @@ public class AiToolDispatcher {
         this.attendanceRepository = attendanceRepository;
         this.homeworkReadService = homeworkReadService;
         this.materialService = materialService;
+        this.teacherEntitlementService = teacherEntitlementService;
+        this.transactionTemplate = transactionManager != null ? new TransactionTemplate(transactionManager) : null;
+    }
+
+    public AiToolDispatcher(ClassroomRepository classroomRepository,
+                            ClassStudentRepository classStudentRepository,
+                            LessonRepository lessonRepository,
+                            ExamRepository examRepository,
+                            ExamAssignmentRepository examAssignmentRepository,
+                            StudentExamReadService studentExamReadService,
+                            AttendanceRepository attendanceRepository,
+                            HomeworkReadService homeworkReadService,
+                            MaterialService materialService) {
+        this(classroomRepository, classStudentRepository, lessonRepository,
+                examRepository, examAssignmentRepository, studentExamReadService,
+                attendanceRepository, homeworkReadService, materialService, null, null);
     }
 
     public AiToolDispatcher(ClassroomRepository classroomRepository,
@@ -239,9 +264,9 @@ public class AiToolDispatcher {
 
     /**
      * Điều phối thực thi công cụ dựa trên tên hàm và dữ liệu người dùng hiện tại.
-     * Kiểm tra phân quyền RBAC nghiêm ngặt trước khi thực thi và chạy trong transaction để tải lazy JPA an toàn.
+     * Kiểm tra phân quyền RBAC nghiêm ngặt trước khi thực thi; các nhánh JPA dùng TransactionTemplate riêng
+     * để tránh xung đột isolation với các ReadService có @Transactional(isolation = REPEATABLE_READ).
      */
-    @Transactional
     public String executeTool(String toolName, String argumentsJson, User currentUser) {
         if (currentUser == null || currentUser.getRole() == null) {
             return "Lỗi: Không thể xác thực thông tin người dùng hoặc vai trò truy cập.";
@@ -268,29 +293,29 @@ public class AiToolDispatcher {
         try {
             switch (toolName) {
                 case "getTeacherClasses":
-                    return executeGetTeacherClasses(currentUser);
+                    return runInTransaction(() -> executeGetTeacherClasses(currentUser));
                 case "getTeacherTodaySchedule":
-                    return executeGetTeacherTodaySchedule(currentUser);
+                    return runInTransaction(() -> executeGetTeacherTodaySchedule(currentUser));
                 case "getTeacherExams":
-                    return executeGetTeacherExams(currentUser);
+                    return runInTransaction(() -> executeGetTeacherExams(currentUser));
                 case "getTeacherAssignments":
-                    return executeGetTeacherAssignments(currentUser);
+                    return runInTransaction(() -> executeGetTeacherAssignments(currentUser));
                 case "openQuickAttendanceSession":
-                    return executeOpenQuickAttendanceSession(currentUser, argumentsJson);
+                    return runInTransaction(() -> executeOpenQuickAttendanceSession(currentUser, argumentsJson));
                 case "getTeacherClassAttendance":
-                    return executeGetTeacherClassAttendance(currentUser, argumentsJson);
+                    return runInTransaction(() -> executeGetTeacherClassAttendance(currentUser, argumentsJson));
                 case "getTeacherHomeworks":
                     return executeGetTeacherHomeworks(currentUser, argumentsJson);
                 case "getTeacherMaterials":
                     return executeGetTeacherMaterials(currentUser, argumentsJson);
                 case "getStudentClasses":
-                    return executeGetStudentClasses(currentUser);
+                    return runInTransaction(() -> executeGetStudentClasses(currentUser));
                 case "getStudentExams":
                     return executeGetStudentExams(currentUser);
                 case "getStudentGrades":
                     return executeGetStudentGrades(currentUser);
                 case "getStudentAttendanceSummary":
-                    return executeGetStudentAttendanceSummary(currentUser, argumentsJson);
+                    return runInTransaction(() -> executeGetStudentAttendanceSummary(currentUser, argumentsJson));
                 case "getStudentHomeworks":
                     return executeGetStudentHomeworks(currentUser, argumentsJson);
                 case "getStudentMaterials":
@@ -302,6 +327,13 @@ public class AiToolDispatcher {
             log.error("Lỗi khi thực thi AI tool {}: {}", toolName, e.getMessage(), e);
             return "Đã xảy ra lỗi khi truy vấn dữ liệu: " + e.getMessage();
         }
+    }
+
+    private String runInTransaction(Supplier<String> action) {
+        if (transactionTemplate == null) {
+            return action.get();
+        }
+        return transactionTemplate.execute(status -> action.get());
     }
 
     private boolean isRestrictedDomainTool(String toolName) {
@@ -453,15 +485,27 @@ public class AiToolDispatcher {
             }
             if (count++ >= 15) continue;
             String examTitle = a.getExam() != null ? a.getExam().getTitle() : "Bài thi";
-            Long examId = a.getExam() != null ? a.getExam().getId() : 0L;
+            Long examId = a.getExam() != null ? a.getExam().getId() : null;
+            Long assignmentId = a.getId();
             String open = a.getOpenTime() != null ? a.getOpenTime().format(DATE_TIME_FORMATTER) : "Ngay bây giờ";
             String close = a.getCloseTime() != null ? a.getCloseTime().format(DATE_TIME_FORMATTER) : "Không giới hạn";
             sb.append("- Bài kiểm tra: **").append(examTitle).append("**")
                     .append(" (Bắt đầu: ").append(open)
                     .append(", Kết thúc: ").append(close)
                     .append(", Trạng thái: ").append(formatAssignmentStatus(a.getStatus()))
-                    .append(") -> [👉 Quản lý bài kiểm tra](/teacher/exams/").append(examId).append("/assignments/").append(a.getId()).append(")")
-                    .append(" | [👉 Xem chi tiết đề thi](/teacher/exams/").append(examId).append(")\n");
+                    .append(")");
+            if (examId != null && examId > 0) {
+                if (assignmentId != null && assignmentId > 0) {
+                    sb.append(" -> [👉 Quản lý bài kiểm tra](/teacher/exams/").append(examId)
+                            .append("/assignments/").append(assignmentId).append(")")
+                            .append(" | [👉 Xem chi tiết đề thi](/teacher/exams/").append(examId).append(")");
+                } else {
+                    sb.append(" -> [👉 Xem chi tiết đề thi](/teacher/exams/").append(examId).append(")");
+                }
+            } else {
+                sb.append(" -> [👉 Mở ngân hàng đề thi](/teacher/exams)");
+            }
+            sb.append("\n");
         }
 
         List<Exam> unassignedExams = exams.stream()
@@ -547,11 +591,16 @@ public class AiToolDispatcher {
             if (cOpt.isEmpty() || cOpt.get().getTeacher() == null || !cOpt.get().getTeacher().getId().equals(teacher.getId())) {
                 return "Không tìm thấy lớp học với ID " + classId + " thuộc quyền quản lý của Thầy/Cô.";
             }
+            if (cOpt.get().getStatus() == ClassroomStatus.ARCHIVED) {
+                return "Lớp học **" + cOpt.get().getName() + "** hiện đang ở trạng thái lưu trữ, không thể mở phiên điểm danh mới.";
+            }
             targetClass = cOpt.get();
         } else {
-            List<Classroom> teacherClasses = classroomRepository.findAllByTeacher_Id(teacher.getId());
+            List<Classroom> teacherClasses = classroomRepository.findAllByTeacher_Id(teacher.getId()).stream()
+                    .filter(c -> c.getStatus() != ClassroomStatus.ARCHIVED)
+                    .toList();
             if (teacherClasses.isEmpty()) {
-                return "Thầy/Cô hiện chưa phụ trách lớp học nào để mở điểm danh.\n"
+                return "Thầy/Cô hiện chưa phụ trách lớp học đang hoạt động nào để mở điểm danh.\n"
                         + "Hãy tạo lớp học trước khi mở phiên điểm danh:\n"
                         + "[👉 Tạo / Quản lý lớp học](/teacher/classes)";
             }
@@ -577,6 +626,16 @@ public class AiToolDispatcher {
                     + "- Giờ tính đi muộn: " + (existing.getLateTime() != null ? existing.getLateTime().format(TIME_FORMATTER) : "Chưa rõ") + "\n"
                     + "- Giờ kết thúc: " + (existing.getEndTime() != null ? existing.getEndTime().format(TIME_FORMATTER) : "Chưa rõ") + "\n"
                     + "-> [👉 Mở phòng điểm danh lớp " + targetClass.getName() + "](/teacher/classes/" + targetClass.getId() + "/attendance)\n";
+        }
+
+        if (teacherEntitlementService != null && attendanceRepository != null) {
+            try {
+                long usedDates = attendanceRepository.countDistinctDatesByTeacherId(teacher.getId());
+                teacherEntitlementService.requireAttendanceCapacity(teacher.getId(), usedDates);
+            } catch (ResponseStatusException ex) {
+                return (ex.getReason() != null ? ex.getReason() : "Đã đạt giới hạn 5 phiên điểm danh của gói miễn phí.")
+                        + "\n[👉 Nâng cấp VIP & Point](/teacher/billing)";
+            }
         }
 
         String code = String.format("%06d", (int) (Math.random() * 900000) + 100000);
@@ -702,7 +761,7 @@ public class AiToolDispatcher {
                     .append("3. Bấm **Giao bài tập** để hệ thống gửi thông báo cho học sinh.\n")
                     .append("[👉 Tạo bài tập mới](/teacher/homework/create) | [👉 Mở trang Quản lý bài tập](/teacher/homework)\n");
             if (classId == null && examRepository != null && examAssignmentRepository != null) {
-                String examAssignmentsSummary = executeGetTeacherAssignments(teacher);
+                String examAssignmentsSummary = runInTransaction(() -> executeGetTeacherAssignments(teacher));
                 if (!examAssignmentsSummary.contains("chưa có đề thi") && !examAssignmentsSummary.contains("chưa giao đợt thi")) {
                     emptySb.append("\nLưu ý (các bài kiểm tra / đợt thi đã giao thuộc mục Đề thi):\n").append(examAssignmentsSummary);
                 }

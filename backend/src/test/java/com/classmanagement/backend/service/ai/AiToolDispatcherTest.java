@@ -921,6 +921,8 @@ class AiToolDispatcherTest {
                 "redeemVip",
                 "claimMission",
                 "getBillingInvoices",
+                "createVnpayOrder",
+                "checkPaymentStatus",
                 "createMomoOrder",
                 "getTeacherHistory",
                 "getStudentActivityLog"
@@ -968,6 +970,71 @@ class AiToolDispatcherTest {
         String studentHomeworksEmpty = aiToolDispatcher.executeTool("getStudentHomeworks", "{}", studentUser);
         assertTrue(studentHomeworksEmpty.contains("không có bài tập về nhà nào"));
         assertTrue(studentHomeworksEmpty.contains("/student/homework"));
+    }
+
+    @Test
+    @DisplayName("getTeacherAssignments: Không sinh đường dẫn lỗi /teacher/exams/0 khi assignment thiếu exam")
+    void getTeacherAssignments_avoidsZeroExamIdLink() {
+        mockTeacherExams.add(Exam.builder().id(10L).title("Đề giữa kỳ").code("EX10").teacher(teacherUser).status(ExamStatus.PUBLISHED).build());
+        mockTeacherAssignments.add(ExamAssignment.builder()
+                .id(55L)
+                .exam(null)
+                .status(ExamAssignmentStatus.OPEN)
+                .build());
+
+        String result = aiToolDispatcher.executeTool("getTeacherAssignments", "{}", teacherUser);
+        assertFalse(result.contains("/teacher/exams/0"), "Không được sinh path ID = 0: " + result);
+        assertTrue(result.contains("[👉 Mở ngân hàng đề thi](/teacher/exams)"));
+    }
+
+    @Test
+    @DisplayName("openQuickAttendanceSession: Chặn lớp ARCHIVED và kiểm tra giới hạn 5 phiên miễn phí của TeacherEntitlementService")
+    void openQuickAttendanceSession_blocksArchivedAndEnforcesEntitlementLimit() {
+        Classroom archived = Classroom.builder().id(201L).name("Lớp cũ").code("OLD").status(ClassroomStatus.ARCHIVED).teacher(teacherUser).build();
+        Classroom active = Classroom.builder().id(202L).name("Lớp 12A2").code("12A2").status(ClassroomStatus.ACTIVE).teacher(teacherUser).build();
+        mockTeacherClassrooms.addAll(List.of(archived, active));
+
+        ClassroomRepository classroomRepo = createProxy(ClassroomRepository.class, (method, args) -> {
+            if ("findAllByTeacher_Id".equals(method.getName())) return mockTeacherClassrooms;
+            if ("findById".equals(method.getName()) && args != null && args.length > 0) {
+                Long id = (Long) args[0];
+                return mockTeacherClassrooms.stream().filter(c -> c.getId().equals(id)).findFirst();
+            }
+            return null;
+        });
+        LessonRepository lessonRepo = createProxy(LessonRepository.class, (method, args) -> {
+            if ("findAllByClassroom_IdAndLessonDateOrderByStartTimeAsc".equals(method.getName())) return mockLessons;
+            if ("save".equals(method.getName()) && args != null && args.length > 0) {
+                Lesson l = (Lesson) args[0];
+                mockLessons.add(l);
+                return l;
+            }
+            return null;
+        });
+        AttendanceRepository attendanceRepo = createProxy(AttendanceRepository.class, (method, args) -> {
+            if ("countDistinctDatesByTeacherId".equals(method.getName())) return 5L;
+            return null;
+        });
+        com.classmanagement.backend.service.billing.TeacherEntitlementService entitlementService =
+                new com.classmanagement.backend.service.billing.TeacherEntitlementService(null) {
+                    @Override
+                    public boolean hasVip(Long teacherId) {
+                        return false;
+                    }
+                };
+
+        AiToolDispatcher entitlementDispatcher = new AiToolDispatcher(
+                classroomRepo, null, lessonRepo, null, null, null, attendanceRepo, null, null, entitlementService, null
+        );
+
+        String archivedRes = entitlementDispatcher.executeTool("openQuickAttendanceSession", "{\"classId\": 201}", teacherUser);
+        assertTrue(archivedRes.contains("lưu trữ"), "Phải chặn lớp ARCHIVED: " + archivedRes);
+        assertTrue(mockLessons.isEmpty());
+
+        String limitRes = entitlementDispatcher.executeTool("openQuickAttendanceSession", "{\"classId\": 202}", teacherUser);
+        assertTrue(limitRes.contains("5 phiên điểm danh"), "Phải chặn khi hết giới hạn miễn phí: " + limitRes);
+        assertTrue(limitRes.contains("/teacher/billing"), "Phải dẫn tới trang VIP khi hết giới hạn: " + limitRes);
+        assertTrue(mockLessons.isEmpty(), "Không được tạo buổi học mới khi vượt hạn mức");
     }
 
     @FunctionalInterface

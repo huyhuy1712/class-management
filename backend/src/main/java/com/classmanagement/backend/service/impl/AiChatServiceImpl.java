@@ -43,7 +43,7 @@ public class AiChatServiceImpl implements AiChatService {
     @Value("${app.ai.temperature:${spring.ai.openai.chat.options.temperature:0.2}}")
     private Double temperature;
 
-    @Value("${app.ai.max-tokens:1000}")
+    @Value("${app.ai.max-tokens:2048}")
     private Integer maxTokens;
 
     @Value("${app.ai.guest-max-messages:${app.ai.guest-limit:3}}")
@@ -66,8 +66,8 @@ public class AiChatServiceImpl implements AiChatService {
 
     // Danh sách Regex chặn can thiệp/trục lợi/vượt quyền VIP, Point, Thanh toán và Lịch sử
     private static final List<Pattern> PRIVILEGED_TAMPER_PATTERNS = List.of(
-            Pattern.compile("(?i).*(hack|cheat|gian lận|trộm|ăn cắp|lấy lậu|vượt quyền|bypass|giả mạo|buff|bơm).*(vip|point|điểm|hóa đơn|thanh toán|momo|lịch sử).*"),
-            Pattern.compile("(?i).*(cộng cho tôi|cộng giúp|tăng cho tôi|thêm cho tôi|tặng cho tôi|kích hoạt miễn phí|mở khóa miễn phí|nâng cấp miễn phí|đổi hộ|nhận hộ|sửa giúp|xóa giúp|chỉnh sửa|xóa bỏ).*(vip|point|số dư|hóa đơn|lịch sử hoạt động|nhật ký hoạt động).*")
+            Pattern.compile("(?i).*(hack|cheat|gian lận|trộm|ăn cắp|lấy lậu|vượt quyền|bypass|giả mạo|buff|bơm).*(vip|point|điểm|hóa đơn|thanh toán|vnpay|momo|lịch sử).*"),
+            Pattern.compile("(?i).*(cộng cho tôi|cộng giúp|tăng cho tôi|thêm cho tôi|tặng cho tôi|kích hoạt miễn phí|mở khóa miễn phí|nâng cấp miễn phí|đổi hộ|nhận hộ|sửa giúp|xóa giúp|chỉnh sửa|xóa bỏ).*(vip|point|số dư|hóa đơn|giao dịch|vnpay|lịch sử hoạt động|nhật ký hoạt động).*")
     );
 
     // Danh sách từ khóa nghiêm cấm ngoài phạm vi học tập
@@ -161,7 +161,7 @@ public class AiChatServiceImpl implements AiChatService {
         this.model = model;
         this.guestLimit = guestLimit;
         this.temperature = 0.2;
-        this.maxTokens = 1000;
+        this.maxTokens = 2048;
     }
 
     // Constructor phục vụ Unit Test kèm Repository & ToolDispatcher
@@ -173,7 +173,7 @@ public class AiChatServiceImpl implements AiChatService {
         this.model = model;
         this.guestLimit = guestLimit;
         this.temperature = 0.2;
-        this.maxTokens = 1000;
+        this.maxTokens = 2048;
     }
 
     // Constructor phục vụ Unit Test với Mock RestClient
@@ -188,7 +188,7 @@ public class AiChatServiceImpl implements AiChatService {
         this.aiToolDispatcher = aiToolDispatcher;
         this.restClient = restClient;
         this.temperature = 0.2;
-        this.maxTokens = 1000;
+        this.maxTokens = 2048;
     }
 
     @Override
@@ -410,8 +410,8 @@ public class AiChatServiceImpl implements AiChatService {
                     }
 
                     // Phản hồi văn bản trực tiếp thông thường (chưa gọi tool -> không cho phép ID động tự bịa)
-                    if (messageObj.containsKey("content") && messageObj.get("content") != null) {
-                        return sanitizeOutgoingLinks((String) messageObj.get("content"), role, Set.of());
+                    if (messageObj.get("content") instanceof String directContent && !directContent.isBlank()) {
+                        return sanitizeOutgoingLinks(directContent, role, Set.of());
                     }
                 }
             }
@@ -479,8 +479,8 @@ public class AiChatServiceImpl implements AiChatService {
                 if (!choices.isEmpty()) {
                     Map<?, ?> firstChoice = (Map<?, ?>) choices.get(0);
                     Map<?, ?> messageObj = (Map<?, ?>) firstChoice.get("message");
-                    if (messageObj != null && messageObj.containsKey("content") && messageObj.get("content") != null) {
-                        return sanitizeOutgoingLinks((String) messageObj.get("content"), role, toolReturnedPaths);
+                    if (messageObj != null && messageObj.get("content") instanceof String round2Content && !round2Content.isBlank()) {
+                        return sanitizeOutgoingLinks(round2Content, role, toolReturnedPaths);
                     }
                 }
             }
@@ -578,8 +578,8 @@ public class AiChatServiceImpl implements AiChatService {
             sb.append("- **VIP & Point** (`QUYỀN AI: CHỈ HƯỚNG DẪN CÁCH DÙNG, TUYỆT ĐỐI CẤM TRUY CẬP/CAN THIỆP`): Tại `/teacher/billing`, gồm 2 tab (**Mua Point & VIP**, **Nhiệm vụ nhận Point**) và nút xem **Hóa đơn đã thanh toán**:\n");
             sb.append("  + *Gói Miễn phí*: Giới hạn tối đa 5 lớp học, 5 đề thi, 5 bài tập, 5 tài liệu, 5 phiên điểm danh và 10 lượt làm bài/đề.\n");
             sb.append("  + *Các gói VIP*: Mở khóa **KHÔNG GIỚI HẠN** số lớp học, đề thi, bài tập, tài liệu, phiên điểm danh và lượt làm bài; các gói chỉ khác nhau theo số thiết bị (**VIP Cá nhân 1 thiết bị**, **VIP 5 thiết bị**, **VIP 10 thiết bị**) và chu kỳ **1 tháng / 3 tháng / 12 tháng** (TUYỆT ĐỐI KHÔNG tự bịa các con số giới hạn khác như 500 hay 2000 cho gói VIP).\n");
-            sb.append("  + *Point & Thanh toán*: Giáo viên có thể mua Point (các gói 20–1000 Point, 5.000đ/Point) hoặc nâng cấp VIP trực tiếp qua **MoMo**, đổi Point sang VIP, hoặc làm **Nhiệm vụ nhận Point** (Tạo lớp đầu tiên +5 Point, Tạo đề thi đầu tiên +10 Point, Xuất bản đề thi đầu tiên +10 Point, Thêm 10 học sinh +5 Point) rồi bấm nhận thưởng trên giao diện.\n");
-            sb.append("  + *RÀNG BUỘC BẢO MẬT VIP & POINT*: AI KHÔNG BAO GIỜ được phép kiểm tra số dư Point, xem trạng thái VIP/hóa đơn/đơn hàng MoMo, cộng/tặng/đổi Point hay kích hoạt VIP thay người dùng dưới mọi hình thức để chống vượt quyền và gian lận điểm VIP.\n");
+            sb.append("  + *Point & Thanh toán*: Giáo viên có thể mua Point (các gói 20–1000 Point, 5.000đ/Point) hoặc nâng cấp VIP trực tiếp qua **VNPay**, đổi Point sang VIP, hoặc làm **Nhiệm vụ nhận Point** (Tạo lớp đầu tiên +5 Point, Tạo đề thi đầu tiên +10 Point, Xuất bản đề thi đầu tiên +10 Point, Thêm 10 học sinh +5 Point) rồi bấm nhận thưởng trên giao diện.\n");
+            sb.append("  + *RÀNG BUỘC BẢO MẬT VIP & POINT*: AI KHÔNG BAO GIỜ được phép kiểm tra số dư Point, xem trạng thái VIP/hóa đơn/đơn hàng VNPay, cộng/tặng/đổi Point hay kích hoạt VIP thay người dùng dưới mọi hình thức để chống vượt quyền và gian lận điểm VIP.\n");
             sb.append("- **Hồ sơ cá nhân**: `/teacher/profile` để cập nhật thông tin, ảnh đại diện, đổi mật khẩu.\n\n");
         } else if ("STUDENT".equals(role)) {
             sb.append("4. PHONG CÁCH & QUYỀN HỌC SINH: Khuyến khích tư duy phản biện, hướng dẫn từng bước giải bài tập, phân tích logic. TUYỆT ĐỐI NGHIÊM CẤM Học sinh yêu cầu thao tác hoặc xem dữ liệu của Giáo viên (như tạo/mở phiên điểm danh, sinh mã OTP điểm danh, xem bảng điểm/chuyên cần của học sinh khác, chỉnh sửa đề thi, hoặc truy cập các tính năng Giáo viên/VIP & Point). TUYỆT ĐỐI KHÔNG chèn bất kỳ đường dẫn `/teacher/...` hay `/admin/...` nào vào câu trả lời.\n");
@@ -612,21 +612,21 @@ public class AiChatServiceImpl implements AiChatService {
         String lower = userMessage.toLowerCase(Locale.ROOT);
 
         // 0. Hướng dẫn VIP & Point (CHỈ hướng dẫn cách dùng, tuyệt đối không truy cập/can thiệp dữ liệu)
-        if (lower.contains("vip") || lower.contains("point") || lower.contains("momo")
+        if (lower.contains("vip") || lower.contains("point") || lower.contains("vnpay") || lower.contains("momo")
                 || lower.contains("hóa đơn") || lower.contains("gói miễn phí") || lower.contains("nhiệm vụ nhận")) {
             if ("TEACHER".equals(role)) {
                 return """
                         **Hướng dẫn tính năng VIP & Point (chỉ hỗ trợ hướng dẫn cách dùng):**
-                        - **Bảo mật & Phân quyền**: AI không được phép truy cập số dư Point, hóa đơn, đơn hàng MoMo hay thay đổi gói VIP/cộng điểm của bạn.
+                        - **Bảo mật & Phân quyền**: AI không được phép truy cập số dư Point, hóa đơn, đơn hàng VNPay hay thay đổi gói VIP/cộng điểm của bạn.
                         - **Gói Miễn phí**: Giới hạn tối đa 5 lớp học, 5 đề thi, 5 bài tập, 5 tài liệu, 5 phiên điểm danh và 10 lượt làm bài/đề.
-                        - **Nâng cấp & Tích Point**: Trong tab **Mua Point & VIP**, Thầy/Cô có thể chọn gói **VIP Cá nhân (1 thiết bị)**, **VIP 5 thiết bị** hoặc **VIP 10 thiết bị** (1/3/12 tháng) thanh toán qua **MoMo** hoặc **đổi bằng Point** tích lũy; xem **Hóa đơn đã thanh toán** ở góc trên bên phải.
+                        - **Nâng cấp & Tích Point**: Trong tab **Mua Point & VIP**, Thầy/Cô có thể chọn gói **VIP Cá nhân (1 thiết bị)**, **VIP 5 thiết bị** hoặc **VIP 10 thiết bị** (1/3/12 tháng) thanh toán qua **VNPay** hoặc **đổi bằng Point** tích lũy; xem **Hóa đơn đã thanh toán** ở góc trên bên phải.
                         - **Nhiệm vụ nhận Point**: Chuyển sang tab **Nhiệm vụ nhận Point** để nhận thưởng khi hoàn thành các mốc (*Tạo lớp đầu tiên +5 Point*, *Tạo đề thi đầu tiên +10 Point*, *Xuất bản đề thi đầu tiên +10 Point*, *Thêm 10 học sinh +5 Point*).
                         [👉 Mở trang VIP & Point](/teacher/billing)""";
             }
             if ("STUDENT".equals(role)) {
                 return "Tính năng **VIP & Point** trên FrogH chỉ áp dụng cho tài khoản **Giáo viên** (để nâng cấp hạn mức tạo lớp, đề thi, tài liệu và thiết bị giảng dạy). Tài khoản Học sinh sử dụng các chức năng học tập trực tiếp mà không cần gói VIP, và AI cũng không có quyền truy cập hay can thiệp vào dữ liệu VIP/Point.";
             }
-            return "Trên hệ thống FrogH, **VIP & Point** là tính năng nâng cấp hạn mức dành cho **Giáo viên** (hỗ trợ thanh toán MoMo, đổi Point và làm nhiệm vụ nhận thưởng). Bạn có thể [👉 Đăng nhập](/login) để trải nghiệm hệ thống!";
+            return "Trên hệ thống FrogH, **VIP & Point** là tính năng nâng cấp hạn mức dành cho **Giáo viên** (hỗ trợ thanh toán VNPay, đổi Point và làm nhiệm vụ nhận thưởng). Bạn có thể [👉 Đăng nhập](/login) để trải nghiệm hệ thống!";
         }
 
         // 0b. Hướng dẫn mục Lịch sử hoạt động (tránh nhầm với môn học Lịch sử)
