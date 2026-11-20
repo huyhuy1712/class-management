@@ -8,6 +8,7 @@ import com.classmanagement.backend.repository.exam.ExamAttemptRepository;
 import com.classmanagement.backend.repository.exam.StudentExamReadRepository;
 import com.classmanagement.backend.repository.classroom.ClassStudentRepository;
 import com.classmanagement.backend.service.StorageService;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Optional;
@@ -28,9 +29,10 @@ class PublicLookupServiceImplTest {
         var attendances = mock(AttendanceRepository.class);
         var attempts = mock(ExamAttemptRepository.class);
         var examRead = mock(StudentExamReadRepository.class);
+        var jdbc = mock(JdbcTemplate.class);
         when(attendances.findAllByStudent_Id(23L)).thenReturn(List.of());
         when(attempts.findAllByStudent_IdOrderByUpdatedAtDesc(23L)).thenReturn(List.of());
-        var service = new PublicLookupServiceImpl(users, classes, attendances, attempts, examRead, storage);
+        var service = new PublicLookupServiceImpl(users, classes, attendances, attempts, examRead, jdbc, storage);
         assertEquals("https://images.example/photo.jpg", service.lookupStudentByCode(" ST-23 ").getAvatar());
         student.setAvatar(" ");
         assertNull(service.lookupStudentByCode("ST-23").getAvatar());
@@ -45,6 +47,7 @@ class PublicLookupServiceImplTest {
         var attendances = mock(AttendanceRepository.class);
         var attempts = mock(ExamAttemptRepository.class);
         var examRead = mock(StudentExamReadRepository.class);
+        var jdbc = mock(JdbcTemplate.class);
 
         var student = User.builder().id(23L).role(UserRole.STUDENT).studentCode("ST-23")
                 .fullName("Nguyễn Anh Khoa").build();
@@ -65,6 +68,7 @@ class PublicLookupServiceImplTest {
         var att2 = com.classmanagement.backend.entity.Attendance.builder()
                 .id(2L).classroom(classroom).student(student)
                 .date(java.time.LocalDate.of(2026, 9, 8))
+                .createdAt(java.time.LocalDateTime.of(2026, 9, 8, 8, 17))
                 .status(com.classmanagement.backend.entity.enums.AttendanceStatus.LATE)
                 .note("Đến muộn 10 phút")
                 .build();
@@ -78,7 +82,7 @@ class PublicLookupServiceImplTest {
         when(attendances.findAllByStudent_Id(23L)).thenReturn(List.of(att3, att1, att2));
         when(attempts.findAllByStudent_IdOrderByUpdatedAtDesc(23L)).thenReturn(List.of());
 
-        var service = new PublicLookupServiceImpl(users, classes, attendances, attempts, examRead, storage);
+        var service = new PublicLookupServiceImpl(users, classes, attendances, attempts, examRead, jdbc, storage);
         var res = service.lookupStudentByCode("ST-23");
 
         assertNotNull(res);
@@ -94,6 +98,7 @@ class PublicLookupServiceImplTest {
         assertEquals("Buổi 1", cls.getAbsenceDetails().get(0).getSessionName());
 
         assertEquals("08/09/2026", cls.getAbsenceDetails().get(1).getDate());
+        assertEquals("08:17", cls.getAbsenceDetails().get(1).getAttendanceTime());
         assertEquals("LATE", cls.getAbsenceDetails().get(1).getStatus());
         assertEquals("Buổi 2", cls.getAbsenceDetails().get(1).getSessionName());
 

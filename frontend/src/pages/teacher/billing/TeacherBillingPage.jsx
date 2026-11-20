@@ -8,13 +8,17 @@ import useResourceQuery from '../../../query/useResourceQuery'
 import useAuthStore from '../../../stores/authStore'
 import { getSessionVersion } from '../../../query/queryClient'
 import { accountScope } from '../../../query/queryKeys'
-import MomoPaymentModal from './modals/MomoPaymentModal'
+import VnpayPaymentModal from './modals/VnpayPaymentModal'
 import PaidInvoicesModal from './modals/PaidInvoicesModal'
 import useBillingModals from './useBillingModals'
 
 const money = (amount) => new Intl.NumberFormat('vi-VN').format(amount)
 const tierLabel = (tier) => ({ PERSONAL: 'Cá nhân', FIVE_DEVICES: '5 thiết bị', TEN_DEVICES: '10 thiết bị' }[tier] ?? tier)
-const dateLabel = (value) => value ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium' }).format(new Date(value)) : '--'
+const dateLabel = (value) => value
+  ? new Date(value).getUTCFullYear() >= 9999
+    ? 'Vĩnh viễn'
+    : new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium' }).format(new Date(value))
+  : '--'
 
 function TeacherBillingPage() {
   const user = useAuthStore((state) => state.user)
@@ -28,6 +32,7 @@ function TeacherBillingPage() {
   const order = useResourceQuery('billingOrder', [orderId ?? ''], { enabled: Boolean(orderId) })
   const [actionError, setActionError] = useState('')
   const [busyProduct, setBusyProduct] = useState('')
+  const [redeemedProductCode, setRedeemedProductCode] = useState('')
   const [awaitingPayUrl, setAwaitingPayUrl] = useState(false)
   const [selectedMonths, setSelectedMonths] = useState(1)
   const [activeTab, setActiveTab] = useState('billing')
@@ -43,6 +48,7 @@ function TeacherBillingPage() {
   const redeem = useMutation({
     mutationFn: ({ productCode, requestId }) => billingService.redeemVip(productCode, requestId),
     onMutate: async ({ productCode }) => {
+      setRedeemedProductCode('')
       await queryClient.cancelQueries({ queryKey: overview.queryKey, exact: true })
       const previous = queryClient.getQueryData(overview.queryKey)
       const product = previous?.products?.find((item) => item.code === productCode)
@@ -59,12 +65,10 @@ function TeacherBillingPage() {
       if (context?.previous) overview.setData(context.previous)
       setActionError(error.response?.data?.message || 'Không thể đổi point sang VIP.')
     },
-    onSuccess: (data) => {
+    onSuccess: (data, { productCode }) => {
       overview.setData(data)
+      setRedeemedProductCode(productCode)
       setActionError('')
-    },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: overview.queryKey, exact: true })
     },
   })
 
@@ -111,13 +115,13 @@ function TeacherBillingPage() {
     if (order.data?.status === 'PAID') {
       void Promise.all([
         queryClient.invalidateQueries({ queryKey: ['account', account, 'billing'], exact: true }),
-        queryClient.invalidateQueries({ queryKey: invoiceQuery.queryKey, exact: true }),
+        queryClient.invalidateQueries({ queryKey: ['account', account, 'billingInvoices'], exact: true }),
       ])
     }
     if (['PAID', 'FAILED', 'EXPIRED'].includes(order.data?.status)) {
       sessionStorage.removeItem(`billing-request:${user?.id}:${order.data.productCode}`)
     }
-  }, [order.data?.status, order.data?.productCode, account, invoiceQuery.queryKey, queryClient, user?.id])
+  }, [order.data?.status, order.data?.productCode, account, queryClient, user?.id])
 
   useEffect(() => {
     if (awaitingPayUrl && order.data?.status === 'PENDING' && order.data.payUrl) {
@@ -152,7 +156,7 @@ function TeacherBillingPage() {
         navigate(`/teacher/billing?orderId=${result.orderId}`, { replace: true })
         return
       }
-      if (!result.payUrl) throw new Error('MoMo chưa trả về liên kết thanh toán. Hãy kiểm tra trạng thái đơn hàng.')
+      if (!result.payUrl) throw new Error('VNPay chưa trả về liên kết thanh toán. Hãy kiểm tra trạng thái đơn hàng.')
       if (product.type === 'VIP') {
         openPaymentModal({ ...product, payUrl: result.payUrl, orderId: result.orderId })
         if (result.orderId) {
@@ -163,7 +167,7 @@ function TeacherBillingPage() {
       }
       window.location.assign(result.payUrl)
     } catch (error) {
-      setActionError(error.response?.data?.message || error.message || 'Không thể mở thanh toán MoMo.')
+      setActionError(error.response?.data?.message || error.message || 'Không thể mở thanh toán VNPay.')
       setBusyProduct('')
     }
   }
@@ -182,6 +186,7 @@ function TeacherBillingPage() {
   const pointProducts = products.filter((product) => product.type === 'POINTS')
   const vipProducts = products.filter((product) => product.type === 'VIP' && product.durationMonths === selectedMonths)
   const pointBalance = overview.data?.pointsBalance ?? 0
+  const currentDeviceLimit = overview.data?.deviceLimit ?? 0
   const lowestVipPrice = vipProducts.length ? Math.min(...vipProducts.map((product) => product.amountVnd)) : 0
 
   return (
@@ -205,7 +210,7 @@ function TeacherBillingPage() {
           </div>
           <div className="flex items-center gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white text-emerald-700"><Gem size={24} /></div>
-            <div className="min-w-0"><p className="text-sm font-medium text-emerald-900">Quyền VIP hiện tại</p><p className="mt-0.5 truncate text-lg font-bold text-emerald-800">{overview.data?.vipTier ? `VIP ${tierLabel(overview.data.vipTier)}` : 'Gói miễn phí'}</p><p className="text-xs text-emerald-800/75">{overview.data?.vipTier ? `${overview.data.deviceLimit} thiết bị · đến ${dateLabel(overview.data.vipExpiresAt)}` : 'Nâng cấp để mở giới hạn sử dụng'}</p></div>
+            <div className="min-w-0"><p className="text-sm font-medium text-emerald-900">Quyền VIP hiện tại</p><p className="mt-0.5 truncate text-lg font-bold text-emerald-800">{overview.data?.vipTier ? `VIP ${tierLabel(overview.data.vipTier)}` : 'Gói miễn phí'}</p><p className="text-xs text-emerald-800/75">{overview.data?.vipTier ? `${overview.data.deviceLimit} thiết bị · ${dateLabel(overview.data.vipExpiresAt) === 'Vĩnh viễn' ? 'Vĩnh viễn' : `đến ${dateLabel(overview.data.vipExpiresAt)}`}` : 'Nâng cấp để mở giới hạn sử dụng'}</p></div>
           </div>
         </section>
 
@@ -270,15 +275,24 @@ function TeacherBillingPage() {
         {activeTab === 'billing' && <>
         {orderId && <section aria-live="polite" className={`mt-5 flex items-start gap-3 rounded-lg border p-4 ${order.data?.status === 'PAID' ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : order.data?.status === 'FAILED' || order.data?.status === 'EXPIRED' ? 'border-rose-200 bg-rose-50 text-rose-900' : 'border-sky-200 bg-sky-50 text-sky-900'}`}>
           {order.data?.status === 'PAID' ? <Check size={19} /> : order.data?.status === 'FAILED' || order.data?.status === 'EXPIRED' ? <CircleAlert size={19} /> : <LoaderCircle size={19} className="animate-spin" />}
-          <div><p className="font-semibold">{order.isLoading ? 'Đang kiểm tra giao dịch...' : ({ PAID: 'Thanh toán thành công', FAILED: 'Giao dịch không thành công', EXPIRED: 'Đơn thanh toán đã hết hạn', PENDING: 'Đang chờ MoMo xác nhận', CREATING: 'Đang tạo yêu cầu thanh toán' }[order.data?.status] ?? 'Không tìm thấy trạng thái đơn hàng')}</p><p className="mt-0.5 text-sm">{order.data?.status === 'PAID' ? 'Số dư hoặc quyền VIP đã được cập nhật.' : 'Trạng thái sẽ tự đồng bộ sau khi MoMo gửi xác nhận.'}</p></div>
+          <div>
+            <p className="font-semibold">{order.isLoading ? 'Đang kiểm tra giao dịch...' : ({ PAID: 'Thanh toán thành công', FAILED: 'Giao dịch không thành công', EXPIRED: 'Đơn thanh toán đã hết hạn', PENDING: 'Đang chờ VNPay xác nhận', CREATING: 'Đang tạo yêu cầu thanh toán' }[order.data?.status] ?? 'Không tìm thấy trạng thái đơn hàng')}</p>
+            <p className="mt-0.5 text-sm">
+              {order.data?.status === 'PAID'
+                ? (order.data.productCode?.startsWith('vip-')
+                  ? 'Gói VIP đã được kích hoạt. Số dư và quyền sử dụng đã được đồng bộ.'
+                  : 'Point đã được cộng vào tài khoản.')
+                : 'Trạng thái sẽ tự đồng bộ sau khi VNPay gửi xác nhận.'}
+            </p>
+          </div>
         </section>}
 
         {actionError && <div role="alert" className="mt-5 flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"><CircleAlert size={18} className="mt-0.5 shrink-0" />{actionError}</div>}
         {overview.errorMessage && <div role="alert" className="mt-5 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{overview.errorMessage}</div>}
-        {overview.data && !overview.data.paymentEnabled && <div role="status" className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Thanh toán MoMo đang chờ cấu hình merchant và webhook.</div>}
+        {overview.data && !overview.data.paymentEnabled && <div role="status" className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Thanh toán VNPay đang chờ cấu hình merchant và IPN.</div>}
 
         <section className="mt-8">
-          <div className="mb-4 flex items-end justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-900">Gói VIP</h2><p className="mt-1 text-sm text-slate-500">Mua trực tiếp hoặc đổi bằng Point. 1 Point tương đương 5.000 VND khi đổi VIP.</p></div><ShieldCheck size={22} className="text-emerald-700" /></div>
+          <div className="mb-4 flex items-end justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-900">Gói VIP</h2><p className="mt-1 text-sm text-slate-500">Mua trực tiếp hoặc đổi bằng Point. 1 Point tương đương 5.000 VND khi đổi VIP.</p><p className="mt-1 text-xs text-slate-500">Gia hạn cùng hạng sẽ nối tiếp thời hạn. Nâng hạng có hiệu lực ngay, thời hạn gói mới tính từ lúc mua; gói cũ được giữ nguyên thời gian còn lại, không quy đổi thành tiền. Không thể mua hạng thấp hơn khi gói cao hơn còn hiệu lực.</p></div><ShieldCheck size={22} className="text-emerald-700" /></div>
           <div role="group" aria-label="Chu kỳ thanh toán" className="grid grid-cols-1 gap-2 rounded-xl bg-[#2446B0] p-3 sm:grid-cols-3 sm:p-4">
             {[1, 3, 12].map((months) => {
               return <button key={months} type="button" aria-pressed={selectedMonths === months} onClick={() => setSelectedMonths(months)} className={`min-h-16 rounded-lg border px-4 py-3 text-left transition ${selectedMonths === months ? 'border-white bg-white text-slate-900' : 'border-white/20 bg-white/10 text-white hover:bg-white/15'}`}>
@@ -290,12 +304,23 @@ function TeacherBillingPage() {
           <div className="mt-6 grid gap-6 lg:grid-cols-3">
             {vipProducts.map((product) => {
               const canRedeem = pointBalance >= product.pointsRequired
+              const isDowngrade = currentDeviceLimit > product.deviceLimit
+              const currentSubscription = overview.data?.subscriptions?.find((item) => item.deviceLimit === product.deviceLimit)
+              const actionLabel = !currentDeviceLimit ? 'Mua VIP' : isDowngrade ? 'Không khả dụng' : product.deviceLimit === currentDeviceLimit ? 'Gia hạn' : 'Nâng cấp'
+              const justRedeemed = redeemedProductCode === product.code
               return <article key={product.code} className="flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-start justify-between gap-3"><div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700"><Smartphone size={20} /></span><div><h3 className="font-bold text-slate-900">{product.name}</h3><p className="text-sm text-slate-500">Dùng chung {product.deviceLimit} thiết bị · {product.durationMonths} tháng</p></div></div>{product.deviceLimit === 5 && <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">Phổ biến</span>}</div>
-                <div className="mt-5 rounded-lg bg-emerald-50 p-4"><p className="text-xs font-bold uppercase text-emerald-800">Thanh toán MoMo</p><p className="mt-1 text-3xl font-extrabold text-emerald-900">{money(product.amountVnd)} <span className="text-sm font-semibold">VND</span></p><p className="mt-1 text-xs text-slate-600">{product.durationMonths > 1 ? `Tương đương ${money(Math.ceil(product.amountVnd / product.durationMonths))} VND/tháng` : 'Thanh toán theo tháng'}</p><p className="mt-2 border-t border-emerald-100 pt-2 text-sm text-slate-600">Hoặc đổi <strong className="text-slate-900">{product.pointsRequired} Point</strong></p></div>
+                <div className="flex min-h-[56px] items-start justify-between gap-2"><div className="flex min-w-0 items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700"><Smartphone size={20} /></span><div className="min-w-0"><h3 className="font-bold text-slate-900">{product.name}</h3><p className="text-sm text-slate-500">Dùng chung {product.deviceLimit} thiết bị · {product.durationMonths} tháng</p></div></div><div className="flex w-28 shrink-0 justify-end">{justRedeemed ? <span role="status" className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-right text-[11px] font-semibold leading-tight text-emerald-700"><Check size={12} className="shrink-0" />Đã đổi thành công</span> : product.deviceLimit === 5 ? <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">Phổ biến</span> : null}</div></div>
+                <div className="mt-5 rounded-lg bg-emerald-50 p-4"><p className="text-xs font-bold uppercase text-emerald-800">Thanh toán VNPay</p><p className="mt-1 text-3xl font-extrabold text-emerald-900">{money(product.amountVnd)} <span className="text-sm font-semibold">VND</span></p><p className="mt-1 text-xs text-slate-600">{product.durationMonths > 1 ? `Tương đương ${money(Math.ceil(product.amountVnd / product.durationMonths))} VND/tháng` : 'Thanh toán theo tháng'}</p><p className="mt-2 border-t border-emerald-100 pt-2 text-sm text-slate-600">Hoặc đổi <strong className="text-slate-900">{product.pointsRequired} Point</strong></p></div>
                 <div className="mt-4 flex flex-1 flex-col gap-2 text-sm text-slate-600"><p className="flex items-center gap-2"><Check size={16} className="text-emerald-700" />Không giới hạn tạo lớp và đề thi</p><p className="flex items-center gap-2"><Check size={16} className="text-emerald-700" />Không giới hạn lượt thi và import</p><p className="flex items-center gap-2"><Check size={16} className="text-emerald-700" />Quyền sử dụng tối đa {product.deviceLimit} thiết bị</p></div>
-                <div className="mt-5 grid grid-cols-2 gap-2"><button type="button" disabled={checkout.isPending || redeem.isPending} onClick={() => startCheckout(product)} className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60">{busyProduct === product.code && checkout.isPending ? <LoaderCircle size={16} className="animate-spin" /> : <Gem size={16} />} Mua VIP</button><button type="button" disabled={!canRedeem || redeem.isPending || checkout.isPending} onClick={() => redeemVip(product)} className="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-amber-300 bg-amber-50 text-sm font-semibold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50">{busyProduct === product.code && redeem.isPending ? <LoaderCircle size={16} className="animate-spin" /> : <Sparkles size={16} />} Đổi Point</button></div>
-                {!canRedeem && <p className="mt-2 text-center text-xs text-slate-500">Còn thiếu {Math.max(0, product.pointsRequired - pointBalance)} Point</p>}
+                <div className="mt-5 grid grid-cols-2 gap-2"><button type="button" disabled={isDowngrade || checkout.isPending || redeem.isPending} onClick={() => startCheckout(product)} className="flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-emerald-700 px-2 py-2 text-xs font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60 sm:px-3 sm:text-sm">{busyProduct === product.code && checkout.isPending ? <LoaderCircle size={16} className="animate-spin" /> : <Gem size={16} />} {actionLabel}</button><button type="button" disabled={isDowngrade || !canRedeem || redeem.isPending || checkout.isPending} onClick={() => redeemVip(product)} className="flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-amber-300 bg-amber-50 px-2 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:text-sm">{busyProduct === product.code && redeem.isPending ? <LoaderCircle size={16} className="animate-spin" /> : <Sparkles size={16} />} Đổi Point</button></div>
+                <div className="mt-2 min-h-9 text-center text-xs text-slate-500">{isDowngrade
+                  ? `VIP ${currentDeviceLimit} thiết bị đang còn hiệu lực; không thể mua gói thấp hơn.`
+                  : currentSubscription && product.deviceLimit === currentDeviceLimit
+                    ? `Gia hạn nối tiếp sau ${dateLabel(currentSubscription.expiresAt)}.`
+                    : currentDeviceLimit > 0 && product.deviceLimit > currentDeviceLimit
+                      ? 'Nâng cấp có hiệu lực ngay; gói cũ được giữ hạn.'
+                      : null}</div>
+                {!isDowngrade && !canRedeem && <p className="mt-2 text-center text-xs text-slate-500">Còn thiếu {Math.max(0, product.pointsRequired - pointBalance)} Point</p>}
               </article>
             })}
           </div>
@@ -313,11 +338,11 @@ function TeacherBillingPage() {
           <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white">
             {overview.data?.recentLedger?.length ? overview.data.recentLedger.map((entry, index) => <div key={`${entry.createdAt}-${index}`} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 last:border-0"><div><p className="text-sm font-semibold text-slate-800">{entry.reason.replaceAll('_', ' ')}</p><p className="text-xs text-slate-500">{dateLabel(entry.createdAt)}</p></div><div className="text-right"><p className={`font-bold ${entry.entryType === 'CREDIT' ? 'text-emerald-700' : 'text-orange-700'}`}>{entry.entryType === 'CREDIT' ? '+' : '-'}{entry.points} Point</p><p className="text-xs text-slate-500">Còn {entry.balanceAfter}</p></div></div>) : <p className="px-4 py-8 text-center text-sm text-slate-500">Chưa có giao dịch Point.</p>}
           </div>
-          <p className="mt-3 flex items-center gap-2 text-xs text-slate-500"><ShieldCheck size={15} />Point được ghi nhận sau khi MoMo xác nhận giao dịch thành công.</p>
+          <p className="mt-3 flex items-center gap-2 text-xs text-slate-500"><ShieldCheck size={15} />Point được ghi nhận sau khi VNPay xác nhận giao dịch thành công.</p>
         </section>
         </>}
       </div>
-      <MomoPaymentModal product={paymentProduct} onClose={closePaymentModal} />
+      <VnpayPaymentModal product={paymentProduct} onClose={closePaymentModal} />
       <PaidInvoicesModal open={invoiceModalOpen} onClose={closeInvoiceModal} invoices={invoiceQuery.data ?? []} isLoading={invoiceQuery.isLoading} />
     </DashboardLayout>
   )

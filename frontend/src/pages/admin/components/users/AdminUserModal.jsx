@@ -3,7 +3,6 @@ import FrogLoading from '../../../../utils/FrogLoading'
 import { statusLabels } from '../../helpers/userManagementHelpers'
 
 export default function AdminUserModal({
-  mode,
   selectedUser,
   form,
   formError,
@@ -12,7 +11,7 @@ export default function AdminUserModal({
   onSubmit,
   onFormChange,
 }) {
-  if (!mode) return null
+  if (!selectedUser) return null
 
   return (
     <div
@@ -22,7 +21,7 @@ export default function AdminUserModal({
       }}
     >
       <section
-        className={`admin-modal admin-user-modal ${mode === 'view' ? 'admin-modal--view' : ''}`}
+        className="admin-modal admin-user-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="admin-modal-title"
@@ -30,10 +29,8 @@ export default function AdminUserModal({
         <div className="admin-modal__header">
           <div>
             <span className="admin-eyebrow">USER ACCOUNT</span>
-            <h2 id="admin-modal-title">
-              {mode === 'create' ? 'Thêm tài khoản' : mode === 'edit' ? 'Chỉnh sửa tài khoản' : 'Chi tiết tài khoản'}
-            </h2>
-            <p>{mode === 'view' ? 'Thông tin tài khoản trong hệ thống.' : 'Nhập thông tin tài khoản bên dưới.'}</p>
+            <h2 id="admin-modal-title">Chỉnh sửa tài khoản</h2>
+            <p>Cập nhật thông tin tài khoản bên dưới.</p>
             {selectedUser && (
               <div className="admin-user-modal__identity">
                 <img
@@ -62,15 +59,15 @@ export default function AdminUserModal({
             <div className="admin-form-grid">
               <div className="admin-form-field">
                 <label htmlFor="user-name">Họ và tên <span>*</span></label>
-                <input id="user-name" name="fullName" value={form.fullName} onChange={onFormChange} disabled={mode === 'view'} minLength={2} maxLength={100} required />
+                <input id="user-name" name="fullName" value={form.fullName} onChange={onFormChange} minLength={2} maxLength={100} required />
               </div>
               <div className="admin-form-field">
                 <label htmlFor="user-username">Tên đăng nhập <span>*</span></label>
-                <input id="user-username" name="username" value={form.username} onChange={onFormChange} disabled={mode === 'view'} maxLength={50} required />
+                <input id="user-username" name="username" value={form.username} onChange={onFormChange} maxLength={50} required />
               </div>
               <div className="admin-form-field admin-form-field--full">
                 <label htmlFor="user-email">Email <span>*</span></label>
-                <input id="user-email" name="email" type="email" value={form.email} onChange={onFormChange} disabled={mode === 'view'} maxLength={255} required />
+                <input id="user-email" name="email" type="email" value={form.email} onChange={onFormChange} maxLength={255} required />
               </div>
               <div className="admin-form-field">
                 <label htmlFor="user-phone">Số điện thoại</label>
@@ -80,7 +77,6 @@ export default function AdminUserModal({
                   type="tel"
                   value={form.phone}
                   onChange={onFormChange}
-                  disabled={mode === 'view'}
                   inputMode="numeric"
                   pattern="^(0[35789])[0-9]{8}$"
                   maxLength={10}
@@ -89,46 +85,34 @@ export default function AdminUserModal({
               </div>
               <div className="admin-form-field">
                 <label htmlFor="user-role">Vai trò</label>
-                <select id="user-role" name="role" value={form.role} onChange={onFormChange} disabled={mode === 'view'}>
+                <select id="user-role" name="role" value={form.role} onChange={onFormChange}>
                   <option value="STUDENT">Học sinh</option>
                   <option value="TEACHER">Giáo viên</option>
                 </select>
               </div>
-              {mode !== 'view' && (
-                <div className="admin-form-field admin-form-field--full">
-                  <label htmlFor="user-password">
-                    Mật khẩu {mode === 'create' && <span>*</span>}
-                  </label>
-                  <input
-                    id="user-password"
-                    name="password"
-                    type="password"
-                    value={form.password}
-                    onChange={onFormChange}
-                    autoComplete="new-password"
-                    minLength={mode === 'create' ? 8 : undefined}
-                    maxLength={72}
-                    required={mode === 'create'}
-                    placeholder={mode === 'edit' ? 'Để trống nếu không đổi mật khẩu' : 'Tối thiểu 8 ký tự'}
-                  />
-                </div>
-              )}
+              <div className="admin-form-field admin-form-field--full">
+                <label htmlFor="user-password">Mật khẩu</label>
+                <input
+                  id="user-password"
+                  name="password"
+                  type="password"
+                  value={form.password}
+                  onChange={onFormChange}
+                  autoComplete="new-password"
+                  maxLength={72}
+                  placeholder="Để trống nếu không đổi mật khẩu"
+                />
+              </div>
             </div>
             {formError && <div className="admin-form-error" role="alert">{formError}</div>}
           </div>
           <div className="admin-modal__footer">
             <button type="button" className="admin-secondary-btn" onClick={onClose}>
-              {mode === 'view' ? 'Đóng' : 'Hủy'}
+              Hủy
             </button>
-            {mode !== 'view' && (
-              <button type="submit" className="admin-primary-btn" disabled={saving}>
-                {saving
-                  ? <FrogLoading compact label="Đang lưu..." />
-                  : mode === 'create'
-                    ? '＋ Tạo tài khoản'
-                    : 'Lưu thay đổi'}
-              </button>
-            )}
+            <button type="submit" className="admin-primary-btn" disabled={saving}>
+              {saving ? <FrogLoading compact label="Đang lưu..." /> : 'Lưu thay đổi'}
+            </button>
           </div>
         </form>
       </section>

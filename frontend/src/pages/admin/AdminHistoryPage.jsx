@@ -1,5 +1,5 @@
 import { useDeferredValue, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import {
   Activity,
   ArrowDownUp,
@@ -97,6 +97,7 @@ export default function AdminHistoryPage() {
     }, { signal }),
     staleTime: 15_000,
     refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
   })
   const result = activityQuery.data
   const items = [...(result?.items ?? [])].sort((left, right) => {
@@ -331,7 +332,13 @@ export default function AdminHistoryPage() {
             )}
           </div>
         ) : (
-          <>
+          <div className="relative" aria-busy={activityQuery.isFetching}>
+            {activityQuery.isFetching && (
+              <div className="pointer-events-none absolute right-5 top-4 z-10 inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-blue-700 shadow-sm ring-1 ring-blue-100">
+                <LoaderCircle size={14} className="animate-spin" />
+                Đang cập nhật
+              </div>
+            )}
             <ol className="divide-y divide-slate-100">
               {items.map((item) => (
                 <li key={item.id} className="flex gap-4 px-5 py-5 sm:px-6">
@@ -384,7 +391,7 @@ export default function AdminHistoryPage() {
                 </button>
               </div>
             </div>
-          </>
+          </div>
         )}
       </section>
     </div>

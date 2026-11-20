@@ -346,11 +346,17 @@ function SignupPage() {
         <Leaf className="login-float login-leaf-two" strokeWidth={1.3} />
       </div>
       <header className="relative z-10 mx-auto flex w-full max-w-7xl items-center gap-3 px-6 pt-6 sm:px-10 sm:pt-9">
-        <img src={logo} alt="Class Management" className="h-14 w-14 object-contain sm:h-16 sm:w-16" />
-        <div>
-          <p className="text-xl font-bold text-[#18301D]">FrogH</p>
-          <p className="text-sm text-green-700">Education System</p>
-        </div>
+        <Link
+          to="/"
+          aria-label="Về trang chủ"
+          className="flex items-center gap-3 rounded-xl transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+        >
+          <img src={logo} alt="FrogH" className="h-14 w-14 object-contain sm:h-16 sm:w-16" />
+          <div>
+            <p className="text-xl font-bold text-[#18301D]">FrogH</p>
+            <p className="text-sm text-green-700">Education System</p>
+          </div>
+        </Link>
       </header>
       <div className="relative z-10 mx-auto grid w-full max-w-7xl flex-1 items-center gap-10 px-5 py-10 sm:px-10 lg:grid-cols-[1fr_420px] lg:gap-16 lg:py-14">
       <section className="flex min-w-0 flex-col justify-center text-center lg:text-left">

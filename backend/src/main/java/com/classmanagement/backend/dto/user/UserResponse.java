@@ -2,6 +2,7 @@ package com.classmanagement.backend.dto.user;
 
 import com.classmanagement.backend.entity.enums.UserRole;
 import com.classmanagement.backend.entity.enums.UserStatus;
+import java.time.OffsetDateTime;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -19,4 +20,7 @@ public class UserResponse {
     private String teacherCode;
     private UserRole role;
     private UserStatus status;
+    private String vipTier;
+    private OffsetDateTime vipExpiresAt;
+    private boolean vipPermanent;
 }

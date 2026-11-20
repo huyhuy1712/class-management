@@ -772,7 +772,8 @@
 
 .admin-user-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   text-align: left;
   white-space: nowrap;
 }
@@ -795,11 +796,33 @@
   font-size: 14px;
 }
 
+.admin-user-table th:first-child,
+.admin-user-table td:first-child {
+  position: sticky;
+  left: 0;
+  min-width: 280px;
+  box-shadow: 1px 0 0 #e2eee5;
+}
+
+.admin-user-table th:first-child {
+  z-index: 2;
+  background: #f8fbf8;
+}
+
+.admin-user-table td:first-child {
+  z-index: 1;
+  background: #fff;
+}
+
 .admin-user-table tbody tr {
   transition: background 0.15s;
 }
 
 .admin-user-table tbody tr:hover {
+  background: #f8fbf8;
+}
+
+.admin-user-table tbody tr:hover td:first-child {
   background: #f8fbf8;
 }
 
@@ -847,6 +870,13 @@
   font-size: 14px;
 }
 
+.admin-code-label {
+  display: block;
+  margin-top: 4px;
+  color: var(--admin-muted);
+  font-size: 11px;
+}
+
 .admin-role-badge,
 .admin-status-badge {
   display: inline-flex;
@@ -866,6 +896,17 @@
 .admin-role-badge.teacher {
   color: #a16207;
   background: #fef3c7;
+}
+
+.admin-vip-badge {
+  display: inline-flex;
+  padding: 6px 9px;
+  color: #7c3aed;
+  background: #f5f3ff;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .admin-status-badge.active {
@@ -944,6 +985,41 @@
   color: #15803d;
   background: #f0fdf4;
   border-color: #bbf7d0;
+}
+
+.admin-icon-btn.vip {
+  color: #7c3aed;
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+}
+
+.admin-vip-permanent {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 16px;
+  color: #5b21b6;
+  font-weight: 650;
+}
+
+.admin-vip-current {
+  display: grid;
+  gap: 5px;
+  margin-top: 18px;
+  padding: 12px;
+  color: #475569;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.admin-vip-current span {
+  font-size: 12px;
+}
+
+.admin-vip-warning {
+  margin: 14px 0 0;
+  color: #b91c1c;
+  font-weight: 600;
 }
 
 .admin-icon-btn.block {

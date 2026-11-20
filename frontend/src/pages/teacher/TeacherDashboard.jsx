@@ -19,6 +19,17 @@ import FeatureCard from '../../components/dashboard/FeatureCard'
 import useAuthStore from '../../stores/authStore'
 import { Link } from 'react-router-dom'
 
+const vipTierLabel = (tier) => ({
+  PERSONAL: 'VIP Cá nhân',
+  FIVE_DEVICES: 'VIP 5 thiết bị',
+  TEN_DEVICES: 'VIP 10 thiết bị',
+}[tier] ?? tier)
+const dateLabel = (value) => value
+  ? new Date(value).getUTCFullYear() >= 9999
+    ? 'Vĩnh viễn'
+    : new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium' }).format(new Date(value))
+  : ''
+
 const features = [
   {
     title: 'Lớp học',
@@ -197,7 +208,7 @@ function TeacherDashboard() {
                 <div className="rounded-xl bg-gradient-to-br from-amber-50 via-orange-50 to-white p-4">
                   <p className="text-sm font-medium text-amber-800">Tổng Point hiện có</p>
                   <p className="mt-2 flex items-center gap-2 text-3xl font-extrabold tracking-tight text-slate-900">
-                    0
+                    {new Intl.NumberFormat('vi-VN').format(billing.pointsBalance ?? 0)}
                     <Coins size={22} className="text-amber-500" />
                   </p>
                 </div>
@@ -208,9 +219,16 @@ function TeacherDashboard() {
                     Gói VIP
                   </span>
                   <span className="text-right text-sm font-semibold text-slate-800">
-                    {billing.vipTier || 'Chưa kích hoạt'}
+                    {billing.vipTier ? vipTierLabel(billing.vipTier) : 'Chưa kích hoạt'}
                   </span>
                 </div>
+                {billing.vipTier && billing.vipExpiresAt && (
+                  <p className="mt-3 text-xs text-slate-500">
+                    {dateLabel(billing.vipExpiresAt) === 'Vĩnh viễn'
+                      ? 'Có hiệu lực vĩnh viễn'
+                      : `Có hiệu lực đến ${dateLabel(billing.vipExpiresAt)}`}
+                  </p>
+                )}
 
                 <div className="py-4">
                   <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Giao dịch gần nhất</p>

@@ -5,6 +5,7 @@ import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.entity.enums.UserRole;
 import com.classmanagement.backend.entity.enums.UserStatus;
 import com.classmanagement.backend.repository.ImpersonationSessionRepository;
+import com.classmanagement.backend.repository.NotificationRepository;
 import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.security.UserAuthenticationDetails;
 import com.classmanagement.backend.security.JwtService;
@@ -36,6 +37,7 @@ class ImpersonationServiceTest {
         ImpersonationService service = new ImpersonationService(
                 users,
                 proxy(ImpersonationSessionRepository.class, (method, args) -> null),
+                proxy(NotificationRepository.class, (method, args) -> null),
                 new JwtService(),
                 proxy(StorageService.class, (method, args) -> null));
 
@@ -62,6 +64,7 @@ class ImpersonationServiceTest {
         ImpersonationService service = new ImpersonationService(
                 userRepository(admin, target),
                 sessions,
+                proxy(NotificationRepository.class, (method, args) -> null),
                 new JwtService(),
                 proxy(StorageService.class, (method, args) -> null));
 
@@ -84,6 +87,7 @@ class ImpersonationServiceTest {
         ImpersonationService service = new ImpersonationService(
                 userRepository(admin, target),
                 proxy(ImpersonationSessionRepository.class, (method, args) -> Optional.of(session)),
+                proxy(NotificationRepository.class, (method, args) -> null),
                 new JwtService(),
                 proxy(StorageService.class, (method, args) -> null));
 
@@ -97,6 +101,7 @@ class ImpersonationServiceTest {
                         user(1L, "admin", UserRole.ADMIN, UserStatus.ACTIVE),
                         user(2L, "student", UserRole.STUDENT, UserStatus.ACTIVE)),
                 proxy(ImpersonationSessionRepository.class, (method, args) -> Optional.empty()),
+                proxy(NotificationRepository.class, (method, args) -> null),
                 new JwtService(),
                 proxy(StorageService.class, (method, args) -> null));
 
@@ -126,6 +131,7 @@ class ImpersonationServiceTest {
                     throw new UnsupportedOperationException(method);
                 }),
                 sessions,
+                proxy(NotificationRepository.class, (method, args) -> null),
                 new JwtService(),
                 proxy(StorageService.class, (method, args) -> null));
 

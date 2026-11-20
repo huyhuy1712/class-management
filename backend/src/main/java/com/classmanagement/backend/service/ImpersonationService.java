@@ -2,9 +2,12 @@ package com.classmanagement.backend.service;
 
 import com.classmanagement.backend.dto.user.UserResponse;
 import com.classmanagement.backend.entity.ImpersonationSession;
+import com.classmanagement.backend.entity.Notification;
 import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.entity.enums.UserRole;
 import com.classmanagement.backend.entity.enums.UserStatus;
+import com.classmanagement.backend.entity.enums.NotificationType;
+import com.classmanagement.backend.repository.NotificationRepository;
 import com.classmanagement.backend.exception.ResourceNotFoundException;
 import com.classmanagement.backend.repository.ImpersonationSessionRepository;
 import com.classmanagement.backend.repository.UserRepository;
@@ -27,6 +30,7 @@ public class ImpersonationService {
 
     private final UserRepository userRepository;
     private final ImpersonationSessionRepository sessionRepository;
+    private final NotificationRepository notificationRepository;
     private final JwtService jwtService;
     private final StorageService storageService;
 
@@ -60,6 +64,17 @@ public class ImpersonationService {
                 .targetUserId(target.getId())
                 .reason(reason == null || reason.isBlank() ? null : reason.trim())
                 .expiresAt(expiresAt)
+                .build());
+        String normalizedReason = reason == null || reason.isBlank() ? null : reason.trim();
+        notificationRepository.save(Notification.builder()
+                .user(target)
+                .type(NotificationType.IMPERSONATION_ACCESS)
+                .title("Quản trị viên đã truy cập tài khoản")
+                .message("Quản trị viên " + admin.getFullName() + " (@" + admin.getUsername()
+                        + ") đã đăng nhập vào tài khoản của bạn.\nLý do: "
+                        + (normalizedReason == null ? "Không cung cấp" : normalizedReason))
+                .referenceType("IMPERSONATION")
+                .referenceId(session.getId())
                 .build());
 
         UserDetails targetDetails = org.springframework.security.core.userdetails.User

@@ -69,8 +69,8 @@ public class BillingOrder {
     @Column(nullable = false)
     private Status status;
 
-    @Column(name = "momo_transaction_id")
-    private String momoTransactionId;
+    @Column(name = "payment_transaction_id")
+    private String paymentTransactionId;
 
     @Column(name = "pay_url", columnDefinition = "text")
     private String payUrl;

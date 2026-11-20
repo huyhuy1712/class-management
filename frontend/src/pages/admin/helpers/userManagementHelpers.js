@@ -4,19 +4,7 @@ export const statusLabels = {
   BANNED: 'Đã khóa',
 }
 
-export const emptyUserForm = {
-  fullName: '',
-  username: '',
-  email: '',
-  phone: '',
-  role: 'STUDENT',
-  status: 'ACTIVE',
-  password: '',
-}
-
-export function createUserForm(user) {
-  if (!user) return { ...emptyUserForm }
-
+export function editUserForm(user) {
   return {
     fullName: user.fullName,
     username: user.username,
