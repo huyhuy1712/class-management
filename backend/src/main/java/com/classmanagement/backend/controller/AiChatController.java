@@ -23,6 +23,11 @@ public class AiChatController {
             HttpServletRequest servletRequest,
             Authentication authentication) {
 
+        boolean headerGuest = "true".equalsIgnoreCase(servletRequest.getHeader("X-Guest-Mode"));
+        if (headerGuest || Boolean.TRUE.equals(request.getForceGuest())) {
+            authentication = null;
+        }
+
         String clientIp = extractClientIp(servletRequest);
         AiChatResponse response = aiChatService.chat(request, clientIp, authentication);
         return ResponseEntity.ok(response);
@@ -31,8 +36,14 @@ public class AiChatController {
     @GetMapping("/quota")
     public ResponseEntity<AiChatResponse> getQuota(
             @RequestParam(name = "clientSessionId", required = false) String clientSessionId,
+            @RequestParam(name = "forceGuest", required = false) Boolean forceGuest,
             HttpServletRequest servletRequest,
             Authentication authentication) {
+
+        boolean headerGuest = "true".equalsIgnoreCase(servletRequest.getHeader("X-Guest-Mode"));
+        if (headerGuest || Boolean.TRUE.equals(forceGuest)) {
+            authentication = null;
+        }
 
         String clientIp = extractClientIp(servletRequest);
         AiChatResponse response = aiChatService.getQuotaStatus(clientSessionId, clientIp, authentication);

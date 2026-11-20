@@ -41,15 +41,22 @@ export function setLocalGuestQuota(quota) {
  * Gửi tin nhắn câu hỏi tới Trợ lý Học tập AI
  * @param {string} message Nội dung câu hỏi
  * @param {Array<{role: string, content: string}>} history Lịch sử trò chuyện
+ * @param {boolean} forceGuest Ép buộc chế độ khách trải nghiệm (dành cho Landing Page)
  * @returns {Promise<{reply: string, remainingQuota: number|null, limitReached: boolean, role: string}>}
  */
-export const sendChatMessage = async (message, history = []) => {
+export const sendChatMessage = async (message, history = [], forceGuest = false) => {
   const clientSessionId = getOrCreateClientSessionId()
-  const response = await api.post('/public/ai/chat', {
-    message,
-    clientSessionId,
-    history,
-  })
+  const headers = forceGuest ? { 'X-Guest-Mode': 'true' } : {}
+  const response = await api.post(
+    '/public/ai/chat',
+    {
+      message,
+      clientSessionId,
+      history,
+      forceGuest,
+    },
+    { headers }
+  )
 
   if (typeof response.data?.remainingQuota === 'number') {
     setLocalGuestQuota(response.data.remainingQuota)
@@ -60,12 +67,15 @@ export const sendChatMessage = async (message, history = []) => {
 
 /**
  * Lấy trạng thái hạn mức quota và vai trò người dùng hiện tại
+ * @param {boolean} forceGuest Ép buộc chế độ khách trải nghiệm
  * @returns {Promise<{reply: string, remainingQuota: number|null, limitReached: boolean, role: string}>}
  */
-export const getQuotaStatus = async () => {
+export const getQuotaStatus = async (forceGuest = false) => {
   const clientSessionId = getOrCreateClientSessionId()
+  const headers = forceGuest ? { 'X-Guest-Mode': 'true' } : {}
   const response = await api.get('/public/ai/quota', {
-    params: { clientSessionId },
+    params: { clientSessionId, forceGuest },
+    headers,
   })
 
   if (typeof response.data?.remainingQuota === 'number') {
