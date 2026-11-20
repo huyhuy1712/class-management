@@ -153,3 +153,10 @@ backend/tools/formula/node_modules/
 Giữ nguyên `requirements.txt`, `package-lock.json` và revision model trong `setup_models.py` để các máy cài cùng phiên bản.
 
 .\mvnw.cmd clean compile
+
+```trang đăng kí sandbox thanh toán trên local
+https://pay.vnpaytest.vn/dev-registration
+
+```Setup  Cloudflare
+winget install --id Cloudflare.cloudflared -e
+cloudflared tunnel --url http://localhost:8080

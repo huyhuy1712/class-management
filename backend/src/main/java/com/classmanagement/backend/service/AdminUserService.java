@@ -1,12 +1,15 @@
 package com.classmanagement.backend.service;
 
 import com.classmanagement.backend.dto.user.AdminUserRequest;
+import com.classmanagement.backend.dto.user.AdminVipRequest;
 import com.classmanagement.backend.dto.user.UserResponse;
 import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.entity.enums.UserRole;
 import com.classmanagement.backend.entity.enums.UserStatus;
+import com.classmanagement.backend.entity.billing.TeacherVipSubscription;
 import com.classmanagement.backend.exception.ResourceNotFoundException;
 import com.classmanagement.backend.repository.UserRepository;
+import com.classmanagement.backend.repository.billing.TeacherVipSubscriptionRepository;
 import com.classmanagement.backend.service.StorageService;
 import com.classmanagement.backend.service.MaterialService;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +18,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.Map;
+import java.util.Comparator;
+import java.util.Locale;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +34,7 @@ public class AdminUserService {
     private final PasswordEncoder passwordEncoder;
     private final StorageService storageService;
     private final MaterialService materialService;
+    private final TeacherVipSubscriptionRepository vipSubscriptions;
 
     @Transactional(readOnly = true)
     public List<UserResponse> getUsers(UserRole role) {
@@ -34,34 +45,57 @@ public class AdminUserService {
         List<User> users = role == null
                 ? userRepository.findAllByRoleNot(UserRole.ADMIN)
                 : userRepository.findAllByRole(role);
-        return users.stream().map(this::toResponse).toList();
+        List<Long> teacherIds = users.stream()
+                .filter(user -> user.getRole() == UserRole.TEACHER)
+                .map(User::getId)
+                .toList();
+        Map<Long, TeacherVipSubscription> activeVipByTeacher = teacherIds.isEmpty()
+                ? Map.of()
+                : vipSubscriptions.findActiveByTeacherIdIn(teacherIds, OffsetDateTime.now(ZoneOffset.UTC))
+                        .stream()
+                        .collect(Collectors.toMap(
+                                TeacherVipSubscription::getTeacherId,
+                                Function.identity(),
+                                (first, second) -> Comparator.comparingInt(TeacherVipSubscription::getDeviceLimit)
+                                        .compare(first, second) >= 0 ? first : second));
+        return users.stream()
+                .map(user -> toResponse(user, activeVipByTeacher.get(user.getId())))
+                .toList();
     }
 
     @Transactional
-    public UserResponse createUser(AdminUserRequest request) {
-        validateManageableRole(request.getRole());
-        if (request.getPassword() == null || request.getPassword().isBlank()) {
-            throw new IllegalArgumentException("Mật khẩu không được để trống khi tạo tài khoản");
+    public void grantVip(Long userId, AdminVipRequest request) {
+        User user = findTeacher(userId);
+        String tier = request.vipTier().trim().toUpperCase(Locale.ROOT);
+        int deviceLimit = switch (tier) {
+            case "PERSONAL" -> 1;
+            case "FIVE_DEVICES" -> 5;
+            case "TEN_DEVICES" -> 10;
+            default -> throw new IllegalArgumentException("Hạng VIP không hợp lệ");
+        };
+        if (!request.permanent()
+                && (request.durationMonths() == null || request.durationMonths() < 1
+                        || request.durationMonths() > 1200)) {
+            throw new IllegalArgumentException("Thời hạn VIP phải từ 1 đến 1200 tháng");
         }
 
-        String username = request.getUsername().trim();
-        String email = request.getEmail().trim();
-        String phone = normalizePhone(request.getPhone());
-        ensureUniqueIdentity(username, email, phone, null);
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        vipSubscriptions.deleteAllByTeacherIdAndVipTierNot(userId, tier);
+        vipSubscriptions.createIfMissing(userId, tier, deviceLimit, now);
+        TeacherVipSubscription subscription = vipSubscriptions.findLockedByTeacherAndTier(userId, tier)
+                .orElseThrow(() -> new IllegalStateException("Không thể tạo quyền VIP"));
+        subscription.setDeviceLimit(deviceLimit);
+        subscription.setExpiresAt(request.permanent()
+                ? TeacherVipSubscription.PERMANENT_EXPIRY
+                : now.plusMonths(request.durationMonths()));
+        subscription.setUpdatedAt(now);
+        vipSubscriptions.save(subscription);
+    }
 
-        User user = User.builder()
-                .username(username)
-                .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .email(email)
-                .fullName(request.getFullName().trim())
-                .phone(phone)
-                .role(request.getRole())
-                .status(request.getStatus())
-                .build();
-
-        User savedUser = userRepository.save(user);
-        assignRoleCode(savedUser, request.getRole(), null);
-        return toResponse(userRepository.save(savedUser));
+    @Transactional
+    public void removeVip(Long userId) {
+        findTeacher(userId);
+        vipSubscriptions.deleteAllByTeacherId(userId);
     }
 
     @Transactional
@@ -136,6 +170,14 @@ public class AdminUserService {
         return user;
     }
 
+    private User findTeacher(Long userId) {
+        User user = findUser(userId);
+        if (user.getRole() != UserRole.TEACHER) {
+            throw new IllegalArgumentException("Chỉ có thể quản lý VIP cho tài khoản giáo viên");
+        }
+        return user;
+    }
+
     private void ensureUniqueIdentity(String username, String email, String phone, Long userId) {
         boolean usernameExists = userRepository.findByUsername(username)
                 .filter(user -> !user.getId().equals(userId))
@@ -185,6 +227,10 @@ public class AdminUserService {
     }
 
     private UserResponse toResponse(User user) {
+        return toResponse(user, null);
+    }
+
+    private UserResponse toResponse(User user, TeacherVipSubscription vip) {
         String avatarUrl = user.getAvatar() == null || user.getAvatar().isBlank()
                 ? null
                 : storageService.getUrl(user.getAvatar());
@@ -200,6 +246,10 @@ public class AdminUserService {
                 .teacherCode(user.getTeacherCode())
                 .role(user.getRole())
                 .status(user.getStatus())
+                .vipTier(vip == null ? null : vip.getVipTier())
+                .vipExpiresAt(vip == null ? null : vip.getExpiresAt())
+                .vipPermanent(vip != null
+                        && !vip.getExpiresAt().isBefore(TeacherVipSubscription.PERMANENT_EXPIRY))
                 .build();
     }
 }

@@ -5,6 +5,7 @@ import { sortByText } from '../../utils/sortByText'
 import { Bell, X, Users, MessageSquare } from 'lucide-react'
 import { useState } from 'react'
 import requestService from '../../services/requestService'
+import notificationService from '../../services/notificationService'
 import defaultAvatar from '../../assets/images/avatar_default.png'
 
 function formatRequestDate(createdAt) {
@@ -26,13 +27,34 @@ function NotificationBell() {
   const setRequests = query.setData
   const loading = query.isLoading
   const error = query.errorMessage
+  const notificationQuery = useResourceQuery('notifications')
+  const notifications = notificationQuery.data ?? []
+  const setNotifications = notificationQuery.setData
 
-  const pendingCount = requests.length
+  const pendingCount = requests.length + notifications.filter((item) => !item.read).length
   
   const rejectingId = rejectMutation.isPending ? rejectMutation.variables : null
   const [actionError, setActionError] = useState('')
 
   const approvingId = approveMutation.isPending ? approveMutation.variables : null
+  const markNotificationRead = async (notification) => {
+    if (notification.read) return
+    try {
+      await notificationService.markRead(notification.id)
+      setNotifications((current) => current.map((item) =>
+        item.id === notification.id ? { ...item, read: true } : item))
+    } catch (notificationError) {
+      setActionError(notificationError.response?.data?.message || 'Không thể cập nhật thông báo.')
+    }
+  }
+  const deleteNotification = async (notificationId) => {
+    try {
+      await notificationService.deleteNotification(notificationId)
+      setNotifications((current) => current.filter((item) => item.id !== notificationId))
+    } catch (notificationError) {
+      setActionError(notificationError.response?.data?.message || 'Không thể xóa thông báo.')
+    }
+  }
 
 const handleReject = async (request) => {
   if (!request?.requestId || rejectingId !== null || approvingId !== null) return
@@ -191,7 +213,7 @@ const handleApprove = async (request) => {
                   </div>
 
                   <p className="mt-0.5 text-sm text-slate-400">
-                    Yêu cầu tham gia lớp
+                    Yêu cầu và cập nhật tài khoản
                   </p>
                 </div>
               </div>
@@ -212,7 +234,7 @@ const handleApprove = async (request) => {
                   type="button"
                   className="relative py-4 text-sm font-semibold text-green-700"
                 >
-                  Yêu cầu tham gia lớp
+                  Yêu cầu tham gia lớp và cập nhật tài khoản
 
                   {pendingCount > 0 && (
                     <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">
@@ -249,7 +271,7 @@ const handleApprove = async (request) => {
                 <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-600">
                   {error}
                 </div>
-              ) : requests.length === 0 ? (
+              ) : requests.length === 0 && notifications.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-14 text-center">
                   <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-50 text-green-600">
                     <Users size={24} />
@@ -265,6 +287,33 @@ const handleApprove = async (request) => {
                 </div>
               ) : (
                 <div className="space-y-3">
+                  {notifications.map((notification) => (
+                    <article
+                      key={`notification-${notification.id}`}
+                      className={`flex gap-3 rounded-2xl border p-4 ${notification.read ? 'border-slate-200 bg-white' : 'border-amber-200 bg-amber-50/70'}`}
+                    >
+                      <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${notification.read ? 'bg-slate-100 text-slate-500' : 'bg-white text-amber-600'}`}>
+                        <Bell size={17} />
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => markNotificationRead(notification)}
+                        className="min-w-0 flex-1 text-left"
+                      >
+                        <h3 className="font-bold leading-5 text-slate-900">{notification.title}</h3>
+                        <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-slate-600">{notification.message}</p>
+                        {notification.createdAt && <p className="mt-2 text-xs font-medium text-slate-400">{new Date(notification.createdAt).toLocaleString('vi-VN')}</p>}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteNotification(notification.id)}
+                        aria-label="Xóa thông báo"
+                        className="self-start rounded-lg p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                      >
+                        <X size={17} />
+                      </button>
+                    </article>
+                  ))}
                   {sortByText(requests, (item) => item.fullName).map((request) => (
                     <div
                       key={request.requestId}

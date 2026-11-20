@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -18,6 +19,9 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class TeacherVipSubscription {
+    public static final OffsetDateTime PERMANENT_EXPIRY =
+            OffsetDateTime.of(9999, 12, 31, 23, 59, 59, 0, ZoneOffset.UTC);
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

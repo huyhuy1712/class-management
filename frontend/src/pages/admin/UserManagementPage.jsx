@@ -4,6 +4,7 @@ import AdminUserModal from './components/users/AdminUserModal'
 import AdminUserStats from './components/users/AdminUserStats'
 import AdminUserTable from './components/users/AdminUserTable'
 import AdminActionToast from './components/AdminActionToast'
+import AdminVipModal from './components/users/AdminVipModal'
 import useAdminUserManagement from './hooks/useAdminUserManagement'
 import FrogLoading from '../../utils/FrogLoading'
 
@@ -18,9 +19,6 @@ export default function UserManagementPage() {
           <h2>Quản lý tài khoản</h2>
           <p>Dữ liệu tài khoản được tải trực tiếp từ cơ sở dữ liệu.</p>
         </div>
-        <button type="button" className="admin-primary-btn" onClick={management.openCreateModal}>
-          <span>＋</span> Thêm tài khoản
-        </button>
       </div>
 
       {management.error && (
@@ -66,16 +64,17 @@ export default function UserManagementPage() {
           blockPending={management.blockMutation.isPending}
           deletePending={management.deleteMutation.isPending}
           impersonationPending={management.impersonationMutation.isPending}
+          vipPending={management.grantVipMutation.isPending || management.removeVipMutation.isPending}
           onToggleBlocked={management.handleToggleBlocked}
-          onEdit={(user) => management.openUserModal(user, 'edit')}
+          onEdit={management.openUserModal}
           onApprove={management.handleApprove}
           onImpersonate={management.handleImpersonate}
           onDelete={management.handleDelete}
+          onManageVip={management.openVipModal}
         />
       </section>
 
       <AdminUserModal
-        mode={management.modalMode}
         selectedUser={management.selectedUser}
         form={management.form}
         formError={management.formError}
@@ -93,6 +92,16 @@ export default function UserManagementPage() {
         onClose={management.closePendingAction}
         onReasonChange={management.setImpersonationReason}
         onConfirm={management.confirmPendingAction}
+      />
+
+      <AdminVipModal
+        key={management.selectedVipUser?.id ?? 'closed'}
+        user={management.selectedVipUser}
+        grantPending={management.grantVipMutation.isPending}
+        removePending={management.removeVipMutation.isPending}
+        onClose={() => management.setSelectedVipUser(null)}
+        onGrant={(vip) => management.grantVipMutation.mutate({ userId: management.selectedVipUser.id, vip })}
+        onRemove={() => management.removeVipMutation.mutate(management.selectedVipUser.id)}
       />
 
       <AdminActionToast toast={management.toast} onClose={() => management.setToast(null)} />

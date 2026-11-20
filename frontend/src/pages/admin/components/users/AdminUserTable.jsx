@@ -1,4 +1,4 @@
-import { Check, LockKeyhole, LogIn, Pencil, Trash2, UnlockKeyhole } from 'lucide-react'
+import { Check, Gem, LockKeyhole, LogIn, Pencil, Trash2, UnlockKeyhole } from 'lucide-react'
 import defaultAvatar from '../../../../assets/images/avatar_default.png'
 import FrogLoading from '../../../../utils/FrogLoading'
 import { getRoleLabel, statusLabels } from '../../helpers/userManagementHelpers'
@@ -11,11 +11,13 @@ export default function AdminUserTable({
   blockPending,
   deletePending,
   impersonationPending,
+  vipPending,
   onToggleBlocked,
   onEdit,
   onApprove,
   onImpersonate,
   onDelete,
+  onManageVip,
 }) {
   return (
     <div className="admin-table-wrapper">
@@ -25,14 +27,16 @@ export default function AdminUserTable({
             <th>NGƯỜI DÙNG</th>
             <th>TÊN ĐĂNG NHẬP</th>
             <th>VAI TRÒ</th>
+            <th>MÃ SỐ</th>
             <th>TRẠNG THÁI</th>
+            <th>VIP</th>
             <th>THAO TÁC</th>
           </tr>
         </thead>
         <tbody>
           {isPending && (
             <tr>
-              <td colSpan={5}>
+              <td colSpan={7}>
                 <FrogLoading label="Đang tải danh sách tài khoản..." />
               </td>
             </tr>
@@ -63,13 +67,50 @@ export default function AdminUserTable({
                 </span>
               </td>
               <td>
+                <span className="admin-username">
+                  {user.role === 'TEACHER'
+                    ? user.teacherCode || '---'
+                    : user.studentCode || '---'}
+                </span>
+                <small className="admin-code-label">
+                  {user.role === 'TEACHER' ? 'Mã giáo viên' : 'Mã học sinh'}
+                </small>
+              </td>
+              <td>
                 <span className={`admin-status-badge ${user.status === 'ACTIVE' ? 'active' : 'inactive'}`}>
                   <span />
                   {statusLabels[user.status] ?? user.status}
                 </span>
               </td>
               <td>
+                {user.role === 'TEACHER' && user.vipTier ? (
+                  <>
+                    <span className="admin-vip-badge">
+                      VIP {user.vipTier === 'PERSONAL' ? 'Cá nhân' : user.vipTier === 'FIVE_DEVICES' ? '5 thiết bị' : '10 thiết bị'}
+                    </span>
+                    <small className="admin-code-label">
+                      {user.vipPermanent
+                        ? 'Vĩnh viễn'
+                        : `Đến ${new Date(user.vipExpiresAt).toLocaleDateString('vi-VN')}`}
+                    </small>
+                  </>
+                ) : user.role === 'TEACHER' ? 'Chưa có' : '—'}
+              </td>
+              <td>
                 <div className="admin-table-actions">
+                  {user.role === 'TEACHER' && (
+                    <button
+                      type="button"
+                      className="admin-icon-btn vip"
+                      title="Quản lý VIP"
+                      aria-label={`Quản lý VIP của ${user.name}`}
+                      disabled={vipPending}
+                      onClick={() => onManageVip(user)}
+                    >
+                      <Gem size={17} strokeWidth={2} />
+                      <span>{vipPending ? <FrogLoading compact label="" /> : 'VIP'}</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     className={`admin-icon-btn ${user.status === 'BANNED' ? 'unblock' : 'block'}`}
@@ -142,7 +183,7 @@ export default function AdminUserTable({
           ))}
           {!isPending && !error && users.length === 0 && (
             <tr>
-              <td colSpan={5}>
+              <td colSpan={7}>
                 <div className="admin-no-results">
                   <span>⌕</span>
                   <strong>Không tìm thấy tài khoản</strong>

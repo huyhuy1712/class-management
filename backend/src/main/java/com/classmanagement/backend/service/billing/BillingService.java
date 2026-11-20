@@ -2,7 +2,7 @@ package com.classmanagement.backend.service.billing;
 
 import com.classmanagement.backend.dto.billing.BillingOrderResponse;
 import com.classmanagement.backend.dto.billing.BillingOverviewResponse;
-import com.classmanagement.backend.dto.billing.MomoIpnRequest;
+import com.classmanagement.backend.dto.billing.VnpayIpnResponse;
 import com.classmanagement.backend.dto.billing.RedeemVipRequest;
 import com.classmanagement.backend.dto.billing.CreateBillingOrderRequest;
 import com.classmanagement.backend.dto.billing.BillingInvoiceResponse;
@@ -72,7 +72,7 @@ public class BillingService {
     private final MaterialAssignmentRepository materialAssignments;
     private final JdbcTemplate jdbc;
     private final BillingProductCatalog catalog;
-    private final MomoPaymentClient momo;
+    private final VnpayPaymentClient vnpay;
     private final TransactionTemplate transactions;
 
     public BillingService(
@@ -92,7 +92,7 @@ public class BillingService {
             MaterialAssignmentRepository materialAssignments,
             JdbcTemplate jdbc,
             BillingProductCatalog catalog,
-            MomoPaymentClient momo,
+            VnpayPaymentClient vnpay,
             PlatformTransactionManager transactionManager) {
         this.users = users;
         this.orders = orders;
@@ -110,7 +110,7 @@ public class BillingService {
         this.materialAssignments = materialAssignments;
         this.jdbc = jdbc;
         this.catalog = catalog;
-        this.momo = momo;
+        this.vnpay = vnpay;
         this.transactions = new TransactionTemplate(transactionManager);
     }
 
@@ -168,6 +168,23 @@ public class BillingService {
                     mission.getCode(), mission.getName(), mission.getDescription(), mission.getRewardPoints(),
                     "CLAIMED", now(), false);
         });
+    }
+
+    static void validateVipPurchase(
+            List<TeacherVipSubscription> activeSubscriptions,
+            BillingProductCatalog.Product product) {
+        if (product.type() != BillingProductCatalog.Type.VIP) return;
+
+        int currentDeviceLimit = activeSubscriptions.stream()
+                .mapToInt(TeacherVipSubscription::getDeviceLimit)
+                .max()
+                .orElse(0);
+        if (currentDeviceLimit > product.deviceLimit()) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Tài khoản đang có gói VIP tối đa " + currentDeviceLimit
+                            + " thiết bị còn hiệu lực. Hãy gia hạn hạng hiện tại hoặc chọn gói nhiều thiết bị hơn.");
+        }
     }
 
     private MissionProgress loadMissionProgress(User teacher) {
@@ -279,7 +296,7 @@ public class BillingService {
         var vip = active.isEmpty() ? null : active.getFirst();
         return new BillingOverviewResponse(
                 wallet == null ? 0 : wallet.getPointsBalance(),
-            momo.isAvailable(),
+            vnpay.isAvailable(),
                 vip == null ? null : vip.getVipTier(),
                 vip == null ? 0 : vip.getDeviceLimit(),
                 vip == null ? null : vip.getExpiresAt(),
@@ -295,12 +312,16 @@ public class BillingService {
                         .toList());
     }
 
-    public BillingOrderResponse createOrder(String username, CreateBillingOrderRequest request) {
+    public BillingOrderResponse createOrder(
+            String username, CreateBillingOrderRequest request, String clientIp) {
         User teacher = requireTeacher(username);
         BillingProductCatalog.Product product = catalog.require(request.productCode());
         BillingOrder prior = orders.findByTeacherIdAndRequestId(teacher.getId(), request.requestId())
             .orElse(null);
-        if (prior == null) momo.requireAvailable();
+        if (prior == null && product.type() == BillingProductCatalog.Type.VIP) {
+            validateVipPurchase(subscriptions.findActiveByTeacher(teacher.getId(), now()), product);
+        }
+        if (prior == null) vnpay.requireAvailable();
         BillingOrder order = createOrReuseOrder(teacher.getId(), request, product);
         if (order.getStatus() != BillingOrder.Status.PENDING || order.getPayUrl() != null) {
             return BillingOrderResponse.from(order);
@@ -317,7 +338,7 @@ public class BillingService {
         if (!claimed) return orderStatus(username, order.getId());
 
         try {
-            String payUrl = momo.createPayUrl(order);
+            String payUrl = vnpay.createPayUrl(order, clientIp);
             BillingOrder updated = transactions.execute(status -> {
                 BillingOrder locked = orders.findLockedById(order.getId())
                         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
@@ -329,7 +350,7 @@ public class BillingService {
                 return locked;
             });
             return BillingOrderResponse.from(updated == null ? order : updated);
-        } catch (MomoPaymentRejectedException exception) {
+        } catch (RuntimeException exception) {
             transactions.executeWithoutResult(status -> orders.findLockedById(order.getId()).ifPresent(locked -> {
                 if (locked.getStatus() == BillingOrder.Status.CREATING) {
                     locked.setStatus(BillingOrder.Status.FAILED);
@@ -376,6 +397,8 @@ public class BillingService {
                 return;
             }
 
+            validateVipPurchase(
+                    subscriptions.findActiveByTeacher(teacher.getId(), now()), product);
             wallets.createIfMissing(teacher.getId());
             TeacherPointWallet wallet = wallets.findLockedByTeacherId(teacher.getId())
                     .orElseThrow(() -> new IllegalStateException("Không thể khởi tạo ví point"));
@@ -394,35 +417,56 @@ public class BillingService {
         return overview(username);
     }
 
-    public boolean acceptIpn(MomoIpnRequest ipn) {
-        if (!momo.isValidIpn(ipn)) return false;
+    public VnpayIpnResponse acceptVnpayIpn(Map<String, String> parameters) {
+        if (!vnpay.isValidIpn(parameters)) return VnpayIpnResponse.invalidSignature();
+
         UUID orderId;
         try {
-            orderId = UUID.fromString(ipn.orderId());
-        } catch (RuntimeException exception) {
-            return false;
+            orderId = VnpayPaymentClient.orderIdFromTxnRef(parameters.get("vnp_TxnRef"));
+        } catch (IllegalArgumentException exception) {
+            return VnpayIpnResponse.orderNotFound();
         }
 
-        return Boolean.TRUE.equals(transactions.execute(status -> {
+        return transactions.execute(status -> {
             BillingOrder order = orders.findLockedById(orderId).orElse(null);
-            if (order == null
-                    || !order.getRequestId().toString().equals(ipn.requestId())
-                    || order.getAmountVnd() != ipn.amount()) return false;
-            if (order.getStatus() == BillingOrder.Status.PAID) return true;
-                if (order.getStatus() == BillingOrder.Status.EXPIRED && ipn.resultCode() != 0) return true;
-                if (order.getStatus() != BillingOrder.Status.PENDING
+            if (order == null) return VnpayIpnResponse.orderNotFound();
+
+            long amount;
+            try {
+                amount = Long.parseLong(parameters.get("vnp_Amount"));
+            } catch (NumberFormatException exception) {
+                return VnpayIpnResponse.invalidAmount();
+            }
+            if (amount != Math.multiplyExact(order.getAmountVnd(), 100)) {
+                return VnpayIpnResponse.invalidAmount();
+            }
+
+            if (order.getStatus() == BillingOrder.Status.PAID
+                    || order.getStatus() == BillingOrder.Status.FAILED) {
+                return VnpayIpnResponse.alreadyConfirmed();
+            }
+            if (order.getStatus() != BillingOrder.Status.PENDING
                     && order.getStatus() != BillingOrder.Status.CREATING
-                    && order.getStatus() != BillingOrder.Status.EXPIRED) return false;
-            if (ipn.resultCode() != 0) {
+                    && order.getStatus() != BillingOrder.Status.EXPIRED) {
+                return VnpayIpnResponse.orderNotFound();
+            }
+
+            boolean paid = "00".equals(parameters.get("vnp_ResponseCode"))
+                    && "00".equals(parameters.get("vnp_TransactionStatus"));
+            if (!paid) {
                 order.setStatus(BillingOrder.Status.FAILED);
                 orders.save(order);
-                return true;
+                return VnpayIpnResponse.success();
             }
-            if (ipn.transId() == null || ipn.transId().isBlank()) return false;
+
+            String transactionId = parameters.get("vnp_TransactionNo");
+            if (transactionId == null || transactionId.isBlank()) {
+                return VnpayIpnResponse.processingError();
+            }
 
             lockWallet(order.getTeacherId());
             order.setStatus(BillingOrder.Status.PAID);
-            order.setMomoTransactionId(ipn.transId());
+            order.setPaymentTransactionId(transactionId);
             order.setPaidAt(now());
             orders.save(order);
             if (order.getProductType() == BillingOrder.ProductType.POINTS) {
@@ -430,9 +474,9 @@ public class BillingService {
             } else {
                 extendVip(order.getTeacherId(), catalog.require(order.getProductCode()), order.getId());
             }
-            createInvoice(order, ipn.transId());
-            return true;
-        }));
+            createInvoice(order, transactionId);
+            return VnpayIpnResponse.success();
+        });
     }
 
     public List<BillingInvoiceResponse> invoices(String username) {
@@ -465,7 +509,7 @@ public class BillingService {
         invoice.setBillingOrderId(order.getId());
         invoice.setStatus(BillingInvoice.Status.ISSUED);
         invoice.setCurrency("VND");
-        invoice.setPaymentMethod("MOMO");
+        invoice.setPaymentMethod("VNPAY");
         invoice.setPaymentTransactionId(transactionId);
         invoice.setCustomerUsername(teacher.getUsername());
         invoice.setCustomerFullName(teacher.getFullName());
@@ -547,7 +591,9 @@ public class BillingService {
                 .map(TeacherVipSubscription::getExpiresAt)
                 .filter(expiry -> expiry.isAfter(currentTime))
                 .orElse(currentTime);
-        OffsetDateTime expiry = baseExpiry.plusMonths(product.durationMonths());
+        OffsetDateTime expiry = baseExpiry.equals(TeacherVipSubscription.PERMANENT_EXPIRY)
+                ? baseExpiry
+                : baseExpiry.plusMonths(product.durationMonths());
         subscriptions.createIfMissing(teacherId, product.vipTier().name(), product.deviceLimit(), currentTime);
         TeacherVipSubscription subscription = subscriptions
                 .findLockedByTeacherAndTier(teacherId, product.vipTier().name())

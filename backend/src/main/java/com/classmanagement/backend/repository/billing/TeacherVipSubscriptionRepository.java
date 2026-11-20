@@ -2,6 +2,7 @@ package com.classmanagement.backend.repository.billing;
 
 import com.classmanagement.backend.entity.billing.TeacherVipSubscription;
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,6 +14,21 @@ import org.springframework.data.jpa.repository.Modifying;
 
 public interface TeacherVipSubscriptionRepository extends JpaRepository<TeacherVipSubscription, Long> {
         boolean existsByTeacherIdAndExpiresAtAfter(Long teacherId, OffsetDateTime now);
+
+        @Query("select subscription from TeacherVipSubscription subscription where subscription.teacherId in :teacherIds and subscription.expiresAt > :now order by subscription.deviceLimit desc")
+        List<TeacherVipSubscription> findActiveByTeacherIdIn(
+                        @Param("teacherIds") Collection<Long> teacherIds,
+                        @Param("now") OffsetDateTime now);
+
+        @Modifying
+        @Query("delete from TeacherVipSubscription subscription where subscription.teacherId = :teacherId")
+        void deleteAllByTeacherId(@Param("teacherId") Long teacherId);
+
+        @Modifying
+        @Query("delete from TeacherVipSubscription subscription where subscription.teacherId = :teacherId and subscription.vipTier <> :vipTier")
+        void deleteAllByTeacherIdAndVipTierNot(
+                        @Param("teacherId") Long teacherId,
+                        @Param("vipTier") String vipTier);
 
         @Modifying
         @Query(value = "insert into teacher_vip_subscriptions (teacher_id, vip_tier, device_limit, expires_at) values (:teacherId, :vipTier, :deviceLimit, :expiresAt) on conflict (teacher_id, vip_tier) do nothing", nativeQuery = true)

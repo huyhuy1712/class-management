@@ -28,11 +28,6 @@ const adminService = {
     }))
   },
 
-  createUser: async (user) => {
-    const response = await api.post('/admin/users', user)
-    return { ...response.data, name: response.data.fullName }
-  },
-
   updateUser: async (userId, user) => {
     const response = await api.put(`/admin/users/${userId}`, user)
     return { ...response.data, name: response.data.fullName }
@@ -55,6 +50,14 @@ const adminService = {
 
   deleteUser: async (userId) => {
     await api.delete(`/admin/users/${userId}`)
+  },
+
+  grantVip: async (userId, vip) => {
+    await api.put(`/admin/users/${userId}/vip`, vip)
+  },
+
+  removeVip: async (userId) => {
+    await api.delete(`/admin/users/${userId}/vip`)
   },
 
   startImpersonation: async ({ userId, reason }) => {

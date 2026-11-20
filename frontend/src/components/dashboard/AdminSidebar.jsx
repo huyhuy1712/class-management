@@ -25,16 +25,16 @@ const menuItems = [
     icon: BookOpen,
     end: false,
   },
+    {
+    path: "/admin/missions",
+    label: "Quản lý nhiệm vụ",
+    icon: ListChecks,
+    end: false,
+  },
   {
     path: "/admin/history",
     label: "Lịch sử hoạt động",
     icon: History,
-    end: false,
-  },
-  {
-    path: "/admin/missions",
-    label: "Quản lý nhiệm vụ",
-    icon: ListChecks,
     end: false,
   },
 ];

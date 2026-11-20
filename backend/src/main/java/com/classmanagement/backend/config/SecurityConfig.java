@@ -104,8 +104,8 @@ public class SecurityConfig {
                                 "/api/public/**")
                         .permitAll()
 
-                        // MoMo authenticates this webhook with its HMAC signature.
-                        .requestMatchers("/api/billing/momo/ipn")
+                        // VNPay IPN requests are authenticated with their secure hash.
+                        .requestMatchers("/api/billing/vnpay/ipn")
                         .permitAll()
 
                         // TẤT CẢ API CÒN LẠI PHẢI LOGIN

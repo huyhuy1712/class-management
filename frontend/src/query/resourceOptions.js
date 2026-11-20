@@ -88,6 +88,7 @@ export function resourceOptions(resource, params) {
     billing: ({ signal }) => billingService.getOverview({ signal }),
     billingMissions: ({ signal }) => billingService.getMissions({ signal }),
     billingOrder: ({ signal }) => billingService.getOrder(params[0], { signal }),
+    billingInvoice: ({ signal }) => billingService.getInvoice(params[0], { signal }),
     teacherActivity: ({ signal }) => teacherActivityService.getActivity({
       page: Number(params[0] ?? 0),
       size: Number(params[1] ?? 20),

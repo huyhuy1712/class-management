@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import adminService from '../../../services/adminService'
 import useAuthStore from '../../../stores/authStore'
 import { getAdminErrorMessage } from '../helpers/adminHelpers'
-import { createUserForm, emptyUserForm, filterUsers } from '../helpers/userManagementHelpers'
+import { editUserForm, filterUsers } from '../helpers/userManagementHelpers'
 
 export default function useAdminUserManagement() {
   const queryClient = useQueryClient()
@@ -16,8 +16,9 @@ export default function useAdminUserManagement() {
   const [modalMode, setModalMode] = useState(null)
   const [selectedUser, setSelectedUser] = useState(null)
   const [pendingAction, setPendingAction] = useState(null)
+  const [selectedVipUser, setSelectedVipUser] = useState(null)
   const [impersonationReason, setImpersonationReason] = useState('')
-  const [form, setForm] = useState(emptyUserForm)
+  const [form, setForm] = useState(null)
   const [formError, setFormError] = useState('')
   const [toast, setToast] = useState(null)
   const { data: users = [], isPending, error } = useQuery({
@@ -27,6 +28,60 @@ export default function useAdminUserManagement() {
     refetchInterval: 30_000,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
+  })
+  const updateVipCache = (users, userId, vip) => (
+    users?.map((user) => (user.id === userId ? { ...user, ...vip } : user))
+  )
+  const grantVipMutation = useMutation({
+    mutationFn: ({ userId, vip }) => adminService.grantVip(userId, vip),
+    onMutate: async ({ userId, vip }) => {
+      await queryClient.cancelQueries({ queryKey: ['adminUsers'] })
+      const previousUsers = queryClient.getQueryData(['adminUsers'])
+      const expiresAt = vip.permanent ? null : calculateVipExpiry(vip.durationMonths)
+      queryClient.setQueryData(['adminUsers'], (users) => updateVipCache(users, userId, {
+        vipTier: vip.vipTier,
+        vipExpiresAt: expiresAt,
+        vipPermanent: vip.permanent,
+      }))
+      return { previousUsers }
+    },
+    onError: (mutationError, _variables, context) => {
+      queryClient.setQueryData(['adminUsers'], context?.previousUsers)
+      setToast({
+        type: 'error',
+        message: getAdminErrorMessage(mutationError, 'Không thể cấp VIP. Vui lòng thử lại.'),
+      })
+    },
+    onSuccess: () => {
+      setSelectedVipUser(null)
+      setToast({ type: 'success', message: 'Cấp VIP thành công.' })
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['adminUsers'] }),
+  })
+  const removeVipMutation = useMutation({
+    mutationFn: adminService.removeVip,
+    onMutate: async (userId) => {
+      await queryClient.cancelQueries({ queryKey: ['adminUsers'] })
+      const previousUsers = queryClient.getQueryData(['adminUsers'])
+      queryClient.setQueryData(['adminUsers'], (users) => updateVipCache(users, userId, {
+        vipTier: null,
+        vipExpiresAt: null,
+        vipPermanent: false,
+      }))
+      return { previousUsers }
+    },
+    onError: (mutationError, _userId, context) => {
+      queryClient.setQueryData(['adminUsers'], context?.previousUsers)
+      setToast({
+        type: 'error',
+        message: getAdminErrorMessage(mutationError, 'Không thể xóa VIP. Vui lòng thử lại.'),
+      })
+    },
+    onSuccess: () => {
+      setSelectedVipUser(null)
+      setToast({ type: 'success', message: 'Đã xóa VIP của tài khoản.' })
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['adminUsers'] }),
   })
 
   useEffect(() => {
@@ -43,10 +98,6 @@ export default function useAdminUserManagement() {
     ])
   }
 
-  const createMutation = useMutation({
-    mutationFn: adminService.createUser,
-    onSuccess: refreshAdminData,
-  })
   const updateMutation = useMutation({
     mutationFn: ({ userId, user }) => adminService.updateUser(userId, user),
     onSuccess: async () => {
@@ -110,20 +161,13 @@ export default function useAdminUserManagement() {
   )
   const studentCount = users.filter((user) => user.role === 'STUDENT').length
   const teacherCount = users.filter((user) => user.role === 'TEACHER').length
-  const saving = createMutation.isPending || updateMutation.isPending
+  const saving = updateMutation.isPending
 
-  function openCreateModal() {
-    setSelectedUser(null)
-    setForm({ ...emptyUserForm })
-    setFormError('')
-    setModalMode('create')
-  }
-
-  function openUserModal(user, mode) {
+  function openUserModal(user) {
     setSelectedUser(user)
-    setForm(createUserForm(user))
+    setForm(editUserForm(user))
     setFormError('')
-    setModalMode(mode)
+    setModalMode('edit')
   }
 
   function closeModal() {
@@ -143,11 +187,8 @@ export default function useAdminUserManagement() {
       phone: form.phone.trim(),
       password: form.password || null,
     }
-    const request = modalMode === 'create'
-      ? createMutation.mutateAsync(payload)
-      : updateMutation.mutateAsync({ userId: selectedUser.id, user: payload })
-
-    request.then(closeModal).catch((mutationError) => {
+    updateMutation.mutateAsync({ userId: selectedUser.id, user: payload })
+      .then(closeModal).catch((mutationError) => {
       setFormError(getAdminErrorMessage(mutationError, 'Không thể lưu tài khoản. Vui lòng thử lại.'))
     })
   }
@@ -169,6 +210,10 @@ export default function useAdminUserManagement() {
 
   function handleDelete(user) {
     setPendingAction({ type: 'delete', user })
+  }
+
+  function openVipModal(user) {
+    if (user.role === 'TEACHER') setSelectedVipUser(user)
   }
 
   function handleImpersonate(user) {
@@ -214,7 +259,6 @@ export default function useAdminUserManagement() {
     closeModal,
     closePendingAction,
     confirmPendingAction,
-    createMutation,
     deleteMutation,
     error,
     filteredUsers,
@@ -231,12 +275,16 @@ export default function useAdminUserManagement() {
     isPending,
     keyword,
     modalMode,
-    openCreateModal,
     openUserModal,
+    openVipModal,
     pendingAction,
     roleFilter,
     saving,
     selectedUser,
+    selectedVipUser,
+    setSelectedVipUser,
+    grantVipMutation,
+    removeVipMutation,
     setImpersonationReason,
     setKeyword,
     setRoleFilter,
@@ -248,4 +296,14 @@ export default function useAdminUserManagement() {
     users,
     setToast,
   }
+}
+
+function calculateVipExpiry(durationMonths) {
+  const expiry = new Date()
+  const day = expiry.getUTCDate()
+  expiry.setUTCDate(1)
+  expiry.setUTCMonth(expiry.getUTCMonth() + Number(durationMonths))
+  const lastDay = new Date(Date.UTC(expiry.getUTCFullYear(), expiry.getUTCMonth() + 1, 0)).getUTCDate()
+  expiry.setUTCDate(Math.min(day, lastDay))
+  return expiry.toISOString()
 }

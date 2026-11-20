@@ -6,6 +6,7 @@ const billingService = {
   claimMission: async (missionCode) => (await api.post(`/billing/missions/${missionCode}/claim`, null, { skipQueryInvalidation: true })).data,
   getOrder: async (orderId, options = {}) => (await api.get(`/billing/orders/${orderId}`, options)).data,
   getInvoices: async (options = {}) => (await api.get('/billing/invoices', options)).data,
+  getInvoice: async (invoiceId, options = {}) => (await api.get(`/billing/invoices/${invoiceId}`, options)).data,
   createOrder: async (productCode, requestId) => (await api.post(
     '/billing/orders',
     { productCode, requestId },

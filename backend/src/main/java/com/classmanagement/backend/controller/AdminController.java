@@ -2,6 +2,7 @@ package com.classmanagement.backend.controller;
 
 import com.classmanagement.backend.dto.user.AdminDashboardResponse;
 import com.classmanagement.backend.dto.user.AdminUserRequest;
+import com.classmanagement.backend.dto.user.AdminVipRequest;
 import com.classmanagement.backend.dto.user.UserResponse;
 import com.classmanagement.backend.entity.enums.UserRole;
 import com.classmanagement.backend.entity.enums.UserStatus;
@@ -41,13 +42,6 @@ public class AdminController {
         return ResponseEntity.ok(adminUserService.getUsers(role));
     }
 
-    @PostMapping("/users")
-    public ResponseEntity<UserResponse> createUser(
-            @Valid @RequestBody AdminUserRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(adminUserService.createUser(request));
-    }
-
     @PutMapping("/users/{userId}")
     public ResponseEntity<UserResponse> updateUser(
             @PathVariable Long userId,
@@ -68,6 +62,20 @@ public class AdminController {
     @PatchMapping("/users/{userId}/unblock")
     public ResponseEntity<UserResponse> unblockUser(@PathVariable Long userId) {
         return ResponseEntity.ok(adminUserService.setBlocked(userId, false));
+    }
+
+    @PutMapping("/users/{userId}/vip")
+    public ResponseEntity<Void> grantVip(
+            @PathVariable Long userId,
+            @Valid @RequestBody AdminVipRequest request) {
+        adminUserService.grantVip(userId, request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/users/{userId}/vip")
+    public ResponseEntity<Void> removeVip(@PathVariable Long userId) {
+        adminUserService.removeVip(userId);
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/users/{userId}")
