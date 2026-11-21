@@ -631,24 +631,24 @@ export const AiChatWidget: React.FC<AiChatWidgetProps> = ({ forceGuest = false }
                       </div>
                     )}
 
-                    <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} max-w-[85%]`}>
+                    <div className={`flex min-w-0 flex-col ${isUser ? 'items-end' : 'items-start'} max-w-[85%]`}>
                       <div
-                        className={`rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed shadow-2xs ${
+                        className={`min-w-0 max-w-full overflow-hidden rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed shadow-2xs ${
                           isUser
-                            ? 'rounded-tr-xs bg-[#0F3822] text-white whitespace-pre-line font-medium'
-                            : 'rounded-tl-xs border border-gray-100 bg-white text-gray-800'
+                            ? 'rounded-tr-xs bg-[#0F3822] text-white whitespace-pre-line font-medium break-words'
+                            : 'rounded-tl-xs border border-gray-100 bg-white text-gray-800 break-words'
                         }`}
                       >
                         {isUser ? (
                           textContent
                         ) : (
-                          <div className="prose prose-sm max-w-none [&_.katex-display]:overflow-x-auto [&_.katex-display]:py-1 [&_.katex]:text-[13px]">
+                          <div className="prose prose-sm min-w-0 max-w-full break-words [&_.katex-display]:overflow-x-auto [&_.katex-display]:py-1 [&_.katex]:text-[13px]">
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm, remarkMath]}
                               rehypePlugins={[rehypeKatex]}
                               components={{
                                 p: ({ children }) => (
-                                  <p className="mb-2 last:mb-0 leading-relaxed text-[13px] text-gray-700">
+                                  <p className="mb-2 last:mb-0 leading-relaxed text-[13px] text-gray-700 break-words">
                                     {renderWithLineBreaks(children)}
                                   </p>
                                 ),
@@ -656,7 +656,7 @@ export const AiChatWidget: React.FC<AiChatWidgetProps> = ({ forceGuest = false }
                                   const authorizedRoute = resolveAuthorizedChatRoute(href, role)
                                   if (!authorizedRoute) {
                                     return (
-                                      <span className="font-medium text-gray-700">{children}</span>
+                                      <span className="font-medium text-gray-700 break-words">{children}</span>
                                     )
                                   }
                                   return (
@@ -667,13 +667,13 @@ export const AiChatWidget: React.FC<AiChatWidgetProps> = ({ forceGuest = false }
                                         e.stopPropagation()
                                         navigate(authorizedRoute)
                                       }}
-                                      className="inline-flex items-center gap-1.5 my-1 mx-0.5 px-3 py-1 rounded-xl bg-[#0F3822] text-[#D8F3DC] text-xs font-semibold hover:bg-[#165031] active:scale-95 transition-all shadow-xs border border-emerald-600/30 cursor-pointer group"
+                                      className="inline-flex max-w-full items-center gap-1.5 my-1 mx-0.5 px-2.5 py-1 rounded-xl bg-[#0F3822] text-[#D8F3DC] text-xs font-semibold hover:bg-[#165031] active:scale-95 transition-all shadow-xs border border-emerald-600/30 cursor-pointer group align-middle"
                                       title={typeof children === 'string' ? children : authorizedRoute}
                                     >
-                                      <span>{children}</span>
+                                      <span className="truncate">{children}</span>
                                       <ArrowRight
                                         size={12}
-                                        className="text-[#D8F3DC] opacity-90 transition-transform group-hover:translate-x-0.5"
+                                        className="shrink-0 text-[#D8F3DC] opacity-90 transition-transform group-hover:translate-x-0.5"
                                       />
                                     </button>
                                   )
@@ -711,19 +711,19 @@ export const AiChatWidget: React.FC<AiChatWidgetProps> = ({ forceGuest = false }
                                   )
                                 },
                                 table: ({ children }) => (
-                                  <div className="my-2 overflow-x-auto rounded-xl border border-gray-200">
-                                    <table className="min-w-full divide-y divide-gray-200 text-xs">
+                                  <div className="my-2 w-full max-w-full overflow-x-auto rounded-xl border border-gray-200 bg-white">
+                                    <table className="w-full min-w-max border-collapse divide-y divide-gray-200 text-xs">
                                       {children}
                                     </table>
                                   </div>
                                 ),
                                 th: ({ children }) => (
-                                  <th className="bg-[#D8F3DC]/50 px-2.5 py-1.5 text-left font-bold text-[#0F3822]">
+                                  <th className="bg-[#D8F3DC]/50 px-2.5 py-1.5 text-left font-bold text-[#0F3822] whitespace-nowrap align-top">
                                     {renderWithLineBreaks(children)}
                                   </th>
                                 ),
                                 td: ({ children }) => (
-                                  <td className="border-t border-gray-100 px-2.5 py-1.5 text-gray-700 align-top">
+                                  <td className="border-t border-gray-100 px-2.5 py-1.5 text-gray-700 align-top max-w-[200px] break-words [&_button]:my-0.5 [&_button]:px-2 [&_button]:py-0.5 [&_button]:text-[11px]">
                                     {renderWithLineBreaks(children)}
                                   </td>
                                 ),

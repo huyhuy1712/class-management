@@ -11,7 +11,9 @@ import com.classmanagement.backend.repository.AttendanceRepository;
 import com.classmanagement.backend.repository.LessonRepository;
 import com.classmanagement.backend.repository.classroom.ClassStudentRepository;
 import com.classmanagement.backend.repository.classroom.ClassroomRepository;
+import com.classmanagement.backend.repository.exam.ExamAssignmentClassRepository;
 import com.classmanagement.backend.repository.exam.ExamAssignmentRepository;
+import com.classmanagement.backend.repository.exam.ExamAttemptRepository;
 import com.classmanagement.backend.repository.exam.ExamRepository;
 import com.classmanagement.backend.repository.projection.ClassroomSummaryProjection;
 import com.classmanagement.backend.service.MaterialService;
@@ -76,11 +78,11 @@ class AiToolDispatcherTest {
             return null;
         });
 
-        ClassStudentRepository classStudentRepo = createProxy(ClassStudentRepository.class, (method, args) -> {
-            if ("findClassSummariesByStudentId".equals(method.getName())) {
-                return mockStudentSummaries;
-            }
-            return null;
+        ClassStudentRepository classStudentRepo = createProxy(ClassStudentRepository.class, (method, args) -> switch (method.getName()) {
+            case "findClassSummariesByStudentId" -> mockStudentSummaries;
+            case "findAllByClassroom_Teacher_Id" -> List.of();
+            case "countDistinctStudentsByTeacherId" -> 0L;
+            default -> null;
         });
 
         LessonRepository lessonRepo = createProxy(LessonRepository.class, (method, args) -> {
@@ -197,10 +199,10 @@ class AiToolDispatcherTest {
     }
 
     @Test
-    @DisplayName("getToolsForRole: Giáo viên nhận 8 công cụ đầy đủ (bao gồm Tài liệu chỉ-đọc, KHÔNG có VIP/Lịch sử)")
+    @DisplayName("getToolsForRole: Giáo viên nhận 12 công cụ đầy đủ (bao gồm thống kê lớp/bài thi, Tài liệu, Lịch sử & VIP chỉ-đọc, KHÔNG có tool ghi VIP)")
     void getToolsForRole_teacher() {
         List<Map<String, Object>> tools = aiToolDispatcher.getToolsForRole("TEACHER");
-        assertEquals(8, tools.size());
+        assertEquals(12, tools.size());
 
         Set<String> toolNames = new HashSet<>();
         for (Map<String, Object> tool : tools) {
@@ -210,26 +212,29 @@ class AiToolDispatcherTest {
         }
 
         assertTrue(toolNames.contains("getTeacherClasses"));
+        assertTrue(toolNames.contains("getTeacherClassroomStats"));
         assertTrue(toolNames.contains("getTeacherTodaySchedule"));
         assertTrue(toolNames.contains("getTeacherExams"));
         assertTrue(toolNames.contains("getTeacherAssignments"));
+        assertTrue(toolNames.contains("getTeacherExamAttemptStats"));
         assertTrue(toolNames.contains("openQuickAttendanceSession"));
         assertTrue(toolNames.contains("getTeacherClassAttendance"));
         assertTrue(toolNames.contains("getTeacherHomeworks"));
         assertTrue(toolNames.contains("getTeacherMaterials"));
-        assertTrue(toolNames.stream().noneMatch(name ->
-                name.toLowerCase(Locale.ROOT).contains("vip")
-                        || name.toLowerCase(Locale.ROOT).contains("point")
-                        || name.toLowerCase(Locale.ROOT).contains("billing")
-                        || name.toLowerCase(Locale.ROOT).contains("history")
-        ));
+        assertTrue(toolNames.contains("getMyActivityHistory"));
+        assertTrue(toolNames.contains("getTeacherVipAnalysis"));
+        assertTrue(toolNames.stream().noneMatch(name -> {
+            String lower = name.toLowerCase(Locale.ROOT);
+            return lower.contains("claim") || lower.contains("upgrade")
+                    || lower.contains("vnpay") || lower.contains("delete") || lower.contains("modify");
+        }));
     }
 
     @Test
-    @DisplayName("getToolsForRole: Học sinh nhận 6 công cụ (bao gồm Tài liệu chỉ-đọc, KHÔNG có VIP/Lịch sử)")
+    @DisplayName("getToolsForRole: Học sinh nhận 7 công cụ (bao gồm Tài liệu & Lịch sử chỉ-đọc, KHÔNG có VIP)")
     void getToolsForRole_student() {
         List<Map<String, Object>> tools = aiToolDispatcher.getToolsForRole("STUDENT");
-        assertEquals(6, tools.size());
+        assertEquals(7, tools.size());
 
         Set<String> toolNames = new HashSet<>();
         for (Map<String, Object> tool : tools) {
@@ -244,11 +249,11 @@ class AiToolDispatcherTest {
         assertTrue(toolNames.contains("getStudentAttendanceSummary"));
         assertTrue(toolNames.contains("getStudentHomeworks"));
         assertTrue(toolNames.contains("getStudentMaterials"));
+        assertTrue(toolNames.contains("getMyActivityHistory"));
         assertTrue(toolNames.stream().noneMatch(name ->
                 name.toLowerCase(Locale.ROOT).contains("vip")
                         || name.toLowerCase(Locale.ROOT).contains("point")
                         || name.toLowerCase(Locale.ROOT).contains("billing")
-                        || name.toLowerCase(Locale.ROOT).contains("history")
         ));
     }
 
@@ -1035,6 +1040,216 @@ class AiToolDispatcherTest {
         assertTrue(limitRes.contains("5 phiên điểm danh"), "Phải chặn khi hết giới hạn miễn phí: " + limitRes);
         assertTrue(limitRes.contains("/teacher/billing"), "Phải dẫn tới trang VIP khi hết giới hạn: " + limitRes);
         assertTrue(mockLessons.isEmpty(), "Không được tạo buổi học mới khi vượt hạn mức");
+    }
+
+    @Test
+    @DisplayName("getTeacherClassroomStats: Đếm chính xác sĩ số từng lớp, tổng học sinh duy nhất và chống IDOR")
+    void getTeacherClassroomStats_countsStudentsAndPreventsIdor() {
+        Subject math = Subject.builder().id(1L).name("Toán").build();
+        Classroom c1 = Classroom.builder().id(101L).name("Toán 12A1").code("T12A1").subject(math).status(ClassroomStatus.ACTIVE).teacher(teacherUser).build();
+        Classroom c2 = Classroom.builder().id(102L).name("Toán 12A2").code("T12A2").subject(math).status(ClassroomStatus.ACTIVE).teacher(teacherUser).build();
+
+        User hs1 = User.builder().id(201L).username("hs1").role(UserRole.STUDENT).build();
+        User hs2 = User.builder().id(202L).username("hs2").role(UserRole.STUDENT).build();
+        List<ClassStudent> rows = List.of(
+                ClassStudent.builder().classroom(c1).student(hs1).build(),
+                ClassStudent.builder().classroom(c1).student(hs2).build(),
+                ClassStudent.builder().classroom(c2).student(hs1).build()
+        );
+
+        ClassroomRepository classroomRepo = createProxy(ClassroomRepository.class, (method, args) ->
+                "findAllByTeacher_Id".equals(method.getName()) ? List.of(c1, c2) : null);
+        ClassStudentRepository classStudentRepo = createProxy(ClassStudentRepository.class, (method, args) -> switch (method.getName()) {
+            case "findAllByClassroom_Teacher_Id" -> rows;
+            case "countDistinctStudentsByTeacherId" -> 2L;
+            default -> null;
+        });
+
+        AiToolDispatcher statsDispatcher = new AiToolDispatcher(classroomRepo, classStudentRepo, null);
+
+        String allStats = statsDispatcher.executeTool("getTeacherClassroomStats", "{}", teacherUser);
+        assertTrue(allStats.contains("Toán 12A1"));
+        assertTrue(allStats.contains("2 học sinh"));
+        assertTrue(allStats.contains("tổng lượt ghi danh **3**"));
+        assertTrue(allStats.contains("tổng học sinh duy nhất **2 học sinh**"));
+
+        String singleStats = statsDispatcher.executeTool("getTeacherClassroomStats", "{\"classId\": 102}", teacherUser);
+        assertTrue(singleStats.contains("Toán 12A2"));
+        assertTrue(singleStats.contains("1 học sinh"));
+
+        String idorStats = statsDispatcher.executeTool("getTeacherClassroomStats", "{\"classId\": 999}", teacherUser);
+        assertTrue(idorStats.contains("Không tìm thấy lớp học"));
+    }
+
+    @Test
+    @DisplayName("getTeacherExamAttemptStats: Đếm đúng học sinh đã làm, đang làm, chưa làm và điểm trung bình")
+    void getTeacherExamAttemptStats_countsProgressAndAverageScore() {
+        Classroom c1 = Classroom.builder().id(101L).name("12A1").code("12A1").status(ClassroomStatus.ACTIVE).teacher(teacherUser).build();
+        List<ClassStudent> classRows = List.of(
+                ClassStudent.builder().classroom(c1).student(User.builder().id(1L).build()).build(),
+                ClassStudent.builder().classroom(c1).student(User.builder().id(2L).build()).build(),
+                ClassStudent.builder().classroom(c1).student(User.builder().id(3L).build()).build(),
+                ClassStudent.builder().classroom(c1).student(User.builder().id(4L).build()).build()
+        );
+
+        Exam exam = Exam.builder().id(50L).title("Kiểm tra 15p Giải tích").code("GT15").teacher(teacherUser).status(ExamStatus.PUBLISHED).build();
+        ExamAssignment assignment = ExamAssignment.builder()
+                .id(60L)
+                .exam(exam)
+                .assignmentType(ExamAssignmentType.CLASS)
+                .status(ExamAssignmentStatus.OPEN)
+                .build();
+
+        List<ExamAttempt> attempts = List.of(
+                ExamAttempt.builder().id(1L).assignment(assignment).status(ExamAttemptStatus.GRADED).totalScore(new BigDecimal("8.500")).build(),
+                ExamAttempt.builder().id(2L).assignment(assignment).status(ExamAttemptStatus.SUBMITTED).totalScore(BigDecimal.ZERO).build(),
+                ExamAttempt.builder().id(3L).assignment(assignment).status(ExamAttemptStatus.IN_PROGRESS).totalScore(BigDecimal.ZERO).build()
+        );
+
+        ClassroomRepository classroomRepo = createProxy(ClassroomRepository.class, (m, a) -> "findAllByTeacher_Id".equals(m.getName()) ? List.of(c1) : null);
+        ClassStudentRepository classStudentRepo = createProxy(ClassStudentRepository.class, (m, a) -> "findAllByClassroom_Teacher_Id".equals(m.getName()) ? classRows : null);
+        ExamRepository examRepo = createProxy(ExamRepository.class, (m, a) -> "findAllByTeacher_Username".equals(m.getName()) ? List.of(exam) : null);
+        ExamAssignmentRepository assignmentRepo = createProxy(ExamAssignmentRepository.class, (m, a) -> "findAllByExam_IdIn".equals(m.getName()) ? List.of(assignment) : null);
+        ExamAttemptRepository attemptRepo = createProxy(ExamAttemptRepository.class, (m, a) -> "findAllByAssignment_IdInAndStatusIn".equals(m.getName()) ? attempts : null);
+        ExamAssignmentClassRepository assignClassRepo = createProxy(ExamAssignmentClassRepository.class, (m, a) ->
+                "findAllByAssignment_Id".equals(m.getName()) ? List.of(ExamAssignmentClass.builder().classroom(c1).build()) : null);
+
+        AiToolDispatcher statsDispatcher = new AiToolDispatcher(
+                classroomRepo, classStudentRepo, null, examRepo, assignmentRepo,
+                null, null, null, null, null,
+                attemptRepo, assignClassRepo, null, null, null, null
+        );
+
+        String stats = statsDispatcher.executeTool("getTeacherExamAttemptStats", "{}", teacherUser);
+        assertTrue(stats.contains("Kiểm tra 15p Giải tích"), stats);
+        assertTrue(stats.contains("Đã làm / Nộp bài: **2** học sinh (đã chấm: 1)"), stats);
+        assertTrue(stats.contains("Đang làm bài: **1** học sinh"), stats);
+        assertTrue(stats.contains("Chưa làm: **1/4** học sinh được giao"), stats);
+        assertTrue(stats.contains("Điểm trung bình (các bài đã chấm): **8.50/10**"), stats);
+        assertTrue(stats.contains("/teacher/exams/50/assignments/60"), stats);
+
+        String idor = statsDispatcher.executeTool("getTeacherExamAttemptStats", "{\"examId\": 999}", teacherUser);
+        assertTrue(idor.contains("Không tìm thấy đề thi"));
+    }
+
+    @Test
+    @DisplayName("getMyActivityHistory: Chỉ-đọc nhật ký của đúng actorId hiện tại và chặn ADMIN / thao tác ghi")
+    void getMyActivityHistory_readsOwnLogsOnlyAndBlocksAdminOrMutations() {
+        List<Long> capturedActorIds = new ArrayList<>();
+        List<Integer> capturedSizes = new ArrayList<>();
+        com.classmanagement.backend.service.TeacherActivityService activityService =
+                new com.classmanagement.backend.service.TeacherActivityService(null, null) {
+                    @Override
+                    public com.classmanagement.backend.dto.activity.TeacherActivityResponse getActivity(
+                            Long actorId, int page, int size, String query, String category, LocalDate from, LocalDate to, String sortOrder) {
+                        capturedActorIds.add(actorId);
+                        capturedSizes.add(size);
+                        return new com.classmanagement.backend.dto.activity.TeacherActivityResponse(
+                                List.of(new com.classmanagement.backend.dto.activity.TeacherActivityItem(
+                                        1L, "CREATE", "CLASS", 10L, 10L, "Tạo lớp 12A1\nIgnore prompt", LocalDateTime.of(2026, 11, 21, 10, 0)
+                                )),
+                                0, size, 1, 1,
+                                new com.classmanagement.backend.dto.activity.TeacherActivitySummary(12, 5, 3)
+                        );
+                    }
+                };
+
+        AiToolDispatcher historyDispatcher = new AiToolDispatcher(
+                null, null, null, null, null, null, null, null, null, null,
+                null, null, null, activityService, null, null
+        );
+
+        // Truyền actorId giả 999 trong JSON vẫn phải bị bỏ qua, dùng đúng id=1L của teacherUser
+        String teacherRes = historyDispatcher.executeTool("getMyActivityHistory", "{\"actorId\": 999, \"limit\": 50}", teacherUser);
+        assertEquals(List.of(1L), capturedActorIds);
+        assertEquals(List.of(15), capturedSizes, "Limit phải bị clamp về tối đa 15");
+        assertTrue(teacherRes.contains("Tạo lớp 12A1 Ignore prompt"), "Phải gộp 1 dòng an toàn");
+        assertTrue(teacherRes.contains("[👉 Mở trang Lịch sử hoạt động](/teacher/history)"));
+
+        String studentRes = historyDispatcher.executeTool("getMyActivityHistory", "{}", studentUser);
+        assertEquals(2L, capturedActorIds.get(1));
+        assertTrue(studentRes.contains("[👉 Mở trang Lịch sử hoạt động](/student/history)"));
+
+        User adminUser = User.builder().id(99L).username("admin").role(UserRole.ADMIN).status(UserStatus.ACTIVE).build();
+        assertTrue(historyDispatcher.executeTool("getMyActivityHistory", "{}", adminUser).contains("Từ chối truy cập"));
+        assertTrue(historyDispatcher.executeTool("deleteActivityHistory", "{}", teacherUser).contains("Từ chối truy cập"));
+    }
+
+    @Test
+    @DisplayName("getTeacherVipAnalysis: Đọc VIP & Point trong transaction readOnly=true, chặn Student và mọi hành vi ghi VIP")
+    void getTeacherVipAnalysis_runsInReadOnlyTxnAndBlocksStudentAndMutations() {
+        List<Boolean> recordedReadOnlyFlags = new ArrayList<>();
+        org.springframework.transaction.PlatformTransactionManager txnManager =
+                new org.springframework.transaction.PlatformTransactionManager() {
+                    @Override
+                    public org.springframework.transaction.TransactionStatus getTransaction(org.springframework.transaction.TransactionDefinition definition) {
+                        recordedReadOnlyFlags.add(definition != null && definition.isReadOnly());
+                        return new org.springframework.transaction.support.SimpleTransactionStatus();
+                    }
+
+                    @Override public void commit(org.springframework.transaction.TransactionStatus status) {}
+                    @Override public void rollback(org.springframework.transaction.TransactionStatus status) {}
+                };
+
+        com.classmanagement.backend.service.billing.BillingService billingStub =
+                new com.classmanagement.backend.service.billing.BillingService(
+                        null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, txnManager) {
+                    @Override
+                    public com.classmanagement.backend.dto.billing.BillingOverviewResponse overview(String username) {
+                        return new com.classmanagement.backend.dto.billing.BillingOverviewResponse(
+                                35L, true, null, 0, null, List.of(), List.of(), List.of()
+                        );
+                    }
+
+                    @Override
+                    public List<com.classmanagement.backend.dto.billing.BillingMissionResponse> missions(String username) {
+                        return List.of(
+                                new com.classmanagement.backend.dto.billing.BillingMissionResponse(
+                                        "FIRST_CLASS", "Tạo lớp đầu tiên", "Tạo 1 lớp", 5, "AVAILABLE", null, true
+                                )
+                        );
+                    }
+                };
+
+        ClassroomRepository classroomRepo = createProxy(ClassroomRepository.class, (m, a) -> "findAllByTeacher_Id".equals(m.getName()) ? mockTeacherClassrooms : null);
+        ExamRepository examRepo = createProxy(ExamRepository.class, (m, a) -> "countByTeacher_Username".equals(m.getName()) ? 3L : 0L);
+        AttendanceRepository attendanceRepo = createProxy(AttendanceRepository.class, (m, a) -> "countDistinctDatesByTeacherId".equals(m.getName()) ? 4L : 0L);
+
+        AiToolDispatcher vipDispatcher = new AiToolDispatcher(
+                classroomRepo, null, null, examRepo, null, null, attendanceRepo, null, null, null,
+                null, null, null, null, billingStub, txnManager
+        );
+
+        String teacherRes = vipDispatcher.executeTool("getTeacherVipAnalysis", "{}", teacherUser);
+        assertEquals(List.of(true), recordedReadOnlyFlags, "Bắt buộc phải chạy trong Transaction readOnly=true");
+        assertTrue(teacherRes.contains("Gói Miễn phí (Free)"));
+        assertTrue(teacherRes.contains("35 Point"));
+        assertTrue(teacherRes.contains("Đề kiểm tra: 3/5"));
+        assertTrue(teacherRes.contains("Phiên điểm danh: 4/5"));
+        assertTrue(teacherRes.contains("Tạo lớp đầu tiên"));
+        assertTrue(teacherRes.contains("Đã đủ điều kiện nhận ngay"));
+        assertTrue(teacherRes.contains("[👉 Mở trang VIP & Point](/teacher/billing)"));
+
+        // Chặn Học sinh đọc VIP & chặn mọi tool ghi VIP/Mission
+        assertTrue(vipDispatcher.executeTool("getTeacherVipAnalysis", "{}", studentUser).contains("Từ chối truy cập"));
+        assertTrue(vipDispatcher.executeTool("claimTeacherMission", "{}", teacherUser).contains("Từ chối truy cập"));
+        assertTrue(vipDispatcher.executeTool("upgradeTeacherVip", "{}", teacherUser).contains("Từ chối truy cập"));
+    }
+
+    @Test
+    @DisplayName("Schema Nullability: Các tham số tùy chọn hỗ trợ [type, \"null\"] để Groq không báo lỗi 400 tool_use_failed")
+    @SuppressWarnings("unchecked")
+    void toolSchemas_useNullableTypesForOptionalParameters() {
+        List<Map<String, Object>> tools = aiToolDispatcher.getToolsForRole("TEACHER");
+        Map<String, Object> hwTool = tools.stream()
+                .filter(t -> "getTeacherHomeworks".equals(((Map<String, Object>) t.get("function")).get("name")))
+                .findFirst()
+                .orElseThrow();
+        Map<String, Object> fn = (Map<String, Object>) hwTool.get("function");
+        Map<String, Object> params = (Map<String, Object>) fn.get("parameters");
+        Map<String, Object> props = (Map<String, Object>) params.get("properties");
+        Map<String, Object> classIdProp = (Map<String, Object>) props.get("classId");
+        assertEquals(List.of("integer", "null"), classIdProp.get("type"));
     }
 
     @FunctionalInterface
