@@ -2,6 +2,8 @@ import { useDeferredValue, useState } from 'react'
 import {
   Activity,
   ArrowDownUp,
+  ArrowLeft,
+  ArrowRight,
   CalendarDays,
   ClipboardList,
   Filter,
@@ -15,7 +17,6 @@ import {
 
 import DashboardLayout from '../../layouts/DashboardLayout'
 import ActivityDetailModal from '../../components/activity/ActivityDetailModal'
-import ActivityPagination from '../../components/activity/ActivityPagination'
 import useResourceQuery from '../../query/useResourceQuery'
 
 const activityTypes = [
@@ -337,14 +338,31 @@ function TeacherHistoryPage() {
                   </li>
                 ))}
               </ol>
-              <ActivityPagination
-                page={page}
-                totalPages={totalPages}
-                totalElements={result.totalElements}
-                isFetching={activityQuery.isFetching}
-                onPageChange={setPage}
-                color="emerald"
-              />
+              <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                <p className="text-sm text-slate-500">
+                  {result.totalElements.toLocaleString('vi-VN')} hoạt động phù hợp · Trang {page + 1}/{Math.max(totalPages, 1)}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={page === 0 || activityQuery.isFetching}
+                    onClick={() => setPage((current) => Math.max(0, current - 1))}
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <ArrowLeft size={16} />
+                    Trước
+                  </button>
+                  <button
+                    type="button"
+                    disabled={page + 1 >= totalPages || activityQuery.isFetching}
+                    onClick={() => setPage((current) => current + 1)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Sau
+                    <ArrowRight size={16} />
+                  </button>
+                </div>
+              </div>
             </>
           )}
         </section>
