@@ -33,6 +33,7 @@ public class ImpersonationService {
     private final NotificationRepository notificationRepository;
     private final JwtService jwtService;
     private final StorageService storageService;
+    private final AdminActivityService adminActivityService;
 
     @Value("${app.impersonation.expiration:900000}")
     private long expirationMillis;
@@ -83,6 +84,9 @@ public class ImpersonationService {
                 .authorities("ROLE_" + target.getRole().name())
                 .build();
 
+        adminActivityService.recordByAdminId(
+                admin.getId(), "IMPERSONATION_START", "IMPERSONATION", target.getId(),
+                "Bắt đầu mạo danh tài khoản: " + accountLabel(target));
         return new StartedImpersonation(
                 jwtService.generateImpersonationToken(targetDetails, session.getId(), expiresAt),
                 toResponse(target));
@@ -95,8 +99,29 @@ public class ImpersonationService {
                 session.setEndedAt(Instant.now());
                 session.setEndReason(endReason);
                 sessionRepository.save(session);
+                String targetLabel = userRepository.findById(session.getTargetUserId())
+                        .map(this::accountLabel)
+                        .orElse("tài khoản #" + session.getTargetUserId());
+                adminActivityService.recordByAdminId(
+                        session.getAdminUserId(), "IMPERSONATION_END", "IMPERSONATION",
+                        session.getTargetUserId(),
+                        "Kết thúc mạo danh tài khoản: " + targetLabel
+                                + " · " + impersonationEndLabel(endReason));
             }
         });
+    }
+
+    private String accountLabel(User user) {
+        return user.getFullName() + " (@" + user.getUsername() + ")";
+    }
+
+    private String impersonationEndLabel(String endReason) {
+        return switch (endReason == null ? "" : endReason) {
+            case "STOPPED" -> "kết thúc thủ công";
+            case "LOGOUT" -> "đăng xuất";
+            case "REAUTHENTICATED" -> "đăng nhập lại";
+            default -> "phiên kết thúc";
+        };
     }
 
     @Transactional

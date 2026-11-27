@@ -15,7 +15,10 @@ export default function useAdminSubjectManagement() {
   const [form, setForm] = useState(emptySubjectForm)
   const [formError, setFormError] = useState('')
 
-  const refreshSubjects = () => queryClient.invalidateQueries({ queryKey })
+  const refreshSubjects = () => Promise.all([
+    queryClient.invalidateQueries({ queryKey }),
+    queryClient.invalidateQueries({ queryKey: ['adminAudit'] }),
+  ])
   const createMutation = useMutation({
     mutationFn: subjectService.create,
     onSuccess: refreshSubjects,

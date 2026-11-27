@@ -19,6 +19,7 @@ import com.classmanagement.backend.repository.exam.ExamAttemptRepository;
 import com.classmanagement.backend.repository.exam.ExamRepository;
 import com.classmanagement.backend.repository.exam.ExamMediaRepository;
 import com.classmanagement.backend.service.ExamService;
+import com.classmanagement.backend.service.TeacherActivityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,6 +49,7 @@ public class ExamServiceImpl implements ExamService {
     private final ExamAttemptRepository examAttemptRepository;
     private final ExamMediaRepository examMediaRepository;
     private final com.classmanagement.backend.repository.exam.ExamAttemptDataRepository attemptData;
+    private final TeacherActivityService activityService;
 
     @Override
     @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
@@ -270,6 +272,13 @@ public void deleteExam(
 
             // Keep file paths/retries until storage deletion succeeds. This bulk
             // update and the cascade delete commit or roll back together.
+            activityService.record(
+                    exam.getTeacher().getId(),
+                    "DELETE",
+                    "EXAM",
+                    exam.getId(),
+                    null,
+                    "Xóa đề thi: " + exam.getTitle());
             examMediaRepository.queueCleanupByExamId(examId, LocalDateTime.now());
             examRepository.delete(exam);
             examRepository.flush();

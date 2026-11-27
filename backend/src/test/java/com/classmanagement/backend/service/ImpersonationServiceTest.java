@@ -39,7 +39,8 @@ class ImpersonationServiceTest {
                 proxy(ImpersonationSessionRepository.class, (method, args) -> null),
                 proxy(NotificationRepository.class, (method, args) -> null),
                 new JwtService(),
-                proxy(StorageService.class, (method, args) -> null));
+                proxy(StorageService.class, (method, args) -> null),
+                org.mockito.Mockito.mock(AdminActivityService.class));
 
         assertThrows(IllegalArgumentException.class, () -> service.start(
                 new UsernamePasswordAuthenticationToken("teacher", null, List.of()),
@@ -66,7 +67,8 @@ class ImpersonationServiceTest {
                 sessions,
                 proxy(NotificationRepository.class, (method, args) -> null),
                 new JwtService(),
-                proxy(StorageService.class, (method, args) -> null));
+                proxy(StorageService.class, (method, args) -> null),
+                org.mockito.Mockito.mock(AdminActivityService.class));
 
         assertThrows(BadCredentialsException.class, () -> service.validateSession(
                 7L,
@@ -89,7 +91,8 @@ class ImpersonationServiceTest {
                 proxy(ImpersonationSessionRepository.class, (method, args) -> Optional.of(session)),
                 proxy(NotificationRepository.class, (method, args) -> null),
                 new JwtService(),
-                proxy(StorageService.class, (method, args) -> null));
+                proxy(StorageService.class, (method, args) -> null),
+                org.mockito.Mockito.mock(AdminActivityService.class));
 
         assertEquals(target, service.validateSession(7L, "student", "ROLE_STUDENT"));
     }
@@ -103,7 +106,8 @@ class ImpersonationServiceTest {
                 proxy(ImpersonationSessionRepository.class, (method, args) -> Optional.empty()),
                 proxy(NotificationRepository.class, (method, args) -> null),
                 new JwtService(),
-                proxy(StorageService.class, (method, args) -> null));
+                proxy(StorageService.class, (method, args) -> null),
+                org.mockito.Mockito.mock(AdminActivityService.class));
 
         assertThrows(BadCredentialsException.class, () -> service.validateSession(
                 7L,
@@ -133,7 +137,8 @@ class ImpersonationServiceTest {
                 sessions,
                 proxy(NotificationRepository.class, (method, args) -> null),
                 new JwtService(),
-                proxy(StorageService.class, (method, args) -> null));
+                proxy(StorageService.class, (method, args) -> null),
+                org.mockito.Mockito.mock(AdminActivityService.class));
 
         UsernamePasswordAuthenticationToken displacedSession =
                 new UsernamePasswordAuthenticationToken("student", null, List.of());

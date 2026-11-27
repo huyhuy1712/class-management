@@ -48,7 +48,7 @@ class LessonStudentAccessTest {
     }
     private LessonServiceImpl service() {
         return new LessonServiceImpl(repo(LessonRepository.class), repo(ClassroomRepository.class),
-                repo(UserRepository.class), repo(ClassStudentRepository.class));
+                repo(UserRepository.class), repo(ClassStudentRepository.class), null);
     }
     private <T> T repo(Class<T> type) {
         return type.cast(Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (p,m,a) -> switch(m.getName()) {

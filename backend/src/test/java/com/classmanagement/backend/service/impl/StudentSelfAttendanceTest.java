@@ -5,11 +5,16 @@ import com.classmanagement.backend.entity.enums.*;
 import com.classmanagement.backend.exception.LateAttendanceReasonRequiredException;
 import com.classmanagement.backend.repository.*;
 import com.classmanagement.backend.repository.classroom.*;
+import com.classmanagement.backend.service.TeacherActivityService;
 import org.junit.jupiter.api.Test;
 import java.lang.reflect.Proxy;
 import java.time.*;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 class StudentSelfAttendanceTest {
     private static <T> T repository(Class<T> type, java.util.function.BiFunction<String, Object[], Object> handler) {
@@ -24,6 +29,7 @@ class StudentSelfAttendanceTest {
         var lesson = Lesson.builder().id(8L).classroom(classroom).lessonDate(now.toLocalDate())
                 .startTime(now.minusHours(1)).lateTime(now.plusMinutes(30)).endTime(now.plusHours(1)).attendanceCode("secret").build();
         List<Attendance> saved = new ArrayList<>();
+        TeacherActivityService activityService = mock(TeacherActivityService.class);
         var service = new AttendanceServiceImpl(
                 repository(AttendanceRepository.class, (method, args) -> {
                     if (method.startsWith("exists")) return false;
@@ -33,7 +39,8 @@ class StudentSelfAttendanceTest {
                 repository(ClassroomRepository.class, (method, args) -> Optional.of(classroom)),
                 repository(LessonRepository.class, (method, args) -> List.of(lesson)),
                 repository(UserRepository.class, (method, args) -> Optional.of(student)),
-                repository(ClassStudentRepository.class, (method, args) -> true), null, null, null);
+                repository(ClassStudentRepository.class, (method, args) -> true), null, null, null,
+                activityService);
         assertThrows(IllegalArgumentException.class, () -> service.attendAsStudent(2L, "student", "wrong", null));
         assertTrue(saved.isEmpty());
         assertEquals(AttendanceStatus.PRESENT, service.attendAsStudent(2L, "student", "secret", null).get(0).getStatus());
@@ -43,6 +50,13 @@ class StudentSelfAttendanceTest {
         var late = service.attendAsStudent(2L, "student", "secret", "  Kẹt xe  ").get(0);
         assertEquals(AttendanceStatus.LATE, late.getStatus());
         assertEquals("Kẹt xe", late.getNote());
+        verify(activityService, org.mockito.Mockito.times(2)).record(
+                eq(3L),
+                eq("ATTEND"),
+                eq("ATTENDANCE"),
+                eq(9L),
+                eq(2L),
+                contains("Tự điểm danh"));
         lesson.setEndTime(now.minusSeconds(1));
         assertThrows(IllegalArgumentException.class, () -> service.attendAsStudent(2L, "student", "secret", "Kẹt xe"));
         classroom.setStatus(ClassroomStatus.ARCHIVED);

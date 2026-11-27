@@ -94,7 +94,8 @@ class ExamStudentClassContextTest {
                 (p,m,a) -> { assertEquals("persist", m.getName()); persisted.add((ExamAssignmentStudent)a[0]); return null; });
         var service = new ExamConfigurationUpdateService(null, null, null, classes, students, null,
             null, null, null, null, em, null,
-            org.mockito.Mockito.mock(com.classmanagement.backend.service.billing.TeacherEntitlementService.class));
+            org.mockito.Mockito.mock(com.classmanagement.backend.service.billing.TeacherEntitlementService.class),
+            org.mockito.Mockito.mock(com.classmanagement.backend.service.TeacherActivityService.class));
         var sync = ExamConfigurationUpdateService.class.getDeclaredMethod("syncTargets", ExamAssignment.class, ExamTargetValidator.Targets.class);
         sync.setAccessible(true);
         sync.invoke(service, ExamAssignment.builder().id(8L).build(), new ExamTargetValidator.Targets(

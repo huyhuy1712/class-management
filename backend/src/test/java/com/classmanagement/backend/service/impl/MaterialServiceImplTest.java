@@ -20,6 +20,7 @@ import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.repository.classroom.ClassroomRepository;
 import com.classmanagement.backend.repository.classroom.ClassStudentRepository;
 import com.classmanagement.backend.service.StorageService;
+import com.classmanagement.backend.service.TeacherActivityService;
 import com.classmanagement.backend.service.impl.material.MaterialAssignmentManager;
 import com.classmanagement.backend.service.impl.material.MaterialDistribution;
 import com.classmanagement.backend.service.impl.material.MaterialDocumentMapper;
@@ -61,6 +62,7 @@ class MaterialServiceImplTest {
         StorageService storage = mock(StorageService.class);
         MaterialAssignmentManager assignmentManager = mock(MaterialAssignmentManager.class);
         MaterialDocumentMapper mapper = mock(MaterialDocumentMapper.class);
+        TeacherActivityService activityService = mock(TeacherActivityService.class);
         MaterialDistribution distribution = new MaterialDistribution(List.of(), List.of(), Map.of());
         List<MultipartFile> files = List.of(
                 new MockMultipartFile("files", "lesson-1.pdf", "application/pdf", new byte[] {1}),
@@ -99,7 +101,8 @@ class MaterialServiceImplTest {
                 assignmentManager,
                 mapper,
                 new MaterialFileSupport(storage),
-                org.mockito.Mockito.mock(com.classmanagement.backend.service.billing.TeacherEntitlementService.class));
+                org.mockito.Mockito.mock(com.classmanagement.backend.service.billing.TeacherEntitlementService.class),
+                activityService);
 
         List<MaterialDocumentResponse> result = service.uploadDocuments(
                 "teacher", null, MaterialAssignmentType.ALL, null, null, files);
@@ -108,6 +111,10 @@ class MaterialServiceImplTest {
         verify(assignmentManager, times(1)).validateDistribution(8L, MaterialAssignmentType.ALL, null, null);
         verify(materials, times(1)).saveAllAndFlush(anyList());
         verify(assignments, times(1)).saveAllAndFlush(anyList());
+        verify(activityService).record(8L, "CREATE", "MATERIAL", 1L, null,
+                "Tải lên tài liệu: lesson-1");
+        verify(activityService).record(8L, "CREATE", "MATERIAL", 2L, null,
+                "Tải lên tài liệu: lesson-2");
         verify(assignmentManager, times(1)).replaceTargets(anyList(), eq(MaterialAssignmentType.ALL), eq(distribution));
         verify(mapper, times(1)).map(anyList());
         verify(storage, times(2)).upload(anyString(), anyString(), any());
@@ -275,7 +282,8 @@ class MaterialServiceImplTest {
                         classrooms, classStudents, users),
                 new MaterialDocumentMapper(assignments, classTargets, excludedTargets, studentTargets, storage),
                 new MaterialFileSupport(storage),
-                org.mockito.Mockito.mock(com.classmanagement.backend.service.billing.TeacherEntitlementService.class));
+                org.mockito.Mockito.mock(com.classmanagement.backend.service.billing.TeacherEntitlementService.class),
+                org.mockito.Mockito.mock(com.classmanagement.backend.service.TeacherActivityService.class));
     }
 
     private <T> T repository(Class<T> type) {

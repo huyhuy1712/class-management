@@ -8,6 +8,7 @@ import com.classmanagement.backend.entity.ExamAssignment;
 import com.classmanagement.backend.entity.enums.*;
 import com.classmanagement.backend.exception.*;
 import com.classmanagement.backend.repository.exam.*;
+import com.classmanagement.backend.service.TeacherActivityService;
 import com.classmanagement.backend.service.exam.validation.ExamStructureValidator;
 import com.classmanagement.backend.service.exam.validation.ExamTargetValidator;
 
@@ -33,6 +34,7 @@ public class ExamPublishService {
     private final ExamTargetValidator targetValidator;
     private final Validator validator;
     private final ExamAttemptDataRepository attemptData;
+    private final TeacherActivityService activityService;
 
     @Transactional
     public PublishExamResponse publish(Long examId, String username) {
@@ -113,6 +115,9 @@ public class ExamPublishService {
         }
         exams.flush();
         attemptData.snapshot(examId);
+        activityService.record(
+                exam.getTeacher().getId(), "PUBLISH", "EXAM", examId, null,
+                "Xuất bản đề thi: " + exam.getTitle());
         return response(exam, rows);
     }
 
@@ -139,6 +144,9 @@ public class ExamPublishService {
         }
         exams.flush();
         attemptData.clearCohort(examId);
+        activityService.record(
+                exam.getTeacher().getId(), "UNPUBLISH", "EXAM", examId, null,
+                "Thu hồi xuất bản đề thi: " + exam.getTitle());
         return response(exam, rows);
     }
 

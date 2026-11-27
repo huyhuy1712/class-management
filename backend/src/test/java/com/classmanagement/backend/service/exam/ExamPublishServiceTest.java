@@ -15,14 +15,17 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
+import com.classmanagement.backend.service.TeacherActivityService;
 
 class ExamPublishServiceTest {
     private final User teacher = User.builder().id(11L).role(UserRole.TEACHER).status(UserStatus.ACTIVE).build();
     private final Exam exam = Exam.builder().id(5L).teacher(teacher).subject(Subject.builder().id(1L).build())
-            .status(ExamStatus.DRAFT).maxScore(BigDecimal.ONE).revision(0L).code("EX-11-ABCDEF").build();
+            .title("Algebra exam").status(ExamStatus.DRAFT).maxScore(BigDecimal.ONE).revision(0L)
+            .code("EX-11-ABCDEF").build();
     private final ExamAssignment assignment = ExamAssignment.builder().id(12L).exam(exam)
             .status(ExamAssignmentStatus.DRAFT).assignmentType(ExamAssignmentType.ALL).build();
     private final List<String> calls = new ArrayList<>();
+    private final TeacherActivityService activityService = org.mockito.Mockito.mock(TeacherActivityService.class);
     private boolean missing, hasAttempts, invalidContent, targetFails;
 
     @Test void publishesExamAndOpensAssignmentAfterValidation() {
@@ -31,6 +34,8 @@ class ExamPublishServiceTest {
         assertEquals(ExamAssignmentStatus.OPEN, response.assignments().getFirst().status());
         assertTrue(calls.indexOf("targets") < calls.indexOf("flush"));
         assertEquals(1, Collections.frequency(calls, "detail"));
+        org.mockito.Mockito.verify(activityService).record(
+                11L, "PUBLISH", "EXAM", 5L, null, "Xuất bản đề thi: Algebra exam");
     }
     @Test void futureOpeningPublishesAsScheduled() {
         assignment.setOpenTime(LocalDateTime.now().plusYears(1));
@@ -83,6 +88,8 @@ class ExamPublishServiceTest {
         assertEquals(openTime, assignment.getOpenTime());
         assertFalse(calls.contains("detail")); assertFalse(calls.contains("targets"));
         assertEquals(1, Collections.frequency(calls, "flush"));
+        org.mockito.Mockito.verify(activityService).record(
+                11L, "UNPUBLISH", "EXAM", 5L, null, "Thu hồi xuất bản đề thi: Algebra exam");
     }
     @Test void unpublishWithAttemptFailsWithoutMutatingStatuses() {
         exam.setStatus(ExamStatus.PUBLISHED); assignment.setStatus(ExamAssignmentStatus.OPEN); hasAttempts = true;
@@ -128,7 +135,7 @@ class ExamPublishServiceTest {
                 new ExamAttemptDataRepository(null) {
                     @Override public void snapshot(Long id) { calls.add("snapshot"); }
                     @Override public void clearCohort(Long id) { calls.add("clearCohort"); }
-                });
+                }, activityService);
     }
     private ExamDetailResponse detail() {
         var answer = new ExamDetailResponse.Answer(1L, 0, AnswerType.ESSAY, "Write", BigDecimal.ONE,

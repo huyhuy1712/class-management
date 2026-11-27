@@ -20,7 +20,7 @@ class ClassExamListTest {
             }
             @Override public List<ClassExamResponse> classExams(Long id) { queried=true; assertEquals(21L,id); return rows; }
         };
-        return new ExamServiceImpl(null,null,null,null,null,null,data);
+        return new ExamServiceImpl(null,null,null,null,null,null,data,null);
     }
     @Test void rejectsForeignClassBeforeReadingExamOrGradingData() {
         assertThrows(ResourceNotFoundException.class,() -> service().getClassExams("teacher",21L));

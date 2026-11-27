@@ -3,18 +3,19 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import {
   Activity,
   ArrowDownUp,
-  ArrowLeft,
-  ArrowRight,
   CalendarDays,
   ClipboardList,
   History,
   LoaderCircle,
   Search,
+  Shield,
   TriangleAlert,
   UserRound,
 } from 'lucide-react'
 
 import adminService from '../../services/adminService'
+import ActivityDetailModal from '../../components/activity/ActivityDetailModal'
+import ActivityPagination from '../../components/activity/ActivityPagination'
 
 const activityTypes = [
   { value: '', label: 'Tất cả hoạt động' },
@@ -27,17 +28,31 @@ const activityTypes = [
   { value: 'LESSON', label: 'Buổi học' },
   { value: 'CLASS_FEED', label: 'Bảng tin lớp' },
   { value: 'STUDENT', label: 'Học sinh' },
+  { value: 'VIP', label: 'Gói VIP' },
+  { value: 'POINTS', label: 'Point' },
+  { value: 'MISSION', label: 'Nhiệm vụ' },
 ]
 
 const resourceLabels = {
   CLASSROOM: 'Lớp học',
   EXAM: 'Đề thi / bài kiểm tra',
   HOMEWORK: 'Bài tập',
+  GRADE: 'Điểm số',
   MATERIAL: 'Tài liệu',
   ATTENDANCE: 'Điểm danh',
   LESSON: 'Buổi học',
   CLASS_FEED: 'Bảng tin lớp',
   STUDENT: 'Học sinh',
+  VIP: 'Gói VIP',
+  POINTS: 'Point',
+  MISSION: 'Nhiệm vụ',
+}
+
+const adminResourceLabels = {
+  ACCOUNT: 'Tài khoản',
+  SUBJECT: 'Môn học',
+  MISSION: 'Nhiệm vụ',
+  IMPERSONATION: 'Mạo danh',
 }
 
 const inputClassName =
@@ -61,12 +76,21 @@ export default function AdminHistoryPage() {
   const [toDate, setToDate] = useState('')
   const [page, setPage] = useState(0)
   const [sortOrder, setSortOrder] = useState('newest')
+  const [selectedItem, setSelectedItem] = useState(null)
+  const [historySection, setHistorySection] = useState('users')
+  const [auditSearch, setAuditSearch] = useState('')
+  const [auditFromDate, setAuditFromDate] = useState('')
+  const [auditToDate, setAuditToDate] = useState('')
+  const [auditPage, setAuditPage] = useState(0)
+  const [auditSortOrder, setAuditSortOrder] = useState('newest')
   const deferredSearch = useDeferredValue(search)
+  const deferredAuditSearch = useDeferredValue(auditSearch)
 
   const usersQuery = useQuery({
     queryKey: ['adminUsers'],
     queryFn: adminService.getUsers,
     staleTime: 30_000,
+    enabled: historySection === 'users',
   })
   const users = usersQuery.data ?? []
   const visibleUsers = users.filter((user) => !role || user.role === role)
@@ -98,6 +122,7 @@ export default function AdminHistoryPage() {
     staleTime: 15_000,
     refetchInterval: 60_000,
     placeholderData: keepPreviousData,
+    enabled: historySection === 'users',
   })
   const result = activityQuery.data
   const items = [...(result?.items ?? [])].sort((left, right) => {
@@ -109,6 +134,38 @@ export default function AdminHistoryPage() {
   })
   const totalPages = result?.totalPages ?? 0
   const hasFilters = Boolean(search || category || role || userId || fromDate || toDate)
+  const auditQuery = useQuery({
+    queryKey: [
+      'adminAudit',
+      auditPage,
+      20,
+      deferredAuditSearch,
+      auditFromDate,
+      auditToDate,
+      auditSortOrder,
+    ],
+    queryFn: ({ signal }) => adminService.getAdminAudit({
+      page: auditPage,
+      size: 20,
+      q: deferredAuditSearch,
+      from: auditFromDate,
+      to: auditToDate,
+      sort: auditSortOrder,
+    }, { signal }),
+    staleTime: 15_000,
+    refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
+    enabled: historySection === 'admin',
+  })
+  const auditItems = [...(auditQuery.data?.items ?? [])].sort((left, right) => {
+    const timeDifference = Date.parse(left.occurredAt) - Date.parse(right.occurredAt)
+    const difference = Number.isNaN(timeDifference)
+      ? Number(left.id) - Number(right.id)
+      : timeDifference || Number(left.id) - Number(right.id)
+    return auditSortOrder === 'newest' ? -difference : difference
+  })
+  const auditTotalPages = auditQuery.data?.totalPages ?? 0
+  const hasAuditFilters = Boolean(auditSearch || auditFromDate || auditToDate)
 
   const clearFilters = () => {
     setSearch('')
@@ -125,6 +182,18 @@ export default function AdminHistoryPage() {
     setPage(0)
   }
 
+  const updateAuditFilter = (setter) => (value) => {
+    setter(value)
+    setAuditPage(0)
+  }
+
+  const clearAuditFilters = () => {
+    setAuditSearch('')
+    setAuditFromDate('')
+    setAuditToDate('')
+    setAuditPage(0)
+  }
+
   return (
     <div className="space-y-6">
       <section className="admin-history-banner">
@@ -138,23 +207,61 @@ export default function AdminHistoryPage() {
               Quản trị hệ thống
             </p>
             <h1 className="admin-history-banner__title">
-              Lịch sử hoạt động người dùng
+              Lịch sử hệ thống
             </h1>
             <p className="admin-history-banner__description">
-              Theo dõi hoạt động đã ghi nhận, lọc theo giáo viên, học sinh hoặc một tài khoản cụ thể.
+              Theo dõi riêng hoạt động của giáo viên, học sinh và thao tác quản trị viên.
             </p>
           </div>
           <div className="admin-history-banner__scope">
             <UserRound size={20} />
             <div>
               <p>Phạm vi</p>
-              <strong>Toàn hệ thống</strong>
+              <strong>Người dùng và quản trị</strong>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-3">
+      <div role="tablist" aria-label="Loại lịch sử" className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={historySection === 'users'}
+          onClick={() => {
+            setHistorySection('users')
+            setSelectedItem(null)
+          }}
+          className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+            historySection === 'users'
+              ? 'bg-blue-700 text-white shadow-sm'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <Activity size={17} />
+          Lịch sử hoạt động người dùng
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={historySection === 'admin'}
+          onClick={() => {
+            setHistorySection('admin')
+            setSelectedItem(null)
+          }}
+          className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+            historySection === 'admin'
+              ? 'bg-blue-700 text-white shadow-sm'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <Shield size={17} />
+          Thao tác quản trị viên
+        </button>
+      </div>
+
+      {historySection === 'users' && (
+        <section className="grid gap-4 sm:grid-cols-3">
         <SummaryCard
           icon={<Activity size={21} />}
           label="Tổng hoạt động"
@@ -177,8 +284,9 @@ export default function AdminHistoryPage() {
           tone="violet"
         />
       </section>
+      )}
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      {historySection === 'users' && <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col gap-4 border-b border-slate-100 p-5 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -341,59 +449,213 @@ export default function AdminHistoryPage() {
             )}
             <ol className="divide-y divide-slate-100">
               {items.map((item) => (
-                <li key={item.id} className="flex gap-4 px-5 py-5 sm:px-6">
-                  <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
-                    <Activity size={19} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold text-slate-900">{item.summary}</p>
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
-                        {resourceLabels[item.resourceType] ?? item.resourceType}
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedItem(item)}
+                    aria-label={`Xem chi tiết hoạt động: ${item.summary}`}
+                    className="flex w-full gap-4 px-5 py-5 text-left transition hover:bg-blue-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:px-6"
+                  >
+                    <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+                      <Activity size={19} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold text-slate-900">{item.summary}</span>
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                          {resourceLabels[item.resourceType] ?? item.resourceType}
+                        </span>
                       </span>
-                    </div>
-                    <p className="mt-1.5 text-sm text-slate-700">
-                      {item.actorName || 'Tài khoản không còn tồn tại'}
-                      {item.actorUsername ? ` (@${item.actorUsername})` : ''}
-                      <span className="ml-2 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">
-                        {item.actorRole === 'TEACHER' ? 'Giáo viên' : item.actorRole === 'STUDENT' ? 'Học sinh' : item.actorRole || 'Không rõ vai trò'}
+                      <span className="mt-1.5 block text-sm text-slate-700">
+                        {item.actorName || 'Tài khoản không còn tồn tại'}
+                        {item.actorUsername ? ` (@${item.actorUsername})` : ''}
+                        <span className="ml-2 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">
+                          {item.actorRole === 'TEACHER' ? 'Giáo viên' : item.actorRole === 'STUDENT' ? 'Học sinh' : item.actorRole || 'Không rõ vai trò'}
+                        </span>
                       </span>
-                    </p>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-                      <time dateTime={item.occurredAt}>{formatActivityTime(item.occurredAt)}</time>
-                      {item.classId && <span className="text-slate-400">Lớp #{item.classId}</span>}
-                      {item.resourceId && <span className="text-slate-400">Mã đối tượng #{item.resourceId}</span>}
-                    </div>
-                  </div>
+                      <span className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                        <time dateTime={item.occurredAt}>{formatActivityTime(item.occurredAt)}</time>
+                        {item.classId && <span className="text-slate-400">Lớp #{item.classId}</span>}
+                        {item.resourceId && <span className="text-slate-400">Mã đối tượng #{item.resourceId}</span>}
+                      </span>
+                    </span>
+                  </button>
                 </li>
               ))}
             </ol>
-            <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-              <p className="text-sm text-slate-500">
-                {result.totalElements.toLocaleString('vi-VN')} hoạt động phù hợp · Trang {page + 1}/{Math.max(totalPages, 1)}
-              </p>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  disabled={page === 0 || activityQuery.isFetching}
-                  onClick={() => setPage((current) => Math.max(0, current - 1))}
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  <ArrowLeft size={16} /> Trước
-                </button>
-                <button
-                  type="button"
-                  disabled={page + 1 >= totalPages || activityQuery.isFetching}
-                  onClick={() => setPage((current) => current + 1)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Sau <ArrowRight size={16} />
-                </button>
-              </div>
-            </div>
+            <ActivityPagination
+              page={page}
+              totalPages={totalPages}
+              totalElements={result.totalElements}
+              isFetching={activityQuery.isFetching}
+              onPageChange={setPage}
+            />
           </div>
         )}
-      </section>
+      </section>}
+
+      {historySection === 'admin' && (
+        <section role="tabpanel" className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-col gap-4 border-b border-slate-100 p-5 sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Thao tác quản trị viên</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Nhật ký riêng cho quản lý tài khoản, môn học, nhiệm vụ và các phiên mạo danh.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setAuditSortOrder((current) => current === 'newest' ? 'oldest' : 'newest')
+                  setAuditPage(0)
+                }}
+                aria-pressed={auditSortOrder === 'oldest'}
+                aria-label={`Sắp xếp ${auditSortOrder === 'newest' ? 'cũ nhất trước' : 'mới nhất trước'}`}
+                className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"
+              >
+                <ArrowDownUp size={14} />
+                {auditSortOrder === 'newest' ? 'Mới nhất trước' : 'Cũ nhất trước'}
+              </button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <label className="relative sm:col-span-2 xl:col-span-1">
+                <span className="sr-only">Tìm thao tác quản trị viên</span>
+                <Search size={17} className="pointer-events-none absolute left-3.5 top-3.5 text-slate-400" />
+                <input
+                  type="search"
+                  value={auditSearch}
+                  onChange={(event) => updateAuditFilter(setAuditSearch)(event.target.value)}
+                  placeholder="Tìm thao tác quản trị..."
+                  className={`${inputClassName} pl-10`}
+                />
+              </label>
+              <label>
+                <span className="sr-only">Từ ngày</span>
+                <input
+                  type="date"
+                  value={auditFromDate}
+                  onChange={(event) => updateAuditFilter(setAuditFromDate)(event.target.value)}
+                  className={inputClassName}
+                  aria-label="Từ ngày"
+                />
+              </label>
+              <label>
+                <span className="sr-only">Đến ngày</span>
+                <input
+                  type="date"
+                  value={auditToDate}
+                  onChange={(event) => updateAuditFilter(setAuditToDate)(event.target.value)}
+                  className={inputClassName}
+                  aria-label="Đến ngày"
+                />
+              </label>
+            </div>
+          </div>
+
+          {auditQuery.error ? (
+            <div className="flex min-h-[260px] flex-col items-center justify-center px-6 py-12 text-center">
+              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
+                <TriangleAlert size={25} />
+              </span>
+              <h3 className="mt-4 text-lg font-bold text-slate-900">Không tải được nhật ký quản trị</h3>
+              <p className="mt-2 max-w-md text-sm text-slate-500">
+                Không thể tải thao tác quản trị viên. Vui lòng thử lại.
+              </p>
+              <button
+                type="button"
+                onClick={() => auditQuery.refetch()}
+                className="mt-5 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800"
+              >
+                Thử lại
+              </button>
+            </div>
+          ) : auditQuery.isPending ? (
+            <div className="flex min-h-[260px] items-center justify-center gap-3 text-sm font-medium text-slate-500">
+              <LoaderCircle size={20} className="animate-spin text-blue-700" />
+              Đang tải nhật ký quản trị...
+            </div>
+          ) : auditItems.length === 0 ? (
+            <div className="flex min-h-[280px] flex-col items-center justify-center px-6 py-12 text-center">
+              <Shield size={34} className="text-blue-700" />
+              <h3 className="mt-5 text-lg font-bold text-slate-900">
+                {hasAuditFilters ? 'Không tìm thấy thao tác phù hợp' : 'Chưa có thao tác quản trị nào'}
+              </h3>
+              <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
+                {hasAuditFilters
+                  ? 'Hãy thử thay đổi từ khóa hoặc khoảng thời gian.'
+                  : 'Các thao tác quản lý và mạo danh của quản trị viên sẽ được ghi tại đây.'}
+              </p>
+              {hasAuditFilters && (
+                <button
+                  type="button"
+                  onClick={clearAuditFilters}
+                  className="mt-5 rounded-xl border border-blue-200 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
+                >
+                  Xóa bộ lọc
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="relative" aria-busy={auditQuery.isFetching}>
+              {auditQuery.isFetching && (
+                <div className="pointer-events-none absolute right-5 top-4 z-10 inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-blue-700 shadow-sm ring-1 ring-blue-100">
+                  <LoaderCircle size={14} className="animate-spin" />
+                  Đang cập nhật
+                </div>
+              )}
+              <ol className="divide-y divide-slate-100">
+                {auditItems.map((item) => (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedItem(item)}
+                      aria-label={`Xem chi tiết thao tác quản trị: ${item.summary}`}
+                      className="flex w-full gap-4 px-5 py-5 text-left transition hover:bg-blue-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:px-6"
+                    >
+                      <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700">
+                        <Shield size={19} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-semibold text-slate-900">{item.summary}</span>
+                          <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[11px] font-semibold text-indigo-700">
+                            {adminResourceLabels[item.resourceType] ?? item.resourceType}
+                          </span>
+                        </span>
+                        <span className="mt-1.5 block text-sm text-slate-700">
+                          {item.actorName || 'Tài khoản quản trị không còn tồn tại'}
+                          {item.actorUsername ? ` (@${item.actorUsername})` : ''}
+                        </span>
+                        <span className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                          <time dateTime={item.occurredAt}>{formatActivityTime(item.occurredAt)}</time>
+                          {item.resourceId && <span className="text-slate-400">Mã đối tượng #{item.resourceId}</span>}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+              <ActivityPagination
+                page={auditPage}
+                totalPages={auditTotalPages}
+                totalElements={auditQuery.data?.totalElements ?? 0}
+                isFetching={auditQuery.isFetching}
+                onPageChange={setAuditPage}
+                itemLabel="thao tác"
+              />
+            </div>
+          )}
+        </section>
+      )}
+
+      {selectedItem && (
+        <ActivityDetailModal
+          item={selectedItem}
+          viewerRole="ADMIN"
+          onClose={() => setSelectedItem(null)}
+        />
+      )}
     </div>
   )
 }

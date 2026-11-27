@@ -8,6 +8,7 @@ import com.classmanagement.backend.entity.*;
 import com.classmanagement.backend.entity.enums.*;
 import com.classmanagement.backend.exception.*;
 import com.classmanagement.backend.repository.exam.*;
+import com.classmanagement.backend.service.TeacherActivityService;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -21,9 +22,10 @@ import static org.junit.jupiter.api.Assertions.*;
 class ExamContentUpdateServiceTest {
     private static final Validator VALIDATOR = Validation.buildDefaultValidatorFactory().getValidator();
     private final List<String> calls = new ArrayList<>();
+    private final TeacherActivityService activityService = org.mockito.Mockito.mock(TeacherActivityService.class);
     private final User teacher = User.builder().id(11L).role(UserRole.TEACHER).status(UserStatus.ACTIVE).build();
     private final Exam exam = Exam.builder().id(7L).teacher(teacher).status(ExamStatus.DRAFT).revision(0L)
-            .maxScore(BigDecimal.ONE).code("EX-11-ABCDEF").build();
+            .title("Content exam").maxScore(BigDecimal.ONE).code("EX-11-ABCDEF").build();
     private final ExamSection section = ExamSection.builder().id(1L).exam(exam).title("Section").orderIndex(1).points(BigDecimal.ONE).build();
     private List<Question> questions = new ArrayList<>();
     private List<Answer> answers = new ArrayList<>();
@@ -57,6 +59,8 @@ class ExamContentUpdateServiceTest {
         assertTrue(response.idMappings().questions().isEmpty());
         assertFalse(calls.contains("persist")); assertFalse(calls.contains("deleteAllByIdInBatch"));
         assertEquals(9, calls.stream().filter(c -> c.startsWith("find") || c.startsWith("exists")).count());
+        org.mockito.Mockito.verify(activityService).record(
+                11L, "UPDATE", "EXAM", 7L, null, "Cập nhật đề thi: Content exam");
     }
 
     @Test void updatesParagraphWithoutChangingIdentityOrReadCount() {
@@ -163,7 +167,8 @@ class ExamContentUpdateServiceTest {
         var mediaRepo = repo(ExamMediaRepository.class);
         return new ExamContentUpdateService(repo(ExamRepository.class), repo(ExamAttemptRepository.class), repo(ExamAssignmentRepository.class),
                 sections, questionRepo, answerRepo, options, rules, mediaRepo, new ExamMediaLifecycle(mediaRepo, null, 24),
-                new ExamStructureValidator(VALIDATOR), new ExamContentWriter(repo(EntityManager.class), sections, questionRepo, answerRepo, options, rules), VALIDATOR);
+                new ExamStructureValidator(VALIDATOR), new ExamContentWriter(repo(EntityManager.class), sections, questionRepo, answerRepo, options, rules),
+                VALIDATOR, activityService);
     }
     private <T> T repo(Class<T> type) {
         return type.cast(Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (proxy, method, args) -> {

@@ -37,9 +37,11 @@ import com.classmanagement.backend.repository.billing.BillingInvoiceItemReposito
 import com.classmanagement.backend.repository.billing.TeacherPointLedgerRepository;
 import com.classmanagement.backend.repository.billing.TeacherPointWalletRepository;
 import com.classmanagement.backend.repository.billing.TeacherVipSubscriptionRepository;
+import com.classmanagement.backend.service.TeacherActivityService;
+import java.text.Normalizer;
+import java.text.NumberFormat;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.text.Normalizer;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -73,6 +75,7 @@ public class BillingService {
     private final JdbcTemplate jdbc;
     private final BillingProductCatalog catalog;
     private final VnpayPaymentClient vnpay;
+    private final TeacherActivityService activityService;
     private final TransactionTemplate transactions;
 
     public BillingService(
@@ -93,6 +96,7 @@ public class BillingService {
             JdbcTemplate jdbc,
             BillingProductCatalog catalog,
             VnpayPaymentClient vnpay,
+            TeacherActivityService activityService,
             PlatformTransactionManager transactionManager) {
         this.users = users;
         this.orders = orders;
@@ -111,6 +115,7 @@ public class BillingService {
         this.jdbc = jdbc;
         this.catalog = catalog;
         this.vnpay = vnpay;
+        this.activityService = activityService;
         this.transactions = new TransactionTemplate(transactionManager);
     }
 
@@ -163,6 +168,14 @@ public class BillingService {
             missionClaims.saveAndFlush(claim);
             saveLedger(teacher.getId(), "mission:" + teacher.getId() + ":" + mission.getCode(), TeacherPointLedgerEntry.Type.CREDIT,
                     mission.getRewardPoints(), "MISSION_REWARD:" + mission.getCode(), null, balanceAfter);
+            activityService.record(
+                    teacher.getId(),
+                    "CLAIM",
+                    "MISSION",
+                    null,
+                    null,
+                    "Nhận thưởng nhiệm vụ: " + mission.getName() + " · "
+                            + mission.getRewardPoints() + " Point");
 
             return new BillingMissionResponse(
                     mission.getCode(), mission.getName(), mission.getDescription(), mission.getRewardPoints(),
@@ -413,6 +426,8 @@ public class BillingService {
             saveLedger(teacher.getId(), eventKey, TeacherPointLedgerEntry.Type.DEBIT,
                     product.pointsRequired(), reason, null, wallet.getPointsBalance());
             extendVip(teacher.getId(), product, null);
+            recordVipActivity(teacher.getId(), product, "REDEEM", "đổi "
+                    + product.pointsRequired() + " Point");
         });
         return overview(username);
     }
@@ -472,7 +487,11 @@ public class BillingService {
             if (order.getProductType() == BillingOrder.ProductType.POINTS) {
                 creditPoints(order);
             } else {
-                extendVip(order.getTeacherId(), catalog.require(order.getProductCode()), order.getId());
+                BillingProductCatalog.Product product = catalog.require(order.getProductCode());
+                extendVip(order.getTeacherId(), product, order.getId());
+                recordVipActivity(order.getTeacherId(), product, "PURCHASE", "thanh toán VNPay "
+                        + NumberFormat.getIntegerInstance(Locale.forLanguageTag("vi-VN"))
+                                .format(order.getAmountVnd()) + " ₫");
             }
             createInvoice(order, transactionId);
             return VnpayIpnResponse.success();
@@ -582,6 +601,17 @@ public class BillingService {
         saveLedger(order.getTeacherId(), "payment:" + order.getId(),
                 TeacherPointLedgerEntry.Type.CREDIT, order.getPointsGranted(), "POINT_PURCHASE",
                 order.getId(), wallet.getPointsBalance());
+        BillingProductCatalog.Product product = catalog.require(order.getProductCode());
+        activityService.record(
+                order.getTeacherId(),
+                "PURCHASE",
+                "POINTS",
+                null,
+                null,
+                "Mua gói Point: " + product.name() + " · "
+                        + order.getPointsGranted() + " Point · "
+                        + NumberFormat.getIntegerInstance(Locale.forLanguageTag("vi-VN"))
+                                .format(order.getAmountVnd()) + " ₫");
     }
 
     private void extendVip(Long teacherId, BillingProductCatalog.Product product, UUID orderId) {
@@ -603,6 +633,17 @@ public class BillingService {
         subscription.setLastOrderId(orderId);
         subscription.setUpdatedAt(currentTime);
         subscriptions.save(subscription);
+    }
+
+    private void recordVipActivity(
+            Long teacherId,
+            BillingProductCatalog.Product product,
+            String action,
+            String paymentDetails) {
+        String summary = (action.equals("REDEEM") ? "Đổi gói " : "Mua gói ")
+                + product.name() + " · " + product.deviceLimit() + " thiết bị · "
+                + product.durationMonths() + " tháng · " + paymentDetails;
+        activityService.record(teacherId, action, "VIP", null, null, summary);
     }
 
     private void saveLedger(

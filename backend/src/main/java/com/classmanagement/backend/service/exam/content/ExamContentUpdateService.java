@@ -6,6 +6,7 @@ import com.classmanagement.backend.dto.exam.*;
 import com.classmanagement.backend.entity.enums.*;
 import com.classmanagement.backend.exception.*;
 import com.classmanagement.backend.repository.exam.*;
+import com.classmanagement.backend.service.TeacherActivityService;
 import com.classmanagement.backend.service.exam.media.ExamMediaLifecycle;
 import com.classmanagement.backend.service.exam.validation.ExamStructureValidator;
 
@@ -36,6 +37,7 @@ public class ExamContentUpdateService {
     private final ExamStructureValidator structureValidator;
     private final ExamContentWriter writer;
     private final Validator validator;
+    private final TeacherActivityService activityService;
 
     @Transactional
     public UpdateExamContentResponse update(
@@ -100,6 +102,9 @@ public class ExamContentUpdateService {
         exam.setMaxScore(summary.totalScore());
         exam.setUpdatedAt(LocalDateTime.now());
         examRepository.flush();
+        activityService.record(
+                teacher.getId(), "UPDATE", "EXAM", examId, null,
+                "Cập nhật đề thi: " + exam.getTitle());
         return new UpdateExamContentResponse(
                 exam.getId(),
                 exam.getCode(),

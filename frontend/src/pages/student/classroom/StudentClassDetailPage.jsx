@@ -1,6 +1,6 @@
 import FrogLoading from '../../../utils/FrogLoading'
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router-dom'
 import StudentDashboardLayout from '../../../layouts/StudentDashboardLayout'
 import useStudentClassDetail from './hooks/useStudentClassDetail'
 import StudentClassInfo from './components/StudentClassInfo'
@@ -8,8 +8,13 @@ import StudentClassTabs from './components/StudentClassTabs'
 
 export default function StudentClassDetailPage() {
   const { classId } = useParams()
+  const location = useLocation()
   const detail = useStudentClassDetail(classId)
-  const [tab, setTab] = useState('students')
+  const [tab, setTab] = useState(() => (
+    ['announcements', 'attendance', 'grades'].includes(location.state?.tab)
+      ? location.state.tab
+      : 'students'
+  ))
   return (
     <StudentDashboardLayout>
       <main className="p-4 sm:p-8">

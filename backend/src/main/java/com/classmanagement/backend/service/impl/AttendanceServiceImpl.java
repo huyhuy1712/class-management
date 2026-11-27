@@ -33,6 +33,7 @@ import com.classmanagement.backend.repository.classroom.ClassStudentRepository;
 import com.classmanagement.backend.repository.classroom.ClassroomRepository;
 import com.classmanagement.backend.service.AttendanceService;
 import com.classmanagement.backend.service.StorageService;
+import com.classmanagement.backend.service.TeacherActivityService;
 import com.classmanagement.backend.service.excel.AttendanceExcelExporter;
 import com.classmanagement.backend.service.billing.TeacherEntitlementService;
 
@@ -52,6 +53,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     private final StorageService storageService;
     private final AttendanceExcelExporter attendanceExcelExporter;
         private final TeacherEntitlementService entitlements;
+    private final TeacherActivityService activityService;
 
 private String getStudentAvatarUrl(User student) {
                         String avatar = student.getAvatar();
@@ -113,7 +115,17 @@ public List<AttendanceResponse> attendAsStudent(Long classroomId, String usernam
     CreateAttendanceRequest payload = new CreateAttendanceRequest();
     payload.setDate(now.toLocalDate());
     payload.setStudents(List.of(item));
-    return createAttendance(classroomId, payload);
+    List<AttendanceResponse> created = createAttendance(classroomId, payload);
+    activityService.record(
+            student.getId(),
+            "ATTEND",
+            "ATTENDANCE",
+            created.getFirst().getId(),
+            classroomId,
+            "Tự điểm danh: " + student.getFullName()
+                    + " — lớp " + classroom.getName()
+                    + " — " + now.toLocalDate().format(DISPLAY_DATE_FORMAT));
+    return created;
 }
 
 @Transactional
@@ -138,7 +150,19 @@ public List<AttendanceResponse> createAttendance(
         entitlements.requireAttendanceCapacity(
                 classroom.getTeacher().getId(),
                 attendanceRepository.countDistinctDatesByTeacherId(classroom.getTeacher().getId()));
-        return createAttendanceInternal(classroomId, request);
+        List<AttendanceResponse> created = createAttendanceInternal(classroomId, request);
+        if (!created.isEmpty()) {
+                activityService.record(
+                        classroom.getTeacher().getId(),
+                        "MARK_ATTENDANCE",
+                        "ATTENDANCE",
+                        null,
+                        classroomId,
+                        "Điểm danh lớp: " + classroom.getName()
+                                + " — " + request.getDate().format(DISPLAY_DATE_FORMAT)
+                                + " — " + created.size() + " học sinh");
+        }
+        return created;
 }
 
 private List<AttendanceResponse> createAttendanceInternal(
@@ -257,10 +281,20 @@ public List<AttendanceResponse> markAbsentForUnrecordedStudents(
                 return List.of();
         }
 
-        return attendanceRepository.saveAllAndFlush(absentAttendances)
+        List<AttendanceResponse> created = attendanceRepository.saveAllAndFlush(absentAttendances)
                 .stream()
                 .map(this::toResponse)
                 .toList();
+        activityService.record(
+                classroom.getTeacher().getId(),
+                "MARK_ATTENDANCE",
+                "ATTENDANCE",
+                null,
+                classroomId,
+                "Đánh dấu vắng lớp: " + classroom.getName()
+                        + " — " + date.format(DISPLAY_DATE_FORMAT)
+                        + " — " + created.size() + " học sinh");
+        return created;
     }
 
 @Override
@@ -300,6 +334,19 @@ public void deleteAttendance(
                 "Không tìm thấy dữ liệu điểm danh của học sinh trong ngày này"
         );
     }
+    Classroom classroom = classroomRepository.findById(classroomId)
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy lớp học"));
+    User student = userRepository.findById(studentId)
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy học sinh"));
+    activityService.record(
+            classroom.getTeacher().getId(),
+            "DELETE",
+            "ATTENDANCE",
+            studentId,
+            classroomId,
+            "Xóa điểm danh: " + student.getFullName()
+                    + " — lớp " + classroom.getName()
+                    + " — " + date.format(DISPLAY_DATE_FORMAT));
 }
 
 @Override
@@ -350,6 +397,15 @@ public AttendanceResponse updateAttendance(
         }
 
         attendance = attendanceRepository.save(attendance);
+        activityService.record(
+                attendance.getClassroom().getTeacher().getId(),
+                "UPDATE",
+                "ATTENDANCE",
+                attendance.getId(),
+                classroomId,
+                "Cập nhật điểm danh: " + attendance.getStudent().getFullName()
+                        + " — lớp " + attendance.getClassroom().getName()
+                        + " — " + attendance.getDate().format(DISPLAY_DATE_FORMAT));
 
         return toResponse(attendance);
 }

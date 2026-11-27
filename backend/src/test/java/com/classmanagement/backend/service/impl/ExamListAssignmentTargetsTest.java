@@ -48,7 +48,8 @@ class ExamListAssignmentTargetsTest {
                 repository(ExamAssignmentClassRepository.class),
                 repository(ExamAttemptRepository.class),
                 null,
-                new ExamAttemptDataRepository(null));
+                new ExamAttemptDataRepository(null),
+                null);
     }
 
     private <T> T repository(Class<T> type) {

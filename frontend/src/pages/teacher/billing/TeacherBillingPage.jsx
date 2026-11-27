@@ -69,6 +69,7 @@ function TeacherBillingPage() {
       overview.setData(data)
       setRedeemedProductCode(productCode)
       setActionError('')
+      void queryClient.invalidateQueries({ queryKey: ['account', account, 'teacherActivity'] })
     },
   })
 
@@ -107,6 +108,7 @@ function TeacherBillingPage() {
       void Promise.all([
         queryClient.invalidateQueries({ queryKey: missionQuery.queryKey, exact: true }),
         queryClient.invalidateQueries({ queryKey: overview.queryKey, exact: true }),
+        queryClient.invalidateQueries({ queryKey: ['account', account, 'teacherActivity'] }),
       ])
     },
   })
@@ -116,6 +118,7 @@ function TeacherBillingPage() {
       void Promise.all([
         queryClient.invalidateQueries({ queryKey: ['account', account, 'billing'], exact: true }),
         queryClient.invalidateQueries({ queryKey: ['account', account, 'billingInvoices'], exact: true }),
+        queryClient.invalidateQueries({ queryKey: ['account', account, 'teacherActivity'] }),
       ])
     }
     if (['PAID', 'FAILED', 'EXPIRED'].includes(order.data?.status)) {

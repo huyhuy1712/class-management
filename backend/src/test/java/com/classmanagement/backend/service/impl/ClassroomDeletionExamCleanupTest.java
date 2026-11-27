@@ -2,6 +2,7 @@ package com.classmanagement.backend.service.impl;
 
 import com.classmanagement.backend.entity.ClassJoinRequestDetail;
 import com.classmanagement.backend.entity.Classroom;
+import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.repository.classroom.ClassroomRepository;
 import com.classmanagement.backend.repository.exam.ExamAssignmentClassRepository;
 import com.classmanagement.backend.repository.request.ClassJoinRequestDetailRepository;
@@ -22,7 +23,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ClassroomDeletionExamCleanupTest {
 
     private final List<String> calls = new ArrayList<>();
-    private final Classroom classroom = Classroom.builder().id(3L).build();
+    private final Classroom classroom = Classroom.builder()
+            .id(3L)
+            .name("Lớp Toán 10A")
+            .teacher(User.builder().id(9L).build())
+            .build();
 
     @Test
     void cleansRelatedAssignmentsBeforeDeletingClass() {
@@ -90,7 +95,8 @@ class ClassroomDeletionExamCleanupTest {
                 null,
                 null,
                 org.mockito.Mockito.mock(MaterialService.class),
-                null);
+                null,
+                org.mockito.Mockito.mock(com.classmanagement.backend.service.TeacherActivityService.class));
     }
 
     private <T> T repository(Class<T> type, String name) {

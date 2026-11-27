@@ -12,6 +12,7 @@ import com.classmanagement.backend.entity.enums.*;
 import com.classmanagement.backend.exception.*;
 import com.classmanagement.backend.repository.SubjectRepository;
 import com.classmanagement.backend.repository.exam.*;
+import com.classmanagement.backend.service.TeacherActivityService;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -24,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ExamConfigurationUpdateServiceTest {
     private static final Validator VALIDATOR = Validation.buildDefaultValidatorFactory().getValidator();
     private final List<String> calls = new ArrayList<>();
+    private final TeacherActivityService activityService = org.mockito.Mockito.mock(TeacherActivityService.class);
     private final User teacher = User.builder().id(11L).role(UserRole.TEACHER).status(UserStatus.ACTIVE).build();
     private final Exam exam = Exam.builder().id(7L).teacher(teacher).status(ExamStatus.DRAFT)
             .title("old").code("EX-11-ABCDEF").maxScore(BigDecimal.TEN).build();
@@ -66,6 +68,8 @@ class ExamConfigurationUpdateServiceTest {
         assertNull(assignment.getTimeLimit()); assertNull(assignment.getMaxAttempts());
         assertEquals(1, Collections.frequency(calls, "persist"));
         assertTrue(calls.indexOf("flush") < calls.indexOf("response"));
+        org.mockito.Mockito.verify(activityService).record(
+                11L, "UPDATE", "EXAM", 7L, null, "Cập nhật đề thi: new title");
     }
     @Test void updatesOnlyResultVisibilitySettingsForPublishedAssignment() {
         exam.setStatus(ExamStatus.PUBLISHED);
@@ -83,6 +87,8 @@ class ExamConfigurationUpdateServiceTest {
         assertEquals(ExamAssignmentStatus.CLOSED, assignment.getStatus());
         assertTrue(calls.contains("flush"));
         assertTrue(calls.indexOf("flush") < calls.indexOf("response"));
+        org.mockito.Mockito.verify(activityService).record(
+                11L, "UPDATE", "EXAM", 7L, null, "Cập nhật đề thi: old");
     }
     @Test void resultSettingsRequirePublishedExamAndOwnedAssignment() {
         var request = new UpdateAssignmentResultSettingsRequest(
@@ -223,7 +229,8 @@ class ExamConfigurationUpdateServiceTest {
                 new ExamStructureValidator(VALIDATOR), targets, config, VALIDATOR, repo(EntityManager.class), new ExamAttemptDataRepository(null) {
                     @Override public void snapshotAssignment(Long id) { assertEquals(9L,id); calls.add("snapshot-new"); }
                     @Override public void snapshot(Long id) { fail("Must not reset cohorts of old rounds"); }
-                }, org.mockito.Mockito.mock(com.classmanagement.backend.service.billing.TeacherEntitlementService.class));
+                }, org.mockito.Mockito.mock(com.classmanagement.backend.service.billing.TeacherEntitlementService.class),
+                activityService);
     }
     private <T> T repo(Class<T> type) {
         return type.cast(Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (proxy, method, args) -> {

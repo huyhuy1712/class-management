@@ -56,7 +56,10 @@ export default function useAdminUserManagement() {
       setSelectedVipUser(null)
       setToast({ type: 'success', message: 'Cấp VIP thành công.' })
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['adminUsers'] }),
+    onSettled: () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['adminUsers'] }),
+      queryClient.invalidateQueries({ queryKey: ['adminAudit'] }),
+    ]),
   })
   const removeVipMutation = useMutation({
     mutationFn: adminService.removeVip,
@@ -81,7 +84,10 @@ export default function useAdminUserManagement() {
       setSelectedVipUser(null)
       setToast({ type: 'success', message: 'Đã xóa VIP của tài khoản.' })
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['adminUsers'] }),
+    onSettled: () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['adminUsers'] }),
+      queryClient.invalidateQueries({ queryKey: ['adminAudit'] }),
+    ]),
   })
 
   useEffect(() => {
@@ -95,6 +101,7 @@ export default function useAdminUserManagement() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['adminUsers'] }),
       queryClient.invalidateQueries({ queryKey: ['adminDashboard'] }),
+      queryClient.invalidateQueries({ queryKey: ['adminAudit'] }),
     ])
   }
 
@@ -142,6 +149,7 @@ export default function useAdminUserManagement() {
   const impersonationMutation = useMutation({
     mutationFn: adminService.startImpersonation,
     onSuccess: (targetUser) => {
+      queryClient.invalidateQueries({ queryKey: ['adminAudit'] })
       startImpersonation(targetUser)
       navigate(targetUser.role === 'TEACHER' ? '/teacher' : '/student', { replace: true })
     },

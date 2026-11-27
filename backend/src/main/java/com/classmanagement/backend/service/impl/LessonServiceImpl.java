@@ -11,6 +11,7 @@ import com.classmanagement.backend.exception.ConflictException;
 import com.classmanagement.backend.repository.LessonRepository;
 import com.classmanagement.backend.repository.classroom.ClassroomRepository;
 import com.classmanagement.backend.service.LessonService;
+import com.classmanagement.backend.service.TeacherActivityService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -30,6 +31,7 @@ public class LessonServiceImpl implements LessonService {
     private final ClassroomRepository classroomRepository;
     private final UserRepository userRepository;
     private final ClassStudentRepository classStudentRepository;
+    private final TeacherActivityService activityService;
 
 @Override
 @Transactional
@@ -52,6 +54,13 @@ public LessonResponse createLesson(
 
         Lesson savedLesson = saveLesson(lesson);
 
+        activityService.record(
+                classroom.getTeacher().getId(),
+                "CREATE",
+                "LESSON",
+                savedLesson.getId(),
+                classroomId,
+                "Tạo buổi học: " + savedLesson.getTitle() + " — " + savedLesson.getLessonDate());
         return toResponse(savedLesson);
     }
 
@@ -119,6 +128,13 @@ public LessonResponse updateLesson(
 
         Lesson savedLesson = saveLesson(lesson);
 
+        activityService.record(
+                classroom.getTeacher().getId(),
+                "UPDATE",
+                "LESSON",
+                savedLesson.getId(),
+                classroomId,
+                "Cập nhật buổi học: " + savedLesson.getTitle() + " — " + savedLesson.getLessonDate());
         return toResponse(savedLesson);
 }
 

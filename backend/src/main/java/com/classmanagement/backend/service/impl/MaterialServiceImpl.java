@@ -24,6 +24,7 @@ import com.classmanagement.backend.repository.classroom.ClassStudentRepository;
 import com.classmanagement.backend.repository.classroom.ClassroomRepository;
 import com.classmanagement.backend.service.MaterialService;
 import com.classmanagement.backend.service.StorageService;
+import com.classmanagement.backend.service.TeacherActivityService;
 import com.classmanagement.backend.service.billing.TeacherEntitlementService;
 import com.classmanagement.backend.service.impl.material.MaterialAssignmentManager;
 import com.classmanagement.backend.service.impl.material.MaterialDistribution;
@@ -61,6 +62,7 @@ public class MaterialServiceImpl implements MaterialService {
     private final MaterialDocumentMapper documentMapper;
     private final MaterialFileSupport fileSupport;
     private final TeacherEntitlementService entitlements;
+    private final TeacherActivityService activityService;
 
     @Override
     @Transactional(readOnly = true)
@@ -123,6 +125,13 @@ public class MaterialServiceImpl implements MaterialService {
                     .build());
 
             assignmentManager.replaceTargets(assignment, assignmentType, distribution);
+            activityService.record(
+                    teacher.getId(),
+                    "CREATE",
+                    "MATERIAL",
+                    material.getId(),
+                    null,
+                    "Tải lên tài liệu: " + material.getTitle());
             return documentMapper.map(List.of(material)).getFirst();
         } catch (RuntimeException error) {
             try {
@@ -200,6 +209,13 @@ public class MaterialServiceImpl implements MaterialService {
                             .build())
                     .toList());
             assignmentManager.replaceTargets(assignments, assignmentType, distribution);
+            savedMaterials.forEach(material -> activityService.record(
+                    teacher.getId(),
+                    "CREATE",
+                    "MATERIAL",
+                    material.getId(),
+                    null,
+                    "Tải lên tài liệu: " + material.getTitle()));
             return documentMapper.map(savedMaterials);
         } catch (IllegalStateException error) {
             cleanupUploadedPaths(uploadedPaths, error);
@@ -316,6 +332,13 @@ public class MaterialServiceImpl implements MaterialService {
         Material material = materialRepository.findByIdAndTeacher_Id(materialId, teacher.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài liệu"));
         String objectPath = material.getFileUrl();
+        activityService.record(
+                teacher.getId(),
+                "DELETE",
+                "MATERIAL",
+                material.getId(),
+                null,
+                "Xóa tài liệu: " + material.getTitle());
         materialRepository.delete(material);
         materialRepository.flush();
         fileSupport.scheduleDelete(objectPath);
@@ -372,7 +395,15 @@ public class MaterialServiceImpl implements MaterialService {
                     assignmentRepository.flush();
                 }
             }
+
         }
+        activityService.record(
+                teacher.getId(),
+                "REMOVE",
+                "MATERIAL",
+                material.getId(),
+                classroomId,
+                "Gỡ tài liệu khỏi lớp: " + material.getTitle() + " — " + classroom.getName());
     }
 
     @Override

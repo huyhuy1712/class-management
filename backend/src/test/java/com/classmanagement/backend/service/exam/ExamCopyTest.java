@@ -140,7 +140,8 @@ class ExamCopyTest {
                     if (method.equals("getReference")) return args[0] == User.class ? User.builder().id((Long)args[1]).build() : Classroom.builder().id((Long)args[1]).build();
                     throw new AssertionError(method);
                 }),detail,media,storage,
-                org.mockito.Mockito.mock(com.classmanagement.backend.service.billing.TeacherEntitlementService.class));
+                org.mockito.Mockito.mock(com.classmanagement.backend.service.billing.TeacherEntitlementService.class),
+                org.mockito.Mockito.mock(com.classmanagement.backend.service.TeacherActivityService.class));
     }
 
     <T> T writes(Class<T> type) {

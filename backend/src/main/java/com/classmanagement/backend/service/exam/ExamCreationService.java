@@ -13,6 +13,7 @@ import com.classmanagement.backend.repository.exam.*;
 import com.classmanagement.backend.service.exam.media.ExamMediaLifecycle;
 import com.classmanagement.backend.service.exam.validation.ExamStructureValidator;
 import com.classmanagement.backend.service.billing.TeacherEntitlementService;
+import com.classmanagement.backend.service.TeacherActivityService;
 import com.classmanagement.backend.service.exam.validation.ExamTargetValidator;
 import com.classmanagement.backend.service.exam.validation.ExamTargetValidator.Targets;
 
@@ -50,7 +51,8 @@ public class ExamCreationService {
     private final ExamDetailService detailService;
     private final ExamMediaRepository mediaRepository;
     private final com.classmanagement.backend.service.StorageService storage;
-        private final TeacherEntitlementService entitlements;
+    private final TeacherEntitlementService entitlements;
+    private final TeacherActivityService activityService;
 
     @Transactional
     public ExamDetailResponse copy(Long sourceId, String username, CopyExamRequest request) {
@@ -172,7 +174,11 @@ public class ExamCreationService {
                                 .build());
         }
         examRepository.flush();
-        return detailService.get(exam.getId(), username);
+        ExamDetailResponse copiedExam = detailService.get(exam.getId(), username);
+        activityService.record(
+                teacher.getId(), "CREATE", "EXAM", exam.getId(), null,
+                "Tạo đề thi: " + exam.getTitle());
+        return copiedExam;
     }
 
     private Map<UUID, ExamMedia> copyMedia(
@@ -271,6 +277,9 @@ public class ExamCreationService {
             persistTree(exam, request.sections(), media);
             // One boundary flush surfaces child constraint failures before constructing a response.
             examRepository.flush();
+            activityService.record(
+                    teacher.getId(), "CREATE", "EXAM", exam.getId(), null,
+                    "Tạo đề thi: " + exam.getTitle());
             return new CreateExamResponse(
                     exam.getId(),
                     exam.getCode(),

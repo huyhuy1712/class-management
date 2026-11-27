@@ -31,6 +31,7 @@ import com.classmanagement.backend.service.ClassroomService;
 import com.classmanagement.backend.service.MaterialService;
 import com.classmanagement.backend.service.mapper.ClassroomResponseMapper;
 import com.classmanagement.backend.service.StorageService;
+import com.classmanagement.backend.service.TeacherActivityService;
 import com.classmanagement.backend.service.billing.TeacherEntitlementService;
 import com.classmanagement.backend.service.excel.StudentExcelReader;
 
@@ -65,6 +66,7 @@ public class ClassroomServiceImpl implements ClassroomService {
     private final NotificationRepository notificationRepository;
     private final MaterialService materialService;
         private final TeacherEntitlementService entitlements;
+    private final TeacherActivityService activityService;
 
 @Override
 @Transactional
@@ -105,6 +107,13 @@ public ClassroomResponse createClassroom(String username, CreateClassroomRequest
         Classroom saved =
                 classroomRepository.save(classroom);
 
+        activityService.record(
+                teacher.getId(),
+                "CREATE",
+                "CLASSROOM",
+                saved.getId(),
+                saved.getId(),
+                "Tạo lớp học: " + saved.getName());
         return toResponse(saved);
     }
 
@@ -304,6 +313,13 @@ public void deleteClassroom(Long id) {
         List<Long> requestIds = details.stream()
                 .map(detail -> detail.getRequest().getId())
                 .toList();
+        activityService.record(
+                classroom.getTeacher().getId(),
+                "DELETE",
+                "CLASSROOM",
+                classroom.getId(),
+                classroom.getId(),
+                "Xóa lớp học: " + classroom.getName());
         classJoinRequestDetailRepository.deleteAll(details);
         classJoinRequestDetailRepository.flush();
         requestRepository.deleteAllById(requestIds);

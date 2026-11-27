@@ -27,6 +27,7 @@ import com.classmanagement.backend.repository.feed.ClassFeedCommentReactionRepos
 import com.classmanagement.backend.repository.feed.ClassFeedPostRepository;
 import com.classmanagement.backend.repository.feed.ClassFeedPostReactionRepository;
 import com.classmanagement.backend.service.StorageService;
+import com.classmanagement.backend.service.TeacherActivityService;
 import com.classmanagement.backend.service.feed.ClassFeedService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -57,6 +58,7 @@ public class ClassFeedServiceImpl implements ClassFeedService {
     private final ClassFeedCommentRepository commentRepository;
     private final ClassFeedPostReactionRepository postReactionRepository;
     private final ClassFeedCommentReactionRepository commentReactionRepository;
+    private final TeacherActivityService activityService;
 
     @Override
     @Transactional(readOnly = true)
@@ -105,6 +107,14 @@ public class ClassFeedServiceImpl implements ClassFeedService {
                 .build();
 
         ClassFeedPost savedPost = postRepository.saveAndFlush(post);
+        activityService.record(
+                author.getId(),
+                "CREATE",
+                "CLASS_FEED",
+                savedPost.getId(),
+                classroomId,
+                "Đăng bài bảng tin lớp: " + savedPost.getId()
+                        + " — " + savedPost.getClassroom().getName());
         return toResponse(savedPost, username);
     }
 
@@ -263,7 +273,7 @@ public class ClassFeedServiceImpl implements ClassFeedService {
             ClassFeedCommentRequest request,
             String username) {
         requireFeedAccess(classroomId, username);
-        requireActivePost(classroomId, postId);
+        ClassFeedPost post = requireActivePost(classroomId, postId);
         User author = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
 
@@ -272,7 +282,15 @@ public class ClassFeedServiceImpl implements ClassFeedService {
                 .author(author)
                 .content(request.content().trim())
                 .build();
-        return toCommentResponse(commentRepository.saveAndFlush(comment));
+        ClassFeedComment savedComment = commentRepository.saveAndFlush(comment);
+        activityService.record(
+                author.getId(),
+                "COMMENT",
+                "CLASS_FEED",
+                postId,
+                classroomId,
+                "Bình luận bài viết: " + postId + " — lớp " + post.getClassroom().getName());
+        return toCommentResponse(savedComment);
     }
 
     @Override

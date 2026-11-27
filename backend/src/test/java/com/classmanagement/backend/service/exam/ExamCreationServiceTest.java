@@ -10,6 +10,7 @@ import com.classmanagement.backend.exception.*;
 import com.classmanagement.backend.repository.*;
 import com.classmanagement.backend.repository.classroom.*;
 import com.classmanagement.backend.repository.exam.*;
+import com.classmanagement.backend.service.TeacherActivityService;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.Validation;
 import org.hibernate.validator.messageinterpolation.ParameterMessageInterpolator;
@@ -37,6 +38,7 @@ class ExamCreationServiceTest {
     private List<Long> allowedStudents = List.of();
     private List<ExamSection> savedSections = new ArrayList<>();
     private List<Question> savedQuestions = new ArrayList<>();
+    private final TeacherActivityService activityService = org.mockito.Mockito.mock(TeacherActivityService.class);
 
     @Test void storesOptionalExplanationWithoutChangingQuestionScore() {
         var initial=request(List.of(choice()), "1", assignment());
@@ -68,6 +70,8 @@ class ExamCreationServiceTest {
         assertEquals(1, transactions.commits);
         assertEquals(0, transactions.rollbacks);
         assertEquals(1, calls.get("options.saveAll"));
+        org.mockito.Mockito.verify(activityService).record(
+                1L, "CREATE", "EXAM", 1L, null, "Tạo đề thi: Đề thử");
     }
 
     @Test void childFailureTriggersTransactionRollback() {
@@ -158,7 +162,8 @@ class ExamCreationServiceTest {
                 repository(ExamSectionRepository.class, "sections"), repository(QuestionRepository.class, "questions"),
                 repository(AnswerRepository.class, "answers"), repository(AnswerOptionRepository.class, "options"),
                 repository(QuestionScoringRuleRepository.class, "rules"), repository(EntityManager.class, "entityManager"), null, null, null,
-                org.mockito.Mockito.mock(com.classmanagement.backend.service.billing.TeacherEntitlementService.class));
+                org.mockito.Mockito.mock(com.classmanagement.backend.service.billing.TeacherEntitlementService.class),
+                activityService);
         var interceptor = new TransactionInterceptor();
         interceptor.setTransactionManager(transactions);
         interceptor.setTransactionAttributeSource(new AnnotationTransactionAttributeSource());

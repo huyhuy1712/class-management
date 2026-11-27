@@ -89,7 +89,9 @@ class RequestRejectionTest {
     }
     private RequestServiceImpl service() {
         return new RequestServiceImpl(repo(ClassJoinRequestDetailRepository.class), null,
-                repo(RequestRepository.class), repo(ClassStudentRepository.class), null, null, repo(NotificationRepository.class));
+                repo(RequestRepository.class), repo(ClassStudentRepository.class), null, null,
+                repo(NotificationRepository.class),
+                org.mockito.Mockito.mock(com.classmanagement.backend.service.TeacherActivityService.class));
     }
     private <T> T repo(Class<T> type) {
         return type.cast(Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (p, m, a) -> {

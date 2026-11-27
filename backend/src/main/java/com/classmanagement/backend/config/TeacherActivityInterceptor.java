@@ -60,9 +60,17 @@ public class TeacherActivityInterceptor implements HandlerInterceptor {
             return;
         }
 
-        ActivityDescriptor descriptor = actor.getRole() == UserRole.STUDENT
-                ? describeStudent(request.getMethod(), path)
-                : actor.getRole() == UserRole.TEACHER ? describe(request.getMethod(), path) : null;
+        ActivityDescriptor descriptor;
+        if (actor.getRole() == UserRole.STUDENT) {
+            descriptor = describeStudent(request.getMethod(), path);
+            if (descriptor == null && path.contains("/feed/")) {
+                descriptor = describe(request.getMethod(), path);
+            }
+        } else {
+            descriptor = actor.getRole() == UserRole.TEACHER
+                    ? describe(request.getMethod(), path)
+                    : null;
+        }
         if (descriptor != null) {
             activityService.record(actor.getId(), descriptor.action(), descriptor.resourceType(),
                     descriptor.resourceId(), descriptor.classId(), descriptor.summary());
@@ -75,41 +83,6 @@ public class TeacherActivityInterceptor implements HandlerInterceptor {
                 .toList();
         if (segments.size() < 3) {
             return null;
-        }
-
-        if ("POST".equalsIgnoreCase(method)
-                && segments.size() == 4
-                && "classes".equals(segments.get(1))
-                && NUMERIC_ID.matcher(segments.get(2)).matches()
-                && "attendances".equals(segments.get(3))) {
-            Long classId = numericSegment(segments, 2);
-            return new ActivityDescriptor("ATTEND", "ATTENDANCE", null, classId,
-                    "Điểm danh lớp học");
-        }
-
-        if ("POST".equalsIgnoreCase(method)
-                && segments.size() == 5
-                && "classes".equals(segments.get(1))
-                && NUMERIC_ID.matcher(segments.get(2)).matches()
-                && "feed".equals(segments.get(3))
-                && "posts".equals(segments.get(4))) {
-            Long classId = numericSegment(segments, 2);
-            return new ActivityDescriptor("CREATE", "CLASS_FEED", null, classId,
-                    "Đăng bài lên bảng tin lớp");
-        }
-
-        if ("POST".equalsIgnoreCase(method)
-                && segments.size() == 7
-                && "classes".equals(segments.get(1))
-                && NUMERIC_ID.matcher(segments.get(2)).matches()
-                && "feed".equals(segments.get(3))
-                && "posts".equals(segments.get(4))
-                && NUMERIC_ID.matcher(segments.get(5)).matches()
-                && "comments".equals(segments.get(6))) {
-            Long classId = numericSegment(segments, 2);
-            Long postId = numericSegment(segments, 5);
-            return new ActivityDescriptor("COMMENT", "CLASS_FEED", postId, classId,
-                    "Bình luận bài viết lớp học");
         }
 
         if ("POST".equalsIgnoreCase(method)
@@ -176,17 +149,28 @@ public class TeacherActivityInterceptor implements HandlerInterceptor {
 
         switch (root) {
             case "classes" -> {
+                if (segments.size() == 2 && "POST".equalsIgnoreCase(method)) {
+                    return null;
+                }
+                if (segments.size() == 3 && "DELETE".equalsIgnoreCase(method)) {
+                    return null;
+                }
                 classId = numericSegment(segments, 2);
                 if (segments.size() > 3 && "attendances".equals(segments.get(3))) {
-                    resourceType = "ATTENDANCE";
-                    resourceId = numericSegment(segments, 4);
-                    operation = lastSegment(segments);
+                    return null;
                 } else if (segments.size() > 3 && "lessons".equals(segments.get(3))) {
-                    resourceType = "LESSON";
-                    resourceId = numericSegment(segments, 4);
+                    return null;
                 } else if (segments.size() > 3 && "feed".equals(segments.get(3))) {
+                    if ("POST".equalsIgnoreCase(method)
+                            && ("posts".equals(lastSegment(segments))
+                                    || "comments".equals(lastSegment(segments)))) {
+                        return null;
+                    }
                     resourceType = "CLASS_FEED";
-                    resourceId = numericSegment(segments, 5);
+                    int commentsIndex = segments.indexOf("comments");
+                    resourceId = commentsIndex >= 0
+                            ? numericSegment(segments, commentsIndex - 1)
+                            : numericSegment(segments, 5);
                     operation = lastSegment(segments);
                 } else if (segments.size() > 3 && "students".equals(segments.get(3))) {
                     resourceType = "STUDENT";
@@ -199,6 +183,24 @@ public class TeacherActivityInterceptor implements HandlerInterceptor {
                 }
             }
             case "exams" -> {
+                if (segments.size() == 3 && "DELETE".equalsIgnoreCase(method)) {
+                    return null;
+                }
+                boolean createOrCopy = "POST".equalsIgnoreCase(method)
+                        && (segments.size() == 2
+                                || (segments.size() == 4 && "copy".equals(segments.get(3))));
+                boolean updateExam = "PUT".equalsIgnoreCase(method)
+                        && (segments.size() == 3
+                                || (segments.size() == 4 && "content".equals(segments.get(3))));
+                boolean changePublication = "PATCH".equalsIgnoreCase(method)
+                        && segments.size() == 4
+                        && ("publish".equals(segments.get(3)) || "unpublish".equals(segments.get(3)));
+                boolean updateResultSettings = "PATCH".equalsIgnoreCase(method)
+                        && segments.size() == 6
+                        && "result-settings".equals(segments.get(5));
+                if (createOrCopy || updateExam || changePublication || updateResultSettings) {
+                    return null;
+                }
                 resourceType = "EXAM";
                 resourceId = numericSegment(segments, 2);
                 operation = lastSegment(segments);
@@ -209,11 +211,21 @@ public class TeacherActivityInterceptor implements HandlerInterceptor {
                 operation = lastSegment(segments);
             }
             case "homework-assignments" -> {
+                if ((segments.size() == 2 && "POST".equalsIgnoreCase(method))
+                        || (segments.size() == 3 && "PUT".equalsIgnoreCase(method))
+                        || (segments.size() == 3 && "DELETE".equalsIgnoreCase(method))) {
+                    return null;
+                }
                 resourceType = "HOMEWORK";
                 resourceId = numericSegment(segments, 2);
                 operation = lastSegment(segments);
             }
             case "materials" -> {
+                if (("POST".equalsIgnoreCase(method) && segments.size() <= 3)
+                        || ("DELETE".equalsIgnoreCase(method) && segments.size() == 3)
+                        || ("DELETE".equalsIgnoreCase(method) && segments.size() == 5)) {
+                    return null;
+                }
                 resourceType = "MATERIAL";
                 resourceId = numericSegment(segments, 2);
                 operation = segments.size() > 3 ? segments.get(3).toLowerCase(Locale.ROOT) : "";
@@ -228,12 +240,25 @@ public class TeacherActivityInterceptor implements HandlerInterceptor {
 
         if (segments.contains("grade") || "grades".equals(operation)) {
             action = "GRADE";
+        } else if (segments.contains("imports") && "DELETE".equalsIgnoreCase(method)) {
+            action = "CANCEL";
+        } else if ((segments.contains("imports") || segments.contains("import"))
+                && "POST".equalsIgnoreCase(method)) {
+            action = "IMPORT";
         } else if (segments.contains("publish") || "publish".equals(operation)) {
             action = "PUBLISH";
         } else if (segments.contains("unpublish") || "unpublish".equals(operation)) {
             action = "UNPUBLISH";
         } else if (segments.contains("reopen") || "reopen".equals(operation)) {
             action = "REOPEN";
+        } else if (segments.contains("reset")) {
+            action = "RESET";
+        } else if (segments.contains("deadline")) {
+            action = "UPDATE_DEADLINE";
+        } else if (segments.contains("archive")) {
+            action = "ARCHIVE";
+        } else if (segments.contains("activate")) {
+            action = "ACTIVATE";
         } else if (segments.contains("copy") || "copy".equals(operation)) {
             action = "CREATE";
         } else if ("vote".equals(operation) || "reactions".equals(operation)
@@ -245,10 +270,8 @@ public class TeacherActivityInterceptor implements HandlerInterceptor {
             action = "REMOVE";
         } else if (segments.contains("absent-all")) {
             action = "MARK_ATTENDANCE";
-        } else if (segments.contains("imports") && "POST".equalsIgnoreCase(method)) {
-            action = "IMPORT";
-        } else if (segments.contains("imports") && "DELETE".equalsIgnoreCase(method)) {
-            action = "CANCEL";
+        } else if ("ATTENDANCE".equals(resourceType) && "POST".equalsIgnoreCase(method)) {
+            action = "MARK_ATTENDANCE";
         } else if (segments.contains("assignments") && "POST".equalsIgnoreCase(method)) {
             action = "ASSIGN";
         } else if (segments.contains("comments") && "POST".equalsIgnoreCase(method)) {
@@ -257,11 +280,32 @@ public class TeacherActivityInterceptor implements HandlerInterceptor {
             action = "REMOVE";
         }
 
+        String summary = createSummary(resourceType, action);
+        if ("CLASS_FEED".equals(resourceType) && segments.contains("comments")) {
+            summary = switch (action) {
+                case "DELETE" -> "Xóa bình luận";
+                case "INTERACT" -> "Tương tác với bình luận";
+                default -> "Cập nhật bình luận";
+            };
+        }
+        if ("HOMEWORK".equals(resourceType)
+                && segments.size() > 5
+                && "submissions".equals(segments.get(3))) {
+            Long studentId = numericSegment(segments, 4);
+            if (studentId != null) {
+                String studentName = userRepository.findById(studentId)
+                        .map(User::getFullName)
+                        .orElse(null);
+                if (studentName != null && !studentName.isBlank()) {
+                    summary = summary + " — học sinh " + studentName;
+                }
+            }
+        }
+
         if ("DELETE".equals(action) && "CLASSROOM".equals(resourceType)) {
             classId = null;
         }
 
-        String summary = createSummary(resourceType, action);
         return new ActivityDescriptor(action, resourceType, resourceId, classId, summary);
     }
 
@@ -289,16 +333,30 @@ public class TeacherActivityInterceptor implements HandlerInterceptor {
     }
 
     private String createSummary(String resourceType, String action) {
+        if ("ADD".equals(action) && "STUDENT".equals(resourceType)) {
+            return "Thêm học sinh vào lớp học";
+        }
+        if ("REMOVE".equals(action) && "STUDENT".equals(resourceType)) {
+            return "Gỡ học sinh khỏi lớp học";
+        }
+        if ("UPDATE_DEADLINE".equals(action)) {
+            return "Cập nhật hạn nộp bài tập";
+        }
         String actionLabel = switch (action) {
             case "CREATE" -> "Tạo";
             case "DELETE" -> "Xóa";
             case "GRADE" -> "Chấm điểm";
-            case "PUBLISH" -> "Công khai";
-            case "UNPUBLISH" -> "Thu hồi công khai";
+            case "PUBLISH" -> "Xuất bản";
+            case "UNPUBLISH" -> "Thu hồi xuất bản";
             case "REOPEN" -> "Mở lại";
-            case "ADD" -> "Thêm học sinh";
-            case "REMOVE" -> "STUDENT".equals(resourceType) ? "Xóa học sinh" : "Gỡ tài liệu khỏi";
-            case "MARK_ATTENDANCE" -> "Cập nhật";
+            case "RESET" -> "Đặt lại lượt làm";
+            case "ARCHIVE" -> "Lưu trữ";
+            case "ACTIVATE" -> "Kích hoạt";
+            case "APPROVE" -> "Duyệt yêu cầu";
+            case "REJECT" -> "Từ chối yêu cầu";
+            case "ADD" -> "STUDENT".equals(resourceType) ? "Thêm học sinh vào" : "Thêm";
+            case "REMOVE" -> "STUDENT".equals(resourceType) ? "Gỡ học sinh khỏi" : "Gỡ";
+            case "MARK_ATTENDANCE" -> "Điểm danh";
             case "INTERACT" -> "Tương tác với";
             case "IMPORT" -> "Nhập";
             case "CANCEL" -> "Hủy nhập";
@@ -317,6 +375,12 @@ public class TeacherActivityInterceptor implements HandlerInterceptor {
             case "STUDENT" -> "học sinh";
             default -> "hoạt động";
         };
+        if ("REMOVE".equals(action) && "MATERIAL".equals(resourceType)) {
+            return "Gỡ tài liệu khỏi lớp học";
+        }
+        if ("MARK_ATTENDANCE".equals(action)) {
+            return "Điểm danh";
+        }
         return actionLabel + " " + resourceLabel;
     }
 

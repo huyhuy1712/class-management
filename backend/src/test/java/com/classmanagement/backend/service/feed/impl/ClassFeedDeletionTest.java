@@ -41,7 +41,8 @@ class ClassFeedDeletionTest {
             mock(StorageService.class),
             commentRepository,
             postReactionRepository,
-            commentReactionRepository);
+            commentReactionRepository,
+            null);
 
     @BeforeEach
     void allowClassroomAccess() {

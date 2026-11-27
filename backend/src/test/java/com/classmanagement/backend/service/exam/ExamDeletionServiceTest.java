@@ -1,6 +1,7 @@
 package com.classmanagement.backend.service.exam;
 
 import com.classmanagement.backend.entity.Exam;
+import com.classmanagement.backend.entity.User;
 import com.classmanagement.backend.exception.ConflictException;
 import com.classmanagement.backend.repository.exam.*;
 import com.classmanagement.backend.service.impl.ExamServiceImpl;
@@ -51,14 +52,16 @@ class ExamDeletionServiceTest {
     private ExamServiceImpl service() {
         return new ExamServiceImpl(null, repository(ExamRepository.class, "exam"), null, null,
                 repository(ExamAttemptRepository.class, "attempt"),
-                repository(ExamMediaRepository.class, "media"), null);
+                repository(ExamMediaRepository.class, "media"), null,
+                org.mockito.Mockito.mock(com.classmanagement.backend.service.TeacherActivityService.class));
     }
 
     private <T> T repository(Class<T> type, String name) {
         return type.cast(Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (ignored, method, args) -> {
             calls.add(name + "." + method.getName());
             return switch (method.getName()) {
-                case "findLockedByIdAndTeacher_Username" -> missingExam ? Optional.empty() : Optional.of(Exam.builder().id(7L).build());
+                case "findLockedByIdAndTeacher_Username" -> missingExam ? Optional.empty() : Optional.of(
+                        Exam.builder().id(7L).title("Đề kiểm tra").teacher(User.builder().id(9L).build()).build());
                 case "existsByAssignment_Exam_Id" -> hasAttempts;
                 case "queueCleanupByExamId" -> {
                     if (failQueue) throw new IllegalStateException("Queue failed");

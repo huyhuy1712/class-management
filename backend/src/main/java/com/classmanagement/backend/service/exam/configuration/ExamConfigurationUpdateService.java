@@ -9,6 +9,7 @@ import com.classmanagement.backend.entity.enums.*;
 import com.classmanagement.backend.exception.*;
 import com.classmanagement.backend.repository.SubjectRepository;
 import com.classmanagement.backend.repository.exam.*;
+import com.classmanagement.backend.service.TeacherActivityService;
 import com.classmanagement.backend.service.exam.validation.ExamStructureValidator;
 import com.classmanagement.backend.service.exam.validation.ExamTargetValidator;
 import com.classmanagement.backend.service.billing.TeacherEntitlementService;
@@ -40,7 +41,8 @@ public class ExamConfigurationUpdateService {
     private final Validator validator;
     private final EntityManager entityManager;
     private final ExamAttemptDataRepository attemptData;
-        private final TeacherEntitlementService entitlements;
+    private final TeacherEntitlementService entitlements;
+    private final TeacherActivityService activityService;
 
     @Transactional
     public ExamConfigurationResponse createAssignment(
@@ -130,6 +132,9 @@ public class ExamConfigurationUpdateService {
         assignment.setAnswerVisibility(request.answerVisibility());
         assignment.setHideCorrectAnswerOnWrong(request.hideCorrectAnswerOnWrong());
         assignmentRepository.flush();
+        activityService.record(
+                exam.getTeacher().getId(), "UPDATE", "EXAM", examId, null,
+                "Cập nhật đề thi: " + exam.getTitle());
         return configurationService.get(examId, username);
     }
 
@@ -231,6 +236,9 @@ public class ExamConfigurationUpdateService {
         assignment.setCloseTime(source.closeTime());
         syncTargets(assignment, targets);
         examRepository.flush();
+        activityService.record(
+                teacher.getId(), "UPDATE", "EXAM", examId, null,
+                "Cập nhật đề thi: " + exam.getTitle());
         return configurationService.get(examId, username);
     }
 

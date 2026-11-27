@@ -9,5 +9,6 @@ public record TeacherActivityItem(
         Long resourceId,
         Long classId,
         String summary,
-        LocalDateTime occurredAt) {
+        LocalDateTime occurredAt,
+        String targetPath) {
 }

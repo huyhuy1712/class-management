@@ -9,6 +9,7 @@ import com.classmanagement.backend.entity.enums.UserStatus;
 import com.classmanagement.backend.exception.ResourceNotFoundException;
 import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.service.StorageService;
+import com.classmanagement.backend.service.TeacherActivityService;
 import com.classmanagement.backend.service.billing.TeacherEntitlementService;
 import com.classmanagement.backend.service.homework.files.HomeworkFileService;
 import com.classmanagement.backend.service.homework.files.HomeworkFileService.UploadedFile;
@@ -51,6 +52,7 @@ public class HomeworkService {
     private final HomeworkReadService homeworkReadService;
     private final HomeworkWriteService writes;
     private final TeacherEntitlementService entitlements;
+    private final TeacherActivityService activityService;
 
     @Transactional
     public HomeworkDtos.Assignment create(
@@ -150,7 +152,10 @@ public class HomeworkService {
                 }
             }
             notificationService.notifyNewAssignment(assignmentId, normalizedTitle, recipients.students().keySet());
-            return homeworkReadService.getForTeacher(assignmentId, username);
+            HomeworkDtos.Assignment assignment = homeworkReadService.getForTeacher(assignmentId, username);
+            activityService.record(teacher.getId(), "CREATE", "HOMEWORK", assignmentId, null,
+                    "Tạo bài tập: " + normalizedTitle);
+            return assignment;
         } catch (RuntimeException error) {
             fileService.deleteUploaded(uploaded, error);
             fileService.deleteUploaded(uploadedAudio, error);
@@ -293,7 +298,10 @@ public class HomeworkService {
                 storage.delete(oldAttachmentPath);
             if ((uploadedAudio != null || removeAudio) && oldAudioPath != null)
                 storage.delete(oldAudioPath);
-            return homeworkReadService.getForTeacher(assignmentId, username);
+            HomeworkDtos.Assignment assignment = homeworkReadService.getForTeacher(assignmentId, username);
+            activityService.record(teacher.getId(), "UPDATE", "HOMEWORK", assignmentId, null,
+                    "Cập nhật bài tập: " + normalizedTitle);
+            return assignment;
         } catch (RuntimeException error) {
             fileService.deleteUploaded(uploaded, error);
             fileService.deleteUploaded(uploadedAudio, error);
@@ -303,7 +311,16 @@ public class HomeworkService {
 
     @Transactional
     public void delete(long assignmentId, String username) {
+        HomeworkDtos.Assignment assignment = homeworkReadService.getForTeacher(assignmentId, username);
+        User teacher = user(username, UserRole.TEACHER);
         writes.delete(assignmentId, username);
+        activityService.record(
+                teacher.getId(),
+                "DELETE",
+                "HOMEWORK",
+                assignmentId,
+                null,
+                "Xóa bài tập: " + assignment.title());
     }
 
     @Transactional

@@ -69,7 +69,7 @@ class ClassroomRemovalNotificationTest {
     private ClassroomServiceImpl service() {
         return new ClassroomServiceImpl(null, null, null, repo(ClassStudentRepository.class),
                 repo(ExamAssignmentClassRepository.class), null, null, null, null,
-                repo(NotificationRepository.class), org.mockito.Mockito.mock(MaterialService.class), null);
+                repo(NotificationRepository.class), org.mockito.Mockito.mock(MaterialService.class), null, null);
     }
     private <T> T repo(Class<T> type) {
         return type.cast(Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (p, m, a) -> {

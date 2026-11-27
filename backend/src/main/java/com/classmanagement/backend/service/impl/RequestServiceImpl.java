@@ -19,6 +19,7 @@ import com.classmanagement.backend.repository.request.RequestRepository;
 import com.classmanagement.backend.repository.UserRepository;
 import com.classmanagement.backend.service.RequestService;
 import com.classmanagement.backend.service.StorageService;
+import com.classmanagement.backend.service.TeacherActivityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +39,7 @@ public class RequestServiceImpl implements RequestService {
     private final ClassroomRepository classroomRepository;
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
+    private final TeacherActivityService activityService;
 
 @Override
 @Transactional
@@ -162,6 +164,14 @@ public void rejectJoinClassRequest(Long requestId, String username) {
             .read(false)
             .build());
 
+    activityService.record(
+            request.getReceiver().getId(),
+            "REJECT",
+            "CLASSROOM",
+            classroom.getId(),
+            classroom.getId(),
+            "Từ chối yêu cầu tham gia lớp: " + classroom.getName()
+                    + " — " + request.getSender().getFullName());
     deleteJoinRequest(detail);
 }
 
@@ -189,6 +199,14 @@ public void approveJoinClassRequest(Long requestId, String username) {
             .referenceId(classroom.getId())
             .read(false)
             .build());
+    activityService.record(
+            request.getReceiver().getId(),
+            "APPROVE",
+            "CLASSROOM",
+            classroom.getId(),
+            classroom.getId(),
+            "Duyệt yêu cầu tham gia lớp: " + classroom.getName()
+                    + " — " + request.getSender().getFullName());
     deleteJoinRequest(detail);
 }
 

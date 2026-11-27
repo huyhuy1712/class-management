@@ -64,6 +64,7 @@ export default function MissionManagementPage() {
     ),
     onSuccess: () => {
       refresh()
+      queryClient.invalidateQueries({ queryKey: ['adminAudit'] })
       setModalMode(null)
       setEditing(null)
       setForm(emptyForm)
@@ -99,6 +100,7 @@ export default function MissionManagementPage() {
     },
     onSuccess: () => {
       refresh()
+      queryClient.invalidateQueries({ queryKey: ['adminAudit'] })
       setDeletingMission(null)
     },
   })
